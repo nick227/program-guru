@@ -63,6 +63,12 @@ export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance
   app.setErrorHandler((err: any, request, reply) => {
     let error = err
     const requestId = String(request.id)
+    // Binary media streams may fail after headers/body started: destroy the socket, do not resend JSON.
+    if (reply.raw.headersSent || reply.sent) {
+      request.log.error({ err: error }, 'error after response started')
+      if (!reply.raw.writableEnded) reply.raw.destroy()
+      return
+    }
     if (error.validation) {
       const fieldErrors: Record<string, string> = {}
       for (const v of error.validation) {

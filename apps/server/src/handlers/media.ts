@@ -31,17 +31,38 @@ export async function updateMedia(request: any) {
 }
 export async function getMediaUrl(request: any) {
   const viewer = await resolveViewer(request)
-  return { data: await media.deliveryUrl(viewer?.id ?? null, request.params.mediaId) }
+  return { data: await media.deliveryUrl(viewer?.id ?? null, request.params.mediaId, request.query.publicationId) }
 }
 export async function getMediaFile(request: any, reply: FastifyReply) {
   const { mediaId, variant } = request.params as { mediaId: string; variant: MediaVariantName }
-  if (!verifyMediaSignature(mediaId, variant, Number(request.query.exp), request.query.sig)) throw notFound('Media')
-  const file = await media.fileForDelivery(mediaId, variant)
-  if ('redirect' in file) return reply.redirect(file.redirect!)
-  reply.header('cache-control', 'private, max-age=3600')
+  const context = { ...(request.query.viewerId ? { viewerId: request.query.viewerId } : {}), ...(request.query.publicationId ? { publicationId: request.query.publicationId } : {}) }
+  if (!verifyMediaSignature(mediaId, variant, Number(request.query.exp), request.query.sig, context)) throw notFound('Media')
+  const viewer = context.viewerId ?? (await resolveViewer(request))?.id ?? null
+  // Re-authorize on every fetch (revocation, blocks, lapsed membership), then serve the range.
+  await media.authorizeDelivery(viewer, mediaId, context.publicationId)
+  const file = await media.fileForDelivery(mediaId, variant, request.headers.range)
+  reply.header('cache-control', 'private, no-store')
   reply.header('x-content-type-options', 'nosniff')
-  if (file.size !== null) reply.header('content-length', String(file.size))
-  return reply.type(file.mime!).send(file.stream)
+  reply.header('accept-ranges', 'bytes')
+  if ('unsatisfiable' in file) {
+    reply.header('content-range', `bytes */${file.size}`)
+    return reply.code(416).send()
+  }
+  if ('range' in file && file.range) {
+    reply.code(206)
+    reply.header('content-range', `bytes ${file.range.start}-${file.range.end}/${file.size}`)
+    reply.header('content-length', String(file.range.end - file.range.start + 1))
+  } else {
+    reply.header('content-length', String(file.size))
+  }
+  const stream = file.stream!
+  // Mid-stream I/O errors after headers: destroy the socket; never leave an unhandled stream error
+  // and never attempt a JSON error body once bytes have started.
+  stream.on('error', (err) => {
+    request.log.error({ err }, 'media stream failed')
+    if (!reply.raw.writableEnded) reply.raw.destroy()
+  })
+  return reply.type(file.mime!).send(stream)
 }
 export async function deleteMedia(request: any) {
   await media.remove(uid(request), request.params.mediaId)
@@ -70,4 +91,8 @@ export async function listPendingPublications(request: any) {
 }
 export async function moderateMediaPublication(request: any) {
   return { data: await media.moderate(uid(request), request.params.publicationId, request.body) }
+}
+
+export async function listMediaAttachments(request: any) {
+  return media.listAttachments(uid(request), request.query)
 }

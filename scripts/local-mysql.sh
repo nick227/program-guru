@@ -11,6 +11,7 @@
 #   scripts/local-mysql.sh status     show whether it is running and its version
 #   scripts/local-mysql.sh autostart  install and enable a systemd user service (start on login)
 #   scripts/local-mysql.sh shell      open a root client session
+#   scripts/local-mysql.sh create-database NAME   an extra programs_app_* database for isolated runs (.env untouched)
 set -euo pipefail
 
 VERSION="8.4.13"
@@ -192,5 +193,10 @@ case "${1:-}" in
   status)    status ;;
   autostart) autostart ;;
   shell)     client ;;
+  create-database)
+    name="${2:-}"
+    [[ "${name}" =~ ^programs_app_[a-z0-9_]+$ ]] || die "Name must look like programs_app_<suffix>"
+    client -e "CREATE DATABASE IF NOT EXISTS \`${name}\`; GRANT ALL PRIVILEGES ON \`${name}\`.* TO '${APP_USER}'@'localhost'; GRANT ALL PRIVILEGES ON \`${name}\`.* TO '${APP_USER}'@'127.0.0.1';"
+    log "Database ${name} ready for ${APP_USER}" ;;
   *) sed -n '2,14p' "$0"; exit 1 ;;
 esac

@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { Readable } from 'stream'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, testAdminId } from './helpers'
 import { makeMedia, seedCatalog } from './helpers/fixtures'
 import { drain } from '../worker/outbox'
 import { contractCase } from './helpers/contract'
+import { mediaUrl } from '../domains/media/urls'
+import { storage } from '../infrastructure/storage'
 
 const app = buildTestApp()
 let cat: Awaited<ReturnType<typeof seedCatalog>>
@@ -160,6 +163,87 @@ describe('private media on results (01 §6 required test 4)', () => {
     const after = (await req('GET', `/calendar-items/${bobsItem.id}/occurrence`, undefined, testOtherUserId)).json().data
     expect(after.sharedMedia.map((m: any) => m.id)).toEqual([t.mediaId])
     expect((await req('GET', `/media/${t.mediaId}/url`, undefined, testOtherUserId)).statusCode).toBe(200)
+  })
+})
+
+describe('signed file delivery resilience', () => {
+  async function platformWithThumb(keys: { original: string; thumb: string }, writeThumb?: Buffer) {
+    const m = await db.mediaAsset.create({
+      data: {
+        type: 'PHOTO',
+        originalStorageKey: keys.original,
+        mime: 'image/png',
+        byteSize: 32,
+        state: 'READY',
+        ownerId: null,
+        license: 'CC0',
+        attribution: 'Platform',
+        alt: 'fixture',
+      },
+    })
+    await db.mediaVariant.create({
+      data: {
+        mediaId: m.id,
+        kind: 'THUMB',
+        storageKey: keys.thumb,
+        mime: 'image/webp',
+        byteSize: writeThumb?.length ?? 16,
+        width: 48,
+        height: 48,
+      },
+    })
+    if (writeThumb) await storage().write(keys.thumb, Readable.from(writeThumb), writeThumb.length)
+    return m
+  }
+
+  it('returns a controlled 404 when the thumb object is missing, and keeps serving', async () => {
+    const m = await platformWithThumb({
+      original: 'platform/missing-original.png',
+      thumb: 'platform/missing-thumb.webp',
+    })
+    const res = await app.inject({ method: 'GET', url: path(mediaUrl(m.id, 'thumb')!) })
+    expect(res.statusCode).toBe(404)
+    expect(res.json()).toMatchObject({ code: 'NOT_FOUND' })
+    expect((await app.inject({ method: 'GET', url: '/health' })).statusCode).toBe(200)
+    // A second miss must not crash either (the original defect killed the process on retry).
+    expect((await app.inject({ method: 'GET', url: path(mediaUrl(m.id, 'thumb')!) })).statusCode).toBe(404)
+  })
+
+  it('serves a valid thumbnail with the declared content type', async () => {
+    const bytes = Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64')
+    const m = await platformWithThumb(
+      { original: 'platform/ok-original.png', thumb: 'platform/ok-thumb.webp' },
+      bytes,
+    )
+    const res = await app.inject({ method: 'GET', url: path(mediaUrl(m.id, 'thumb')!) })
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toMatch(/image\/webp/)
+    expect(res.rawPayload.equals(bytes)).toBe(true)
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
+  })
+
+  it('returns 404 for an invalid storage key without leaking the path', async () => {
+    const m = await platformWithThumb({
+      original: 'platform/ok.png',
+      thumb: '../etc/passwd',
+    })
+    const res = await app.inject({ method: 'GET', url: path(mediaUrl(m.id, 'thumb')!) })
+    expect(res.statusCode).toBe(404)
+    expect(res.json()).toMatchObject({ code: 'NOT_FOUND' })
+    expect(JSON.stringify(res.json())).not.toMatch(/etc\/passwd|EINVAL/)
+  })
+
+  it('serves concurrent thumbnail requests without error', async () => {
+    const bytes = Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00])
+    const m = await platformWithThumb(
+      { original: 'platform/concurrent.png', thumb: 'platform/concurrent-thumb.webp' },
+      bytes,
+    )
+    const url = path(mediaUrl(m.id, 'thumb')!)
+    const results = await Promise.all(Array.from({ length: 20 }, () => app.inject({ method: 'GET', url })))
+    expect(results.every((r) => r.statusCode === 200)).toBe(true)
+    expect(results.every((r) => r.rawPayload.equals(bytes))).toBe(true)
+    expect((await app.inject({ method: 'GET', url: '/health' })).statusCode).toBe(200)
   })
 })
 

@@ -9,11 +9,13 @@ const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 
 type Job = { name: string; everyMs: number; run: () => Promise<unknown>; last: number }
+// Intervals are overridable (WORKER_<NAME>_EVERY_MS) so verification runs can exercise each job quickly.
+const every = (name: string, fallback: number) => Number(process.env[`WORKER_${name.toUpperCase()}_EVERY_MS`] ?? fallback)
 const jobs: Job[] = [
-  { name: 'reminders', everyMs: MINUTE, run: async () => [await timedReminders(), await dailySummaries()], last: 0 },
-  { name: 'horizons', everyMs: HOUR, run: extendHorizons, last: 0 },
-  { name: 'stats', everyMs: HOUR, run: programStats, last: 0 },
-  { name: 'cleanup', everyMs: 6 * HOUR, run: cleanup, last: 0 },
+  { name: 'reminders', everyMs: every('reminders', MINUTE), run: async () => [await timedReminders(), await dailySummaries()], last: 0 },
+  { name: 'horizons', everyMs: every('horizons', HOUR), run: extendHorizons, last: 0 },
+  { name: 'stats', everyMs: every('stats', HOUR), run: programStats, last: 0 },
+  { name: 'cleanup', everyMs: every('cleanup', 6 * HOUR), run: cleanup, last: 0 },
 ]
 
 let stopping = false
@@ -33,7 +35,7 @@ async function tick() {
 }
 
 async function main() {
-  console.log('[worker] started')
+  console.log(`[worker] started (storage: ${process.env.STORAGE_PROVIDER ?? 'local'}${process.env.STORAGE_DIR ? ` at ${process.env.STORAGE_DIR}` : ''})`)
   while (!stopping) {
     try {
       await tick()

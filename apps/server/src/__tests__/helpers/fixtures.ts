@@ -1,6 +1,8 @@
 // Minimal seeded catalog for domain tests: Fitness → Workout → Strength, two metrics, a timer
 // tool, and two published platform Activities (Squats, Leg Raises).
+import { Readable } from 'stream'
 import { db } from '@project/db'
+import { storage } from '../../infrastructure/storage'
 
 /** The catalog seeded by seedCatalog, if a test file already created it in its own hooks. */
 export async function existingCatalog(): Promise<Awaited<ReturnType<typeof seedCatalog>> | null> {
@@ -28,8 +30,36 @@ export async function seedCatalog() {
   const reps = await db.metricDefinition.create({ data: { key: 'repetitions', label: 'Reps', valueType: 'INTEGER', unit: 'reps', aggregation: 'SUM', betterDirection: 'HIGHER' } })
   const duration = await db.metricDefinition.create({ data: { key: 'duration', label: 'Duration', valueType: 'DURATION', unit: 's', aggregation: 'SUM' } })
   const timer = await db.toolDefinition.create({ data: { key: 'TIMER', label: 'Timer', componentKey: 'timer' } })
+  // Bytes on disk before the row: never leave an ownerless MediaAsset pointing at a missing key.
+  const illustrationBytes = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  )
+  await storage().write('platform/squats.png', Readable.from(illustrationBytes), illustrationBytes.length)
   const illustration = await db.mediaAsset.create({
-    data: { type: 'PHOTO', originalStorageKey: 'platform/squats.png', mime: 'image/png', byteSize: 100, state: 'READY', license: 'CC0', attribution: 'Platform', alt: 'Squat illustration' },
+    data: {
+      type: 'PHOTO',
+      originalStorageKey: 'platform/squats.png',
+      mime: 'image/png',
+      byteSize: illustrationBytes.length,
+      state: 'READY',
+      license: 'CC0',
+      attribution: 'Platform',
+      alt: 'Squat illustration',
+    },
+  })
+  const thumbBytes = Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64')
+  await storage().write('platform/squats-thumb.webp', Readable.from(thumbBytes), thumbBytes.length)
+  await db.mediaVariant.create({
+    data: {
+      mediaId: illustration.id,
+      kind: 'THUMB',
+      storageKey: 'platform/squats-thumb.webp',
+      mime: 'image/webp',
+      byteSize: thumbBytes.length,
+      width: 1,
+      height: 1,
+    },
   })
 
   async function platformActivity(slug: string, title: string, instructions: string[]) {

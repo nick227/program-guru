@@ -147,7 +147,7 @@ describe('Adopting a Program (01 §6 required test 1)', () => {
     const { ws } = await buildProgram()
     const v1 = (await publish(ws.id)).json().data.latestPublishedVersionId
     const joined = (await bob.post(`/programs/${ws.id}/enrollments`, { programVersionId: v1, startLocalDate: '2026-11-09', timezone: 'America/Chicago', idempotencyKey: 'join-update' })).json().data
-    let draft = (await alice.get(`/programs/${ws.id}/workspace`)).json().data
+    const draft = (await alice.get(`/programs/${ws.id}/workspace`)).json().data
     await alice.del(`/programs/${ws.id}/draft/activities/${cat.squats.activity.id}?expectedRevision=${draft.draftRevision}`)
     const v2 = (await publish(ws.id)).json().data.latestPublishedVersionId
     expect(v2).not.toBe(v1)

@@ -7,7 +7,7 @@ import { enqueue } from '../../lib/outbox'
 import { canUseActivity, isOwner as isActivityOwner } from '../activities/access'
 import { achievementInclude, evaluate, toAchievement } from './achievements'
 import { itemDto } from './calendar.service'
-import { mediaUrl } from '../media/urls'
+import { ownerThumb } from '../media/media.service'
 
 type Tx = Prisma.TransactionClient
 type Action = 'START' | 'PAUSE' | 'RESUME' | 'FINISH' | 'ABANDON'
@@ -188,7 +188,7 @@ const toEntry = (e: EntryRow) => ({
   recordedAt: e.recordedAt.toISOString(),
   notes: e.notes,
   values: e.values.map((v) => ({ metricDefinitionId: v.metricDefinitionId, key: v.metric.key, label: v.metric.label, value: valueOf(v)!, unit: v.unit ?? v.metric.unit })),
-  media: e.attachments.map((a) => ({ id: a.media.id, thumbnailUrl: a.media.state === 'READY' ? mediaUrl(a.media.id) : null, type: a.media.type, durationMs: a.media.durationMs, alt: a.media.alt ?? '', canSelect: true })),
+  media: e.attachments.map((a) => ({ id: a.media.id, thumbnailUrl: ownerThumb(a.media), type: a.media.type, durationMs: a.media.durationMs, alt: a.media.alt ?? '', canSelect: true })),
 })
 
 export async function get(userId: string, sessionId: string) {

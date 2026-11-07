@@ -1842,7 +1842,7 @@ export interface paths {
         };
         /**
          * Get a media file
-         * @description Signed delivery URL (from any mediaUrl in API responses). The signature authorizes the request; storage keys are never exposed. Streams the file, or redirects to a short-lived storage URL.
+         * @description Signed delivery URL with origin authorization rechecked on each fetch. Optional viewerId and publicationId are signature-bound; clients must use the URL unchanged. Streams both local and remote objects without cacheable redirects.
          */
         get: operations["getMediaFile"];
         put?: never;
@@ -1902,11 +1902,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List attachment links for an owned target
+         * @description Owner-only management projection, including published targets and unavailable asset status. Ordered by position then ID. Detaching from a published revision still requires an editable draft.
+         */
+        get: operations["listMediaAttachments"];
         put?: never;
         /**
          * Create media attachment
-         * @description Attaching never changes who can see the asset.
+         * @description Requires READY media and target ownership. No publication is created. Repeating the same media, target and purpose returns the existing attachment; a conflicting explicit position returns 409. Database uniqueness protects concurrent retries.
          */
         post: operations["createMediaAttachment"];
         delete?: never;
@@ -3546,6 +3550,8 @@ export interface components {
             position?: number;
         };
         MediaAttachment: {
+            mediaState: components["schemas"]["MediaState"];
+            mediaDeleted: boolean;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -7335,8 +7341,13 @@ export interface operations {
             query: {
                 exp: number;
                 sig: string;
+                viewerId?: string;
+                publicationId?: string;
             };
-            header?: never;
+            header?: {
+                /** @description Optional single byte range, e.g. `bytes=0-1023`. */
+                range?: string;
+            };
             path: {
                 mediaId: string;
                 variant: "thumb" | "poster" | "stream" | "original";
@@ -7354,15 +7365,24 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
-            /** @description Redirect to a short-lived storage URL */
-            302: {
+            /** @description Partial content for a `Range: bytes=start-end` request (media playback and seeking) */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            /** @description Requested range not satisfiable */
+            416: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
         };
     };
     getMedia: {
@@ -7482,6 +7502,38 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMediaAttachments: {
+        parameters: {
+            query: {
+                targetKind: components["schemas"]["AttachmentTargetKind"];
+                targetId: string;
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated attachment links */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaAttachment"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };
