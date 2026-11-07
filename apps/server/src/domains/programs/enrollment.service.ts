@@ -37,9 +37,9 @@ async function ownEnrollment(userId: string, enrollmentId: string) {
   return e
 }
 
-async function joinableVersion(viewerId: string, programId: string, versionId: string) {
+export async function joinableVersion(viewerId: string, programId: string, versionId: string, opts: { invited?: boolean } = {}) {
   const p = await db.program.findUnique({ where: { id: programId }, include: { policy: true } })
-  if (!p || !(await canSeeProgram(viewerId, p))) throw notFound('Program')
+  if (!p || p.moderatedAt || (!opts.invited && !(await canSeeProgram(viewerId, p)))) throw notFound('Program')
   if (p.status !== 'PUBLISHED') throw forbidden('This program is not open for new participants')
   const version = await db.programVersion.findFirst({
     where: { id: versionId, programId, publishedAt: { not: null } },
@@ -94,6 +94,62 @@ export async function preview(userId: string, programId: string, input: { progra
   }
 }
 
+
+type JoinableProgram = Awaited<ReturnType<typeof joinableVersion>>
+
+/**
+ * Entitlement check, OPEN grant, enrollment row and calendar materialization, inside the caller's
+ * transaction so a group acceptance can create membership and enrollment together or not at all.
+ */
+export async function enrollInTx(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  program: JoinableProgram['program'],
+  version: JoinableProgram['version'],
+  input: { startLocalDate: string; timezone: string; groupId: string | null },
+) {
+  const programId = program.id
+  const owner = isProgramOwner(program, userId)
+  const mode = program.policy?.accessMode ?? 'OPEN'
+  if (!owner && mode !== 'OPEN') {
+    const grant = await tx.programAccessGrant.findFirst({ where: { userId, programId, ...activeGrantWhere() } })
+    if (!grant) throw new AppError(mode === 'PAID' ? 'PAYMENT_REQUIRED' : 'ACCESS_REQUIRED', mode === 'PAID' ? 'Unlock this program to join' : 'Request access to join')
+  }
+  if (!owner && mode === 'OPEN') {
+    // Joining an open Program is its entitlement (07 §5); one grant per user and Program.
+    await tx.programAccessGrant.upsert({
+      where: { source_sourceRef: { source: 'OPEN', sourceRef: activeKey(userId, programId) } },
+      create: { userId, programId, source: 'OPEN', sourceRef: activeKey(userId, programId) },
+      update: { revokedAt: null },
+    })
+  }
+  let e: ProgramEnrollment
+  try {
+    e = await tx.programEnrollment.create({
+      data: {
+        userId,
+        programId,
+        programVersionId: version.id,
+        groupId: input.groupId,
+        startLocalDate: toDbDate(input.startLocalDate),
+        timezone: input.timezone,
+        status: 'ACTIVE',
+        activeKey: activeKey(userId, programId),
+      },
+    })
+  } catch (err: any) {
+    if (err?.code === 'P2002') throw conflict('You are already following this program')
+    throw err
+  }
+  await materializeEnrollment(tx, e, version, version.items, { through: addDays(todayIn(input.timezone), HORIZON_DAYS) })
+  await enqueue(tx, 'EnrollmentCreated', { enrollmentId: e.id, userId, programId, groupId: e.groupId })
+  return e
+}
+
+export async function enrollmentDto(e: ProgramEnrollment) {
+  return toEnrollment(e)
+}
+
 export async function join(
   userId: string,
   programId: string,
@@ -109,8 +165,6 @@ export async function join(
     load: async (id) => toEnrollment(await db.programEnrollment.findUniqueOrThrow({ where: { id } })),
     run: async () => {
       const { program, version } = await joinableVersion(userId, programId, input.programVersionId)
-      const owner = isProgramOwner(program, userId)
-      const mode = program.policy?.accessMode ?? 'OPEN'
       if (input.groupId) {
         const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: input.groupId, userId } }, include: { group: true } })
         if (!member || member.status !== 'ACTIVE' || member.group.status !== 'ACTIVE') throw badRequest('Join the group first', { groupId: 'not a member' })
@@ -120,41 +174,10 @@ export async function join(
           throw badRequest(`This group starts on ${fromDbDate(member.group.startLocalDate)}`, { startLocalDate: 'must match the group start date' })
         }
       }
-      const enrollment = await db.$transaction(async (tx) => {
-        if (!owner && mode !== 'OPEN') {
-          const grant = await tx.programAccessGrant.findFirst({ where: { userId, programId, ...activeGrantWhere() } })
-          if (!grant) throw new AppError(mode === 'PAID' ? 'PAYMENT_REQUIRED' : 'ACCESS_REQUIRED', mode === 'PAID' ? 'Unlock this program to join' : 'Request access to join')
-        }
-        if (!owner && mode === 'OPEN') {
-          // Joining an open Program is its entitlement (07 §5); one grant per user and Program.
-          await tx.programAccessGrant.upsert({
-            where: { source_sourceRef: { source: 'OPEN', sourceRef: activeKey(userId, programId) } },
-            create: { userId, programId, source: 'OPEN', sourceRef: activeKey(userId, programId) },
-            update: { revokedAt: null },
-          })
-        }
-        let e: ProgramEnrollment
-        try {
-          e = await tx.programEnrollment.create({
-            data: {
-              userId,
-              programId,
-              programVersionId: version.id,
-              groupId: input.groupId ?? null,
-              startLocalDate: toDbDate(input.startLocalDate),
-              timezone: input.timezone,
-              status: 'ACTIVE',
-              activeKey: activeKey(userId, programId),
-            },
-          })
-        } catch (err: any) {
-          if (err?.code === 'P2002') throw conflict('You are already following this program')
-          throw err
-        }
-        await materializeEnrollment(tx, e, version, version.items, { through: addDays(todayIn(input.timezone), HORIZON_DAYS) })
-        await enqueue(tx, 'EnrollmentCreated', { enrollmentId: e.id, userId, programId, groupId: e.groupId })
-        return e
-      }, { timeout: 30_000 })
+      const enrollment = await db.$transaction(
+        (tx) => enrollInTx(tx, userId, program, version, { startLocalDate: input.startLocalDate, timezone: input.timezone, groupId: input.groupId ?? null }),
+        { timeout: 30_000 },
+      )
       return { ref: enrollment.id, result: await toEnrollment(enrollment) }
     },
   })

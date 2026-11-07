@@ -404,6 +404,119 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /users/me/group-invitations:
+    get:
+      operationId: listMyGroupInvitations
+      summary: List group invitations addressed to me
+      tags:
+      - groups
+      description: Pending, unexpired USER invitations and EMAIL invitations to the viewer's verified address,
+        newest first, each with its join state.
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReceivedGroupInvitation'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/me/group-invitations/{invitationId}/accept:
+    post:
+      operationId: acceptMyGroupInvitation
+      summary: Accept a group invitation addressed to me
+      tags:
+      - groups
+      description: Same rules as acceptGroupInvitation, addressed by invitation id instead of token.
+      parameters:
+      - in: path
+        name: invitationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptGroupInvitationInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GroupDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /users/me/group-invitations/{invitationId}/decline:
+    post:
+      operationId: declineMyGroupInvitation
+      summary: Decline a group invitation addressed to me
+      tags:
+      - groups
+      parameters:
+      - in: path
+        name: invitationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Ack'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /users/me/follow-requests:
     get:
       operationId: listMyFollowRequests
@@ -3985,7 +4098,53 @@ paths:
       summary: Accept group invitation
       tags:
       - groups
-      description: Never bypasses Program access. Continues to the enrollment flow.
+      description: Never bypasses Program access. Check `join.status` on the preview first; send `enrollment` when the
+        participant must confirm or choose a schedule.
+      parameters:
+      - in: path
+        name: token
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptGroupInvitationInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GroupDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /group-invitations/{token}/decline:
+    post:
+      operationId: declineGroupInvitation
+      summary: Decline group invitation
+      tags:
+      - groups
+      description: USER and EMAIL invitations only; a join link is simply not used.
       parameters:
       - in: path
         name: token
@@ -4005,7 +4164,7 @@ paths:
                 - data
                 properties:
                   data:
-                    $ref: '#/components/schemas/GroupDetail'
+                    $ref: '#/components/schemas/Ack'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -5952,6 +6111,7 @@ components:
       enum:
       - PENDING
       - ACCEPTED
+      - DECLINED
       - REVOKED
       - EXPIRED
     MemberDayStatus:
@@ -8878,6 +9038,7 @@ components:
       - joinLinkEnabled
       - members
       - mySharedCompletion
+      - myEnrollment
       properties:
         id:
           type: string
@@ -8914,6 +9075,114 @@ components:
             $ref: '#/components/schemas/GroupMember'
         mySharedCompletion:
           type: boolean
+        myEnrollment:
+          description: The viewer's enrollment linked to this group, or null when they follow it without one
+            (for example a Program owner hosting the group).
+          anyOf:
+          - $ref: '#/components/schemas/GroupEnrollmentLink'
+          - type: 'null'
+    GroupEnrollmentLink:
+      type: object
+      required:
+      - enrollmentId
+      - startLocalDate
+      - startDateDiffers
+      properties:
+        enrollmentId:
+          type: string
+          format: uuid
+        startLocalDate:
+          type: string
+          format: date
+        startDateDiffers:
+          type: boolean
+          description: True when a SYNC group's shared start date differs from this personal schedule; label by
+            Program Day.
+    GroupJoinState:
+      type: object
+      description: What the viewer must do to join (10-COLLABORATION.md §3).
+      required:
+      - status
+      - enrollmentId
+      - startLocalDate
+      - startDateDiffers
+      properties:
+        status:
+          type: string
+          enum:
+          - SIGN_IN_REQUIRED
+          - UNAVAILABLE
+          - ACCESS_REQUIRED
+          - PAYMENT_REQUIRED
+          - ALREADY_MEMBER
+          - READY_TO_JOIN
+          - CONFIRM_ENROLLMENT
+          - SELECT_SCHEDULE
+          - ENROLLED_OTHER_VERSION
+          - LEAVE_OTHER_GROUP
+        enrollmentId:
+          description: The viewer's live enrollment in this Program, when there is one.
+          type:
+          - string
+          - 'null'
+          format: uuid
+        startLocalDate:
+          description: The fixed start date to confirm (SYNC), or the existing enrollment's start date.
+          type:
+          - string
+          - 'null'
+          format: date
+        startDateDiffers:
+          type: boolean
+    AcceptGroupInvitationInput:
+      type: object
+      description: '`enrollment` is required when `join.status` is CONFIRM_ENROLLMENT or SELECT_SCHEDULE and ignored
+        otherwise. Membership and enrollment are created together or not at all.'
+      properties:
+        enrollment:
+          type: object
+          required:
+          - timezone
+          - idempotencyKey
+          properties:
+            startLocalDate:
+              description: Required for ASYNC groups. For SYNC groups it may be omitted and must equal the group's
+                start date if given.
+              type: string
+              format: date
+            timezone:
+              type: string
+              minLength: 1
+              maxLength: 64
+            idempotencyKey:
+              type: string
+              minLength: 8
+              maxLength: 120
+          additionalProperties: false
+      additionalProperties: false
+    ReceivedGroupInvitation:
+      type: object
+      description: A pending USER or EMAIL invitation addressed to the viewer.
+      required:
+      - id
+      - kind
+      - expiresAt
+      - groupId
+      - preview
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          $ref: '#/components/schemas/InviteKind'
+        expiresAt:
+          type: string
+          format: date-time
+        groupId:
+          type: string
+          format: uuid
+        preview:
+          $ref: '#/components/schemas/InvitationPreview'
     CreateGroupInput:
       type: object
       required:
@@ -9016,6 +9285,7 @@ components:
       - startLocalDate
       - canAccept
       - requiresAccess
+      - join
       properties:
         groupName:
           type:
@@ -9036,6 +9306,8 @@ components:
           type: boolean
         requiresAccess:
           type: boolean
+        join:
+          $ref: '#/components/schemas/GroupJoinState'
     CompletionShare:
       type: object
       description: 'Activity, day, and status only: never metric values.'

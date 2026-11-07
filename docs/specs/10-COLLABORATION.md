@@ -16,7 +16,7 @@ Example: “30 Days — 10 Push-ups + 10 Sit-ups.” Group owner creates a group
 |---|---|---|
 | `ProgramGroup` | id, programVersionId, ownerId, name?, mode SYNC/ASYNC, startLocalDate?, timezone?, joinLinkEnabled, status ACTIVE/CLOSED, createdAt | Group tied to one Program Version; not a separate Program |
 | `GroupMember` | groupId, userId, role OWNER/MEMBER, status ACTIVE/LEFT/REMOVED (pending invites live in `GroupInvitation`), joinedAt?, sharedCompletionEnabled | Exactly one row per pair; participation/access checked |
-| `GroupInvitation` | id, groupId, kind USER/EMAIL/LINK, invitedUserId?, invitedEmailHash?, tokenHash, expiresAt, status PENDING/ACCEPTED/REVOKED/EXPIRED, createdAt | USER and EMAIL are single-use; LINK is reusable until revoked or expired; no email disclosure in public API |
+| `GroupInvitation` | id, groupId, kind USER/EMAIL/LINK, invitedUserId?, invitedEmailHash?, tokenHash, expiresAt, status PENDING/ACCEPTED/DECLINED/REVOKED/EXPIRED, createdAt | USER and EMAIL are single-use; LINK is reusable until revoked or expired; at most one pending USER/EMAIL invitation per invitee and group; no email disclosure in public API |
 | `CompletionShare` | id, groupId, occurrenceKey, calendarItemId, userId, activityId, programDayIndex, completedAt, revokedAt? | Minimal completion event, never metric detail; unique per calendarItemId |
 | `CompletionReaction` | completionShareId, userId, emoji, createdAt | Unique per share, user, emoji; emoji from a small fixed set |
 
@@ -30,7 +30,25 @@ Occurrence key is stable across members, not a user's Calendar Item ID: `program
 
 **Joining, three ways:** invite an existing user by handle; invite by email address; share a join link. All three end at the same acceptance flow.
 
-**Invitation:** PENDING → ACCEPTED or REVOKED/EXPIRED. `Accept` requires signed-in matching intended user, or a valid link token. If the Program is locked, access (approval or payment) is obtained before active membership; an invitation never bypasses entitlement. Expired tokens cannot be replayed. Acceptance continues to the enrollment and Calendar confirm flow, and states plainly that completion will be visible to members and can be turned off.
+**Invitation:** PENDING → ACCEPTED, DECLINED (by the invitee, USER/EMAIL only), REVOKED (by its creator or the group owner) or EXPIRED (14 days; swept by the worker and never accepted after expiry). `Accept` requires signed-in matching intended user, or a valid link token. A USER invitee finds the invitation in the app (their received invitations) without needing the token. If the Program is locked, access (approval or payment) is obtained before active membership; an invitation never bypasses entitlement. Expired tokens cannot be replayed. Acceptance states plainly that completion will be visible to members and can be turned off. New joins are blocked when the group is closed or the Program is archived, moderated, or no longer published.
+
+**Join state.** Before accepting, the service tells the participant exactly what is needed (`join.status`):
+
+| Status | Meaning | Accept |
+|---|---|---|
+| `SIGN_IN_REQUIRED` | Viewer is anonymous | Not possible |
+| `UNAVAILABLE` | Group closed, Program archived/moderated/unpublished | Refused (`404`) |
+| `ACCESS_REQUIRED` / `PAYMENT_REQUIRED` | Locked Program without entitlement | Refused until access is granted |
+| `ALREADY_MEMBER` | Already an active member | Returns the group; nothing changes |
+| `READY_TO_JOIN` | Already following this Program Version, not in another group for it | Joins and links the existing enrollment; the calendar is not changed. If a SYNC group's start date differs, `startDateDiffers` is true and the UI labels Program Days |
+| `CONFIRM_ENROLLMENT` | SYNC group, not yet following | The participant confirms the group's start date and timezone; accept carries the enrollment |
+| `SELECT_SCHEDULE` | ASYNC group, not yet following | The participant chooses a start date and timezone; accept carries the enrollment |
+| `ENROLLED_OTHER_VERSION` | Following a different version of this Program | Refused (`409`); leave or update that enrollment first |
+| `LEAVE_OTHER_GROUP` | Following this version with another active group | Refused (`409`); leave the other group first |
+
+When enrollment is needed, membership, entitlement, enrollment and calendar items are created in **one transaction** after the participant confirmed the schedule: a validation or scheduling failure leaves no membership, enrollment, or calendar items behind. Calendar items are never created without that confirmation.
+
+**Leaving and removal** take effect on the next request: group views, completions, reactions, shared media, comments and signed URLs stop. The member's enrollment is unlinked (its group occurrence keys cleared) and their completion shares to the group are revoked; their calendar, sessions, results and media are untouched. Pending invitations the departing member created are revoked. Removal also revokes pending invitations addressed to the removed user; a removed member cannot rejoin through a join link, and only the group owner can invite them again.
 
 **Completion:** participant finishes one Activity occurrence → personal result saved → service checks `sharedCompletionEnabled` and active membership → creates a minimal `CompletionShare` for that occurrence (activity, program day, status only) → members can react. Each Activity occurrence shares separately; there is no whole-day share. Turning sharing off or undoing the completion sets `revokedAt`, which hides it; this never changes the member's personal log.
 
@@ -95,7 +113,7 @@ interface CompletionDao {
 
 `GroupService`: invitations, membership, synchronous/asynchronous join policy. `CompletionSharingService`: share policy, reactions, and emitted events; consumes `SessionFinished`.
 
-Endpoints: `GET|POST /groups`, `GET|PATCH /groups/:id` (includes members), `PATCH /groups/:id/members/me`, `DELETE /groups/:id/members/:userId`, `GET|POST /groups/:id/invitations`, `DELETE /groups/:id/invitations/:invitationId`, `GET /group-invitations/:token`, `POST /group-invitations/:token/accept`, `GET /groups/:id/completions`, `POST /completion-shares/:id/reactions`, `DELETE /completion-shares/:id/reactions/:emoji`, `GET /groups/:id/media`. Comments use `/media-publications/:id/comments`.
+Endpoints: `GET|POST /groups`, `GET|PATCH /groups/:id` (includes members), `PATCH /groups/:id/members/me`, `DELETE /groups/:id/members/:userId`, `GET|POST /groups/:id/invitations`, `DELETE /groups/:id/invitations/:invitationId`, `GET /group-invitations/:token`, `POST /group-invitations/:token/accept`, `POST /group-invitations/:token/decline`, `GET /users/me/group-invitations`, `POST /users/me/group-invitations/:id/accept`, `POST /users/me/group-invitations/:id/decline` (accept takes an optional `enrollment { startLocalDate?, timezone, idempotencyKey }`), `GET /groups/:id/completions`, `POST /completion-shares/:id/reactions`, `DELETE /completion-shares/:id/reactions/:emoji`, `GET /groups/:id/media`. Comments use `/media-publications/:id/comments`.
 
 ## 7. Tests
 
@@ -103,7 +121,8 @@ Endpoints: `GET|POST /groups`, `GET|PATCH /groups/:id` (includes members), `PATC
 - Completion shares are per Activity occurrence; no collision across groups or activities; three Activities on a Program Day share separately.
 - `SYNC` and `ASYNC` have correct day labels when start dates differ.
 - Membership removed: group media, comments, and signed URLs return no unauthorized data.
-- Handle, email, and link invitations: single-use where specified, expiry, revoke, blocked user, no enrollment access bypass.
+- Handle, email, and link invitations: single-use where specified, expiry, revoke, decline, duplicate pending invitations refused, blocked user, no enrollment access bypass.
+- Accept → enrollment → personal calendar in one step; an existing enrollment links without calendar changes; enrollment or schedule failure leaves no membership; removed members cannot rejoin by link.
 - Reaction and comment auth, idempotency, moderation/rate limits; undoing a completion hides its share.
 - Solo Activity page never displays empty collaborator/Shared Media placeholders.
 - Notifications deep-link to authorized activity and do not leak private metrics in payload.

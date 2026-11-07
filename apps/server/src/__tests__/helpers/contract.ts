@@ -93,8 +93,8 @@ export class World {
     const p = await this.program()
     const g = await this.ok('alice', 'POST', '/groups', { programVersionId: p.versionId, mode: 'SYNC', name: 'World crew' })
     const inv = await this.ok('alice', 'POST', `/groups/${g.id}/invitations`, { kind: 'USER', handle: 'bob' })
-    await this.ok('bob', 'POST', `/group-invitations/${inv.joinUrl.split('/join/')[1]}/accept`)
-    await this.ok('bob', 'POST', `/programs/${p.id}/enrollments`, { programVersionId: p.versionId, startLocalDate: START, timezone: 'America/Chicago', groupId: g.id, idempotencyKey: 'world-bob-group-join' })
+    // One step: membership, enrollment and calendar together (10 §3).
+    await this.ok('bob', 'POST', `/group-invitations/${inv.joinUrl.split('/join/')[1]}/accept`, { enrollment: { timezone: 'America/Chicago', idempotencyKey: 'world-bob-group-join' } })
     return g as { id: string }
   })
   linkInvite = () => this.once('linkInvite', async () => {
@@ -359,7 +359,27 @@ export const cases: Record<string, Case> = {
   createGroupInvitation: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: `/groups/${(await w.group()).id}/invitations`, payload: { kind: 'EMAIL', email: 'friend@example.com' } }) },
   revokeGroupInvitation: { as: 'alice', protected: true, request: async (w) => ({ method: 'DELETE', url: `/groups/${(await w.group()).id}/invitations/${(await w.linkInvite()).id}` }) },
   getGroupInvitation: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/group-invitations/${(await w.linkInvite()).token}` }) },
-  acceptGroupInvitation: { as: 'carol', protected: true, request: async (w) => ({ method: 'POST', url: `/group-invitations/${(await w.linkInvite()).token}/accept` }) },
+  declineGroupInvitation: { as: 'carol', protected: true, request: async (w) => {
+    const g = await w.group()
+    const inv = await w.ok('alice', 'POST', `/groups/${g.id}/invitations`, { kind: 'USER', handle: 'carol' })
+    return { method: 'POST', url: `/group-invitations/${inv.joinUrl.split('/join/')[1]}/decline` }
+  } },
+  listMyGroupInvitations: { as: 'carol', protected: true, request: async (w) => {
+    const g = await w.group()
+    await w.ok('alice', 'POST', `/groups/${g.id}/invitations`, { kind: 'USER', handle: 'carol' })
+    return { method: 'GET', url: '/users/me/group-invitations' }
+  } },
+  acceptMyGroupInvitation: { as: 'carol', protected: true, request: async (w) => {
+    const g = await w.group()
+    const inv = await w.ok('alice', 'POST', `/groups/${g.id}/invitations`, { kind: 'USER', handle: 'carol' })
+    return { method: 'POST', url: `/users/me/group-invitations/${inv.id}/accept`, payload: { enrollment: { timezone: 'America/Chicago', idempotencyKey: 'contract-carol-accept-mine' } } }
+  } },
+  declineMyGroupInvitation: { as: 'carol', protected: true, request: async (w) => {
+    const g = await w.group()
+    const inv = await w.ok('alice', 'POST', `/groups/${g.id}/invitations`, { kind: 'USER', handle: 'carol' })
+    return { method: 'POST', url: `/users/me/group-invitations/${inv.id}/decline` }
+  } },
+  acceptGroupInvitation: { as: 'carol', protected: true, request: async (w) => ({ method: 'POST', url: `/group-invitations/${(await w.linkInvite()).token}/accept`, payload: { enrollment: { timezone: 'America/Chicago', idempotencyKey: 'contract-carol-accept' } } }) },
   listGroupCompletions: { as: 'bob', protected: true, request: async (w) => (await w.share(), { method: 'GET', url: `/groups/${(await w.group()).id}/completions` }) },
   addCompletionReaction: { as: 'bob', protected: true, request: async (w) => ({ method: 'POST', url: `/completion-shares/${(await w.share()).id}/reactions`, payload: { emoji: '👏', idempotencyKey: 'contract-reaction' } }) },
   removeCompletionReaction: { as: 'bob', protected: true, request: async (w) => { const s = await w.share(); await w.ok('bob', 'POST', `/completion-shares/${s.id}/reactions`, { emoji: '👏', idempotencyKey: 'contract-reaction-2' }); return { method: 'DELETE', url: `/completion-shares/${s.id}/reactions/${encodeURIComponent('👏')}` } } },

@@ -287,8 +287,8 @@ async function main() {
   await ok(alice, 'POST', `/programs/${starter.id}/enrollments`, { programVersionId: preview.latestVersionId, startLocalDate: today, timezone: 'America/Chicago', idempotencyKey: 'e2e-alice-join' })
   const group = await ok(alice, 'POST', '/groups', { programVersionId: preview.latestVersionId, mode: 'SYNC' })
   const invite = await ok(alice, 'POST', `/groups/${group.id}/invitations`, { kind: 'USER', handle: bob.handle })
-  await ok(bob, 'POST', `/group-invitations/${invite.joinUrl.split('/join/')[1]}/accept`)
-  await ok(bob, 'POST', `/programs/${starter.id}/enrollments`, { programVersionId: preview.latestVersionId, startLocalDate: today, timezone: 'America/Chicago', groupId: group.id, idempotencyKey: 'e2e-bob-join' })
+  // One step: membership, enrollment and calendar (10-COLLABORATION.md §3).
+  await ok(bob, 'POST', `/group-invitations/${invite.joinUrl.split('/join/')[1]}/accept`, { enrollment: { timezone: 'America/Chicago', idempotencyKey: 'e2e-bob-join' } })
   const aliceItem = await db.calendarItem.findFirstOrThrow({ where: { ownerId: alice.id, groupOccurrenceKey: { not: null } }, orderBy: [{ localDate: 'asc' }] })
   const bobItem = await db.calendarItem.findFirstOrThrow({ where: { ownerId: bob.id, groupOccurrenceKey: aliceItem.groupOccurrenceKey } })
 

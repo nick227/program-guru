@@ -6,6 +6,7 @@ import { storage } from '../infrastructure/storage'
 import { addDays, fromDbDate, todayIn, toDbDate } from '../lib/time'
 import { HORIZON_DAYS, materializeEnrollment } from '../domains/calendar/materialize'
 import { materializeRecurrence } from '../domains/calendar/recurrence'
+import { expireInvitations } from '../domains/groups/group.service'
 import { unsubscribeToken } from '../domains/social/notification.service'
 import { appUrl } from './handlers'
 import { notify } from './notify'
@@ -176,6 +177,7 @@ export async function cleanup(now = new Date()) {
   await db.session.deleteMany({ where: { expiresAt: { lt: now } } })
   await db.idempotencyKey.deleteMany({ where: { expiresAt: { lt: now } } })
   await db.authToken.deleteMany({ where: { expiresAt: { lt: new Date(now.getTime() - 7 * 86_400_000) } } })
+  const expiredInvitations = await expireInvitations(now)
   const abandoned = await db.mediaAsset.findMany({ where: { state: 'UPLOADING', uploadExpiresAt: { lt: new Date(now.getTime() - 3600_000) } } })
   for (const m of abandoned) {
     await storage().remove(m.originalStorageKey).catch(() => {})
@@ -186,5 +188,5 @@ export async function cleanup(now = new Date()) {
     for (const key of [m.originalStorageKey, ...m.variants.map((v) => v.storageKey)]) await storage().remove(key).catch(() => {})
     await db.mediaVariant.deleteMany({ where: { mediaId: m.id } })
   }
-  return { abandoned: abandoned.length, purged: purge.length }
+  return { abandoned: abandoned.length, purged: purge.length, expiredInvitations }
 }
