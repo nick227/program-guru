@@ -56,6 +56,7 @@ export const queryKeys = {
   group: (id: string) => ['groups', id] as const,
   groupInvitations: (id: string) => ['groups', id, 'invitations'] as const,
   groupInvitation: (token: string) => ['group-invitations', token] as const,
+  myGroupInvitations: ['users', 'me', 'group-invitations'] as const,
   groupCompletions: (id: string, occurrenceKey = '') =>
     ['groups', id, 'completions', occurrenceKey] as const,
   groupMedia: (id: string, occurrenceKey = '') =>

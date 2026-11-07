@@ -67,7 +67,33 @@ export function useUpdateMyGroupMembership(groupId: string) {
           body,
         }),
       ).data,
-    [keys.groups, keys.group(groupId), keys.calendar, keys.occurrences],
+    [
+      keys.groups,
+      keys.group(groupId),
+      keys.enrollments,
+      keys.programs,
+      keys.calendar,
+      keys.occurrences,
+    ],
+  )
+}
+
+export function useRemoveGroupMember(groupId: string) {
+  return useApiMutation(
+    async (userId: string) =>
+      apiData(
+        await getApiClient().DELETE('/groups/{groupId}/members/{userId}', {
+          params: { path: { groupId, userId } },
+        }),
+      ).data,
+    [
+      keys.groups,
+      keys.group(groupId),
+      keys.groupInvitations(groupId),
+      keys.groupCompletions(groupId),
+      keys.calendar,
+      keys.occurrences,
+    ],
   )
 }
 
@@ -131,20 +157,118 @@ export function useGroupInvitation(token: string) {
 
 export function useAcceptGroupInvitation() {
   return useApiMutation(
-    async (token: string) =>
-      apiData(
+    async (
+      input:
+        | string
+        | {
+            token: string
+            enrollment?: S['AcceptGroupInvitationInput']['enrollment']
+          },
+    ) => {
+      const token = typeof input === 'string' ? input : input.token
+      const body =
+        typeof input === 'string' || !input.enrollment
+          ? undefined
+          : { enrollment: input.enrollment }
+      return apiData(
         await getApiClient().POST('/group-invitations/{token}/accept', {
           params: { path: { token } },
+          body,
         }),
-      ).data,
+      ).data
+    },
     [
       keys.groups,
+      keys.myGroupInvitations,
       keys.programs,
       keys.enrollments,
       keys.calendar,
+      keys.occurrences,
       keys.notifications,
       keys.unreadCount,
     ],
+  )
+}
+
+export function useDeclineGroupInvitation() {
+  return useApiMutation(
+    async (token: string) =>
+      apiData(
+        await getApiClient().POST('/group-invitations/{token}/decline', {
+          params: { path: { token } },
+        }),
+      ).data,
+    [keys.myGroupInvitations, keys.notifications, keys.unreadCount],
+  )
+}
+
+export function useMyGroupInvitations(enabled = true) {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.myGroupInvitations),
+    enabled,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/users/me/group-invitations', {
+          signal,
+          params: { query: { cursor: pageParam, limit: 20 } },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+
+export function useAcceptMyGroupInvitation() {
+  return useApiMutation(
+    async (
+      input:
+        | string
+        | {
+            invitationId: string
+            enrollment?: S['AcceptGroupInvitationInput']['enrollment']
+          },
+    ) => {
+      const invitationId =
+        typeof input === 'string' ? input : input.invitationId
+      const body =
+        typeof input === 'string' || !input.enrollment
+          ? undefined
+          : { enrollment: input.enrollment }
+      return apiData(
+        await getApiClient().POST(
+          '/users/me/group-invitations/{invitationId}/accept',
+          {
+            params: { path: { invitationId } },
+            body,
+          },
+        ),
+      ).data
+    },
+    [
+      keys.groups,
+      keys.myGroupInvitations,
+      keys.programs,
+      keys.enrollments,
+      keys.calendar,
+      keys.occurrences,
+      keys.notifications,
+      keys.unreadCount,
+    ],
+  )
+}
+
+export function useDeclineMyGroupInvitation() {
+  return useApiMutation(
+    async (invitationId: string) =>
+      apiData(
+        await getApiClient().POST(
+          '/users/me/group-invitations/{invitationId}/decline',
+          {
+            params: { path: { invitationId } },
+          },
+        ),
+      ).data,
+    [keys.myGroupInvitations, keys.notifications, keys.unreadCount],
   )
 }
 

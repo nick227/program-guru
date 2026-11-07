@@ -28,9 +28,9 @@ All `Notification.deepLink` targets emitted by `apps/server/src/worker/handlers.
 | `ACTIVITY_REMINDER` | `/occurrences/:occurrenceId` | [`OccurrencePage`](../apps/web/src/pages/Occurrence.tsx) |
 | `DAILY_REMINDER` | `/calendar` | [`CalendarPage`](../apps/web/src/pages/Calendar.tsx) |
 | `PROGRAM_PUBLISHED`, `PROGRAM_UPDATED`, `ENROLLMENT_RESTARTED` | `/programs/:slug` | [`ProgramPage`](../apps/web/src/pages/Program.tsx) (includes `Update available` banner with `Accept update` / `Dismiss`) |
-| `GROUP_INVITE` (email/link) | `/join/:token` | [`GroupInvitationPage`](../apps/web/src/pages/Group.tsx) (invitation preview, privacy disclosure, `Join Group`) |
-| `GROUP_INVITE` (handle) | `/groups/:id/invitations/:invitationId` | [`GroupPage`](../apps/web/src/pages/Group.tsx) (group detail + token acceptance fallback when invitee is not yet an active member) |
-| `GROUP_INVITE_ACCEPTED`, `GROUP_MEMBER_JOINED`, `GROUP_MEMBER_COMPLETED` | `/groups/:id` | [`GroupPage`](../apps/web/src/pages/Group.tsx) (members, completion sharing toggle, group mute toggle, completions feed with emoji reactions) |
+| `GROUP_INVITE` (email/link) | `/join/:token` | [`GroupInvitationJoinPage`](../apps/web/src/pages/Group.tsx) (invitation preview, privacy disclosure, `join.status`-driven schedule confirmation, `Accept invitation` / `Decline invitation`) |
+| `GROUP_INVITE` (handle) | `/groups/:id/invitations/:invitationId` | [`GroupPage`](../apps/web/src/pages/Group.tsx) (loads received invitation via `GET /users/me/group-invitations`, drives acceptance via `POST /users/me/group-invitations/:invitationId/accept` and `join.status`, and links directly to the user's personal Calendar) |
+| `GROUP_INVITE_ACCEPTED`, `GROUP_MEMBER_JOINED`, `GROUP_MEMBER_COMPLETED` | `/groups/:id` | [`GroupPage`](../apps/web/src/pages/Group.tsx) (members, personal schedule card, completion sharing toggle, group mute toggle, leave/remove controls, completions feed with Program Day labels and emoji reactions) |
 | `COMPLETION_REACTION` | `/occurrences/:occurrenceId` | [`OccurrencePage`](../apps/web/src/pages/Occurrence.tsx) (shows collaborator reactions on the completion) |
 | `GROUP_MEDIA_SHARED`, `GROUP_MEDIA_COMMENT`, `CONTRIBUTION_APPROVED` | `/media/:publicationId` | [`MediaPublicationPage`](../apps/web/src/pages/MediaPublication.tsx) |
 | `FOLLOW_REQUEST` | `/settings/follow-requests` | [`SettingsPage`](../apps/web/src/pages/Settings.tsx) (`#follow-requests` section with `Approve` / `Decline`) |
@@ -54,12 +54,18 @@ All `Notification.deepLink` targets emitted by `apps/server/src/worker/handlers.
 - Removed the 60-second `refetchInterval` timer from `useUnreadNotificationCount()` in [`packages/sdk/src/hooks/useNotifications.ts`](../packages/sdk/src/hooks/useNotifications.ts).
 - Relies on `refetchOnWindowFocus: true` and targeted React Query invalidations when opening the notification panel, marking notifications read, joining/updating enrollments, accepting invitations, or updating preferences.
 
-## 5. Audited Backend Contract Notes
+## 5. Group Invitation & Participation Integration (`b4fcc98`)
 
-- **Handle-based `GROUP_INVITE` deep link (`/groups/{groupId}/invitations/{invitationId}`)**:
-  - When a group member invites a user by handle (`kind: 'USER'`), `group.service.ts` hashes the invitation token (`sha256(token)`) before storing `GroupInvitation` and emits an outbox event containing `{ groupId, invitationId }` (without the raw `token`).
-  - `apps/server/src/worker/handlers.ts` sets `deepLink: /groups/${p.groupId}/invitations/${p.invitationId}`.
-  - However, `GET /groups/{groupId}` requires an `ACTIVE` group membership (`activeMember`), and `POST /group-invitations/{token}/accept` requires the raw invitation `token` (not `invitationId`).
-  - **Frontend Handling**: Rather than inventing local state or modifying backend contracts, [`GroupPage`](../apps/web/src/pages/Group.tsx) handles `/groups/:id/invitations/:invitationId` gracefully and, if `GET /groups/:id` returns `404` while the user is still `INVITED`, explains the invitation link requirement and lets the user paste the raw invitation link/token to redirect to `/join/:token`.
-  - **Recommended Backend Follow-up**: Add `POST /groups/{groupId}/invitations/{invitationId}/accept` (authenticated for `invitedUserId === req.user.id`) or include a short-lived signed token in the `GROUP_INVITE` outbox payload so handle-based invitations can be accepted in one click without the raw link token.
+- **Handle-based & Received Invitations (`/groups/{groupId}/invitations/{invitationId}` & `GET /users/me/group-invitations`)**:
+  - When a user opens `/groups/:id/invitations/:invitationId` (or `/groups/:id` with a pending invitation), [`GroupPage`](../apps/web/src/pages/Group.tsx) queries `useMyGroupInvitations()` (`GET /users/me/group-invitations`) to render the received `InvitationPreview` without requiring a raw link token.
+  - Acceptance calls `useAcceptMyGroupInvitation()` (`POST /users/me/group-invitations/{invitationId}/accept`) and decline calls `useDeclineMyGroupInvitation()` (`POST /users/me/group-invitations/{invitationId}/decline`).
+- **`join.status`-Driven Enrollment & Schedule Confirmation**:
+  - Both `/join/:token` (`GroupInvitationJoinPage`) and `/groups/:id/invitations/:invitationId` (`GroupPage`) drive their decision controls from `preview.join.status`:
+    - `CONFIRM_ENROLLMENT` (`SYNC` group): Displays the group's shared start date and timezone selector, sending `{ enrollment: { startLocalDate, timezone, idempotencyKey } }` on acceptance.
+    - `SELECT_SCHEDULE` (`ASYNC` group): Displays start date and timezone controls so the participant chooses their own schedule on acceptance.
+    - `READY_TO_JOIN`: Links the user's existing active enrollment for the Program without altering their personal calendar dates (highlighting `Program Day` comparison when `startDateDiffers` is true).
+    - `ALREADY_MEMBER`, `SIGN_IN_REQUIRED`, `ACCESS_REQUIRED`, `PAYMENT_REQUIRED`, `ENROLLED_OTHER_VERSION`, `LEAVE_OTHER_GROUP`, `UNAVAILABLE`: Renders contextual guidance and actions.
+- **Leaving & Member Removal**:
+  - Leaving (`PATCH /groups/{groupId}/members/me` `{ leave: true }`) or owner removal (`DELETE /groups/{groupId}/members/{userId}`) immediately revokes group access (`GET /groups/{groupId}` returns `404`), unlinks the enrollment, and revokes group completion shares while preserving the participant's personal calendar items, sessions, results, and media.
+
 

@@ -145,6 +145,7 @@ try {
     ...env,
     NOTIFICATIONS_TEST_EMAIL: participantEmail,
     NOTIFICATIONS_COLLAB_EMAIL: collaboratorEmail,
+    NOTIFICATIONS_COLLAB_HANDLE: `collab_${suffix}`,
     NOTIFICATIONS_TEST_PASSWORD: password,
   }
 

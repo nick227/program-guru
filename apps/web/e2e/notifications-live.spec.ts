@@ -22,15 +22,16 @@ function currentClock(tz: string) {
   }
 }
 
-test('live API + worker: adoption prompt, timed reminder across timezone, milestone notification, group invite & participation, preference persistence, and mark read', async ({
+test('live API + worker: handle invitation notification → ID-based acceptance → personal calendar, removal/leave access revocation preserving personal history, timed reminders, and preferences', async ({
   page,
   browser,
 }) => {
   const api = process.env.NOTIFICATIONS_TEST_API!
   const email = process.env.NOTIFICATIONS_TEST_EMAIL!
   const collabEmail = process.env.NOTIFICATIONS_COLLAB_EMAIL!
+  const collabHandle = process.env.NOTIFICATIONS_COLLAB_HANDLE!
   const password = process.env.NOTIFICATIONS_TEST_PASSWORD!
-  if (!api || !email || !collabEmail || !password) {
+  if (!api || !email || !collabEmail || !collabHandle || !password) {
     throw new Error('Run apps/web/scripts/notifications-live.ts with an isolated database.')
   }
 
@@ -133,7 +134,7 @@ test('live API + worker: adoption prompt, timed reminder across timezone, milest
     )
     .toEqual(expect.arrayContaining(['ACTIVITY_REMINDER', 'ACHIEVEMENT_EARNED']))
 
-  // 3. Create a Group and invite collaborator via real invitation link
+  // 3. Create a SYNC Group and invite collaborator by handle (kind: 'USER')
   const programDetailRes = await page.request.get(`${api}/programs/${program.id}`)
   expect(programDetailRes.ok()).toBe(true)
   const programDetail = (await programDetailRes.json()).data
@@ -142,33 +143,157 @@ test('live API + worker: adoption prompt, timed reminder across timezone, milest
     data: {
       programVersionId: programDetail.latestVersionId,
       name: 'Live Morning Crew',
-      mode: 'ASYNC',
+      mode: 'SYNC',
+      startLocalDate: clock.date,
     },
   })
   expect(groupRes.ok()).toBe(true)
   const group = (await groupRes.json()).data
 
-  const inviteRes = await page.request.post(`${api}/groups/${group.id}/invitations`, {
-    data: {
-      kind: 'LINK',
-    },
-  })
-  expect(inviteRes.ok()).toBe(true)
-  const invitation = (await inviteRes.json()).data
-  expect(invitation.joinUrl).toBeTruthy()
-  const joinPath = new URL(invitation.joinUrl, 'http://localhost').pathname
+  // Owner invites collaborator by handle in the Group UI
+  await page.goto(`/groups/${group.id}`)
+  await page.getByLabel('Invite by handle').fill(collabHandle)
+  await page.getByRole('button', { name: 'Invite user' }).click()
+  await expect(page.getByText(`@${collabHandle}`)).toBeVisible()
 
-  // Collaborator accepts the group invitation in a separate browser context
+  // 4. Collaborator receives GROUP_INVITE notification, opens it -> confirms schedule & accepts by ID -> opens personal calendar
   const collabContext = await browser.newContext()
   const collabPage = await collabContext.newPage()
   await login(collabPage, collabEmail, password)
-  await collabPage.goto(joinPath)
-  await expect(collabPage.getByRole('heading', { name: 'Live Morning Crew' })).toBeVisible()
+
+  // Poll until worker emits GROUP_INVITE for collaborator
+  await expect
+    .poll(
+      async () => {
+        const res = await collabPage.request.get(`${api}/notifications`)
+        if (!res.ok()) return []
+        const body = await res.json()
+        return (body.data as Array<{ type: string }>).map((n) => n.type)
+      },
+      { timeout: 15_000 },
+    )
+    .toEqual(expect.arrayContaining(['GROUP_INVITE']))
+
+  await collabPage.goto('/notifications')
+  await collabPage.getByRole('link', { name: /invited you/i }).click()
+  await expect(collabPage).toHaveURL(
+    new RegExp(`/groups/${group.id}/invitations/`),
+  )
+
+  // Driven by join.status === 'CONFIRM_ENROLLMENT', collaborator confirms schedule and accepts by invitation ID
+  await expect(
+    collabPage.getByRole('heading', { name: 'Live Morning Crew' }),
+  ).toBeVisible()
+  await expect(
+    collabPage.getByRole('heading', { name: 'Confirm your schedule' }),
+  ).toBeVisible()
   await collabPage.getByRole('button', { name: 'Accept invitation' }).click()
-  await expect(collabPage).toHaveURL(new RegExp(`/programs/${program.id}`))
+
+  // Transitions to active group page with Your Personal Schedule -> Open Calendar
+  await expect(collabPage).toHaveURL(new RegExp(`/groups/${group.id}$`))
+  await expect(
+    collabPage.getByRole('heading', { name: 'Your Personal Schedule' }),
+  ).toBeVisible()
+  await collabPage.getByRole('link', { name: 'Open Calendar' }).click()
+  await expect(
+    collabPage.getByRole('heading', { name: 'Your week', exact: true }),
+  ).toBeVisible()
+
+  // Verify collaborator's personal calendar has the Program's scheduled items
+  const windowEnd = new Date(
+    Date.parse(`${clock.date}T00:00:00Z`) + 14 * 86_400_000,
+  )
+    .toISOString()
+    .slice(0, 10)
+  const collabItemsBefore = (
+    await (
+      await collabPage.request.get(
+        `${api}/calendar/items?start=${clock.date}&end=${windowEnd}`,
+      )
+    ).json()
+  ).data as Array<{ id: string; title: string }>
+  expect(collabItemsBefore.length).toBeGreaterThan(0)
+
+  // Collaborator leaves the group -> group access is revoked immediately while personal calendar items stay intact
+  await collabPage.goto(`/groups/${group.id}`)
+  await collabPage.getByRole('button', { name: 'Leave group' }).click()
+  await expect(
+    collabPage.getByRole('heading', { name: 'Your week', exact: true }),
+  ).toBeVisible()
+
+  // Group endpoints now return 404 for collaborator
+  const afterLeaveGroupRes = await collabPage.request.get(`${api}/groups/${group.id}`)
+  expect(afterLeaveGroupRes.status()).toBe(404)
+  await collabPage.goto(`/groups/${group.id}`)
+  await expect(
+    collabPage.getByRole('heading', { name: 'Group Unavailable' }),
+  ).toBeVisible()
+
+  // Personal calendar history is untouched
+  const collabItemsAfter = (
+    await (
+      await collabPage.request.get(
+        `${api}/calendar/items?start=${clock.date}&end=${windowEnd}`,
+      )
+    ).json()
+  ).data as Array<{ id: string; title: string }>
+  expect(collabItemsAfter.map((i) => i.id)).toEqual(
+    collabItemsBefore.map((i) => i.id),
+  )
+
+  // Re-invite collaborator by handle -> now join.status === 'READY_TO_JOIN' (links existing enrollment)
+  await page.goto(`/groups/${group.id}`)
+  await page.getByLabel('Invite by handle').fill(collabHandle)
+  await page.getByRole('button', { name: 'Invite user' }).click()
+  await expect(page.getByText(`@${collabHandle}`)).toBeVisible()
+
+  const receivedInvitesRes = await collabPage.request.get(
+    `${api}/users/me/group-invitations`,
+  )
+  expect(receivedInvitesRes.ok()).toBe(true)
+  const receivedInvites = (await receivedInvitesRes.json()).data as Array<{
+    id: string
+    groupId: string
+    preview: { join: { status: string } }
+  }>
+  const rejoinInvite = receivedInvites.find((inv) => inv.groupId === group.id)
+  expect(rejoinInvite?.preview.join.status).toBe('READY_TO_JOIN')
+
+  await collabPage.goto(`/groups/${group.id}/invitations/${rejoinInvite!.id}`)
+  await expect(
+    collabPage.getByText(
+      /Accepting links your existing personal calendar without changing your scheduled dates/i,
+    ),
+  ).toBeVisible()
+  await collabPage.getByRole('button', { name: 'Accept invitation' }).click()
+  await expect(collabPage).toHaveURL(new RegExp(`/groups/${group.id}$`))
+
+  // Owner removes collaborator from the group -> group access revoked, personal calendar history intact
+  await page.reload()
+  await page
+    .getByRole('button', { name: 'Remove Collaborator Tester' })
+    .click()
+  await expect(
+    page.getByRole('button', { name: 'Remove Collaborator Tester' }),
+  ).toHaveCount(0)
+
+  const afterRemoveGroupRes = await collabPage.request.get(
+    `${api}/groups/${group.id}`,
+  )
+  expect(afterRemoveGroupRes.status()).toBe(404)
+  const collabItemsAfterRemove = (
+    await (
+      await collabPage.request.get(
+        `${api}/calendar/items?start=${clock.date}&end=${windowEnd}`,
+      )
+    ).json()
+  ).data as Array<{ id: string; title: string }>
+  expect(collabItemsAfterRemove.map((i) => i.id)).toEqual(
+    collabItemsBefore.map((i) => i.id),
+  )
   await collabContext.close()
 
-  // Poll until worker emits MEMBER_JOINED for participant
+  // 5. Poll until worker emits MEMBER_JOINED for participant and verify Inbox & Mark all read
   await expect
     .poll(
       async () => {
@@ -180,28 +305,23 @@ test('live API + worker: adoption prompt, timed reminder across timezone, milest
     )
     .toEqual(expect.arrayContaining(['MEMBER_JOINED']))
 
-  // 4. Verify Inbox page in browser UI
   await page.goto('/notifications')
   await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible()
 
-  // Filter by Reminders tab
   await page.getByRole('tab', { name: 'Reminders' }).click()
   await expect(page.getByText(new RegExp(`Time for ${activity.title}`))).toBeVisible()
 
-  // Filter by Achievements tab
   await page.getByRole('tab', { name: 'Achievements' }).click()
   await expect(page.getByText(/First step/i)).toBeVisible()
 
-  // Filter by Groups tab
   await page.getByRole('tab', { name: 'Groups' }).click()
-  await expect(page.getByText(/joined/i)).toBeVisible()
+  await expect(page.getByText(/joined/i).first()).toBeVisible()
 
-  // Switch back to Unread and Mark all read
   await page.getByRole('tab', { name: 'Unread' }).click()
   await page.getByRole('button', { name: 'Mark all read' }).click()
   await expect(page.getByText('No unread notifications.')).toBeVisible()
 
-  // 5. Verify Preferences persistence on /settings against live API
+  // 6. Verify Preferences persistence on /settings against live API
   await page.goto('/settings')
   await page.getByLabel('Timezone').selectOption('America/New_York')
   await page.getByLabel('Daily reminder time').fill('06:45')

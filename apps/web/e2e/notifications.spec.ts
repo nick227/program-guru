@@ -12,6 +12,8 @@ const activityId = uid(20)
 const itemId = uid(30)
 const enrollmentId = uid(40)
 const groupId = uid(70)
+const inviteGroupId = uid(71)
+const invitationId = uid(72)
 const shareId = uid(80)
 const achievementId = uid(90)
 const followReqId = uid(95)
@@ -26,6 +28,8 @@ async function setupNotificationsMock(
   let sharedAchievement = false
   let followReqPending = true
   let reacted = false
+  let joinedInvitedGroup = false
+  let leftInvitedGroup = false
 
   let prefs: S['UserPreferences'] = {
     timezone: 'America/Chicago',
@@ -74,7 +78,7 @@ async function setupNotificationsMock(
       actor: coach,
       createdAt: '2026-11-07T13:00:00Z',
       readAt: null,
-      deepLink: `/join/invite-token-123`,
+      deepLink: `/groups/${inviteGroupId}/invitations/${invitationId}`,
     },
     {
       id: uid(104),
@@ -421,54 +425,98 @@ async function setupNotificationsMock(
       } satisfies S['Enrollment'])
     }
 
-    if (path === '/group-invitations/invite-token-123' && method === 'GET') {
-      return send({
-        groupName: 'Morning Crew',
-        inviter: coach,
-        program: {
-          ...programSummary,
-          description: 'Progressive strength program.',
-          latestVersionId: uid(19),
-          safeActivityOutline: [],
-          enrollmentCount: 8,
-          completionRate: 0.75,
-          canJoin: true,
-          canRequestAccess: false,
-          canPurchase: false,
-          myEnrollmentId: enrollmentId,
-        },
-        mode: 'SYNC',
+    const invitePreview: S['InvitationPreview'] = {
+      groupName: 'Morning Crew',
+      inviter: coach,
+      program: {
+        ...programSummary,
+        description: 'Progressive strength program.',
+        latestVersionId: uid(19),
+        safeActivityOutline: [],
+        enrollmentCount: 8,
+        completionRate: 0.75,
+        canJoin: true,
+        canRequestAccess: false,
+        canPurchase: false,
+        myEnrollmentId: null,
+      },
+      mode: 'SYNC',
+      startLocalDate: '2026-11-07',
+      canAccept: true,
+      requiresAccess: false,
+      join: {
+        status: 'CONFIRM_ENROLLMENT',
+        enrollmentId: null,
         startLocalDate: '2026-11-07',
-        canAccept: true,
-        requiresAccess: false,
-      } satisfies S['InvitationPreview'])
+        startDateDiffers: false,
+      },
+    }
+
+    const buildGroupDetail = (targetGroupId: string): S['GroupDetail'] => ({
+      id: targetGroupId,
+      programVersionId: uid(19),
+      programTitle: 'Strength Foundation',
+      name: 'Morning Crew',
+      mode: 'SYNC',
+      memberCount: 2,
+      myRole: 'MEMBER',
+      startLocalDate: '2026-11-07',
+      timezone: prefs.timezone,
+      joinLinkEnabled: true,
+      members: [
+        {
+          user: coach,
+          role: 'OWNER',
+          status: 'ACTIVE',
+          sharedCompletion: true,
+        },
+      ],
+      mySharedCompletion: true,
+      myEnrollment: {
+        enrollmentId,
+        startLocalDate: '2026-11-07',
+        startDateDiffers: false,
+      },
+    })
+
+    if (path === '/users/me/group-invitations' && method === 'GET') {
+      return send(
+        joinedInvitedGroup || leftInvitedGroup
+          ? ([] satisfies S['ReceivedGroupInvitation'][])
+          : ([
+              {
+                id: invitationId,
+                kind: 'USER',
+                expiresAt: '2026-11-21T00:00:00Z',
+                groupId: inviteGroupId,
+                preview: invitePreview,
+              },
+            ] satisfies S['ReceivedGroupInvitation'][]),
+        200,
+        { hasMore: false, nextCursor: null },
+      )
+    }
+
+    if (
+      path === `/users/me/group-invitations/${invitationId}/accept` &&
+      method === 'POST'
+    ) {
+      if (!body.enrollment) {
+        return error(400, 'VALIDATION_ERROR', 'Confirm your schedule to join this group')
+      }
+      joinedInvitedGroup = true
+      return send(buildGroupDetail(inviteGroupId))
+    }
+
+    if (path === '/group-invitations/invite-token-123' && method === 'GET') {
+      return send(invitePreview)
     }
 
     if (
       path === '/group-invitations/invite-token-123/accept' &&
       method === 'POST'
     ) {
-      return send({
-        id: groupId,
-        programVersionId: uid(19),
-        programTitle: 'Strength Foundation',
-        name: 'Morning Crew',
-        mode: 'SYNC',
-        memberCount: 2,
-        myRole: 'MEMBER',
-        startLocalDate: '2026-11-07',
-        timezone: prefs.timezone,
-        joinLinkEnabled: true,
-        members: [
-          {
-            user: coach,
-            role: 'OWNER',
-            status: 'ACTIVE',
-            sharedCompletion: true,
-          },
-        ],
-        mySharedCompletion: true,
-      } satisfies S['GroupDetail'])
+      return send(buildGroupDetail(groupId))
     }
 
     if (path === '/groups' && method === 'GET') {
@@ -489,35 +537,37 @@ async function setupNotificationsMock(
       )
     }
 
-    if (path === `/groups/${groupId}` && method === 'GET') {
-      return send({
-        id: groupId,
-        programVersionId: uid(19),
-        programTitle: 'Strength Foundation',
-        name: 'Morning Crew',
-        mode: 'SYNC',
-        memberCount: 2,
-        myRole: 'MEMBER',
-        startLocalDate: '2026-11-07',
-        timezone: prefs.timezone,
-        joinLinkEnabled: true,
-        members: [
-          {
-            user: coach,
-            role: 'OWNER',
-            status: 'ACTIVE',
-            sharedCompletion: true,
-          },
-        ],
-        mySharedCompletion: true,
-      } satisfies S['GroupDetail'])
+    if (path === `/groups/${inviteGroupId}` && method === 'GET') {
+      if (!joinedInvitedGroup || leftInvitedGroup) {
+        return error(404, 'NOT_FOUND', 'Group not found')
+      }
+      return send(buildGroupDetail(inviteGroupId))
     }
 
-    if (path === `/groups/${groupId}/invitations` && method === 'GET') {
+    if (path === `/groups/${inviteGroupId}/members/me` && method === 'PATCH') {
+      if (body.leave) {
+        leftInvitedGroup = true
+      }
+      return send(buildGroupDetail(inviteGroupId))
+    }
+
+    if (path === `/groups/${groupId}` && method === 'GET') {
+      return send(buildGroupDetail(groupId))
+    }
+
+    if (
+      (path === `/groups/${groupId}/invitations` ||
+        path === `/groups/${inviteGroupId}/invitations`) &&
+      method === 'GET'
+    ) {
       return send([] satisfies S['GroupInvitation'][])
     }
 
-    if (path === `/groups/${groupId}/invitations` && method === 'POST') {
+    if (
+      (path === `/groups/${groupId}/invitations` ||
+        path === `/groups/${inviteGroupId}/invitations`) &&
+      method === 'POST'
+    ) {
       return send(
         {
           id: uid(75),
@@ -531,7 +581,14 @@ async function setupNotificationsMock(
       )
     }
 
-    if (path === `/groups/${groupId}/completions` && method === 'GET') {
+    if (
+      (path === `/groups/${groupId}/completions` ||
+        path === `/groups/${inviteGroupId}/completions`) &&
+      method === 'GET'
+    ) {
+      if (path.includes(inviteGroupId) && (!joinedInvitedGroup || leftInvitedGroup)) {
+        return error(404, 'NOT_FOUND', 'Group not found')
+      }
       return send(
         [
           {
@@ -764,17 +821,25 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
     page.getByRole('heading', { name: 'Update available' }),
   ).toHaveCount(0)
 
-  // 2. Navigate from Group Invitation notification -> /join/:token and accept invitation
+  // 2. Navigate from handle-based Group Invitation notification -> /groups/:id/invitations/:invitationId, confirm schedule, accept by ID, open personal calendar, and verify leaving revokes group access while preserving personal history
   await page.goto('/notifications')
   await page
     .getByRole('link', { name: 'Coach Maya invited you to Morning Crew' })
     .click()
-  await expect(page).toHaveURL(/\/join\/invite-token-123$/)
+  await expect(page).toHaveURL(
+    new RegExp(`/groups/${inviteGroupId}/invitations/${invitationId}$`),
+  )
   await expect(page.getByText(/Group members can see your name/)).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Confirm your schedule' }),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Accept invitation' }).click()
-  await expect(page).toHaveURL(new RegExp(`/groups/${groupId}$`))
+  await expect(page).toHaveURL(new RegExp(`/groups/${inviteGroupId}$`))
   await expect(
     page.getByRole('heading', { name: 'Morning Crew' }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Your Personal Schedule' }),
   ).toBeVisible()
 
   // React to group completion in Group view
@@ -783,6 +848,29 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
   })
   await clapBtn.click()
   await expect(clapBtn).toHaveAttribute('aria-pressed', 'true')
+
+  // Open Calendar from the group schedule panel -> personal calendar items are present
+  await page.getByRole('link', { name: 'Open Calendar' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Your week', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: /Morning Squats/ }).first(),
+  ).toBeVisible()
+
+  // Leave group -> group access is revoked (404 Group Unavailable), personal calendar items stay intact
+  await page.goto(`/groups/${inviteGroupId}`)
+  await page.getByRole('button', { name: 'Leave group' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Your week', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: /Morning Squats/ }).first(),
+  ).toBeVisible()
+  await page.goto(`/groups/${inviteGroupId}`)
+  await expect(
+    page.getByRole('heading', { name: 'Group Unavailable' }),
+  ).toBeVisible()
 
   // 3. Navigate from Achievement notification -> /achievements and share milestone
   await page.goto('/notifications')
