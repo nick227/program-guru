@@ -78,17 +78,25 @@ describe('two friends follow the same Program (01 §6 required test 3)', () => {
     expect(bobRow.status).toBe('DONE')
     // Bob's 42 reps never reach Alice: not as recorded, previous, target, or in any stat.
     expect(occ.resultInputs[0]).toMatchObject({ recorded: null, previous: null, target: 10 })
-    const numbers = JSON.stringify(occ).match(/:\s*42\b/g)
+    const numbers = JSON.stringify(occ).match(/"[^"]+":\s*42\b/g)
     expect(numbers).toBeNull()
     // Leg Raises on the same day is a separate occurrence: Bob has not done it.
     const legs = (await req('GET', `/calendar-items/${aliceDay.find((i) => i.title === 'Leg Raises').id}/occurrence`)).json().data
     expect(legs.collaborators.members.find((m: any) => m.user.handle === 'bob').status).toBe('PENDING')
 
-    const reacted = await req('POST', `/completion-shares/${bobRow.completionShareId}/reactions`, { emoji: '🔥' })
+    const reacted = await req('POST', `/completion-shares/${bobRow.completionShareId}/reactions`, { emoji: '🔥', idempotencyKey: 'react-fire-1' })
     expect(reacted.statusCode).toBe(200)
     await validateResponse('addCompletionReaction', 200, reacted.json())
     expect(reacted.json().data).toEqual([{ emoji: '🔥', count: 1, reactedByMe: true }])
+    // Replaying the same idempotencyKey returns the same result without duplicating reactions or events.
+    const replayedReaction = await req('POST', `/completion-shares/${bobRow.completionShareId}/reactions`, { emoji: '🔥', idempotencyKey: 'react-fire-1' })
+    expect(replayedReaction.statusCode).toBe(200)
+    expect(replayedReaction.json().data).toEqual([{ emoji: '🔥', count: 1, reactedByMe: true }])
+    // Reusing the same idempotencyKey with a different emoji conflicts (409).
+    const conflictingReaction = await req('POST', `/completion-shares/${bobRow.completionShareId}/reactions`, { emoji: '👏', idempotencyKey: 'react-fire-1' })
+    expect(conflictingReaction.statusCode).toBe(409)
     expect((await req('POST', `/completion-shares/${bobRow.completionShareId}/reactions`, { emoji: '💩' })).statusCode).toBe(400)
+    expect(await db.outboxEvent.count({ where: { type: 'CompletionShared' } })).toBe(1)
     expect(await db.outboxEvent.count({ where: { type: 'CompletionReacted' } })).toBe(1)
     const feed = await req('GET', `/groups/${groupId}/completions`)
     await validateResponse('listGroupCompletions', 200, feed.json())
@@ -144,11 +152,19 @@ describe('group media comments', () => {
     const media = await db.mediaAsset.create({ data: { ownerId: testUserId, type: 'PHOTO', originalStorageKey: `u/${testUserId}/x`, mime: 'image/png', byteSize: 10, state: 'READY' } })
     const pub = await req('POST', '/media-publications', { mediaId: media.id, audience: 'GROUP', groupId, occurrenceKey: item.groupOccurrenceKey })
     expect(pub.json().data.status).toBe('APPROVED')
-    const comment = await req('POST', `/media-publications/${pub.json().data.id}/comments`, { body: 'Great form!' }, testOtherUserId)
+    const comment = await req('POST', `/media-publications/${pub.json().data.id}/comments`, { body: 'Great form!', idempotencyKey: 'comment-idem-1' }, testOtherUserId)
     expect(comment.statusCode).toBe(201)
     await validateResponse('addMediaPublicationComment', 201, comment.json())
+    // Replaying the same idempotencyKey returns the stored comment without incrementing commentCount twice.
+    const commentReplay = await req('POST', `/media-publications/${pub.json().data.id}/comments`, { body: 'Great form!', idempotencyKey: 'comment-idem-1' }, testOtherUserId)
+    expect(commentReplay.statusCode).toBe(201)
+    expect(commentReplay.json().data.id).toBe(comment.json().data.id)
+    // Reusing the same idempotencyKey with a different comment body fails with 409 CONFLICT.
+    const commentConflict = await req('POST', `/media-publications/${pub.json().data.id}/comments`, { body: 'Different comment', idempotencyKey: 'comment-idem-1' }, testOtherUserId)
+    expect(commentConflict.statusCode).toBe(409)
     const list = await req('GET', `/media-publications/${pub.json().data.id}/comments`)
     await validateResponse('listMediaPublicationComments', 200, list.json())
+    expect(list.json().data).toHaveLength(1)
     expect(list.json().data[0]).toMatchObject({ body: 'Great form!', canDelete: true }) // the media owner may remove it
     const bobsOcc = await db.calendarItem.findFirstOrThrow({ where: { ownerId: testOtherUserId, groupOccurrenceKey: item.groupOccurrenceKey } })
     const occ = (await req('GET', `/calendar-items/${bobsOcc.id}/occurrence`, undefined, testOtherUserId)).json().data

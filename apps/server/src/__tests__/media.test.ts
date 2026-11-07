@@ -92,4 +92,17 @@ describe('publications', () => {
     const othersMedia = await req('POST', '/media-attachments', { mediaId: t.mediaId, target: { kind: 'ACTIVITY_REVISION', id: mine.revisionId }, purpose: 'ILLUSTRATION' })
     expect(othersMedia.statusCode).toBe(400)
   })
+
+  it('does not expose private media merely attached to PROFILE unless set as avatar or cover', async () => {
+    const t = await upload()
+    await req('POST', `/media/uploads/${t.uploadId}/complete`)
+    await db.mediaAsset.update({ where: { id: t.mediaId }, data: { state: 'READY' } })
+    const att = await req('POST', '/media-attachments', { mediaId: t.mediaId, target: { kind: 'PROFILE', id: testUserId }, purpose: 'COVER' })
+    expect(att.statusCode).toBe(201)
+    // Another user cannot fetch a signed URL just because a PROFILE attachment exists.
+    expect((await req('GET', `/media/${t.mediaId}/url`, undefined, testOtherUserId)).statusCode).toBe(404)
+    // Once set as the user's profile avatar, it becomes viewable.
+    await req('PATCH', '/users/me/profile', { avatarMediaId: t.mediaId })
+    expect((await req('GET', `/media/${t.mediaId}/url`, undefined, testOtherUserId)).statusCode).toBe(200)
+  })
 })

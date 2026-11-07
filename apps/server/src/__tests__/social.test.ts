@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
-import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, testAdminId } from './helpers'
+import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, testAdminId, seedUser } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 
 const app = buildTestApp()
@@ -51,6 +51,59 @@ describe('likes and views on public media', () => {
     const hub = await app.inject({ method: 'GET', url: `/activities/${cat.squats.activity.id}/public-media` })
     await validateResponse('listActivityPublicMedia', 200, hub.json())
     expect(hub.json().data).toHaveLength(1)
+  })
+
+  it('enforces visibility, block rules, and per-creator caps in activityPublicMedia and likes', async () => {
+    const carolId = '00000000-0000-4000-8000-0000000000c1'
+    await seedUser(carolId, 'carol')
+
+    // Create a private program and a paid program; public media attached to them must not leak into public hubs.
+    let privProg = (await req('POST', '/programs', { programTypeId: cat.workout.id })).json().data
+    privProg = (await req('POST', `/programs/${privProg.id}/draft/activities`, { activityIds: [cat.squats.activity.id], expectedRevision: privProg.draftRevision })).json().data
+    privProg = (await req('PATCH', `/programs/${privProg.id}/draft`, { title: 'Private Plan', expectedRevision: privProg.draftRevision })).json().data
+    await req('POST', `/programs/${privProg.id}/publish`, { visibility: 'PRIVATE', accessMode: 'OPEN', expectedRevision: privProg.draftRevision })
+
+    const openProgId = await publicProgram('Open Featured Plan')
+
+    // Alice (creator of openProgId) has 1 featured publication; Bob has 4 publications (capped at 3); Carol has 1 linked to private program.
+    const mkPub = async (ownerId: string, rankScore: number, programId: string | null = null) => {
+      const m = await db.mediaAsset.create({ data: { ownerId, type: 'PHOTO', originalStorageKey: `u/${ownerId}/${rankScore}`, mime: 'image/png', byteSize: 10, state: 'READY' } })
+      return db.mediaPublication.create({
+        data: {
+          mediaId: m.id,
+          publishedById: ownerId,
+          audience: 'PUBLIC',
+          status: 'APPROVED',
+          license: 'CC0',
+          activityId: cat.squats.activity.id,
+          programId,
+          rankScore,
+        },
+      })
+    }
+
+    const alicePub = await mkPub(testUserId, 1, openProgId)
+    await mkPub(testOtherUserId, 10)
+    await mkPub(testOtherUserId, 9)
+    await mkPub(testOtherUserId, 8)
+    await mkPub(testOtherUserId, 7) // 4th by Bob -> capped out
+    await mkPub(carolId, 100, privProg.id) // linked to private program -> excluded
+
+    const hub = await app.inject({ method: 'GET', url: `/activities/${cat.squats.activity.id}/public-media?programId=${openProgId}` })
+    expect(hub.statusCode).toBe(200)
+    const items = hub.json().data
+    // Alice's featured publication comes first, followed by at most 3 from Bob; Carol's private-program media is excluded.
+    expect(items).toHaveLength(4)
+    expect(items[0].publicationId).toBe(alicePub.id)
+    expect(items.filter((x: any) => x.creator?.handle === 'bob')).toHaveLength(3)
+
+    // When Carol blocks Bob, Bob's media disappears from Carol's view of the hub, and Bob cannot like Carol's or Carol like Bob's media.
+    await req('POST', `/blocked-users/${testOtherUserId}`, undefined, carolId)
+    const carolHub = await req('GET', `/activities/${cat.squats.activity.id}/public-media`, undefined, carolId)
+    expect(carolHub.json().data.some((x: any) => x.creator?.handle === 'bob')).toBe(false)
+    expect((await req('POST', `/media-publications/${alicePub.id}/likes`, undefined, carolId)).statusCode).toBe(200)
+    await req('POST', `/blocked-users/${carolId}`, undefined, testUserId)
+    expect((await req('POST', `/media-publications/${alicePub.id}/likes`, undefined, carolId)).statusCode).toBe(404)
   })
 })
 

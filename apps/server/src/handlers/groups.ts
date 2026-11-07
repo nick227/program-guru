@@ -43,7 +43,7 @@ export async function listGroupCompletions(request: any) {
   return groups.listCompletions(uid(request), request.params.groupId, request.query)
 }
 export async function addCompletionReaction(request: any) {
-  return { data: await groups.react(uid(request), request.params.shareId, request.body.emoji) }
+  return { data: await groups.react(uid(request), request.params.shareId, request.body.emoji, request.body.idempotencyKey) }
 }
 export async function removeCompletionReaction(request: any) {
   return { data: await groups.unreact(uid(request), request.params.shareId, decodeURIComponent(request.params.emoji)) }

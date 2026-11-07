@@ -6,18 +6,31 @@ import { notFound } from '../../lib/errors'
 import { mediaUrl } from '../media/urls'
 import { revisionInclude, toInstruction, toToolBinding } from '../activities/mapper'
 import { toUserSummary } from '../users/mapper'
-import { itemDto, ownItem } from './calendar.service'
+import { ownItem, toCalendarItems } from './calendar.service'
 import { toSession, valueOf } from './session.service'
 
 const MIN_PUBLIC_SAMPLE = 5
 const COMMUNITY_LIMIT = 12
 type Value = number | string | boolean | null
 
-/** Same action across copies: the canonical root plus everything mapped to it (02 §6). */
+async function blockedIds(viewerId: string) {
+  const rows = await db.userBlock.findMany({ where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] } })
+  return rows.map((b) => (b.blockerId === viewerId ? b.blockedId : b.blockerId))
+}
+
+/** Same action across public copies: the canonical root plus published public activities mapped to it (02 §6). */
 async function canonicalActivityIds(activityId: string) {
   const a = await db.activity.findUniqueOrThrow({ where: { id: activityId } })
   const root = a.canonicalActivityId ?? a.id
-  const members = await db.activity.findMany({ where: { OR: [{ id: root }, { canonicalActivityId: root }] }, select: { id: true } })
+  const members = await db.activity.findMany({
+    where: {
+      OR: [{ id: root }, { canonicalActivityId: root }],
+      status: 'PUBLISHED',
+      visibility: { not: 'PRIVATE' },
+      moderatedAt: null,
+    },
+    select: { id: true },
+  })
   return members.map((m) => m.id)
 }
 
@@ -53,8 +66,14 @@ export async function personalStats(userId: string, activityId: string) {
 
 export async function occurrence(userId: string, itemId: string) {
   const item = await ownItem(db, userId, itemId)
-  const rev = await db.activityRevision.findUnique({ where: { id: item.activityRevisionId }, include: revisionInclude })
-  if (!rev) throw notFound('Activity')
+  const [rev, activity, itemViews] = await Promise.all([
+    db.activityRevision.findUnique({ where: { id: item.activityRevisionId }, include: revisionInclude }),
+    db.activity.findUnique({ where: { id: item.activityId } }),
+    toCalendarItems(userId, [item]),
+  ])
+  if (!rev || !activity) throw notFound('Activity')
+  const itemView = itemViews[0]!
+  const isLocked = itemView.locked
 
   // ── Today's Results: targets suggested, never copied into recorded values (03 §6.2).
   const session = await db.activitySession.findFirst({ where: { calendarItemId: item.id, status: { not: 'ABANDONED' } }, orderBy: { createdAt: 'desc' } })
@@ -65,21 +84,27 @@ export async function occurrence(userId: string, itemId: string) {
   for (const e of latest) for (const v of e.values) recorded.set(`${e.instructionId ?? ''}:${v.metricDefinitionId}`, valueOf(v as any))
   const placement = item.sourceScheduleItemId ? await db.programScheduleItem.findUnique({ where: { id: item.sourceScheduleItemId } }) : null
   const overrides = { ...((placement?.targetOverrides as Record<string, Value>) ?? {}), ...((item.targetOverrides as Record<string, Value>) ?? {}) }
-  const previousValue = async (metricDefinitionId: string) => {
-    const v = await db.resultMetricValue.findFirst({
-      where: { metricDefinitionId, entry: { session: { userId, status: 'FINISHED', id: session ? { not: session.id } : undefined, activityRevision: { activityId: item.activityId } } } },
-      orderBy: { entry: { recordedAt: 'desc' } },
-    })
-    return v ? valueOf(v as any) : null
-  }
   const bindings = [
     ...rev.metrics.map((m) => ({ m, instructionId: null as string | null })),
-    ...rev.instructions.flatMap((i) => i.metrics.map((m) => ({ m, instructionId: i.id }))),
+    ...(isLocked ? [] : rev.instructions.flatMap((i) => i.metrics.map((m) => ({ m, instructionId: i.id })))),
   ]
-  const resultInputs = []
-  for (const [idx, { m, instructionId }] of bindings.entries()) {
+  const metricDefIds = [...new Set(bindings.map((b) => b.m.metricDefinitionId))]
+  const prevRows = metricDefIds.length
+    ? await db.resultMetricValue.findMany({
+        where: {
+          metricDefinitionId: { in: metricDefIds },
+          entry: { session: { userId, status: 'FINISHED', id: session ? { not: session.id } : undefined, activityRevision: { activityId: item.activityId } } },
+        },
+        orderBy: { entry: { recordedAt: 'desc' } },
+      })
+    : []
+  const prevByMetric = new Map<string, Value>()
+  for (const r of prevRows) {
+    if (!prevByMetric.has(r.metricDefinitionId)) prevByMetric.set(r.metricDefinitionId, valueOf(r as any))
+  }
+  const resultInputs = bindings.map(({ m, instructionId }, idx) => {
     const defaults = (m.defaults as { target?: Value } | null) ?? null
-    resultInputs.push({
+    return {
       metricDefinitionId: m.metricDefinitionId,
       key: m.metric.key,
       label: m.metric.label,
@@ -88,12 +113,12 @@ export async function occurrence(userId: string, itemId: string) {
       required: m.required,
       instructionId,
       target: (overrides[m.metric.key] ?? defaults?.target ?? null) as Value,
-      previous: await previousValue(m.metricDefinitionId),
+      previous: prevByMetric.get(m.metricDefinitionId) ?? null,
       recorded: recorded.get(`${instructionId ?? ''}:${m.metricDefinitionId}`) ?? null,
       // 08 §4: show the relevant 1–3 inputs first; the rest sit under More.
       isPrimary: instructionId === null && idx < 3,
-    })
-  }
+    }
+  })
 
   // ── Collaborators: only when this occurrence belongs to a group (omit when solo).
   let collaborators = null
@@ -163,16 +188,47 @@ export async function occurrence(userId: string, itemId: string) {
     : []
 
   // ── Community Media: approved public media for the same action, Program creator first (11 §5).
-  const activityIds = await canonicalActivityIds(item.activityId)
-  const creatorId = item.enrollment?.program.creatorId ?? null
-  const publicWhere: Prisma.MediaPublicationWhereInput = { audience: 'PUBLIC', status: 'APPROVED', activityId: { in: activityIds }, media: { deletedAt: null, state: 'READY' } }
-  const featured = creatorId ? await db.mediaPublication.findMany({ where: { ...publicWhere, publishedById: creatorId }, orderBy: { rankScore: 'desc' }, take: COMMUNITY_LIMIT, include: { media: true, publishedBy: { include: { profile: true } }, reactions: { where: { userId } } } }) : []
-  const rest = await db.mediaPublication.findMany({
-    where: { ...publicWhere, id: { notIn: featured.map((f) => f.id) } },
-    orderBy: [{ rankScore: 'desc' }, { createdAt: 'desc' }],
-    take: COMMUNITY_LIMIT - featured.length,
-    include: { media: true, publishedBy: { include: { profile: true } }, reactions: { where: { userId } } },
-  })
+  const [activityIds, hidden] = await Promise.all([canonicalActivityIds(item.activityId), blockedIds(userId)])
+  const creatorId = !isLocked ? item.enrollment?.program.creatorId ?? null : null
+  const publicWhere: Prisma.MediaPublicationWhereInput = {
+    audience: 'PUBLIC',
+    status: 'APPROVED',
+    license: { not: null },
+    activityId: { in: activityIds },
+    media: { deletedAt: null, state: 'READY' },
+    publishedBy: { status: 'ACTIVE' },
+    ...(hidden.length ? { publishedById: { notIn: hidden } } : {}),
+    OR: [
+      { programId: null },
+      {
+        program: {
+          status: 'PUBLISHED',
+          visibility: 'PUBLIC',
+          moderatedAt: null,
+          OR: [{ policy: null }, { policy: { accessMode: 'OPEN' } }],
+        },
+      },
+    ],
+  }
+  const canShowPublicHub = activityIds.length > 0 && !(isLocked && activity.visibility === 'PRIVATE')
+  const featured =
+    canShowPublicHub && creatorId && !hidden.includes(creatorId)
+      ? await db.mediaPublication.findMany({
+          where: { ...publicWhere, publishedById: creatorId },
+          orderBy: { rankScore: 'desc' },
+          take: COMMUNITY_LIMIT,
+          include: { media: true, publishedBy: { include: { profile: true } }, reactions: { where: { userId } } },
+        })
+      : []
+  const rest =
+    canShowPublicHub && featured.length < COMMUNITY_LIMIT
+      ? await db.mediaPublication.findMany({
+          where: { ...publicWhere, id: { notIn: featured.map((f) => f.id) } },
+          orderBy: [{ rankScore: 'desc' }, { createdAt: 'desc' }],
+          take: COMMUNITY_LIMIT - featured.length,
+          include: { media: true, publishedBy: { include: { profile: true } }, reactions: { where: { userId } } },
+        })
+      : []
   const communityMedia = [...featured, ...rest].map((p) => ({
     id: p.media.id,
     thumbnailUrl: mediaUrl(p.media.id),
@@ -190,20 +246,24 @@ export async function occurrence(userId: string, itemId: string) {
   }))
 
   // ── Community Stats: privacy-safe aggregates, hidden for small samples (12 §10).
-  const [participants, completions] = await Promise.all([
-    db.calendarItem.groupBy({ by: ['ownerId'], where: { activityId: { in: activityIds }, status: 'DONE' } }).then((r) => r.length),
-    db.calendarItem.count({ where: { activityId: { in: activityIds }, status: 'DONE' } }),
-  ])
-  const communityStats = participants >= MIN_PUBLIC_SAMPLE ? { participants, completions, publicMediaCount: await db.mediaPublication.count({ where: publicWhere }) } : null
+  const [participants, completions] = canShowPublicHub
+    ? await Promise.all([
+        db.calendarItem.groupBy({ by: ['ownerId'], where: { activityId: { in: activityIds }, status: 'DONE' } }).then((r) => r.length),
+        db.calendarItem.count({ where: { activityId: { in: activityIds }, status: 'DONE' } }),
+      ])
+    : [0, 0]
+  const communityStats = canShowPublicHub && participants >= MIN_PUBLIC_SAMPLE ? { participants, completions, publicMediaCount: await db.mediaPublication.count({ where: publicWhere }) } : null
 
+  // 01 §6.12, 03 §10, 07 §8: When a Program enrollment is locked (entitlement expired/revoked),
+  // withhold locked Program instructional content while preserving the user's personal logs and media.
   return {
-    item: await itemDto(userId, item.id),
+    item: itemView,
     session: session ? toSession(session) : null,
     resultInputs,
     collaborators,
     personalStats: await personalStats(userId, item.activityId),
-    instructions: rev.instructions.map(toInstruction),
-    tools: rev.tools.map(toToolBinding),
+    instructions: isLocked ? [] : rev.instructions.map(toInstruction),
+    tools: isLocked ? [] : rev.tools.map(toToolBinding),
     myMedia,
     sharedMedia,
     communityMedia,

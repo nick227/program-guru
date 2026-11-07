@@ -24,14 +24,42 @@ Factory defaults: pnpm monorepo, Vite + React + Tailwind, Fastify routed from Op
 
 ## Phase Completed
 
-Phase 1 — Contract. Next: Phase 2 — Server.
+Phase 1 — Contract & Phase 2 — Core API Server + Seed Catalog. Next: Background Worker (`apps/worker`), Frontend (`apps/web`), and Billing.
 
 ## Modules Built
 
-- [x] Schema: 61 models, initial migration with CHECK constraints, verified on MySQL 8.4.13
+- [x] Schema: 59 models (`packages/db/prisma/schema.prisma`), initial migration (`0001_init`) with 4 MySQL CHECK constraints and 2 FULLTEXT indexes, verified on MySQL 8.4.13
 - [x] Railway pre-deploy migration config and guarded database scripts
-- [x] OpenAPI: 146 operations; SDK types generated
-- [ ] Server, worker, frontend, seed content: not started
+- [x] OpenAPI: 148 operations across 14 tags; SDK types generated (`packages/sdk`)
+- [x] Server (`apps/server`): 138 of 148 operations implemented across `system`, `auth`, `users`, `catalog`, `activities`, `programs`, `calendar`, `sessions`, `groups`, `media`, `social`, `notifications`, and `moderation`, with integration & regression tests validating responses against `openapi.yaml`
+- [x] Seed data (`packages/db/prisma/seed.ts`): deterministic, idempotent seed with 6 Categories, 20 Focuses, 17 ProgramTypes (5 featured), 11 MetricDefinitions, 6 ToolDefinitions, 7 AchievementDefinitions, 81 Activities (with instructions, metrics, tools, and rights-cleared CC0-1.0 platform media), and 5 Starter Programs
+- [ ] Billing handlers (`apps/server/src/handlers/billing.ts`): 10 Stripe Connect operations deferred until after core experience (`01-PRODUCT.md` §3)
+- [ ] Background worker (`apps/worker`): outbox consumer, FFmpeg/image media processor, daily horizon extension, daily email digest
+- [ ] Frontend (`apps/web`) & SDK domain hooks (`packages/sdk/src/hooks`): in progress by parallel agent
+
+## Contract Notes & Gaps for Frontend / SDK (Codex)
+
+1. **Unimplemented Billing Operations (10 of 148):**
+   - `POST /billing/payout-account/onboarding-link` (`createPayoutOnboardingLink`)
+   - `GET /billing/payout-account` (`getMyPayoutAccount`)
+   - `POST /programs/{programId}/checkout` (`createCheckoutSession`)
+   - `GET /billing/purchases` (`listMyPurchases`)
+   - `GET /billing/subscriptions` (`listMySubscriptions`)
+   - `POST /billing/subscriptions/{subscriptionId}/cancel` (`cancelSubscription`)
+   - `POST /billing/portal-session` (`createBillingPortalSession`)
+   - `GET /billing/creator/earnings` (`listCreatorEarnings`)
+   - `GET /billing/creator/sales` (`listCreatorSales`)
+   - `POST /webhooks/stripe` (`handleStripeWebhook`)
+   - *Note for SDK/UI:* Calling these routes before Billing is registered will return `501 Not Implemented` from `fastify-openapi-glue`. Gate paid checkout flows behind `accessMode === 'PAID'` handling.
+2. **Locked Occurrence Payload (`GET /calendar-items/{itemId}/occurrence`):**
+   - When a user's `ProgramAccessGrant` for a `PAID` or `APPROVAL` Program expires or is revoked, `occurrence.item.locked` is `true`.
+   - The server withholds Program instructional content (`instructions: []`, `tools: []`, and instruction-scoped metric bindings), while still returning the user's personal `session`, activity-level `resultInputs` (including previously recorded values), `personalStats`, `myMedia`, `collaborators`, and `sharedMedia` (`01-PRODUCT.md` §6.12, `03-UX.md` §10).
+3. **Idempotency Keys on Social & Group Engagement:**
+   - `POST /media-publications/{publicationId}/comments` (`AddCommentInput.idempotencyKey`) and `POST /completion-shares/{shareId}/reactions` (`AddReactionInput.idempotencyKey`) enforce `IdempotencyKey` replay and return `409 CONFLICT` if the same key (`minLength: 8`, `maxLength: 120`) is reused with a different payload.
+4. **Media Attachment Purposes (`POST /media-attachments`):**
+   - `CreateMediaAttachmentInput.purpose` accepts `'COVER' | 'ILLUSTRATION' | 'DEMONSTRATION' | 'VOICEOVER' | 'RESULT'`. Attaching an asset to `target.kind = 'PROFILE'` does not make it publicly viewable unless it is set as `avatarMediaId` or `coverMediaId` via `PATCH /users/me/profile`.
+5. **Local Media Upload Flow (`STORAGE_PROVIDER=local`):**
+   - `POST /media/uploads` returns `uploadUrl` pointing to `PUT /media/uploads/{uploadId}/content?token=...` with `headers: { 'content-type': 'application/octet-stream' }`. After `PUT`, call `POST /media/uploads/{uploadId}/complete`, which verifies magic bytes and transitions `state` to `'PROCESSING'` (and enqueues `MediaUploaded` for the worker).
 
 ## Deviations from Factory Defaults
 

@@ -147,11 +147,18 @@ describe('sessions: each Activity runs independently (decision 21)', () => {
 })
 
 describe('achievements derived from actual completions', () => {
-  it('earns on the first real completion, revokes on undo, and is private until shared', async () => {
+  it('earns on the first real completion, emits AchievementEarned outbox event, revokes on undo, and is private until shared', async () => {
     const item = (await addOnce('2026-11-10')).json().data.item
     const s = (await req('POST', '/sessions', { calendarItemId: item.id, idempotencyKey: key() })).json().data
     const fin = (await req('POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: 0 })).json().data
     expect(fin.achievementsEarned.map((a: any) => a.key)).toEqual(['first-completion'])
+    const earnedEvents = await db.outboxEvent.findMany({ where: { type: 'AchievementEarned' } })
+    expect(earnedEvents).toHaveLength(1)
+    expect(earnedEvents[0]!.payload).toMatchObject({
+      userId: testUserId,
+      key: 'first-completion',
+      sourceCalendarItemId: item.id,
+    })
     const mine = await req('GET', '/achievements/me')
     await validateResponse('listMyAchievements', 200, mine.json())
     expect((await app.inject({ method: 'GET', url: '/users/alice/achievements' })).json().data).toEqual([])
@@ -171,5 +178,68 @@ describe('achievements derived from actual completions', () => {
     const res = (await req('POST', `/sessions/${s.id}/actions`, { action: 'ABANDON', expectedRevision: 0 })).json().data
     expect(res.achievementsEarned).toEqual([])
     expect(res.item.status).toBe('PLANNED')
+  })
+})
+
+describe('locked Program occurrences withhold instructional content while preserving personal logs', () => {
+  it('withholds instructions, tools, and private revision access after entitlement is revoked', async () => {
+    // Alice creates a private activity with instructions, tools, and metrics, inside an APPROVAL program.
+    const act = (await req('POST', '/activities', { title: 'Secret Drill', categoryId: cat.fitness.id })).json().data
+    await req('PUT', `/activities/${act.id}/draft/instructions`, {
+      expectedRevision: 0,
+      instructions: [{ title: 'Step 1', body: 'Secret technique cue' }],
+    })
+    await req('PUT', `/activities/${act.id}/draft/metrics`, {
+      expectedRevision: 1,
+      metrics: [{ metricDefinitionId: cat.reps.id, required: true, defaults: { target: 15 } }],
+    })
+    await req('PUT', `/activities/${act.id}/draft/tools`, {
+      expectedRevision: 2,
+      tools: [{ toolDefinitionId: cat.timer.id }],
+    })
+    await req('POST', `/activities/${act.id}/publish`, { visibility: 'PRIVATE', expectedRevision: 3 })
+
+    let ws = (await req('POST', '/programs', { programTypeId: cat.workout.id })).json().data
+    ws = (await req('POST', `/programs/${ws.id}/draft/activities`, { activityIds: [act.id], expectedRevision: ws.draftRevision })).json().data
+    ws = (await req('PATCH', `/programs/${ws.id}/draft`, { title: 'Members Coaching', durationDays: 7, frequency: { kind: 'DAILY' }, expectedRevision: ws.draftRevision })).json().data
+    const pub = (await req('POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'APPROVAL', expectedRevision: ws.draftRevision })).json().data
+
+    // Bob requests access and Alice approves; Bob enrolls and logs a result on Day 1.
+    const accessReq = (await req('POST', `/programs/${ws.id}/access-requests`, undefined, testOtherUserId)).json().data
+    await req('POST', `/access-requests/${accessReq.id}/approve`)
+    await req(
+      'POST',
+      `/programs/${ws.id}/enrollments`,
+      { programVersionId: pub.latestPublishedVersionId, startLocalDate: '2026-11-10', timezone: 'UTC', idempotencyKey: key() },
+      testOtherUserId,
+    )
+    const bobItems = (await req('GET', '/calendar/items?start=2026-11-10&end=2026-11-10', undefined, testOtherUserId)).json().data
+    expect(bobItems[0].locked).toBe(false)
+
+    const unlockedOcc = (await req('GET', `/calendar-items/${bobItems[0].id}/occurrence`, undefined, testOtherUserId)).json().data
+    expect(unlockedOcc.instructions).toHaveLength(1)
+    expect(unlockedOcc.tools).toHaveLength(1)
+
+    const s = (await req('POST', '/sessions', { calendarItemId: bobItems[0].id, idempotencyKey: key() }, testOtherUserId)).json().data
+    await req('POST', `/sessions/${s.id}/results`, { values: [{ metricDefinitionId: cat.reps.id, value: 18 }] }, testOtherUserId)
+    await req('POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: 0 }, testOtherUserId)
+
+    // Bob's access grant is revoked.
+    await db.programAccessGrant.updateMany({ where: { userId: testOtherUserId, programId: ws.id }, data: { revokedAt: new Date() } })
+
+    // Bob's occurrence is now locked: instructions and tools are withheld, private activity endpoint is denied,
+    // but Bob's personal session, recorded result, and personal stats remain accessible.
+    const lockedOccRes = await req('GET', `/calendar-items/${bobItems[0].id}/occurrence`, undefined, testOtherUserId)
+    expect(lockedOccRes.statusCode).toBe(200)
+    await validateResponse('getActivityOccurrence', 200, lockedOccRes.json())
+    const lockedOcc = lockedOccRes.json().data
+    expect(lockedOcc.item.locked).toBe(true)
+    expect(lockedOcc.instructions).toEqual([])
+    expect(lockedOcc.tools).toEqual([])
+    expect(lockedOcc.session.status).toBe('FINISHED')
+    expect(lockedOcc.resultInputs[0]).toMatchObject({ key: 'repetitions', recorded: 18 })
+    expect(lockedOcc.personalStats).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'completed', value: '1' })]))
+
+    expect((await req('GET', `/activities/${act.id}`, undefined, testOtherUserId)).statusCode).toBe(404)
   })
 })

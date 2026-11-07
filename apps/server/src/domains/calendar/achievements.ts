@@ -1,6 +1,7 @@
 // Achievements derived from actual completions (09-CALENDARS.md §9a). Idempotent: evaluation can
 // run any number of times and only ever creates each milestone once per scope; an undo revokes.
 import type { Prisma } from '@project/db'
+import { enqueue } from '../../lib/outbox'
 
 type Tx = Prisma.TransactionClient
 
@@ -62,6 +63,14 @@ export async function evaluate(tx: Tx, userId: string, ctx: { enrollmentId: stri
       const row = existing
         ? await tx.userAchievement.update({ where: { id: existing.id }, data: { revokedAt: null, earnedAt: new Date(), sourceCalendarItemId: ctx.sourceCalendarItemId } })
         : await tx.userAchievement.create({ data: { userId, definitionId: d.id, enrollmentId, scopeKey, sourceCalendarItemId: ctx.sourceCalendarItemId } })
+      await enqueue(tx, 'AchievementEarned', {
+        userId,
+        achievementId: row.id,
+        definitionId: d.id,
+        key: d.key,
+        enrollmentId,
+        sourceCalendarItemId: ctx.sourceCalendarItemId,
+      })
       earned.push(row.id)
     } else if (!holds && existing && !existing.revokedAt) {
       await tx.userAchievement.update({ where: { id: existing.id }, data: { revokedAt: new Date() } })

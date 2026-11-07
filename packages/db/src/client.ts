@@ -11,3 +11,4 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export * from '@prisma/client'
+export { seedDatabase, SEEDED_ACTIVITIES, STARTER_PROGRAMS, deterministicUuid } from '../prisma/seed'

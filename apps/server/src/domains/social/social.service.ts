@@ -2,15 +2,19 @@
 import { db, type Prisma } from '@project/db'
 import { sha256 } from '../../lib/auth'
 import { badRequest, notFound } from '../../lib/errors'
+import { withIdempotency } from '../../lib/idempotency'
 import { enqueue } from '../../lib/outbox'
 import { afterCursor, offsetArgs, pageArgs, pageOrder, toOffsetPage, toPage, type PageQuery } from '../../lib/paging'
 import { loadRevisions, activityInclude, toActivitySummary } from '../activities/mapper'
-import { discoverableProgramWhere } from '../programs/access'
+import { canSeeProgram, discoverableProgramWhere } from '../programs/access'
 import { programInclude, toProgramSummary } from '../programs/mapper'
 import { canSeePublication } from '../media/media.service'
 import { mediaUrl } from '../media/urls'
 import { toUserSummary } from '../users/mapper'
 import { userIdForHandle } from '../users/directory.service'
+import { isBlockedEitherWay } from '../users/follow.service'
+
+const MAX_PUBLIC_MEDIA_PER_CREATOR = 3
 
 type DiscoverQuery = PageQuery & {
   kind: 'PROGRAM' | 'ACTIVITY' | 'CREATOR'
@@ -153,18 +157,66 @@ export async function userPublications(viewerId: string | null, handle: string, 
 
 /** Approved public media for an Activity's canonical hub; the given Program creator's media first (11 §5). */
 export async function activityPublicMedia(viewerId: string | null, activityId: string, query: PageQuery & { programId?: string }) {
+  const hidden = await blockedIds(viewerId)
   const a = await db.activity.findUnique({ where: { id: activityId } })
   if (!a || a.status !== 'PUBLISHED' || a.visibility === 'PRIVATE' || a.moderatedAt) throw notFound('Activity')
+  if (a.creatorId && hidden.includes(a.creatorId)) throw notFound('Activity')
   const root = a.canonicalActivityId ?? a.id
-  const ids = (await db.activity.findMany({ where: { OR: [{ id: root }, { canonicalActivityId: root }] }, select: { id: true } })).map((x) => x.id)
-  const creatorId = query.programId ? (await db.program.findUnique({ where: { id: query.programId } }))?.creatorId ?? null : null
+  const ids = (
+    await db.activity.findMany({
+      where: {
+        OR: [{ id: root }, { canonicalActivityId: root }],
+        status: 'PUBLISHED',
+        visibility: { not: 'PRIVATE' },
+        moderatedAt: null,
+      },
+      select: { id: true },
+    })
+  ).map((x) => x.id)
+  let creatorId: string | null = null
+  if (query.programId) {
+    const program = await db.program.findUnique({ where: { id: query.programId } })
+    if (program && (await canSeeProgram(viewerId, program)) && (!program.creatorId || !hidden.includes(program.creatorId))) {
+      creatorId = program.creatorId
+    }
+  }
   const { limit, skip, take } = offsetArgs(query)
   const rows = await db.mediaPublication.findMany({
-    where: { audience: 'PUBLIC', status: 'APPROVED', activityId: { in: ids }, media: { deletedAt: null, state: 'READY' } },
+    where: {
+      audience: 'PUBLIC',
+      status: 'APPROVED',
+      license: { not: null },
+      activityId: { in: ids },
+      media: { deletedAt: null, state: 'READY' },
+      publishedBy: { status: 'ACTIVE' },
+      ...(hidden.length ? { publishedById: { notIn: hidden } } : {}),
+      OR: [
+        { programId: null },
+        {
+          program: {
+            status: 'PUBLISHED',
+            visibility: 'PUBLIC',
+            moderatedAt: null,
+            OR: [{ policy: null }, { policy: { accessMode: 'OPEN' } }],
+          },
+        },
+      ],
+    },
     include: { media: true, publishedBy: { include: { profile: true } } },
     orderBy: [{ rankScore: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+    take: Math.max(200, skip + take * 4),
   })
-  const ordered = creatorId ? [...rows.filter((r) => r.publishedById === creatorId), ...rows.filter((r) => r.publishedById !== creatorId)] : rows
+  // 11 §5: Featured Program creator's approved public media first, then ranked community media with repeated contributions per creator capped.
+  const featured = creatorId ? rows.filter((r) => r.publishedById === creatorId) : []
+  const perCreatorCount = new Map<string, number>()
+  const community = rows.filter((r) => {
+    if (creatorId && r.publishedById === creatorId) return false
+    const c = perCreatorCount.get(r.publishedById) ?? 0
+    if (c >= MAX_PUBLIC_MEDIA_PER_CREATOR) return false
+    perCreatorCount.set(r.publishedById, c + 1)
+    return true
+  })
+  const ordered = [...featured, ...community]
   const window = ordered.slice(skip, skip + take)
   const liked = await likedSet(viewerId, window.map((r) => r.id))
   return toOffsetPage(window, limit, skip, (p) => publicThumb(p, liked.has(p.id)))
@@ -172,14 +224,15 @@ export async function activityPublicMedia(viewerId: string | null, activityId: s
 
 // ── Engagement ──────────────────────────────────────────────────────────────
 
-async function publicPublication(publicationId: string) {
+async function publicPublication(publicationId: string, viewerId?: string | null) {
   const p = await db.mediaPublication.findUnique({ where: { id: publicationId }, include: { media: true } })
   if (!p || p.audience !== 'PUBLIC' || p.status !== 'APPROVED' || p.media.deletedAt) throw notFound('Publication')
+  if (viewerId && p.publishedById !== viewerId && (await isBlockedEitherWay(viewerId, p.publishedById))) throw notFound('Publication')
   return p
 }
 
 export async function like(userId: string, publicationId: string) {
-  const p = await publicPublication(publicationId)
+  const p = await publicPublication(publicationId, userId)
   // Idempotent toggle (12 §4): counts move only when a row is actually created or removed.
   const likes = await db.$transaction(async (tx) => {
     const created = await tx.mediaReaction.createMany({ data: [{ publicationId: p.id, userId, type: 'LIKE' }], skipDuplicates: true })
@@ -190,7 +243,7 @@ export async function like(userId: string, publicationId: string) {
 }
 
 export async function unlike(userId: string, publicationId: string) {
-  const p = await publicPublication(publicationId)
+  const p = await publicPublication(publicationId, userId)
   const likes = await db.$transaction(async (tx) => {
     const removed = await tx.mediaReaction.deleteMany({ where: { publicationId: p.id, userId, type: 'LIKE' } })
     if (removed.count) await tx.mediaPublication.update({ where: { id: p.id }, data: { likeCount: { decrement: removed.count } } })
@@ -201,7 +254,7 @@ export async function unlike(userId: string, publicationId: string) {
 
 /** A qualified view, deduplicated per viewer per day with a non-identifying hash (12 §4). */
 export async function recordView(viewerId: string | null, fingerprint: string, publicationId: string) {
-  const p = await publicPublication(publicationId)
+  const p = await publicPublication(publicationId, viewerId)
   const day = new Date().toISOString().slice(0, 10)
   const viewerHash = sha256(`${p.id}:${viewerId ?? fingerprint}:${day}`)
   const created = await db.publicationView.createMany({ data: [{ publicationId: p.id, viewerHash }], skipDuplicates: true })
@@ -240,17 +293,31 @@ export async function listComments(userId: string, publicationId: string, query:
   return toPage(rows, limit, (c) => toComment(c, moderator || c.authorId === userId))
 }
 
-export async function addComment(userId: string, publicationId: string, body: string) {
+export async function addComment(userId: string, publicationId: string, body: string, idempotencyKey?: string) {
   const p = await commentablePublication(userId, publicationId)
   const text = body.trim()
   if (!text) throw badRequest('Write a comment', { body: 'is empty' })
-  const c = await db.$transaction(async (tx) => {
-    const row = await tx.mediaComment.create({ data: { publicationId: p.id, authorId: userId, body: text }, include: { author: { include: { profile: true } } } })
-    await tx.mediaPublication.update({ where: { id: p.id }, data: { commentCount: { increment: 1 } } })
-    await enqueue(tx, 'GroupMediaCommented', { commentId: row.id, publicationId: p.id, authorId: userId, recipientId: p.publishedById, groupId: p.groupId, occurrenceKey: p.occurrenceKey })
-    return row
+  const createOnce = async () => {
+    const c = await db.$transaction(async (tx) => {
+      const row = await tx.mediaComment.create({ data: { publicationId: p.id, authorId: userId, body: text }, include: { author: { include: { profile: true } } } })
+      await tx.mediaPublication.update({ where: { id: p.id }, data: { commentCount: { increment: 1 } } })
+      await enqueue(tx, 'GroupMediaCommented', { commentId: row.id, publicationId: p.id, authorId: userId, recipientId: p.publishedById, groupId: p.groupId, occurrenceKey: p.occurrenceKey })
+      return row
+    })
+    return { ref: c.id, result: toComment(c, true) }
+  }
+  if (!idempotencyKey) return (await createOnce()).result
+  return withIdempotency({
+    userId,
+    scope: `comment:${p.id}`,
+    key: idempotencyKey,
+    request: { publicationId: p.id, body: text },
+    load: async (ref) => {
+      const existing = await db.mediaComment.findUniqueOrThrow({ where: { id: ref }, include: { author: { include: { profile: true } } } })
+      return toComment(existing, true)
+    },
+    run: createOnce,
   })
-  return toComment(c, true)
 }
 
 export async function deleteComment(userId: string, commentId: string) {

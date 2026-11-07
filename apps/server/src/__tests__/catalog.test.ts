@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { db } from '@project/db'
+import { db, seedDatabase } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
 
 const app = buildTestApp()
@@ -45,4 +45,27 @@ describe('listMetricDefinitions', () => {
     await validateResponse('listMetricDefinitions', 200, res.json())
     expect(res.json().data[0].key).toBe('repetitions')
   })
+})
+
+describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
+  it('deterministically and idempotently seeds 81 activities, 5 starter programs, 7 achievements, and rights-cleared media', async () => {
+    const first = await seedDatabase(db)
+    expect(first).toEqual({
+      categories: 6,
+      focuses: 20,
+      programTypes: 17,
+      metrics: 11,
+      tools: 6,
+      achievements: 7,
+      activities: 81,
+      starterPrograms: 5,
+    })
+    // Running a second time is a no-op and produces the exact same row counts.
+    const second = await seedDatabase(db)
+    expect(second).toEqual(first)
+    expect(await db.activity.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(81)
+    expect(await db.program.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(5)
+    expect(await db.achievementDefinition.count()).toBe(7)
+    expect(await db.mediaAsset.count({ where: { ownerId: null, license: null } })).toBe(0)
+  }, 30000)
 })

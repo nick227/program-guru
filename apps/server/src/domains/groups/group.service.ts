@@ -3,6 +3,7 @@
 import { db, type Prisma, type ProgramGroup } from '@project/db'
 import { newToken, sha256 } from '../../lib/auth'
 import { AppError, badRequest, conflict, forbidden, notFound } from '../../lib/errors'
+import { withIdempotency } from '../../lib/idempotency'
 import { enqueue } from '../../lib/outbox'
 import { afterCursor, pageArgs, pageOrder, toPage, type PageQuery } from '../../lib/paging'
 import { fromDbDate, toDbDate } from '../../lib/time'
@@ -62,10 +63,12 @@ async function linkEnrollment(tx: Prisma.TransactionClient, userId: string, grou
   if (!e) return
   await tx.programEnrollment.update({ where: { id: e.id }, data: { groupId: group.id } })
   const items = await tx.calendarItem.findMany({ where: { enrollmentId: e.id, sourceScheduleItemId: { not: null } }, select: { id: true, idempotencyKey: true, sourceScheduleItemId: true } })
-  for (const i of items) {
-    const cycle = Number(i.idempotencyKey.split(':')[2] ?? 0)
-    await tx.calendarItem.update({ where: { id: i.id }, data: { groupOccurrenceKey: occurrenceKey(group.programVersionId, i.sourceScheduleItemId!, cycle) } })
-  }
+  await Promise.all(
+    items.map((i) => {
+      const cycle = Number(i.idempotencyKey.split(':')[2] ?? 0)
+      return tx.calendarItem.update({ where: { id: i.id }, data: { groupOccurrenceKey: occurrenceKey(group.programVersionId, i.sourceScheduleItemId!, cycle) } })
+    }),
+  )
 }
 
 async function unlinkEnrollment(tx: Prisma.TransactionClient, userId: string, groupId: string) {
@@ -321,14 +324,27 @@ async function shareForReaction(userId: string, shareId: string) {
   return s
 }
 
-export async function react(userId: string, shareId: string, emoji: string) {
+export async function react(userId: string, shareId: string, emoji: string, idempotencyKey?: string) {
   if (!REACTIONS.includes(emoji)) throw badRequest('Choose one of the reactions', { emoji: 'not supported' })
   const s = await shareForReaction(userId, shareId)
-  const created = await db.completionReaction.createMany({ data: [{ completionShareId: s.id, userId, emoji }], skipDuplicates: true })
-  if (created.count && s.userId !== userId) {
-    await db.outboxEvent.create({ data: { type: 'CompletionReacted', payload: { shareId: s.id, userId, recipientId: s.userId, emoji, groupId: s.groupId, occurrenceKey: s.occurrenceKey } } })
+  if (s.userId !== userId && (await isBlockedEitherWay(userId, s.userId))) throw notFound('Completion')
+  const loadReactions = async () => reactionCounts(await db.completionReaction.findMany({ where: { completionShareId: s.id } }), userId)
+  const applyReaction = async () => {
+    const created = await db.completionReaction.createMany({ data: [{ completionShareId: s.id, userId, emoji }], skipDuplicates: true })
+    if (created.count && s.userId !== userId) {
+      await db.outboxEvent.create({ data: { type: 'CompletionReacted', payload: { shareId: s.id, userId, recipientId: s.userId, emoji, groupId: s.groupId, occurrenceKey: s.occurrenceKey } } })
+    }
+    return { ref: `${s.id}:${emoji}`, result: await loadReactions() }
   }
-  return reactionCounts(await db.completionReaction.findMany({ where: { completionShareId: s.id } }), userId)
+  if (!idempotencyKey) return (await applyReaction()).result
+  return withIdempotency({
+    userId,
+    scope: `reaction:${s.id}`,
+    key: idempotencyKey,
+    request: { shareId: s.id, emoji },
+    load: loadReactions,
+    run: applyReaction,
+  })
 }
 
 export async function unreact(userId: string, shareId: string, emoji: string) {

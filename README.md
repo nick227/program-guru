@@ -6,7 +6,10 @@ Requirements: [`docs/specs/`](docs/specs/). Project state and deviations: [`CLAU
 
 ## Status
 
-Phase 1 (contract) is complete: database schema, API spec, and generated SDK types. The server and web app are not built yet, so `pnpm dev` has nothing to run.
+- **Phase 1 (Contract):** Complete (`packages/db/prisma/schema.prisma` with 59 models, `0001_init` migration with MySQL CHECK constraints, `packages/api-spec/openapi.yaml` with 148 operations, and generated SDK types in `packages/sdk`).
+- **Phase 2 (API Server & Seed Data):** Core API server (`apps/server`) is implemented and hardened across 138 of 148 OpenAPI operations (`system`, `auth`, `users`, `catalog`, `activities`, `programs`, `calendar`, `sessions`, `groups`, `media`, `social`, `notifications`, `moderation`). The 10 `billing` operations (`createPayoutOnboardingLink`, `getMyPayoutAccount`, `createCheckoutSession`, `listMyPurchases`, `listMySubscriptions`, `cancelSubscription`, `createBillingPortalSession`, `listCreatorEarnings`, `listCreatorSales`, `handleStripeWebhook`) remain intentionally deferred until after the core experience per `01-PRODUCT.md` §3.
+- **Seed Library (`packages/db/prisma/seed.ts`):** Deterministic, idempotent seed script populating 6 Categories, 20 Focuses, 17 ProgramTypes, 11 MetricDefinitions, 6 ToolDefinitions, 7 AchievementDefinitions, 81 Activities (with instructions, metrics, tools, and rights-cleared CC0-1.0 platform media assets), and 5 published Starter Programs.
+- **Pending Services:** Background worker (`apps/worker`) for outbox dispatch, media variant transcoding, horizon extension, and daily reminder emails; Stripe Connect billing handlers.
 
 ## Setup
 

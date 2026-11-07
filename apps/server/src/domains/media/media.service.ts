@@ -8,6 +8,7 @@ import { offsetArgs, toOffsetPage, type PageQuery } from '../../lib/paging'
 import { storage } from '../../infrastructure/storage'
 import { canReadRevision } from '../activities/access'
 import { canSeeProgram, isProgramOwner } from '../programs/access'
+import { isBlockedEitherWay } from '../users/follow.service'
 import { toUserSummary } from '../users/mapper'
 import { localUploadUrl, mediaUrl, uploadToken, verifyUploadToken, type MediaVariantName } from './urls'
 
@@ -96,8 +97,25 @@ export async function canViewMedia(viewerId: string | null, m: MediaAsset): Prom
   if (m.deletedAt || m.state === 'BLOCKED') return false
   if (m.ownerId === null) return true // platform library, rights-cleared
   if (viewerId && m.ownerId === viewerId) return true
-  const publications = await db.mediaPublication.findMany({ where: { mediaId: m.id, status: 'APPROVED' } })
-  if (publications.some((p) => p.audience === 'PUBLIC')) return true
+  if (viewerId && m.ownerId && (await isBlockedEitherWay(viewerId, m.ownerId))) return false
+  const publications = await db.mediaPublication.findMany({
+    where: { mediaId: m.id, status: 'APPROVED' },
+    include: { program: { include: { policy: true } } },
+  })
+  if (
+    publications.some(
+      (p) =>
+        p.audience === 'PUBLIC' &&
+        p.license !== null &&
+        (!p.program ||
+          (p.program.status === 'PUBLISHED' &&
+            p.program.visibility === 'PUBLIC' &&
+            !p.program.moderatedAt &&
+            (p.program.policy?.accessMode ?? 'OPEN') === 'OPEN')),
+    )
+  ) {
+    return true
+  }
   if (viewerId) {
     for (const p of publications.filter((x) => x.audience === 'GROUP' && x.groupId)) {
       const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: p.groupId!, userId: viewerId } } })
@@ -106,16 +124,15 @@ export async function canViewMedia(viewerId: string | null, m: MediaAsset): Prom
   }
   // Instructional media inside a Program the viewer may read (07 §6), covers and avatars.
   const attachments = await db.mediaAttachment.findMany({
-    where: { mediaId: m.id, OR: [{ activityRevisionId: { not: null } }, { instructionId: { not: null } }, { programId: { not: null } }, { userProfileId: { not: null } }] },
+    where: { mediaId: m.id, OR: [{ activityRevisionId: { not: null } }, { instructionId: { not: null } }, { programId: { not: null } }] },
     include: { revision: { include: { activity: true } }, instruction: { include: { revision: { include: { activity: true } } } }, program: true },
   })
   for (const a of attachments) {
     const rev = a.revision ?? a.instruction?.revision
     if (rev && (await canReadRevision(viewerId, rev.activity, rev))) return true
     if (a.program && (await canSeeProgram(viewerId, a.program))) return true
-    if (a.userProfileId) return true
   }
-  const profile = await db.userProfile.findFirst({ where: { OR: [{ avatarMediaId: m.id }, { coverMediaId: m.id }] } })
+  const profile = await db.userProfile.findFirst({ where: { user: { status: 'ACTIVE' }, OR: [{ avatarMediaId: m.id }, { coverMediaId: m.id }] } })
   if (profile) return true
   const cover = await db.program.findFirst({ where: { coverMediaId: m.id } })
   return !!cover && (await canSeeProgram(viewerId, cover))
@@ -382,6 +399,12 @@ export async function publish(
     if (input.activityId) {
       const a = await db.activity.findUnique({ where: { id: input.activityId } })
       if (!a || a.status !== 'PUBLISHED' || a.visibility === 'PRIVATE') throw badRequest('That activity is not public', { activityId: 'not public' })
+    }
+    if (input.programId) {
+      const prog = await db.program.findUnique({ where: { id: input.programId }, include: { policy: true } })
+      if (!prog || prog.status !== 'PUBLISHED' || prog.visibility !== 'PUBLIC' || prog.moderatedAt || (prog.policy?.accessMode ?? 'OPEN') !== 'OPEN') {
+        throw badRequest('That program is not open and public', { programId: 'not public' })
+      }
     }
   }
   const p = await db.$transaction(async (tx) => {

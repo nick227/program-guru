@@ -49,6 +49,9 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
   return items.map((i) => {
     const rev = revs.get(i.activityRevisionId) ?? null
     const program = i.enrollment?.program ?? null
+    const locked = !!program && programIds.includes(program.id) && !granted.has(program.id)
+    const allAttachments = rev ? [...rev.attachments, ...rev.instructions.flatMap((inst) => inst.attachments)] : []
+    const hasPrivateAttachment = allAttachments.some((a) => a.media.ownerId !== null)
     const avatars = i.enrollment?.groupId
       ? members.filter((m) => m.groupId === i.enrollment!.groupId).slice(0, 4).map((m) => mediaUrl(m.user.profile?.avatarMediaId) ?? '').filter(Boolean)
       : []
@@ -65,8 +68,8 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
       programDayIndex: i.programDayIndex,
       recurrenceId: i.recurrenceId,
       conflict: !!i.localTime && (slots.get(`${fromDbDate(i.localDate)} ${i.localTime}`) ?? 0) > 1,
-      locked: !!program && programIds.includes(program.id) && !granted.has(program.id),
-      thumbnailUrl: summarizeRevision(rev).thumbnailUrl,
+      locked,
+      thumbnailUrl: locked && hasPrivateAttachment ? null : summarizeRevision(rev).thumbnailUrl,
       participantAvatars: avatars,
       unreadCount: i.groupOccurrenceKey ? unreadByKey.get(i.groupOccurrenceKey) ?? 0 : 0,
       updatedAt: i.updatedAt.toISOString(),

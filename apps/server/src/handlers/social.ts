@@ -37,7 +37,7 @@ export async function listMediaPublicationComments(request: any) {
   return social.listComments(uid(request), request.params.publicationId, request.query)
 }
 export async function addMediaPublicationComment(request: any) {
-  return { data: await social.addComment(uid(request), request.params.publicationId, request.body.body) }
+  return { data: await social.addComment(uid(request), request.params.publicationId, request.body.body, request.body.idempotencyKey) }
 }
 export async function deleteMediaComment(request: any) {
   await social.deleteComment(uid(request), request.params.commentId)

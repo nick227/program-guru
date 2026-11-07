@@ -32,7 +32,10 @@ export async function canReadRevision(viewerId: string | null, activity: Activit
         publishedAt: { not: null },
         OR: [
           { program: { creatorId: viewerId } },
-          { enrollments: { some: { userId: viewerId, status: { in: ['ACTIVE', 'PAUSED', 'COMPLETED'] } } } },
+          {
+            enrollments: { some: { userId: viewerId, status: { in: ['ACTIVE', 'PAUSED', 'COMPLETED'] } } },
+            program: { OR: [{ policy: null }, { policy: { accessMode: 'OPEN' } }] },
+          },
           {
             program: {
               accessGrants: { some: { userId: viewerId, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } },
