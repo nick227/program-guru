@@ -32,6 +32,8 @@ export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance
 
   await app.register(cors, { origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173', credentials: true })
   await app.register(cookie)
+  // Local-storage uploads arrive as a raw stream; it is piped to storage with a size limit, never buffered.
+  app.addContentTypeParser('application/octet-stream', (_request, payload, done) => done(null, payload))
   if (opts.rateLimit !== false) {
     await app.register(rateLimit, { max: 300, timeWindow: '1 minute' })
   }
@@ -84,6 +86,10 @@ export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance
   // Each operation answers with the single 2xx status its spec declares (201 for creates), unless
   // a handler sets one explicitly. Must be added before the glue registers routes.
   app.addHook('onRoute', (route) => {
+    // Binary bodies (local uploads) are streams, not JSON: the handler enforces size, token, and type.
+    const body = (route.schema as any)?.body
+    const isBinary = (s: any) => s?.format === 'binary'
+    if (isBinary(body) || Object.values<any>(body?.content ?? {}).some((c) => isBinary(c?.schema))) delete (route.schema as any).body
     const codes = Object.keys((route.schema as any)?.response ?? {}).filter((c) => /^2\d\d$/.test(c))
     if (codes.length !== 1 || codes[0] === '200') return
     const status = Number(codes[0])

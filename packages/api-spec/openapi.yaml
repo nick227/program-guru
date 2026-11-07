@@ -4304,6 +4304,108 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /media/uploads/{uploadId}/content:
+    put:
+      operationId: uploadMediaContent
+      summary: Upload media content (local storage)
+      tags:
+      - media
+      security: []
+      description: Upload target for the local storage provider. The signed `token` from createMediaUpload authorizes
+        it. With R2, clients upload directly to storage and never call this.
+      parameters:
+      - in: path
+        name: uploadId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: token
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 500
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Ack'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /media-files/{mediaId}/{variant}:
+    get:
+      operationId: getMediaFile
+      summary: Get a media file
+      tags:
+      - media
+      security: []
+      description: Signed delivery URL (from any mediaUrl in API responses). The signature authorizes the request;
+        storage keys are never exposed. Streams the file, or redirects to a short-lived storage URL.
+      parameters:
+      - in: path
+        name: mediaId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: variant
+        required: true
+        schema:
+          type: string
+          enum:
+          - thumb
+          - poster
+          - stream
+          - original
+      - in: query
+        name: exp
+        required: true
+        schema:
+          type: integer
+      - in: query
+        name: sig
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '302':
+          description: Redirect to a short-lived storage URL
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /media/{mediaId}:
     get:
       operationId: getMedia

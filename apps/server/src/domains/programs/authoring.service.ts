@@ -9,6 +9,7 @@ import { canReadRevision, canUseActivity, isOpenlyReadable, isOwner as isActivit
 import { loadRevisions, summarizeRevision } from '../activities/mapper'
 import { publish as publishActivityRevision } from '../activities/activity.service'
 import { canSeeProgram, isProgramOwner, marketplaceEnabled } from './access'
+import { isPublishingRestricted } from '../social/moderation.service'
 import { programInclude, toPlacement, toPrice, toProgramSummary } from './mapper'
 import {
   DEFAULT_DURATION_DAYS,
@@ -461,6 +462,7 @@ async function collectIssues(userId: string, programId: string, target?: { visib
     }
   }
   if (visibility !== 'PRIVATE' && !user.emailVerifiedAt) add('EMAIL_NOT_VERIFIED', 'Verify your email before publishing to others', 'visibility')
+  if (visibility !== 'PRIVATE' && (await isPublishingRestricted(userId))) add('PUBLISHING_RESTRICTED', 'Publishing is restricted on this account', 'visibility')
   if (visibility === 'PRIVATE' && accessMode !== 'OPEN') add('PRIVATE_NOT_OPEN', 'Private programs can only use open access', 'accessMode')
   if (accessMode === 'PAID') {
     if (!marketplaceEnabled()) add('MARKETPLACE_DISABLED', 'Paid programs are not available yet', 'accessMode')

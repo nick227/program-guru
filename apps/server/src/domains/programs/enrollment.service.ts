@@ -115,6 +115,10 @@ export async function join(
         const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: input.groupId, userId } }, include: { group: true } })
         if (!member || member.status !== 'ACTIVE' || member.group.status !== 'ACTIVE') throw badRequest('Join the group first', { groupId: 'not a member' })
         if (member.group.programVersionId !== version.id) throw badRequest('This group follows a different version', { groupId: 'version mismatch' })
+        // SYNC groups share one start date; ASYNC members choose their own and align by Program Day (10 §2).
+        if (member.group.mode === 'SYNC' && member.group.startLocalDate && fromDbDate(member.group.startLocalDate) !== input.startLocalDate) {
+          throw badRequest(`This group starts on ${fromDbDate(member.group.startLocalDate)}`, { startLocalDate: 'must match the group start date' })
+        }
       }
       const enrollment = await db.$transaction(async (tx) => {
         if (!owner && mode !== 'OPEN') {

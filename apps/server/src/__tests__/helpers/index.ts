@@ -10,6 +10,10 @@ import { db } from '@project/db'
 import { buildApp, specPath } from '../../app'
 import { forbidden, unauthorized } from '../../lib/errors'
 import { setViewerResolver } from '../../lib/auth'
+import { setStorageRoot } from '../../infrastructure/storage'
+import { mkdtempSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 export const testUserId = '00000000-0000-4000-8000-000000000001' // alice
 export const testOtherUserId = '00000000-0000-4000-8000-000000000002' // bob
@@ -57,6 +61,7 @@ export function buildTestApp() {
 
   beforeAll(async () => {
     setViewerResolver(viewerFromHeader)
+    setStorageRoot(mkdtempSync(join(tmpdir(), 'programs-app-test-storage-')))
     app = await buildApp({
       rateLimit: false,
       securityHandlers: {

@@ -114,7 +114,7 @@ interface MediaDao {
 
 `UploadService`: tickets and validation. `MediaPipeline`: conversions/variants. `MediaLibraryService`: browsing/rights. `MediaAttachmentService`: owner/target and ordering. `MediaPublicationService`: audience, contribution, moderation and public links. Browser recorder implementation stays UI-side.
 
-Routes: `GET /media/mine`, `GET /media/platform`, `POST /media/uploads`, `POST /media/uploads/:id/complete`, `GET /media/:id`, `GET /media/:id/url`, `DELETE /media/:id`, `POST /media-attachments`, `DELETE /media-attachments/:id`, `POST /media-publications`, `GET|DELETE /media-publications/:id`, `PATCH /media/:id` (alt text), `GET /moderation/publications`, `POST /moderation/publications/:id`, `GET /activities/:id/public-media`.
+Routes: `GET /media/mine`, `GET /media/platform`, `POST /media/uploads`, `PUT /media/uploads/:id/content` (local storage only; R2 uploads go straight to storage), `POST /media/uploads/:id/complete`, `GET /media-files/:mediaId/:variant` (signed delivery: streams or redirects; signatures are issued only to viewers who passed an authorization check), `GET /media/:id`, `GET /media/:id/url`, `DELETE /media/:id`, `POST /media-attachments`, `DELETE /media-attachments/:id`, `POST /media-publications`, `GET|DELETE /media-publications/:id`, `PATCH /media/:id` (alt text), `GET /moderation/publications`, `POST /moderation/publications/:id`, `GET /activities/:id/public-media`.
 
 ## 10. P1 defaults and policy constraints
 

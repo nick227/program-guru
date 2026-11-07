@@ -6,6 +6,7 @@ import { db, type Activity, type Prisma } from '@project/db'
 import { badRequest, forbidden, notFound, versionConflict } from '../../lib/errors'
 import { offsetArgs, toOffsetPage, type PageQuery } from '../../lib/paging'
 import { canReadRevision, canUseActivity, isOwner } from './access'
+import { isPublishingRestricted } from '../social/moderation.service'
 import {
   activityInclude,
   loadRevisions,
@@ -357,6 +358,7 @@ export async function publish(tx: Tx, userId: string, activityId: string, visibi
   if (visibility !== 'PRIVATE') {
     const user = await tx.user.findUniqueOrThrow({ where: { id: userId } })
     if (!user.emailVerifiedAt) throw forbidden('Verify your email before publishing publicly')
+    if (await isPublishingRestricted(userId)) throw forbidden('Publishing is restricted on this account')
   }
   const publishedId = latest.publishedAt ? latest.id : (await tx.activityRevision.update({ where: { id: latest.id }, data: { publishedAt: new Date() } })).id
   await tx.activity.update({ where: { id: activityId }, data: { status: 'PUBLISHED', visibility, latestPublishedRevisionId: publishedId } })

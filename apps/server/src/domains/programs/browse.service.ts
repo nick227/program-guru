@@ -10,9 +10,10 @@ import { parseFrequency } from './schedule'
 
 const MIN_PUBLIC_SAMPLE = 5 // 12 §10: suppress small-group statistics
 
-export async function preview(viewerId: string | null, programId: string) {
+/** `invited`: a valid group invitation lets its holder preview a private Program (07 §5). */
+export async function preview(viewerId: string | null, programId: string, opts: { invited?: boolean } = {}) {
   const p = await db.program.findUnique({ where: { id: programId }, include: programInclude })
-  if (!p || !(await canSeeProgram(viewerId, p))) throw notFound('Program')
+  if (!p || (!(await canSeeProgram(viewerId, p)) && !(opts.invited && p.status === 'PUBLISHED' && !p.moderatedAt))) throw notFound('Program')
   const access = await resolveAccess(viewerId, p)
   const version = p.latestPublished
   const items = version
