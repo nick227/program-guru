@@ -1,7 +1,9 @@
 // Deterministic, idempotent platform seed (02-DOMAIN.md §2, 07-PROGRAMS.md §8, 08-ACTIVITIES.md §12, 09-CALENDARS.md §9a).
 // All media references are original platform-owned CC0-1.0 assets — never scraped, copyrighted, or unlicensed.
+// Files are written under STORAGE_DIR before any MediaAsset/MediaVariant row is created.
 import { createHash } from 'crypto'
 import { db, type PrismaClient } from '../src/client'
+import { assertReadable, ensurePlatformPhoto, ensurePlatformVideo } from './platform-media'
 
 const SEEDED_AT = new Date('2026-01-01T00:00:00.000Z')
 const PLATFORM_LICENSE = 'CC0-1.0'
@@ -1858,30 +1860,36 @@ export async function seedDatabase(prisma: PrismaClient = db) {
       })
     }
 
-    // Rights-cleared platform MediaAsset & attachments (unless textOnly outlier)
+    // Rights-cleared platform MediaAsset & attachments (unless textOnly outlier).
+    // Files are written first; DB rows only reference keys that exist and are readable.
     await prisma.mediaAttachment.deleteMany({ where: { activityRevisionId: rev.id } })
     if (!act.textOnly) {
+      const photo = ensurePlatformPhoto(act.slug)
       const photoId = deterministicUuid(`media:photo:${act.slug}`)
-      const storageKey = `platform/illustrations/${act.slug}.png`
       await prisma.mediaAsset.upsert({
         where: { id: photoId },
         create: {
           id: photoId,
           ownerId: null,
           type: 'PHOTO',
-          originalStorageKey: storageKey,
-          mime: 'image/png',
-          byteSize: BigInt(24576),
-          width: 1200,
-          height: 900,
+          originalStorageKey: photo.original.storageKey,
+          mime: photo.original.mime,
+          byteSize: BigInt(photo.original.byteSize),
+          width: photo.original.width,
+          height: photo.original.height,
           state: 'READY',
           alt: `${act.title} illustration`,
           license: PLATFORM_LICENSE,
           attribution: PLATFORM_ATTRIBUTION,
-          sourceUrl: `https://programs.app/media/platform/illustrations/${act.slug}.png`,
+          sourceUrl: `https://programs.app/media/${photo.original.storageKey}`,
           uploadedAt: SEEDED_AT,
         },
         update: {
+          originalStorageKey: photo.original.storageKey,
+          mime: photo.original.mime,
+          byteSize: BigInt(photo.original.byteSize),
+          width: photo.original.width,
+          height: photo.original.height,
           alt: `${act.title} illustration`,
           license: PLATFORM_LICENSE,
           attribution: PLATFORM_ATTRIBUTION,
@@ -1894,13 +1902,19 @@ export async function seedDatabase(prisma: PrismaClient = db) {
           id: deterministicUuid(`media-variant:thumb:${act.slug}`),
           mediaId: photoId,
           kind: 'THUMB',
-          storageKey: `platform/illustrations/${act.slug}-thumb.webp`,
-          mime: 'image/webp',
-          byteSize: BigInt(8192),
-          width: 400,
-          height: 300,
+          storageKey: photo.thumb.storageKey,
+          mime: photo.thumb.mime,
+          byteSize: BigInt(photo.thumb.byteSize),
+          width: photo.thumb.width,
+          height: photo.thumb.height,
         },
-        update: {},
+        update: {
+          storageKey: photo.thumb.storageKey,
+          mime: photo.thumb.mime,
+          byteSize: BigInt(photo.thumb.byteSize),
+          width: photo.thumb.width,
+          height: photo.thumb.height,
+        },
       })
       await prisma.mediaAttachment.create({
         data: {
@@ -1913,6 +1927,7 @@ export async function seedDatabase(prisma: PrismaClient = db) {
       })
 
       if (act.hasVideo) {
+        const video = ensurePlatformVideo(act.slug)
         const videoId = deterministicUuid(`media:video:${act.slug}`)
         await prisma.mediaAsset.upsert({
           where: { id: videoId },
@@ -1920,20 +1935,26 @@ export async function seedDatabase(prisma: PrismaClient = db) {
             id: videoId,
             ownerId: null,
             type: 'VIDEO',
-            originalStorageKey: `platform/demos/${act.slug}.mp4`,
-            mime: 'video/mp4',
-            byteSize: BigInt(1_048_576),
-            width: 1280,
-            height: 720,
-            durationMs: 15000,
+            originalStorageKey: video.original.storageKey,
+            mime: video.original.mime,
+            byteSize: BigInt(video.original.byteSize),
+            width: video.original.width,
+            height: video.original.height,
+            durationMs: video.original.durationMs,
             state: 'READY',
             alt: `${act.title} demonstration clip`,
             license: PLATFORM_LICENSE,
             attribution: PLATFORM_ATTRIBUTION,
-            sourceUrl: `https://programs.app/media/platform/demos/${act.slug}.mp4`,
+            sourceUrl: `https://programs.app/media/${video.original.storageKey}`,
             uploadedAt: SEEDED_AT,
           },
           update: {
+            originalStorageKey: video.original.storageKey,
+            mime: video.original.mime,
+            byteSize: BigInt(video.original.byteSize),
+            width: video.original.width,
+            height: video.original.height,
+            durationMs: video.original.durationMs,
             alt: `${act.title} demonstration clip`,
             license: PLATFORM_LICENSE,
             attribution: PLATFORM_ATTRIBUTION,
@@ -1946,13 +1967,19 @@ export async function seedDatabase(prisma: PrismaClient = db) {
             id: deterministicUuid(`media-variant:stream:${act.slug}`),
             mediaId: videoId,
             kind: 'STREAM',
-            storageKey: `platform/demos/${act.slug}-stream.mp4`,
-            mime: 'video/mp4',
-            byteSize: BigInt(786_432),
-            width: 1280,
-            height: 720,
+            storageKey: video.stream.storageKey,
+            mime: video.stream.mime,
+            byteSize: BigInt(video.stream.byteSize),
+            width: video.stream.width,
+            height: video.stream.height,
           },
-          update: {},
+          update: {
+            storageKey: video.stream.storageKey,
+            mime: video.stream.mime,
+            byteSize: BigInt(video.stream.byteSize),
+            width: video.stream.width,
+            height: video.stream.height,
+          },
         })
         await prisma.mediaVariant.upsert({
           where: { mediaId_kind: { mediaId: videoId, kind: 'POSTER' } },
@@ -1960,13 +1987,19 @@ export async function seedDatabase(prisma: PrismaClient = db) {
             id: deterministicUuid(`media-variant:poster:${act.slug}`),
             mediaId: videoId,
             kind: 'POSTER',
-            storageKey: `platform/demos/${act.slug}-poster.webp`,
-            mime: 'image/webp',
-            byteSize: BigInt(16_384),
-            width: 1280,
-            height: 720,
+            storageKey: video.poster.storageKey,
+            mime: video.poster.mime,
+            byteSize: BigInt(video.poster.byteSize),
+            width: video.poster.width,
+            height: video.poster.height,
           },
-          update: {},
+          update: {
+            storageKey: video.poster.storageKey,
+            mime: video.poster.mime,
+            byteSize: BigInt(video.poster.byteSize),
+            width: video.poster.width,
+            height: video.poster.height,
+          },
         })
         await prisma.mediaAttachment.create({
           data: {
@@ -2094,6 +2127,20 @@ export async function seedDatabase(prisma: PrismaClient = db) {
     }
   }
 
+  // Every key this seed wrote must be readable. (Ignore unrelated ownerless fixtures from tests.)
+  const seededKeys = SEEDED_ACTIVITIES.flatMap((act) => {
+    if (act.textOnly) return [] as string[]
+    const photo = [`platform/illustrations/${act.slug}.png`, `platform/illustrations/${act.slug}-thumb.webp`]
+    if (!act.hasVideo) return photo
+    return [
+      ...photo,
+      `platform/demos/${act.slug}.mp4`,
+      `platform/demos/${act.slug}-stream.mp4`,
+      `platform/demos/${act.slug}-poster.webp`,
+    ]
+  })
+  assertReadable(seededKeys)
+
   return {
     categories: CATEGORIES.length,
     focuses: FOCUSES.length,
@@ -2103,6 +2150,7 @@ export async function seedDatabase(prisma: PrismaClient = db) {
     achievements: ACHIEVEMENT_DEFINITIONS.length,
     activities: SEEDED_ACTIVITIES.length,
     starterPrograms: STARTER_PROGRAMS.length,
+    platformMediaFiles: seededKeys.length,
   }
 }
 

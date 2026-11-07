@@ -41,7 +41,14 @@ export async function getMediaFile(request: any, reply: FastifyReply) {
   reply.header('cache-control', 'private, max-age=3600')
   reply.header('x-content-type-options', 'nosniff')
   if (file.size !== null) reply.header('content-length', String(file.size))
-  return reply.type(file.mime!).send(file.stream)
+  const stream = file.stream!
+  // Mid-stream I/O errors after headers: destroy the socket; never leave an unhandled stream error
+  // and never attempt a JSON error body once bytes have started.
+  stream.on('error', (err) => {
+    request.log.error({ err }, 'media stream failed')
+    if (!reply.raw.writableEnded) reply.raw.destroy()
+  })
+  return reply.type(file.mime!).send(stream)
 }
 export async function deleteMedia(request: any) {
   await media.remove(uid(request), request.params.mediaId)

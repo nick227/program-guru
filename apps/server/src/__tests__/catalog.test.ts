@@ -46,7 +46,7 @@ describe('listMetricDefinitions', () => {
 describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
   it('deterministically and idempotently seeds 81 activities, 5 starter programs, 7 achievements, and rights-cleared media', async () => {
     const first = await seedDatabase(db)
-    expect(first).toEqual({
+    expect(first).toMatchObject({
       categories: 6,
       focuses: 20,
       programTypes: 17,
@@ -56,6 +56,7 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
       activities: 81,
       starterPrograms: 5,
     })
+    expect(first.platformMediaFiles).toBeGreaterThan(0)
     // Running a second time is a no-op and produces the exact same row counts.
     const second = await seedDatabase(db)
     expect(second).toEqual(first)

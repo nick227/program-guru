@@ -1,12 +1,29 @@
 // Object storage behind one interface (05-ARCHITECTURE.md §15). STORAGE_PROVIDER=local (default, a
 // directory on disk) or r2 (Cloudflare R2 through the S3 API). Keys are never sent to clients.
-import { createReadStream, createWriteStream } from 'fs'
+import { createWriteStream } from 'fs'
 import { mkdir, rm, stat, open } from 'fs/promises'
-import { dirname, resolve } from 'path'
+import { dirname, resolve, sep } from 'path'
 import { pipeline } from 'stream/promises'
 import type { Readable } from 'stream'
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+
+/** Thrown when a key escapes the root or an object is missing. Callers map these to 404. */
+export class StorageError extends Error {
+  constructor(
+    message: string,
+    readonly code: 'ENOENT' | 'EINVAL_KEY',
+  ) {
+    super(message)
+    this.name = 'StorageError'
+  }
+}
+
+export function isStorageMiss(err: unknown): boolean {
+  if (err instanceof StorageError) return true
+  const code = (err as { code?: string } | null)?.code
+  return code === 'ENOENT' || code === 'EINVAL_KEY' || code === 'NoSuchKey' || code === 'NotFound' || code === '404'
+}
 
 export interface StorageProvider {
   readonly kind: 'local' | 'r2'
@@ -24,17 +41,25 @@ export interface StorageProvider {
 class LocalStorage implements StorageProvider {
   readonly kind = 'local' as const
   constructor(private root: string) {}
+
+  /** Resolve a relative key under the storage root; never follow `..` escapes. */
   private path(key: string) {
-    const p = resolve(this.root, key)
-    if (!p.startsWith(resolve(this.root) + '/')) throw new Error('Invalid storage key')
+    if (!key || key.includes('\0') || key.startsWith('/') || key.split(/[/\\]/).includes('..')) {
+      throw new StorageError('Invalid storage key', 'EINVAL_KEY')
+    }
+    const root = resolve(this.root)
+    const p = resolve(root, key)
+    if (p !== root && !p.startsWith(root + sep)) throw new StorageError('Invalid storage key', 'EINVAL_KEY')
     return p
   }
+
   async presignPut() {
     return null
   }
   async presignGet() {
     return null
   }
+
   async write(key: string, body: Readable, maxBytes: number) {
     const p = this.path(key)
     await mkdir(dirname(p), { recursive: true })
@@ -51,18 +76,45 @@ class LocalStorage implements StorageProvider {
     }
     return bytes
   }
+
+  /**
+   * Open the file first so missing objects reject the promise instead of returning a ReadStream
+   * that emits `error` later (unhandled → process crash). Mid-stream I/O errors still surface on
+   * the returned stream; handlers must listen.
+   */
   async read(key: string) {
-    return createReadStream(this.path(key))
+    const p = this.path(key)
+    let fh
+    try {
+      fh = await open(p, 'r')
+    } catch (err) {
+      if (isStorageMiss(err) || (err as { code?: string })?.code === 'ENOTDIR') {
+        throw new StorageError('Object not found', 'ENOENT')
+      }
+      throw err
+    }
+    return fh.createReadStream({ autoClose: true })
   }
+
   async size(key: string) {
     try {
       return (await stat(this.path(key))).size
-    } catch {
+    } catch (err) {
+      if (err instanceof StorageError && err.code === 'EINVAL_KEY') throw err
       return null
     }
   }
+
   async head(key: string, bytes: number) {
-    const fh = await open(this.path(key), 'r')
+    let fh
+    try {
+      fh = await open(this.path(key), 'r')
+    } catch (err) {
+      if (isStorageMiss(err) || (err as { code?: string })?.code === 'ENOTDIR') {
+        throw new StorageError('Object not found', 'ENOENT')
+      }
+      throw err
+    }
     try {
       const buf = Buffer.alloc(bytes)
       const { bytesRead } = await fh.read(buf, 0, bytes, 0)
@@ -71,6 +123,7 @@ class LocalStorage implements StorageProvider {
       await fh.close()
     }
   }
+
   async remove(key: string) {
     await rm(this.path(key), { force: true })
   }
@@ -104,8 +157,13 @@ class R2Storage implements StorageProvider {
     return bytes
   }
   async read(key: string) {
-    const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }))
-    return out.Body as Readable
+    try {
+      const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }))
+      return out.Body as Readable
+    } catch (err) {
+      if (isStorageMiss(err)) throw new StorageError('Object not found', 'ENOENT')
+      throw err
+    }
   }
   async size(key: string) {
     try {
@@ -115,8 +173,13 @@ class R2Storage implements StorageProvider {
     }
   }
   async head(key: string, bytes: number) {
-    const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=0-${bytes - 1}` }))
-    return Buffer.from(await out.Body!.transformToByteArray())
+    try {
+      const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=0-${bytes - 1}` }))
+      return Buffer.from(await out.Body!.transformToByteArray())
+    } catch (err) {
+      if (isStorageMiss(err)) throw new StorageError('Object not found', 'ENOENT')
+      throw err
+    }
   }
   async remove(key: string) {
     await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }))
@@ -131,6 +194,11 @@ export function storage(): StorageProvider {
     if (!process.env.R2_BUCKET) throw new Error('R2_BUCKET is required when STORAGE_PROVIDER=r2')
     provider = new R2Storage(process.env.R2_BUCKET)
   } else {
+    // The API and worker are separate Railway services with separate disks: local storage there would
+    // let the worker write variants the API can never read. Production must use R2.
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_LOCAL_STORAGE !== 'true') {
+      throw new Error('STORAGE_PROVIDER=local is not allowed in production; set STORAGE_PROVIDER=r2')
+    }
     provider = new LocalStorage(process.env.STORAGE_DIR ?? resolve(__dirname, '../../../../uploads'))
   }
   return provider
