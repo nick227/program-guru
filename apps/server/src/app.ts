@@ -32,11 +32,23 @@ export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance
 
   await app.register(cors, { origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173', credentials: true })
   await app.register(cookie)
+  // JSON bodies keep their exact raw text: Stripe signatures are computed over it.
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (request, body, done) => {
+    ;(request as any).rawBody = body
+    if (body === '') return done(null, undefined)
+    try {
+      done(null, JSON.parse(body as string))
+    } catch (err) {
+      ;(err as any).statusCode = 400
+      done(err as Error, undefined)
+    }
+  })
   // Local-storage uploads arrive as a raw stream; it is piped to storage with a size limit, never buffered.
   app.addContentTypeParser('application/octet-stream', (_request, payload, done) => done(null, payload))
   if (opts.rateLimit !== false) {
     app.addHook('preHandler', async (request, reply) => {
-      if (request.url === '/health') return
+      // Stripe's retries must never be throttled; the signature check authenticates them.
+      if (request.url === '/health' || request.url.startsWith('/billing/webhooks/')) return
       await rateLimitPreHandler(request, reply)
     })
   }

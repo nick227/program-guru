@@ -132,7 +132,7 @@ No notification for one's own action; allow mute per group; quiet hours respect 
 
 ## 12. Billing and entitlements
 
-Keep these separate: `ProgramEnrollment` (participation), `ProgramAccessGrant` (entitlement), `ProgramPurchase` and `BillingSubscription` (financial instruments). Provider: Stripe Connect with hosted Checkout and hosted onboarding; the exact Connect configuration is recorded in an ADR before implementation. Webhooks are the only way a financial event creates or changes a grant; the client is never trusted. Every webhook is stored in `BillingEvent`, deduplicated by provider event ID, and processed idempotently.
+Keep these separate: `ProgramEnrollment` (participation), `ProgramAccessGrant` (entitlement), `ProgramPurchase` and `BillingSubscription` (financial instruments). Provider: Stripe Connect with hosted Checkout and hosted onboarding; the configuration is recorded in `docs/adr/0001-billing-stripe-connect.md`. Webhooks are the only way a financial event creates or changes a grant; the client is never trusted. Every webhook is stored in `BillingEvent`, deduplicated by provider event ID, and processed idempotently.
 
 | Provider event | Effect |
 |---|---|

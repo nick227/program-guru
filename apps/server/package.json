@@ -25,7 +25,8 @@
     "fastify": "^4.0.0",
     "fastify-openapi-glue": "^4.0.0",
     "google-auth-library": "^9.15.0",
-    "js-yaml": "^4.0.0"
+    "js-yaml": "^4.0.0",
+    "stripe": "^23.1.0"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^10.0.0",

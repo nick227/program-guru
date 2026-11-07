@@ -48,7 +48,8 @@ export async function preview(viewerId: string | null, programId: string, opts: 
     completionRate: sampleOk && stat?.completionRate != null ? Number(stat.completionRate) : null,
     canJoin: !!viewerId && joinable && (owner || mode === 'OPEN' || access === 'GRANTED'),
     canRequestAccess: !!viewerId && joinable && !owner && mode === 'APPROVAL' && access === 'PREVIEW',
-    canPurchase: !!viewerId && joinable && !owner && mode === 'PAID' && marketplaceEnabled() && p.prices.length > 0 && (access === 'PREVIEW' || access === 'LAPSED'),
+    // A lapsed subscriber is still enrolled and is exactly who should be offered renewal.
+    canPurchase: !!viewerId && p.status === 'PUBLISHED' && !!version && !owner && mode === 'PAID' && marketplaceEnabled() && p.prices.length > 0 && (access === 'PREVIEW' || access === 'LAPSED'),
     myEnrollmentId: mine?.id ?? null,
   }
 }

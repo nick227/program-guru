@@ -111,3 +111,53 @@ describe('publications', () => {
     expect((await req('GET', `/media/${t.mediaId}/url`, undefined, testOtherUserId)).statusCode).toBe(200)
   })
 })
+
+describe('private media on results (01 §6 required test 4)', () => {
+  it('records results, saves a private photo, returns to the calendar; nobody else can see the photo', async () => {
+    // Alice and Bob are in a group following the same program, so "private" is tested against a collaborator.
+    let ws = (await req('POST', '/programs', { programTypeId: cat.workout.id })).json().data
+    ws = (await req('POST', `/programs/${ws.id}/draft/activities`, { activityIds: [cat.squats.activity.id], expectedRevision: ws.draftRevision })).json().data
+    const versionId = (await req('POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })).json().data.latestPublishedVersionId
+    const enroll = (userId: string, key: string, groupId?: string) =>
+      req('POST', `/programs/${ws.id}/enrollments`, { programVersionId: versionId, startLocalDate: '2026-11-09', timezone: 'America/Chicago', idempotencyKey: key, ...(groupId ? { groupId } : {}) }, userId)
+    await enroll(testUserId, 'alice-enrolls')
+    const groupId = (await req('POST', '/groups', { programVersionId: versionId, mode: 'SYNC' })).json().data.id
+    const token = (await req('POST', `/groups/${groupId}/invitations`, { kind: 'USER', handle: 'bob' })).json().data.joinUrl.split('/join/')[1]
+    await req('POST', `/group-invitations/${token}/accept`, undefined, testOtherUserId)
+    await enroll(testOtherUserId, 'bob-enrolls', groupId)
+
+    const item = await db.calendarItem.findFirstOrThrow({ where: { ownerId: testUserId, programDayIndex: 0 } })
+    const s = (await req('POST', '/sessions', { calendarItemId: item.id, idempotencyKey: 'private-media-session' })).json().data
+    const entry = (await req('POST', `/sessions/${s.id}/results`, { values: [{ metricDefinitionId: cat.reps.id, value: 20 }], notes: 'knee felt fine' })).json().data
+    const t = await upload()
+    await req('POST', `/media/uploads/${t.uploadId}/complete`)
+    await drain()
+    const attached = await req('POST', '/media-attachments', { mediaId: t.mediaId, target: { kind: 'RESULT_ENTRY', id: entry.id }, purpose: 'JOURNAL' })
+    expect(attached.statusCode).toBe(201)
+    const finished = (await req('POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision })).json().data
+    // Back on the calendar: the item is done, on the same date.
+    expect(finished.item).toMatchObject({ status: 'DONE', localDate: '2026-11-09' })
+
+    const mine = (await req('GET', `/calendar-items/${item.id}/occurrence`)).json().data
+    expect(mine.myMedia.map((m: any) => m.id)).toEqual([t.mediaId])
+    expect(mine.resultInputs[0].recorded).toBe(20)
+
+    // Bob, a group member, sees Alice's completion but never her photo, note, or reps.
+    const bobsItem = await db.calendarItem.findFirstOrThrow({ where: { ownerId: testOtherUserId, groupOccurrenceKey: item.groupOccurrenceKey } })
+    const bobs = (await req('GET', `/calendar-items/${bobsItem.id}/occurrence`, undefined, testOtherUserId)).json().data
+    expect(bobs.collaborators.members.find((m: any) => m.user.handle === 'alice').status).toBe('DONE')
+    expect(bobs.sharedMedia).toEqual([])
+    expect(bobs.myMedia).toEqual([])
+    expect(JSON.stringify(bobs)).not.toContain(t.mediaId)
+    expect(JSON.stringify(bobs)).not.toContain('knee felt fine')
+    expect((await req('GET', `/media/${t.mediaId}/url`, undefined, testOtherUserId)).statusCode).toBe(404)
+    expect((await app.inject({ method: 'GET', url: `/media/${t.mediaId}/url` })).statusCode).toBe(404)
+    expect((await req('GET', `/sessions/${s.id}`, undefined, testOtherUserId)).statusCode).toBe(404)
+
+    // Sharing is a deliberate act: only after publishing to the group does Bob see it.
+    await req('POST', '/media-publications', { mediaId: t.mediaId, audience: 'GROUP', groupId, occurrenceKey: item.groupOccurrenceKey })
+    const after = (await req('GET', `/calendar-items/${bobsItem.id}/occurrence`, undefined, testOtherUserId)).json().data
+    expect(after.sharedMedia.map((m: any) => m.id)).toEqual([t.mediaId])
+    expect((await req('GET', `/media/${t.mediaId}/url`, undefined, testOtherUserId)).statusCode).toBe(200)
+  })
+})
