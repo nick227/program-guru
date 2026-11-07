@@ -1,5 +1,8 @@
+import { MediaAttachments } from './MediaAttachments'
+import { ErrorMessage, Loading } from './ui/Feedback'
+import { Button } from './ui/Button'
 import { useState } from 'react'
-import type { components } from '@project/sdk'
+import { useMediaSession, type components } from '@project/sdk'
 import { Panel, Stack } from '@/components/ui/Layout'
 import { ThumbnailGrid } from '@/components/ThumbnailGrid'
 import { MediaViewer, type ViewerItem } from '@/components/MediaViewer'
@@ -28,12 +31,14 @@ function toViewer(
 }
 
 export function OccurrenceMedia({
+  sessionId,
   onAttach,
   myMedia,
   sharedMedia,
   communityMedia,
   locked,
 }: {
+  sessionId?: string
   onAttach: (asset: S['MediaAsset']) => Promise<void>
   myMedia: S['MediaThumb'][]
   sharedMedia: S['GroupMediaThumb'][]
@@ -44,12 +49,21 @@ export function OccurrenceMedia({
     items: ViewerItem[]
     index: number
   } | null>(null)
+  const session = useMediaSession(sessionId)
+  const entry = session.data?.entries.find(
+    (entry) => entry.instructionId === null,
+  )
+  const [managing, setManaging] = useState(false)
   const [picking, setPicking] = useState(false)
   return (
     <>
       <Panel>
         <Stack>
           <h2>My Media</h2>
+          <ErrorMessage
+            error={session.error}
+            retry={() => void session.refetch()}
+          />
           <ThumbnailGrid
             items={myMedia}
             empty="No private media yet."
@@ -61,6 +75,32 @@ export function OccurrenceMedia({
               })
             }
           />
+          {sessionId && (
+            <Button
+              variant="outline"
+              onClick={() => setManaging((value) => !value)}
+              aria-expanded={managing}
+            >
+              Manage attachments
+            </Button>
+          )}
+          {managing && (
+            <Stack>
+              <p className="text-sm text-muted">Attachments for this attempt</p>
+              {session.isPending ? (
+                <Loading />
+              ) : !session.error && !session.data?.entries.length ? (
+                <p>No attachments yet.</p>
+              ) : null}
+              {!session.error &&
+                session.data?.entries.map((entry) => (
+                  <MediaAttachments
+                    key={entry.id}
+                    context={{ kind: 'Activity', resultEntryId: entry.id }}
+                  />
+                ))}
+            </Stack>
+          )}
         </Stack>
       </Panel>
       {sharedMedia.length > 0 && (
@@ -108,6 +148,9 @@ export function OccurrenceMedia({
       )}
       {picking && (
         <MediaPicker
+          context={
+            entry ? { kind: 'Activity', resultEntryId: entry.id } : undefined
+          }
           onClose={() => setPicking(false)}
           onSelect={onAttach}
           selected={myMedia.map((m) => m.id)}

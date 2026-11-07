@@ -371,6 +371,7 @@ export async function mockApi(
         communityMedia: [],
         communityStats: null,
       } satisfies S['ActivityOccurrence'])
+    if (method === 'GET' && /^\/sessions\/[^/]+$/.test(path)) return send({ session, entries: [] })
     if (path === '/sessions') {
       session = {
         id: uid(50),

@@ -19,6 +19,8 @@ async function mediaApi(
   let state =
     options.initialState ?? (options.processing ? 'PROCESSING' : 'READY')
   let results = 0
+  const entries: { id: string; instructionId: null; media: unknown[] }[] = []
+  const links: any[] = []
   let failCompletion = options.completionFailure
   let failUpload = options.uploadFailure
   let failAttach = options.attachFailure
@@ -42,7 +44,11 @@ async function mediaApi(
   await page.route('http://localhost:3001/**', async (route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname
-    if (!path.startsWith('/media') && !path.endsWith('/results'))
+    if (
+      !path.startsWith('/media') &&
+      !path.endsWith('/results') &&
+      !/^\/sessions\/[^/]+$/.test(path)
+    )
       return route.fallback()
     if (request.method() === 'OPTIONS') return route.fallback()
     const body = request.headers()['content-type']?.includes('json')
@@ -56,10 +62,21 @@ async function mediaApi(
         status: 403,
         json: { code: 'FORBIDDEN', message, requestId: 'media-test' },
       })
-    if (path.endsWith('/results'))
-      return send({ id: ++results === 1 ? 'result-one' : `result-${results}` })
-    if (path === '/media/mine' || path === '/media/platform')
+    if (/^\/sessions\/[^/]+$/.test(path))
+      return send({ session: { id: path.split('/').at(-1) }, entries })
+    if (path.endsWith('/results')) {
+      const entry = {
+        id: ++results === 1 ? 'result-one' : `result-${results}`,
+        instructionId: null,
+        media: [],
+      }
+      entries.push(entry)
+      return send(entry)
+    }
+    if (path === '/media/mine' || path === '/media/platform') {
+      if (new URL(request.url()).searchParams.get('q') === '') return route.fulfill({ status: 400, json: { code: 'VALIDATION_ERROR', message: 'q must not be empty' } })
       return send([asset()], { nextCursor: null })
+    }
     if (path === '/media/uploads')
       return send({
         uploadId: 'upload-one',
@@ -105,12 +122,36 @@ async function mediaApi(
             mime: 'video/mp4',
             expiresAt: null,
           })
+    if (path.startsWith('/media-attachments/')) {
+      const index = links.findIndex(
+        (link) => link.id === path.split('/').at(-1),
+      )
+      if (index >= 0) links.splice(index, 1)
+      return send({ ok: true })
+    }
+    if (path === '/media-attachments' && request.method() === 'GET')
+      return send(
+        links.filter(
+          (link) =>
+            link.target.id ===
+            new URL(request.url()).searchParams.get('targetId'),
+        ),
+        { nextCursor: null },
+      )
     if (path === '/media-attachments') {
       if (failAttach) {
         failAttach = false
         return deny('You cannot attach this media')
       }
-      return send({ id: 'attachment-one', ...body, media: asset() })
+      const link = {
+        id: 'attachment-one',
+        ...body,
+        media: asset(),
+        mediaState: state,
+        mediaDeleted: false,
+      }
+      links.push(link)
+      return send(link)
     }
     return route.fulfill({ status: 404 })
   })
@@ -147,7 +188,9 @@ test('picker waits for processing, preserves the Activity and attaches privately
   await expect(picker).not.toBeVisible()
   await expect(page).toHaveURL(/day%3D2026-11-10/)
   expect(
-    media.calls.find((call) => call.path === '/media-attachments')?.body,
+    media.calls.find(
+      (call) => call.path === '/media-attachments' && call.method === 'POST',
+    )?.body,
   ).toEqual({
     mediaId: 'media-one',
     target: { kind: 'RESULT_ENTRY', id: 'result-one' },
@@ -272,11 +315,13 @@ test('already attached media cannot be selected again', async ({ page }) => {
       .getByRole('button', { name: 'Squat recording · READY' }),
   ).toBeDisabled()
   expect(
-    media.calls.filter((call) => call.path === '/media-attachments'),
+    media.calls.filter(
+      (call) => call.path === '/media-attachments' && call.method === 'POST',
+    ),
   ).toHaveLength(0)
 })
 
-test('one existing asset can be reused on a subsequent Activity visit without reupload or publication', async ({
+test('refresh retains server attachment selection without another result entry', async ({
   page,
 }) => {
   await mockApi(page)
@@ -286,24 +331,19 @@ test('one existing asset can be reused on a subsequent Activity visit without re
   await expect(page.getByRole('dialog')).not.toBeVisible()
   await page.reload()
   await page.getByRole('button', { name: 'Add media' }).click()
-  await page.getByRole('button', { name: 'Squat recording · READY' }).click()
-  await expect(page.getByRole('dialog')).not.toBeVisible()
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Squat recording · READY' }),
+  ).toBeDisabled()
   expect(
-    media.calls
-      .filter((call) => call.path === '/media-attachments')
-      .map((call) => call.body.mediaId),
-  ).toEqual(['media-one', 'media-one'])
-  expect(
-    media.calls
-      .filter((call) => call.path === '/media-attachments')
-      .map((call) => call.body.target.id),
-  ).toEqual(['result-one', 'result-2'])
+    media.calls.filter((call) => call.path.endsWith('/results')),
+  ).toHaveLength(1)
   expect(
     media.calls.filter(
-      (call) =>
-        call.path.includes('uploads') || call.path.includes('publications'),
+      (call) => call.path === '/media-attachments' && call.method === 'POST',
     ),
-  ).toHaveLength(0)
+  ).toHaveLength(1)
 })
 
 for (const state of ['FAILED', 'BLOCKED']) {
@@ -315,7 +355,9 @@ for (const state of ['FAILED', 'BLOCKED']) {
       page.getByRole('button', { name: `Squat recording · ${state}` }),
     ).toBeDisabled()
     expect(
-      media.calls.filter((call) => call.path === '/media-attachments'),
+      media.calls.filter(
+        (call) => call.path === '/media-attachments' && call.method === 'POST',
+      ),
     ).toHaveLength(0)
   })
 }
@@ -352,20 +394,20 @@ test('upload finishes processing and the viewer renders the authorized rendition
   )
   await login(page, 'participant@test.local', 'password')
   await page.goto('/media')
-  await page
-    .getByLabel('Upload private media')
-    .setInputFiles({
-      name: 'photo.png',
-      mimeType: 'image/png',
-      buffer: Buffer.from('fixture-upload'),
-    })
+  await page.getByLabel('Upload private media').setInputFiles({
+    name: 'photo.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('fixture-upload'),
+  })
   await expect(
     page.getByText('Processing. Ready items appear below.'),
   ).toBeVisible()
   media.ready()
   await expect(page.getByText('Ready to attach.')).toBeVisible()
   await page.getByRole('button', { name: 'Squat recording · READY' }).click()
-  const rendition = page.getByRole('dialog').getByRole('img', { name: 'Squat recording', exact: true })
+  const rendition = page
+    .getByRole('dialog')
+    .getByRole('img', { name: 'Squat recording', exact: true })
   await expect(rendition).toHaveAttribute(
     'src',
     '/signed-photo.png?sig=fixture',
@@ -389,13 +431,11 @@ test('completion retry does not upload the bytes or create a ticket again', asyn
   const media = await mediaApi(page, { completionFailure: true })
   await login(page, 'participant@test.local', 'password')
   await page.goto('/media')
-  await page
-    .getByLabel('Upload private media')
-    .setInputFiles({
-      name: 'video.mp4',
-      mimeType: 'video/mp4',
-      buffer: Buffer.from('fixture-upload'),
-    })
+  await page.getByLabel('Upload private media').setInputFiles({
+    name: 'video.mp4',
+    mimeType: 'video/mp4',
+    buffer: Buffer.from('fixture-upload'),
+  })
   await expect(page.getByRole('alert')).toContainText('Completion unavailable')
   await page.getByRole('button', { name: 'Retry', exact: true }).click()
   await expect(
@@ -433,4 +473,129 @@ test('type filters use the SDK query and native capture reuses the picker modal'
   )
   await page.getByRole('button', { name: 'Back to library' }).click()
   await expect(page.getByLabel('Search media')).toBeVisible()
+})
+
+test('attachment IDs survive refresh and detach is confirmed after a second refresh', async ({
+  page,
+}) => {
+  await mockApi(page)
+  const media = await mediaApi(page)
+  await openActivity(page)
+  await page.getByRole('button', { name: 'Squat recording · READY' }).click()
+  await expect(page.getByRole('dialog')).not.toBeVisible()
+  await page.reload()
+  await page
+    .getByRole('button', { name: 'Manage attachments', exact: true })
+    .click()
+  await expect(
+    page.getByRole('button', { name: 'Detach', exact: true }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Detach', exact: true }).click()
+  await expect(page.getByText('No attachments for this result.')).toBeVisible()
+  await page.reload()
+  await page
+    .getByRole('button', { name: 'Manage attachments', exact: true })
+    .click()
+  await expect(page.getByText('No attachments for this result.')).toBeVisible()
+  expect(
+    media.calls
+      .filter((call) => call.method === 'DELETE')
+      .map((call) => call.path),
+  ).toEqual(['/media-attachments/attachment-one'])
+  expect(
+    media.calls.filter((call) => call.path.endsWith('/results')),
+  ).toHaveLength(1)
+})
+
+test('picker reads all attachment pages before permitting a duplicate selection', async ({
+  page,
+}) => {
+  await mockApi(page)
+  await mediaApi(page)
+  await openActivity(page)
+  await page.getByRole('button', { name: 'Squat recording · READY' }).click()
+  await expect(page.getByRole('dialog')).not.toBeVisible()
+  const cursors: (string | null)[] = []
+  await page.route('**/media-attachments?**', async (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get('cursor')
+    cursors.push(cursor)
+    await route.fulfill({
+      json: {
+        data: cursor
+          ? [
+              {
+                id: 'persisted-link',
+                mediaId: 'media-one',
+                mediaDeleted: false,
+              },
+            ]
+          : [],
+        meta: { hasMore: !cursor, nextCursor: cursor ? null : 'second-page' },
+      },
+    })
+  })
+  await page.reload()
+  await page.getByRole('button', { name: 'Add media' }).click()
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Squat recording · READY' }),
+  ).toBeDisabled()
+  await expect.poll(() => cursors).toContain('second-page')
+})
+
+test('attachment enumeration denial blocks selection instead of treating the target as empty', async ({
+  page,
+}) => {
+  await mockApi(page)
+  await mediaApi(page)
+  await openActivity(page)
+  await page.getByRole('button', { name: 'Squat recording · READY' }).click()
+  await expect(page.getByRole('dialog')).not.toBeVisible()
+  await page.route('**/media-attachments?**', (route) =>
+    route.fulfill({
+      status: 404,
+      json: { code: 'NOT_FOUND', message: 'Target unavailable' },
+    }),
+  )
+  await page.reload()
+  await page.getByRole('button', { name: 'Add media' }).click()
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
+    'Target unavailable',
+  )
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Squat recording · READY' }),
+  ).toBeDisabled()
+})
+
+test('failed detach preserves the persisted link and allows an explicit retry', async ({
+  page,
+}) => {
+  await mockApi(page)
+  await mediaApi(page)
+  await openActivity(page)
+  await page.getByRole('button', { name: 'Squat recording · READY' }).click()
+  await expect(page.getByRole('dialog')).not.toBeVisible()
+  await page.reload()
+  await page
+    .getByRole('button', { name: 'Manage attachments', exact: true })
+    .click()
+  await page.route(
+    '**/media-attachments/attachment-one',
+    (route) =>
+      route.fulfill({
+        status: 503,
+        json: { code: 'UNAVAILABLE', message: 'Detach unavailable' },
+      }),
+    { times: 1 },
+  )
+  await page.getByRole('button', { name: 'Detach', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Detach unavailable')
+  await expect(
+    page.getByRole('button', { name: 'View', exact: true }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Detach', exact: true }).click()
+  await expect(page.getByText('No attachments for this result.')).toBeVisible()
 })

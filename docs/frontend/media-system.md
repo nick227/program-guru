@@ -24,6 +24,7 @@ All requests use the existing generated SDK and `getApiClient`. Signed binary PU
 - `useMediaUpload()`: `upload(file)`, `retry()`, `stage`, `busy`, `error`. Keeps the ticket and file in memory. Failed PUT retries the same ticket; failed completion retries completion without resending bytes. No offline queue or automatic mutation retry. Expired tickets require selecting the file again. Cancelling a picker does not cancel server processing or delete the private asset.
 - `useMediaAsset(id)`: owner asset state with processing polling. Blocked/failed assets are not selectable. Worker retry is not currently a contract operation.
 - `useAttachMedia()`: accepts the generated AttachMediaInput. `mediaTarget(context)` converts the four UI contexts to existing targets. Caller selects purpose explicitly.
+- `useMediaAttachments(context)`: server-backed, viewer-scoped attachment pagination.
 - `useDetachMedia()`: deletes a known attachment ID, not its asset.
 - `useMediaPublication()`: explicit POST publication mutation using the generated PublishMediaInput. No automatic invocation from upload/attachment. Advanced publishing UI is deferred.
 - `useMediaUrl(mediaId, publicationId?)`: viewer-scoped, non-persisted signed delivery URL. Never use thumbnail URLs for original-image/video playback. Failure hides stale content and allows explicit retry.
@@ -31,9 +32,13 @@ All requests use the existing generated SDK and `getApiClient`. Signed binary PU
 
 `queryKeys.mediaLibrary`, `mediaAsset`, `mediaUrl` own media keys. All authenticated reads append the current viewer key. Auth changes clear caches. Mutations invalidate media and affected occurrence, Program, Activity and user projections. There is no second persistent attachment store. Local state owns only search/selection, upload retry stage and unsaved descriptions.
 
-### Why there is no fake useMediaAttachments(context)
+### Server-backed attachment management
 
-The contract has POST attachment and DELETE by ID, but no GET attachment collection. Domain projections return thumbnails without attachment IDs. A hook promising a reload-stable attachment list/detach would fabricate data. Render existing domain media arrays, retain the mutation's returned attachment ID if immediate detach is needed, and await a server-owned list contract before adding that hook. Do not persist a shadow attachment table in localStorage.
+Backend `1fb1fd7` supplies `GET /media-attachments?targetKind=…&targetId=…&cursor=…&limit=…`. `useMediaAttachments(context)` maps the existing UI context through `mediaTarget`, pages the response and scopes the cache to the current viewer. Each link includes its attachment ID, target, purpose, position, `mediaState`, `mediaDeleted` and thumbnail data.
+
+`MediaAttachments` renders these links, supports pagination, viewing and detach, and retains links when a mutation fails. Pass `readOnly` for published revision/instruction management. `MediaPicker` accepts `context`; it reads every attachment page before enabling selection and blocks selection on enumeration errors. No attachment IDs are synthesized or persisted locally.
+
+`useAttachSessionMedia` reloads session detail before attaching and reuses its existing unscoped result entry, creating one only when none exists. This replaces the temporary result-entry ref. Mutation invalidation covers session detail, attachment collections and occurrence projections. Activity management shows all result-entry attachments in the current attempt. The broader My Media history projection remains viewable; enumerating older attempts is still a separate API discovery limitation.
 
 ## Components
 
@@ -76,15 +81,13 @@ The concrete Activity integration is `Occurrence.tsx` → `OccurrenceMedia`. Onl
 
 For a genuinely new backend target, first obtain a server-owned OpenAPI/Prisma change. For a new UI using an existing target, compose the picker and mediaTarget without creating tables, uploaders, clients or audience flags.
 
-## Contract dependencies and limits
+## Verified backend baseline and remaining limits
 
-1. Attachment enumeration with IDs and target scope is needed for reload-stable selection/detach. Occurrence My Media is an aggregate, so its selected IDs prevent duplicates in that visible projection, not globally.
-2. Attach is not idempotent across clients or ambiguous network failures. UI serialization cannot guarantee exactly once. Backend uniqueness/idempotency is required before claiming it.
-3. The inspected backend accepted PROCESSING attachments although the specification requires READY; this frontend gates READY. Claude owns enforcement.
-4. The inspected delivery handler did not use publicationId although the OpenAPI query declares it. Frontend preserves it; Claude must verify context-specific publication authorization and revocation. Concurrent backend changes may supersede this finding.
-5. No retry-processing endpoint. FAILED/BLOCKED remains unavailable; a new upload is a new asset. Upload cancellation/abandoned-ticket reconciliation and resumable byte transfer are not implemented.
-6. Full group/community browsing pagination, public likes/views/comments, profile/Program editor wiring, swipe viewer navigation and browser-Back modal history integration remain follow-up UI work. Core picker closure uses Close/Escape without navigation.
-7. Device camera capture is browser/device dependent. Advanced camera and publishing controls are intentionally deferred.
+`1fb1fd7` is integrated into this isolated branch without changing backend files. It provides owner-authorized attachment enumeration (including published targets), READY-only attachment checks, and five database unique indexes on `(mediaId, target FK, purpose)`. Repeating an attach returns the same link; a conflicting explicit position returns 409. Detach removes the link, never the asset. Published revision/instruction mutation remains forbidden.
+
+Publication-specific delivery checks the requested publication against media ID, audience, membership, Program access, blocks, moderation and revocation. The API rechecks delivery authorization on each proxied fetch/range request. Native browser media elements own playback; this frontend introduces no Range, storage or processing implementation.
+
+Remaining limits: no processing-retry endpoint; a failed file requires a new upload. No API enumerates all historical Activity attempts from the aggregate My Media thumbnails, so management covers the current attempt's persisted result entries. Group/community publishing/reactions, swipe navigation, browser-Back modal handling and expanded Profile/Program editor wiring remain outside this slice.
 
 ## Verification
 
@@ -94,4 +97,4 @@ Validation on this branch: 38 browser cases (desktop/mobile), 9 unit tests, web 
 
 ## Integration follow-up
 
-The subsequent frontend pass follows Claude's committed `docs/media-integration.md` at `e80b944`: ticket-only credential-free PUTs, native playback, owner polling and native device capture. See [media-reconciliation.md](media-reconciliation.md) for the outstanding server-owned contract and shared-worktree reconciliation notes. The complete reload-stable attachment/detach round trip remains blocked on committed attachment enumeration; no temporary HTTP contract has been added to this branch.
+The subsequent frontend pass follows Claude's committed `docs/media-integration.md` at `e80b944`: ticket-only credential-free PUTs, native playback, owner polling and native device capture. See [media-reconciliation.md](media-reconciliation.md) for the outstanding server-owned contract and shared-worktree reconciliation notes. Attachment enumeration has now landed at `1fb1fd7`; the current-attempt attachment/detach round trip uses that committed contract.

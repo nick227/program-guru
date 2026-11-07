@@ -8,8 +8,7 @@ import {
 } from 'react-router-dom'
 import {
   useCreateSession,
-  useAttachMedia,
-  mediaTarget,
+  useAttachSessionMedia,
   useOccurrence,
   useSaveResults,
   useSessionAction,
@@ -73,8 +72,7 @@ function OccurrenceContent({
   const action = useSessionAction(o.item.id)
   const save = useSaveResults(o.item.id)
   const undo = useUndoCompletion()
-  const attach = useAttachMedia()
-  const mediaEntry = useRef<string>()
+  const attach = useAttachSessionMedia()
   const [dirty, setDirty] = useState<Record<string, string | number | boolean>>(
     {},
   )
@@ -363,6 +361,7 @@ function OccurrenceContent({
         </Grid>
       </Panel>
       <OccurrenceMedia
+        sessionId={o.session?.id}
         onAttach={async (asset) => {
           if (!online) throw new Error('Connect to attach media.')
           if (working.current)
@@ -370,21 +369,13 @@ function OccurrenceContent({
           working.current = true
           setBusy(true)
           try {
-            if (!mediaEntry.current) {
-              const current = await getSession()
-              const entry = await save.mutateAsync({
-                sessionId: current.id,
-                values: [],
-              })
-              mediaEntry.current = entry.id
-            }
+            const current =
+              o.session && o.session.status !== 'ABANDONED'
+                ? o.session
+                : await getSession()
             await attach.mutateAsync({
               mediaId: asset.id,
-              target: mediaTarget({
-                kind: 'Activity',
-                resultEntryId: mediaEntry.current,
-              }),
-              purpose: 'JOURNAL',
+              sessionId: current.id,
             })
           } finally {
             working.current = false

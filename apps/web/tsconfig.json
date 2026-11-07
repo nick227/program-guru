@@ -18,6 +18,7 @@
   "include": [
     "src",
     "e2e",
-    "*.ts"
+    "*.ts",
+    "scripts"
   ]
 }

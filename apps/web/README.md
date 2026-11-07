@@ -36,3 +36,13 @@ The live test creates a new Program and participant enrollment via browser actio
 ## Foundation and remaining work
 
 See [frontend foundation](../../docs/frontend-foundation.md) for route/state ownership, invalidation, draft concurrency, scope limits, and API dependencies. `docs/specs/` remains authoritative.
+
+### Isolated live media round trip
+
+Create the dedicated database with `bash scripts/local-mysql.sh create-database programs_app_codex_media_roundtrip` from the repository root. Set `MEDIA_TEST_DATABASE_URL` to that database on `127.0.0.1:3307`, using the existing local application credentials, then run:
+
+```sh
+pnpm exec tsx apps/web/scripts/media-live.ts
+```
+
+The runner starts the unmodified API and worker (3037), launches Vite/Playwright (5187), and verifies photo and video Upload → READY → Attach → Refresh → View → Detach → Refresh. It preserves the asset after detach, verifies re-selection and uses no mocks. `MEDIA_TEST_API_PORT` and `E2E_PORT` can select other unused ports. Requires local MySQL, ffmpeg, Chromium and installed workspace dependencies. Never point it at a shared/dev database; the runner rejects other database names and hosts. Processes are stopped on completion; diagnostic logs and test media remain in the printed temporary directory. Mocked browser tests and live media tests use separate artifact directories.

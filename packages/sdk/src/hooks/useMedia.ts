@@ -1,5 +1,9 @@
 import { useRef, useState } from 'react'
-import type { MediaLibraryFilters } from '../media'
+import {
+  mediaTarget,
+  type MediaContext,
+  type MediaLibraryFilters,
+} from '../media'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiData, getApiClient } from '../client'
 import { queryKeys as keys } from '../queryKeys'
@@ -68,7 +72,8 @@ export async function putUploadContent(
 
 /** One library, filtered projections. Poll only while assets are unfinished. */
 export function useMediaLibrary(filters: MediaLibraryFilters = {}) {
-  const { source = 'mine', q, type } = filters
+  const { source = 'mine', q: search, type } = filters
+  const q = search?.trim() || undefined
   return useInfiniteQuery({
     queryKey: useViewerKey(keys.mediaLibrary({ source, q, type })),
     initialPageParam: undefined as string | undefined,
@@ -117,6 +122,7 @@ const mediaChanges = [
   ['activities'],
   ['users'],
   keys.me,
+  ['sessions'],
 ]
 export const useAttachMedia = useCreateMediaAttachment
 export function useDetachMedia() {
@@ -254,5 +260,76 @@ export function useDeleteMedia() {
         }),
       ),
     mediaChanges,
+  )
+}
+
+/** Server-owned attachment links; thumbnails are never treated as attachment IDs. */
+export function useMediaAttachments(context?: MediaContext) {
+  const target = context ? mediaTarget(context) : undefined
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.mediaAttachments(context)),
+    enabled: !!target,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) => {
+      if (!target) throw new Error('An attachment target is required')
+      return apiData(
+        await getApiClient().GET('/media-attachments', {
+          signal,
+          params: {
+            query: {
+              targetKind: target.kind,
+              targetId: target.id,
+              cursor: pageParam,
+              limit: 24,
+            },
+          },
+        }),
+      )
+    },
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+export function useMediaSession(sessionId?: string) {
+  return useQuery({
+    queryKey: useViewerKey(keys.session(sessionId ?? '')),
+    enabled: !!sessionId,
+    queryFn: async ({ signal }) =>
+      apiData(
+        await getApiClient().GET('/sessions/{sessionId}', {
+          signal,
+          params: { path: { sessionId: sessionId! } },
+        }),
+      ).data,
+  })
+}
+/** Resolve the persisted result entry on every attempt, including after a failed attachment/reload. */
+export function useAttachSessionMedia() {
+  return useApiMutation(
+    async ({ sessionId, mediaId }: { sessionId: string; mediaId: string }) => {
+      const detail = apiData(
+        await getApiClient().GET('/sessions/{sessionId}', {
+          params: { path: { sessionId } },
+        }),
+      ).data
+      const entry =
+        detail.entries.find((entry) => entry.instructionId === null) ??
+        apiData(
+          await getApiClient().POST('/sessions/{sessionId}/results', {
+            params: { path: { sessionId } },
+            body: { values: [] },
+          }),
+        ).data
+      return apiData(
+        await getApiClient().POST('/media-attachments', {
+          body: {
+            mediaId,
+            target: { kind: 'RESULT_ENTRY', id: entry.id },
+            purpose: 'JOURNAL',
+          },
+        }),
+      ).data
+    },
+    mediaChanges,
+    'attach-session-media',
   )
 }

@@ -1,6 +1,10 @@
 import { useMediaDialog } from '@/lib/useMediaDialog'
-import { useRef, useState } from 'react'
-import type { components } from '@project/sdk'
+import { useEffect, useRef, useState } from 'react'
+import {
+  useMediaAttachments,
+  type MediaContext,
+  type components,
+} from '@project/sdk'
 import { MediaLibrary } from './MediaLibrary'
 import { Button } from './ui/Button'
 import { ErrorMessage } from './ui/Feedback'
@@ -10,14 +14,42 @@ import { Row, Stack } from './ui/Layout'
 export function MediaPicker({
   onClose,
   onSelect,
-  selected = [],
+  selected: initialSelected = [],
+  context,
   title = 'Attach media',
 }: {
   onClose: () => void
   onSelect: (asset: components['schemas']['MediaAsset']) => Promise<void>
   selected?: string[]
+  context?: MediaContext
   title?: string
 }) {
+  const attachments = useMediaAttachments(context)
+  useEffect(() => {
+    if (
+      context &&
+      attachments.hasNextPage &&
+      !attachments.isFetching &&
+      !attachments.error
+    )
+      void attachments.fetchNextPage()
+  }, [
+    context,
+    attachments.hasNextPage,
+    attachments.isFetching,
+    attachments.error,
+    attachments.fetchNextPage,
+  ])
+  const selected = context
+    ? (attachments.data?.pages.flatMap((page) =>
+        page.data
+          .filter((link) => !link.mediaDeleted)
+          .map((link) => link.mediaId),
+      ) ?? [])
+    : initialSelected
+  const checking =
+    !!context &&
+    (attachments.isPending || attachments.hasNextPage || !!attachments.error)
   const dialog = useMediaDialog()
   const busy = useRef(false)
   const [pending, setPending] = useState(false)
@@ -39,9 +71,17 @@ export function MediaPicker({
             Close
           </Button>
         </Row>
-        <ErrorMessage error={error} />
+        <ErrorMessage
+          error={error || attachments.error}
+          retry={
+            attachments.error ? () => void attachments.refetch() : undefined
+          }
+        />
+        {checking && !attachments.error && (
+          <p role="status">Checking attachments…</p>
+        )}
         {pending && <p role="status">Attaching…</p>}
-        <fieldset disabled={pending}>
+        <fieldset disabled={pending || checking}>
           <MediaLibrary
             selecting
             selected={selected}

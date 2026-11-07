@@ -66,3 +66,20 @@ it('sends only upload-ticket headers and never credentials to the binary destina
     vi.unstubAllGlobals()
   }
 })
+
+it('attachment caches identify actual targets across UI contexts and session caches remain separate', () => {
+  expect(
+    queryKeys.mediaAttachments({ kind: 'Activity', resultEntryId: 'result-a' }),
+  ).not.toEqual(
+    queryKeys.mediaAttachments({ kind: 'Activity', resultEntryId: 'result-b' }),
+  )
+  expect(
+    queryKeys.mediaAttachments({ kind: 'Activity', revisionId: 'same-id' }),
+  ).not.toEqual(
+    queryKeys.mediaAttachments({
+      kind: 'Instruction',
+      instructionId: 'same-id',
+    }),
+  )
+  expect(queryKeys.session('a')).not.toEqual(queryKeys.session('b'))
+})

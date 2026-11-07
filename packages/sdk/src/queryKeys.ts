@@ -1,4 +1,8 @@
-import type { MediaLibraryFilters } from './media'
+import {
+  mediaTarget,
+  type MediaContext,
+  type MediaLibraryFilters,
+} from './media'
 /** All viewer-dependent caches are cleared on login/logout; no persisted private cache. */
 export const queryKeys = {
   me: ['me'] as const,
@@ -26,6 +30,9 @@ export const queryKeys = {
   userPublications: (handle: string) =>
     ['users', handle, 'publications'] as const,
   media: ['media'] as const,
+  mediaAttachments: (context?: MediaContext) =>
+    ['media', 'attachments', context ? mediaTarget(context) : null] as const,
+  session: (id: string) => ['sessions', id] as const,
   mediaLibrary: (filters: MediaLibraryFilters) =>
     ['media', 'library', filters] as const,
   mediaAsset: (id: string) => ['media', 'asset', id] as const,
