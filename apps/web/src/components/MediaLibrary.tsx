@@ -1,0 +1,139 @@
+import { ApiError } from '@project/sdk'
+import { MediaGrid } from './MediaGrid'
+import { useState } from 'react'
+import { MediaCapture } from './MediaCapture'
+import { useMediaLibrary, useMediaUpload, type components } from '@project/sdk'
+import { Button } from './ui/Button'
+import { Input } from './ui/Input'
+import { ErrorMessage, Loading } from './ui/Feedback'
+import { Row, Stack } from './ui/Layout'
+import { useOnline } from '@/lib/useOnline'
+
+type Asset = components['schemas']['MediaAsset']
+/** Shared library controller: all network and upload behavior lives in SDK hooks. */
+export function MediaLibrary({
+  onSelect,
+  selected,
+  selecting = false,
+}: {
+  onSelect: (asset: Asset) => void
+  selected?: string[]
+  selecting?: boolean
+}) {
+  const [source, setSource] = useState<'mine' | 'platform'>('mine')
+  const [q, setQ] = useState('')
+  const [capture, setCapture] = useState(false)
+  const library = useMediaLibrary({ source, q })
+  const upload = useMediaUpload()
+  const online = useOnline()
+  const denied =
+    library.error instanceof ApiError &&
+    [401, 403].includes(library.error.status)
+  const assets = denied
+    ? []
+    : [
+        ...new Map(
+          library.data?.pages
+            .flatMap((page) => page.data)
+            .map((asset) => [asset.id, asset]) ?? [],
+        ).values(),
+      ]
+  if (capture)
+    return (
+      <MediaCapture
+        inDialog={selecting}
+        onClose={() => setCapture(false)}
+        onFile={(file) => {
+          setCapture(false)
+          void upload.upload(file)
+        }}
+      />
+    )
+  return (
+    <Stack>
+      <Row>
+        {(['mine', 'platform'] as const).map((value) => (
+          <Button
+            key={value}
+            variant={source === value ? 'default' : 'outline'}
+            aria-pressed={source === value}
+            onClick={() => setSource(value)}
+          >
+            {value === 'mine' ? 'My library' : 'Platform'}
+          </Button>
+        ))}
+      </Row>
+      <label>
+        Search media
+        <Input value={q} onChange={(event) => setQ(event.target.value)} />
+      </label>
+      {source === 'mine' && (
+        <Stack>
+          <label className="text-sm">
+            Upload private media
+            <Input
+              type="file"
+              accept="image/*,video/*,audio/*"
+              disabled={!online || upload.busy}
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (file) void upload.upload(file)
+              }}
+            />
+          </label>
+          <Button
+            variant="outline"
+            disabled={!online || upload.busy}
+            onClick={() => setCapture(true)}
+          >
+            Capture
+          </Button>
+          <p className="text-xs text-muted">
+            Uploads start private. Attached media follows the destination’s access rules.
+          </p>
+          {upload.stage !== 'idle' && (
+            <p role="status">
+              {upload.stage === 'uploading'
+                ? 'Uploading…'
+                : upload.stage === 'processing'
+                  ? 'Processing. Ready items appear below.'
+                  : upload.stage === 'ready'
+                    ? 'Ready to attach.'
+                    : 'Upload unavailable.'}
+            </p>
+          )}
+          <ErrorMessage
+            error={upload.error}
+            retry={() => void upload.retry()}
+          />
+        </Stack>
+      )}
+      <ErrorMessage
+        error={library.error}
+        retry={() => void library.refetch()}
+      />
+      {library.isPending ? (
+        <Loading />
+      ) : assets.length ? (
+        <MediaGrid
+          assets={assets}
+          selected={selected}
+          selecting={selecting}
+          onSelect={onSelect}
+        />
+      ) : (
+        !library.error && <p className="text-muted">No media found.</p>
+      )}
+      {library.hasNextPage && (
+        <Button
+          variant="outline"
+          disabled={library.isFetchingNextPage}
+          onClick={() => void library.fetchNextPage()}
+        >
+          Load more
+        </Button>
+      )}
+    </Stack>
+  )
+}

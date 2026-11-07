@@ -1,3 +1,4 @@
+import type { MediaLibraryFilters } from './media'
 /** All viewer-dependent caches are cleared on login/logout; no persisted private cache. */
 export const queryKeys = {
   me: ['me'] as const,
@@ -21,11 +22,15 @@ export const queryKeys = {
   occurrence: (id: string) => ['occurrences', id] as const,
   user: (handle: string) => ['users', handle] as const,
   userPrograms: (handle: string) => ['users', handle, 'programs'] as const,
-  userActivities: (handle: string) =>
-    ['users', handle, 'activities'] as const,
+  userActivities: (handle: string) => ['users', handle, 'activities'] as const,
   userPublications: (handle: string) =>
     ['users', handle, 'publications'] as const,
   media: ['media'] as const,
+  mediaLibrary: (filters: MediaLibraryFilters) =>
+    ['media', 'library', filters] as const,
+  mediaAsset: (id: string) => ['media', 'asset', id] as const,
+  mediaUrl: (id: string, publicationId?: string) =>
+    ['media', 'url', id, publicationId] as const,
   myMedia: (q: string) => ['media', 'mine', { q }] as const,
   platformMedia: (q: string) => ['media', 'platform', { q }] as const,
   notifications: ['notifications'] as const,

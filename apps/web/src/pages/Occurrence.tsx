@@ -8,6 +8,8 @@ import {
 } from 'react-router-dom'
 import {
   useCreateSession,
+  useAttachMedia,
+  mediaTarget,
   useOccurrence,
   useSaveResults,
   useSessionAction,
@@ -71,6 +73,8 @@ function OccurrenceContent({
   const action = useSessionAction(o.item.id)
   const save = useSaveResults(o.item.id)
   const undo = useUndoCompletion()
+  const attach = useAttachMedia()
+  const mediaEntry = useRef<string>()
   const [dirty, setDirty] = useState<Record<string, string | number | boolean>>(
     {},
   )
@@ -197,13 +201,14 @@ function OccurrenceContent({
                 : 'Ready'}
         </p>
       </Stack>
-      <OccurrenceInstructions
-        instructions={o.instructions}
-        locked={o.item.locked}
-      />
+
       <Panel>
         <Stack>
           <h2>Today&apos;s Results</h2>
+          <OccurrenceInstructions
+            instructions={o.instructions}
+            locked={o.item.locked}
+          />
           {o.resultInputs.length ? (
             o.resultInputs.map((m) => (
               <MetricInput
@@ -358,7 +363,34 @@ function OccurrenceContent({
         </Grid>
       </Panel>
       <OccurrenceMedia
-        occurrenceId={o.item.id}
+        onAttach={async (asset) => {
+          if (!online) throw new Error('Connect to attach media.')
+          if (working.current)
+            throw new Error('Wait for the current save to finish.')
+          working.current = true
+          setBusy(true)
+          try {
+            if (!mediaEntry.current) {
+              const current = await getSession()
+              const entry = await save.mutateAsync({
+                sessionId: current.id,
+                values: [],
+              })
+              mediaEntry.current = entry.id
+            }
+            await attach.mutateAsync({
+              mediaId: asset.id,
+              target: mediaTarget({
+                kind: 'Activity',
+                resultEntryId: mediaEntry.current,
+              }),
+              purpose: 'JOURNAL',
+            })
+          } finally {
+            working.current = false
+            setBusy(false)
+          }
+        }}
         myMedia={o.myMedia}
         sharedMedia={o.sharedMedia}
         communityMedia={o.communityMedia}

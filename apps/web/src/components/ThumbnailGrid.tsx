@@ -1,3 +1,4 @@
+import { MediaItem } from './MediaGrid'
 import { Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -36,36 +37,21 @@ export function ThumbnailGrid({
     <ul className={cn('grid gap-2', cols)}>
       {items.map((item) => (
         <li key={item.id}>
-          <button
-            type="button"
-            onClick={() => onSelect?.(item.id)}
-            className="group relative aspect-square w-full overflow-hidden rounded-md border bg-surface-muted"
-            aria-label={item.alt || 'Open media'}
-          >
-            {item.thumbnailUrl ? (
-              <img
-                src={item.thumbnailUrl}
-                alt=""
-                className="h-full w-full object-cover transition-transform duration-fast group-hover:scale-105"
-              />
-            ) : (
-              <span className="flex h-full items-center justify-center text-[10px] text-muted">
-                {item.type === 'VIDEO' ? 'Video' : 'Media'}
-              </span>
-            )}
-            {item.badge && (
-              <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1 text-[9px] text-white">
-                {item.badge}
-              </span>
-            )}
-          </button>
+          <MediaItem
+            asset={item}
+            disabled={!onSelect}
+            onSelect={() => onSelect?.(item.id)}
+          />
         </li>
       ))}
       {onAdd && (
         <li>
           <button
             type="button"
-            onClick={onAdd}
+            onClick={(event) => {
+              event.currentTarget.focus()
+              onAdd()
+            }}
             aria-label={addLabel}
             className="flex aspect-square w-full items-center justify-center rounded-md border border-dashed text-muted hover:border-accent hover:text-accent"
           >

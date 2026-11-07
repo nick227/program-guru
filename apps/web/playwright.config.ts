@@ -1,17 +1,19 @@
 import { defineConfig, devices } from '@playwright/test'
+const port = process.env.E2E_PORT ?? '5173'
+const baseURL = `http://localhost:${port}`
 export default defineConfig({
   testDir: './e2e',
   timeout: 90_000,
   expect: { timeout: 15_000 },
   fullyParallel: true,
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'pnpm dev --host 127.0.0.1',
-    url: 'http://localhost:5173',
+    command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
   },
   projects: process.env.E2E_LIVE
