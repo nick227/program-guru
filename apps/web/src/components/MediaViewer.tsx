@@ -82,7 +82,7 @@ export function MediaViewer({
           className="text-white hover:bg-white/10"
           onClick={onClose}
         >
-          <X size={18} />
+          <X aria-hidden size={18} />
         </Button>
       </Row>
       <Stack className="min-h-0 flex-1 items-center justify-center">
@@ -95,12 +95,20 @@ export function MediaViewer({
           retry={() => void delivery.refetch()}
         />
         {!failed && item.type === 'AUDIO' && src ? (
-          <audio src={src} controls onError={() => setFailed(true)} />
+          <audio
+            key={item.id}
+            src={src}
+            controls
+            preload="metadata"
+            onError={() => setFailed(true)}
+          />
         ) : !failed && item.type === 'VIDEO' && src ? (
           <video
             key={item.id}
             src={src}
             controls
+            playsInline
+            preload="metadata"
             poster={delivery.data?.posterUrl ?? undefined}
             onError={() => setFailed(true)}
             className="max-h-[75vh] max-w-full"
@@ -125,7 +133,7 @@ export function MediaViewer({
           className="border-white/30 bg-transparent text-white"
           onClick={() => onIndex(index - 1)}
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft aria-hidden size={16} />
         </Button>
         <Button
           variant="outline"
@@ -134,7 +142,7 @@ export function MediaViewer({
           className="border-white/30 bg-transparent text-white"
           onClick={() => onIndex(index + 1)}
         >
-          <ChevronRight size={16} />
+          <ChevronRight aria-hidden size={16} />
         </Button>
       </Row>
     </dialog>

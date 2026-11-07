@@ -22,13 +22,14 @@ export function MediaLibrary({
 }) {
   const [source, setSource] = useState<'mine' | 'platform'>('mine')
   const [q, setQ] = useState('')
+  const [type, setType] = useState<Asset['type'] | undefined>()
   const [capture, setCapture] = useState(false)
-  const library = useMediaLibrary({ source, q })
+  const library = useMediaLibrary({ source, q, type })
   const upload = useMediaUpload()
   const online = useOnline()
   const denied =
     library.error instanceof ApiError &&
-    [401, 403].includes(library.error.status)
+    [401, 403, 404].includes(library.error.status)
   const assets = denied
     ? []
     : [
@@ -67,6 +68,24 @@ export function MediaLibrary({
         Search media
         <Input value={q} onChange={(event) => setQ(event.target.value)} />
       </label>
+      <Row aria-label="Media type">
+        {([undefined, 'PHOTO', 'VIDEO', 'AUDIO'] as const).map((value) => (
+          <Button
+            key={value ?? 'all'}
+            variant={type === value ? 'default' : 'outline'}
+            aria-pressed={type === value}
+            onClick={() => setType(value)}
+          >
+            {value === 'PHOTO'
+              ? 'Photos'
+              : value === 'VIDEO'
+                ? 'Videos'
+                : value === 'AUDIO'
+                  ? 'Audio'
+                  : 'All'}
+          </Button>
+        ))}
+      </Row>
       {source === 'mine' && (
         <Stack>
           <label className="text-sm">
@@ -90,7 +109,8 @@ export function MediaLibrary({
             Capture
           </Button>
           <p className="text-xs text-muted">
-            Uploads start private. Attached media follows the destination’s access rules.
+            Uploads start private. Attached media follows the destination’s
+            access rules.
           </p>
           {upload.stage !== 'idle' && (
             <p role="status">
@@ -100,12 +120,16 @@ export function MediaLibrary({
                   ? 'Processing. Ready items appear below.'
                   : upload.stage === 'ready'
                     ? 'Ready to attach.'
-                    : 'Upload unavailable.'}
+                    : upload.assetState === 'FAILED'
+                      ? 'Couldn’t process this file. Choose a file to upload again.'
+                      : upload.assetState === 'BLOCKED'
+                        ? 'This file is unavailable.'
+                        : 'Upload unavailable.'}
             </p>
           )}
           <ErrorMessage
             error={upload.error}
-            retry={() => void upload.retry()}
+            retry={upload.canRetry ? () => void upload.retry() : undefined}
           />
         </Stack>
       )}

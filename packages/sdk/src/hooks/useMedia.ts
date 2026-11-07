@@ -57,13 +57,11 @@ export async function putUploadContent(
   file: Blob,
 ): Promise<void> {
   const headers = new Headers(ticket.headers ?? {})
-  if (!headers.has('content-type'))
-    headers.set('content-type', 'application/octet-stream')
   const res = await fetch(ticket.uploadUrl, {
     method: ticket.method ?? 'PUT',
     headers,
     body: file,
-    credentials: ticket.uploadUrl.startsWith('/') ? 'include' : 'omit',
+    credentials: 'omit',
   })
   if (!res.ok) throw new Error(`Upload failed (${res.status}). Try again.`)
 }
@@ -212,6 +210,8 @@ export function useMediaUpload() {
     stage: currentStage,
     error: error ?? asset.error,
     busy: stage === 'uploading',
+    assetState: asset.data?.state,
+    canRetry: !!pending.current || !!asset.error,
   }
 }
 

@@ -91,3 +91,7 @@ For a genuinely new backend target, first obtain a server-owned OpenAPI/Prisma c
 `pnpm --filter web test`, `pnpm --filter web build`, and `pnpm --filter web exec playwright test` run unit/build/browser checks. Browser media cases mock HTTP and cover private attachment, reuse without upload, processing → READY, failed PUT retry, attachment denial/retry, delivery denial, focus restoration and narrow layout. They are not storage/worker/authorization integration tests. Claude's backend tests must verify locked content, revoked publication access, group membership, ownership, storage delivery and transcoding.
 
 Validation on this branch: 38 browser cases (desktop/mobile), 9 unit tests, web production build and SDK typecheck passed. Final targeted media suite covers 20 of those browser cases. No live storage/worker tests were run by this task.
+
+## Integration follow-up
+
+The subsequent frontend pass follows Claude's committed `docs/media-integration.md` at `e80b944`: ticket-only credential-free PUTs, native playback, owner polling and native device capture. See [media-reconciliation.md](media-reconciliation.md) for the outstanding server-owned contract and shared-worktree reconciliation notes. The complete reload-stable attachment/detach round trip remains blocked on committed attachment enumeration; no temporary HTTP contract has been added to this branch.

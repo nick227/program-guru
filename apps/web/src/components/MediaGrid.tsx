@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { components } from '@project/sdk'
 import { Button } from './ui/Button'
 import { Grid } from './ui/Layout'
@@ -20,6 +21,7 @@ export function MediaItem({
   disabled?: boolean
   onSelect: () => void
 }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const label = asset.alt || asset.type || 'Open media'
   return (
     <Button
@@ -33,9 +35,12 @@ export function MediaItem({
         onSelect()
       }}
     >
-      {asset.thumbnailUrl ? (
+      {asset.type !== 'AUDIO' &&
+      asset.thumbnailUrl &&
+      failedUrl !== asset.thumbnailUrl ? (
         <img
           loading="lazy"
+          onError={() => setFailedUrl(asset.thumbnailUrl ?? null)}
           src={asset.thumbnailUrl}
           alt=""
           className="aspect-square w-full rounded object-cover"

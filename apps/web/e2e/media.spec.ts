@@ -6,6 +6,8 @@ async function mediaApi(
   page: Page,
   options: {
     processing?: boolean
+    photo?: boolean
+    completionFailure?: boolean
     denied?: boolean
     uploadFailure?: boolean
     attachFailure?: boolean
@@ -17,14 +19,15 @@ async function mediaApi(
   let state =
     options.initialState ?? (options.processing ? 'PROCESSING' : 'READY')
   let results = 0
+  let failCompletion = options.completionFailure
   let failUpload = options.uploadFailure
   let failAttach = options.attachFailure
   const asset = () => ({
     id: 'media-one',
-    type: 'VIDEO',
+    type: options.photo ? 'PHOTO' : 'VIDEO',
     state,
     thumbnailUrl: null,
-    mime: 'video/mp4',
+    mime: options.photo ? 'image/png' : 'video/mp4',
     byteSize: 12,
     width: null,
     height: null,
@@ -64,7 +67,7 @@ async function mediaApi(
         method: 'PUT',
         uploadUrl: 'http://localhost:3001/media/upload-content',
         expiresAt: '2099-01-01T00:00:00Z',
-        headers: {},
+        headers: { 'content-type': 'application/octet-stream' },
         maxBytes: 100000,
       })
     if (path === '/media/upload-content') {
@@ -75,6 +78,13 @@ async function mediaApi(
       return route.fulfill({ status: 200 })
     }
     if (path.endsWith('/complete')) {
+      if (failCompletion) {
+        failCompletion = false
+        return route.fulfill({
+          status: 503,
+          json: { code: 'UNAVAILABLE', message: 'Completion unavailable' },
+        })
+      }
       state = 'PROCESSING'
       return send(asset())
     }
@@ -88,7 +98,9 @@ async function mediaApi(
       return options.denied
         ? deny('You cannot view this media')
         : send({
-            url: '/delivery.mp4',
+            url: options.photo
+              ? '/signed-photo.png?sig=fixture'
+              : '/delivery.mp4',
             posterUrl: null,
             mime: 'video/mp4',
             expiresAt: null,
@@ -322,4 +334,103 @@ test('deleted media fails closed with a recoverable viewer error', async ({
   await expect(
     page.getByRole('button', { name: 'Retry', exact: true }),
   ).toBeVisible()
+})
+
+test('upload finishes processing and the viewer renders the authorized rendition', async ({
+  page,
+}) => {
+  await mockApi(page)
+  const media = await mediaApi(page, { photo: true })
+  await page.route('**/signed-photo.png?sig=fixture', (route) =>
+    route.fulfill({
+      contentType: 'image/png',
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=',
+        'base64',
+      ),
+    }),
+  )
+  await login(page, 'participant@test.local', 'password')
+  await page.goto('/media')
+  await page
+    .getByLabel('Upload private media')
+    .setInputFiles({
+      name: 'photo.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('fixture-upload'),
+    })
+  await expect(
+    page.getByText('Processing. Ready items appear below.'),
+  ).toBeVisible()
+  media.ready()
+  await expect(page.getByText('Ready to attach.')).toBeVisible()
+  await page.getByRole('button', { name: 'Squat recording · READY' }).click()
+  const rendition = page.getByRole('dialog').getByRole('img', { name: 'Squat recording', exact: true })
+  await expect(rendition).toHaveAttribute(
+    'src',
+    '/signed-photo.png?sig=fixture',
+  )
+  await expect
+    .poll(() =>
+      rendition.evaluate(
+        (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
+      ),
+    )
+    .toBe(true)
+  expect(
+    media.calls.filter((call) => call.path.includes('publications')),
+  ).toHaveLength(0)
+})
+
+test('completion retry does not upload the bytes or create a ticket again', async ({
+  page,
+}) => {
+  await mockApi(page)
+  const media = await mediaApi(page, { completionFailure: true })
+  await login(page, 'participant@test.local', 'password')
+  await page.goto('/media')
+  await page
+    .getByLabel('Upload private media')
+    .setInputFiles({
+      name: 'video.mp4',
+      mimeType: 'video/mp4',
+      buffer: Buffer.from('fixture-upload'),
+    })
+  await expect(page.getByRole('alert')).toContainText('Completion unavailable')
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(
+    page.getByText('Processing. Ready items appear below.'),
+  ).toBeVisible()
+  expect(
+    media.calls.filter((call) => call.path === '/media/uploads'),
+  ).toHaveLength(1)
+  expect(
+    media.calls.filter((call) => call.path === '/media/upload-content'),
+  ).toHaveLength(1)
+  expect(
+    media.calls.filter((call) => call.path.endsWith('/complete')),
+  ).toHaveLength(2)
+})
+
+test('type filters use the SDK query and native capture reuses the picker modal', async ({
+  page,
+}) => {
+  await mockApi(page)
+  await mediaApi(page)
+  await openActivity(page)
+  const filtered = page.waitForRequest(
+    (request) =>
+      request.url().includes('/media/mine?') &&
+      new URL(request.url()).searchParams.get('type') === 'VIDEO',
+  )
+  await page.getByRole('button', { name: 'Videos', exact: true }).click()
+  await filtered
+  await page.getByRole('button', { name: 'Capture', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(1)
+  await expect(page.getByLabel('Photo or video')).toHaveAttribute(
+    'capture',
+    'environment',
+  )
+  await page.getByRole('button', { name: 'Back to library' }).click()
+  await expect(page.getByLabel('Search media')).toBeVisible()
 })
