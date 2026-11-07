@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom'
 import { Check, ChevronRight } from 'lucide-react'
+import { AvatarStack } from '@/components/AvatarStack'
+import { UnreadDot } from '@/components/UnreadDot'
 import { cn } from '@/lib/utils'
+
 export type SurfaceItem = {
   id: string
   day: string
@@ -9,7 +12,12 @@ export type SurfaceItem = {
   done?: boolean
   href?: string
   locked?: boolean
+  conflict?: boolean
+  thumbnailUrl?: string | null
+  avatarUrls?: string[]
+  unreadCount?: number
 }
+
 export function CalendarSurface({
   days,
   selected,
@@ -63,40 +71,70 @@ export function CalendarSurface({
               .filter((item) => item.day === day.id)
               .map((item) => {
                 const content = (
-                  <>
-                    <span className="flex items-start justify-between gap-1">
-                      <span className="break-words font-semibold">
-                        {item.title}
-                      </span>
-                      {item.done ? (
-                        <Check
-                          size={16}
-                          aria-label="Completed"
-                          className="shrink-0 text-success"
-                        />
-                      ) : item.href ? (
-                        <ChevronRight
-                          size={14}
-                          className="shrink-0 text-muted"
-                        />
-                      ) : null}
-                    </span>
-                    {item.detail && (
-                      <span className="mt-3 block text-xs text-muted">
-                        {item.detail}
+                  <span className="flex gap-2">
+                    {item.thumbnailUrl ? (
+                      <img
+                        src={item.thumbnailUrl}
+                        alt=""
+                        aria-hidden
+                        className="h-11 w-11 shrink-0 rounded-md object-cover"
+                      />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-surface-muted text-xs text-muted"
+                      >
+                        {item.title.slice(0, 1)}
                       </span>
                     )}
-                    <span className="mt-3 block text-xs text-muted">
-                      {item.locked
-                        ? 'Access required'
-                        : item.done
-                          ? 'Completed'
-                          : 'Planned'}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-start justify-between gap-1">
+                        <span className="break-words font-semibold">
+                          {item.title}
+                        </span>
+                        <span className="relative shrink-0">
+                          {item.done ? (
+                            <Check
+                              size={16}
+                              aria-label="Completed"
+                              className="text-success"
+                            />
+                          ) : item.href ? (
+                            <ChevronRight size={14} className="text-muted" />
+                          ) : null}
+                          <UnreadDot count={item.unreadCount ?? 0} />
+                        </span>
+                      </span>
+                      {item.detail && (
+                        <span className="mt-1 block text-xs text-muted">
+                          {item.detail}
+                        </span>
+                      )}
+                      <span className="mt-1 block text-xs text-muted">
+                        {item.locked
+                          ? 'Access required'
+                          : item.done
+                            ? 'Completed'
+                            : item.conflict
+                              ? 'Overlaps another Activity'
+                              : 'Planned'}
+                      </span>
+                      {!!item.avatarUrls?.length && (
+                        <AvatarStack
+                          people={item.avatarUrls.map((url, i) => ({
+                            id: `${item.id}-${i}`,
+                            name: 'Collaborator',
+                            avatarUrl: url,
+                          }))}
+                          className="mt-2"
+                          max={3}
+                        />
+                      )}
                     </span>
-                  </>
+                  </span>
                 )
                 const className =
-                  'block rounded-lg border bg-surface p-3 text-left shadow-sm transition-colors hover:border-accent'
+                  'relative block rounded-lg border bg-surface p-3 text-left shadow-sm transition-colors hover:border-accent'
                 return item.href ? (
                   <Link key={item.id} to={item.href} className={className}>
                     {content}

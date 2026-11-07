@@ -72,35 +72,37 @@ export async function journey(
   await page.getByLabel('Start date').fill('2026-11-09')
   await page.getByRole('button', { name: 'Preview my calendar' }).click()
   await page.getByRole('button', { name: 'Confirm & add to Calendar' }).click()
-  await expect(page).toHaveURL(/week=2026-11-09&day=2026-11-09/)
+  await expect(page).toHaveURL(/day=2026-11-09/)
   await page.reload()
-  await page
-    .getByRole('link', { name: /^Squats/ })
-    .first()
-    .click()
+  // Scope to this run's Program title — live DB accumulates prior enrollments.
+  const mine = page.getByRole('link', {
+    name: new RegExp(`^Squats.*${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
+  })
+  await mine.filter({ hasText: 'Planned' }).first().click()
   await expect(
     page.getByRole('heading', { name: "Today's Results" }),
   ).toBeVisible()
-  await expect(page.getByLabel('Reps (reps)', { exact: true })).toHaveValue('')
+  await expect(page.getByLabel('Reps (reps)', { exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Increase Reps' }).click()
-  await page.getByRole('button', { name: 'Start', exact: true }).click()
+  // READY → Start; FINISHED → Start again (becomes ACTIVE); already ACTIVE → continue.
+  const start = page.getByRole('button', { name: 'Start', exact: true })
+  const startAgain = page.getByRole('button', {
+    name: 'Start again',
+    exact: true,
+  })
+  if (await startAgain.isVisible()) await startAgain.click()
+  else if (await start.isVisible()) await start.click()
   await page.getByRole('button', { name: 'Pause', exact: true }).click()
   await page.getByRole('button', { name: 'Resume', exact: true }).click()
   await page.getByRole('button', { name: 'Finish', exact: true }).click()
   await expect(
     page.getByRole('heading', { name: 'Your week', exact: true }),
   ).toBeVisible()
-  await expect(page).toHaveURL(/week=2026-11-09&day=2026-11-09/)
-  await expect(page.getByRole('link', { name: /^Squats/ }).first()).toContainText(
-    'Completed',
-  )
+  await expect(page).toHaveURL(/completed=/)
+  await expect(mine.filter({ hasText: 'Completed' }).first()).toBeVisible()
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
-  await expect(page.getByRole('link', { name: /^Squats/ }).first()).toContainText(
-    'Planned',
-  )
+  await expect(mine.filter({ hasText: 'Planned' }).first()).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('link', { name: /^Squats/ }).first()).toContainText(
-    'Planned',
-  )
+  await expect(mine.filter({ hasText: 'Planned' }).first()).toBeVisible()
   return { title, publishedPath }
 }

@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   useCalendar,
   useCurrentUser,
-  useLogout,
   useUndoCompletion,
 } from '@project/sdk'
 import { toast } from 'sonner'
@@ -11,6 +10,7 @@ import { Page, Stack, Row, Panel } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { CalendarSurface } from '@/components/CalendarSurface'
+import { AccountMenu } from '@/components/AccountMenu'
 import { linkButton } from '@/components/Navigation'
 import {
   addDays,
@@ -20,8 +20,8 @@ import {
   today,
   weekOf,
 } from '@/lib/dates'
-import { toggleTheme } from '@/lib/theme'
 import { useOnline } from '@/lib/useOnline'
+
 export function CalendarPage() {
   const me = useCurrentUser()
   const navigate = useNavigate()
@@ -41,7 +41,6 @@ export function CalendarPage() {
         ? current
         : start
   const calendar = useCalendar(start, addDays(start, 6))
-  const logout = useLogout()
   const undo = useUndoCompletion()
   const origin = calendarUrl(selected, start)
   const selectDay = (day: string) => setParams({ week: start, day })
@@ -55,39 +54,7 @@ export function CalendarPage() {
             </p>
             <h1>Your week</h1>
           </div>
-          <details className="relative">
-            <summary
-              className="flex min-h-11 cursor-pointer items-center rounded-full border bg-surface px-4"
-              aria-label="Account"
-            >
-              {me.data!.data.profile.displayName}
-            </summary>
-            <Panel className="absolute right-0 z-20 mt-2 w-56 shadow-lg">
-              <Stack>
-                <Link to="/library" className={linkButton}>
-                  My Programs
-                </Link>
-                <Button variant="ghost" onClick={toggleTheme}>
-                  Change theme
-                </Button>
-                <Button
-                  variant="outline"
-                  loading={logout.isPending}
-                  onClick={async () => {
-                    try {
-                      await logout.mutateAsync()
-                      navigate('/login', { replace: true })
-                    } catch {
-                      /* error below */
-                    }
-                  }}
-                >
-                  Sign out
-                </Button>
-                <ErrorMessage error={logout.error} />
-              </Stack>
-            </Panel>
-          </details>
+          <AccountMenu />
         </Row>
         <Row className="justify-between">
           <Row>
@@ -197,6 +164,10 @@ export function CalendarPage() {
                   .join(' · '),
                 done: item.status === 'DONE',
                 locked: item.locked,
+                conflict: item.conflict,
+                thumbnailUrl: item.thumbnailUrl,
+                avatarUrls: item.participantAvatars,
+                unreadCount: item.unreadCount,
                 href: `/occurrences/${item.id}?returnTo=${encodeURIComponent(calendarUrl(item.localDate, start))}`,
               }))}
             />

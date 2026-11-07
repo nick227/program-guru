@@ -17,8 +17,13 @@ import { ProgramWorkspacePage } from '@/pages/ProgramWorkspace'
 import { ProgramPage } from '@/pages/Program'
 import { OccurrencePage } from '@/pages/Occurrence'
 import { ActivityPage, AddActivityPage } from '@/pages/Activity'
+import { ProfilePage } from '@/pages/Profile'
+import { MediaStudioPage } from '@/pages/MediaStudio'
+import { NotificationsPage } from '@/pages/Notifications'
+import { SettingsPage } from '@/pages/Settings'
 import { Page, Stage } from '@/components/ui/Layout'
 import { ErrorMessage } from '@/components/ui/Feedback'
+
 function Root() {
   const online = useOnline()
   const location = useLocation()
@@ -49,6 +54,7 @@ function Root() {
     </>
   )
 }
+
 function RouteError() {
   const error = useRouteError()
   return (
@@ -63,6 +69,7 @@ function RouteError() {
     </Page>
   )
 }
+
 const router = createBrowserRouter([
   {
     element: <Root />,
@@ -84,8 +91,13 @@ const router = createBrowserRouter([
           },
           { path: '/occurrences/:id', element: <OccurrencePage /> },
           { path: '/add-activity', element: <AddActivityPage /> },
+          { path: '/media', element: <MediaStudioPage /> },
+          { path: '/notifications', element: <NotificationsPage /> },
+          { path: '/settings', element: <SettingsPage /> },
         ],
       },
+      // After static app routes so handles never shadow /media, /settings, etc.
+      { path: '/:handle', element: <ProfilePage /> },
       {
         path: '*',
         element: (
@@ -100,6 +112,7 @@ const router = createBrowserRouter([
     ],
   },
 ])
+
 export function App() {
   return <RouterProvider router={router} />
 }

@@ -20,6 +20,9 @@ import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back } from '@/components/Navigation'
 import { MetricInput } from '@/components/MetricInput'
+import { AvatarStack } from '@/components/AvatarStack'
+import { OccurrenceInstructions } from '@/components/OccurrenceInstructions'
+import { OccurrenceMedia } from '@/components/OccurrenceMedia'
 import { calendarUrl, dateLabel, safeReturn } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 type S = components['schemas']
@@ -194,9 +197,13 @@ function OccurrenceContent({
                 : 'Ready'}
         </p>
       </Stack>
+      <OccurrenceInstructions
+        instructions={o.instructions}
+        locked={o.item.locked}
+      />
       <Panel>
         <Stack>
-          <h2>Today's Results</h2>
+          <h2>Today&apos;s Results</h2>
           {o.resultInputs.length ? (
             o.resultInputs.map((m) => (
               <MetricInput
@@ -227,19 +234,35 @@ function OccurrenceContent({
       </Panel>
       {o.collaborators && (
         <Panel>
-          <h2>Collaborators</h2>
-          <Row className="mt-3">
-            {o.collaborators.members.map((member) => (
-              <span key={member.user.id}>
-                {member.user.displayName} ·{' '}
-                {member.status === 'DONE'
-                  ? 'Completed'
-                  : member.status === 'UNKNOWN'
-                    ? 'Private'
-                    : 'Planned'}
-              </span>
-            ))}
-          </Row>
+          <Stack>
+            <Row className="justify-between">
+              <h2>Collaborators</h2>
+              <p className="text-xs text-muted">
+                {o.collaborators.finishedCount}/{o.collaborators.totalCount}{' '}
+                finished
+              </p>
+            </Row>
+            <AvatarStack
+              people={o.collaborators.members.map((m) => ({
+                id: m.user.id,
+                name: m.user.displayName,
+                avatarUrl: m.user.avatarUrl,
+              }))}
+              max={6}
+            />
+            <Stack className="gap-2">
+              {o.collaborators.members.map((member) => (
+                <p key={member.user.id} className="text-sm text-muted">
+                  {member.user.displayName} ·{' '}
+                  {member.status === 'DONE'
+                    ? 'Completed'
+                    : member.status === 'UNKNOWN'
+                      ? 'Private'
+                      : 'Planned'}
+                </p>
+              ))}
+            </Stack>
+          </Stack>
         </Panel>
       )}
       <Panel>
@@ -321,21 +344,6 @@ function OccurrenceContent({
                 : `${session.activeSeconds} seconds recorded`}
             </p>
           )}
-          {!o.item.locked && o.instructions.length > 0 && (
-            <details>
-              <summary className="cursor-pointer py-3">Instructions</summary>
-              <Stack>
-                {o.instructions.map((i) => (
-                  <p key={i.id}>{i.body ?? i.title}</p>
-                ))}
-              </Stack>
-            </details>
-          )}
-          {o.item.locked && (
-            <p className="text-muted">
-              Access required for instructional content.
-            </p>
-          )}
         </Stack>
       </Panel>
       <Panel>
@@ -349,32 +357,20 @@ function OccurrenceContent({
           ))}
         </Grid>
       </Panel>
-      <Panel>
-        <h2>My Media</h2>
-        <p className="mt-2 text-muted">
-          {o.myMedia.length
-            ? `${o.myMedia.length} private media items`
-            : 'No private media yet.'}
-        </p>
-      </Panel>
-      {o.sharedMedia.length > 0 && (
-        <Panel>
-          <h2>Shared Media</h2>
-          <p>{o.sharedMedia.length} shared items</p>
-        </Panel>
-      )}
-      {!o.item.locked && o.communityMedia.length > 0 && (
-        <Panel>
-          <h2>Community Media</h2>
-          <p>{o.communityMedia.length} public items</p>
-        </Panel>
-      )}
+      <OccurrenceMedia
+        occurrenceId={o.item.id}
+        myMedia={o.myMedia}
+        sharedMedia={o.sharedMedia}
+        communityMedia={o.communityMedia}
+        locked={o.item.locked}
+      />
       {o.communityStats && (
         <Panel>
           <h2>Community Stats</h2>
           <p>
             {o.communityStats.participants} participants ·{' '}
-            {o.communityStats.completions} completions
+            {o.communityStats.completions} completions ·{' '}
+            {o.communityStats.publicMediaCount} media
           </p>
         </Panel>
       )}

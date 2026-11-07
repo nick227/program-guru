@@ -98,20 +98,38 @@ export function ProgramWorkspacePage() {
                   <Link
                     key={a.activityId}
                     to={`/activities/${a.activityId}?returnTo=${encodeURIComponent(base)}`}
-                    className="rounded-lg border p-3 hover:border-accent"
+                    className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:border-accent"
                   >
-                    <Row className="justify-between">
-                      <strong>{a.title}</strong>
-                      <span className="text-xs text-muted">
-                        {a.instructionCount} instructions · {a.mediaCount} media
-                      </span>
-                    </Row>
-                    <p className="mt-2 text-xs text-muted">
-                      {a.metrics.join(' · ')}
-                    </p>
+                    <span className="min-w-0 flex-1">
+                      <Row className="justify-between gap-2">
+                        <strong className="truncate">{a.title}</strong>
+                        <span className="shrink-0 text-xs text-muted">
+                          {a.instructionCount} instructions · {a.mediaCount}{' '}
+                          media
+                        </span>
+                      </Row>
+                      <p className="mt-2 text-xs text-muted">
+                        {a.metrics.length
+                          ? a.metrics.join(' · ')
+                          : 'No metrics'}
+                      </p>
+                    </span>
+                    <span aria-hidden className="text-muted">
+                      ›
+                    </span>
                   </Link>
                 ))}
-                {!ws.activities.length && <p>No activities yet</p>}
+                {!ws.activities.length && (
+                  <Stack className="items-start py-2">
+                    <p>No activities yet</p>
+                    <Link
+                      to={`${base}?panel=activities`}
+                      className={linkButton}
+                    >
+                      Add Activity
+                    </Link>
+                  </Stack>
+                )}
               </Stack>
             </Panel>
             <Link

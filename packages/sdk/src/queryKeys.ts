@@ -19,4 +19,15 @@ export const queryKeys = {
     ['calendar', 'list', { start, end }] as const,
   occurrences: ['occurrences'] as const,
   occurrence: (id: string) => ['occurrences', id] as const,
+  user: (handle: string) => ['users', handle] as const,
+  userPrograms: (handle: string) => ['users', handle, 'programs'] as const,
+  userActivities: (handle: string) =>
+    ['users', handle, 'activities'] as const,
+  userPublications: (handle: string) =>
+    ['users', handle, 'publications'] as const,
+  media: ['media'] as const,
+  myMedia: (q: string) => ['media', 'mine', { q }] as const,
+  platformMedia: (q: string) => ['media', 'platform', { q }] as const,
+  notifications: ['notifications'] as const,
+  unreadCount: ['notifications', 'unread'] as const,
 }

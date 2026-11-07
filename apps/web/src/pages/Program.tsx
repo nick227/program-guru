@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { Page, Stage, Stack, Panel, Row } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back, linkButton } from '@/components/Navigation'
 import {
@@ -20,6 +21,7 @@ import {
   today,
 } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
+
 export function ProgramPage() {
   const { id = '' } = useParams()
   const [params] = useSearchParams()
@@ -53,28 +55,83 @@ export function ProgramPage() {
     startLocalDate: start,
     timezone: tz,
   }
+  const cta =
+    p.canJoin && p.accessMode === 'OPEN'
+      ? 'Join Free'
+      : p.canRequestAccess
+        ? 'Request Access'
+        : p.canPurchase
+          ? p.prices.some((price) => price.kind === 'MONTHLY')
+            ? 'Subscribe'
+            : 'Buy Program'
+          : null
   return (
     <Page>
       <Stage>
         <Back to={safeReturn(params.get('returnTo'), '/discover')} />
-        <p className="text-xs text-muted">
-          {p.isPlatform ? 'Platform library' : p.creator?.displayName} ·{' '}
-          {p.type.label}
-        </p>
-        <h1>{p.title}</h1>
-        <p className="text-muted">
-          {p.frequencyLabel} ·{' '}
-          {p.durationDays ? `${p.durationDays} days` : 'Ongoing'}
-        </p>
-        {p.description && <p>{p.description}</p>}
+        {p.coverUrl && (
+          <img
+            src={p.coverUrl}
+            alt=""
+            className="aspect-[2/1] w-full rounded-xl object-cover"
+          />
+        )}
+        <Stack className="gap-2">
+          <Row>
+            {p.creator && (
+              <Link
+                to={`/${p.creator.handle}`}
+                className="flex items-center gap-2 text-muted hover:text-text"
+              >
+                <Avatar
+                  src={p.creator.avatarUrl}
+                  name={p.creator.displayName}
+                  size="sm"
+                />
+                <span>{p.creator.displayName}</span>
+              </Link>
+            )}
+            {!p.creator && p.isPlatform && (
+              <span className="text-xs text-muted">Platform library</span>
+            )}
+            <span className="text-xs text-muted">· {p.type.label}</span>
+          </Row>
+          <h1>{p.title}</h1>
+          <p className="text-muted">
+            {p.focus?.label ? `${p.focus.label} · ` : ''}
+            {p.frequencyLabel} ·{' '}
+            {p.durationDays ? `${p.durationDays} days` : 'Ongoing'}
+          </p>
+          {p.description && <p>{p.description}</p>}
+        </Stack>
         <Panel>
           <Stack>
             <h2>Activities</h2>
             {p.safeActivityOutline.map((a, i) => (
-              <p key={i}>{a.title}</p>
+              <Row key={i} className="justify-between">
+                <span>{a.title}</span>
+                {a.mediaPreviewUrl && (
+                  <img
+                    src={a.mediaPreviewUrl}
+                    alt=""
+                    className="h-8 w-8 rounded object-cover"
+                  />
+                )}
+              </Row>
             ))}
+            {!p.safeActivityOutline.length && (
+              <p className="text-muted">Outline available after joining.</p>
+            )}
           </Stack>
         </Panel>
+        {((p.enrollmentCount ?? 0) > 0 || p.completionRate != null) && (
+          <p className="text-xs text-muted">
+            {p.enrollmentCount ?? 0} participants
+            {p.completionRate != null
+              ? ` · ${Math.round(p.completionRate * 100)}% completion`
+              : ''}
+          </p>
+        )}
         <ErrorMessage error={program.error || preview.error || join.error} />
         {p.myEnrollmentId ? (
           <Link className={linkButton} to="/">
@@ -92,7 +149,7 @@ export function ProgramPage() {
         ) : p.canJoin && p.latestVersionId ? (
           <>
             {!joining ? (
-              <Button onClick={() => setJoining(true)}>Join Free</Button>
+              <Button onClick={() => setJoining(true)}>{cta ?? 'Join Free'}</Button>
             ) : (
               <Panel>
                 <Stack>
@@ -161,7 +218,11 @@ export function ProgramPage() {
           </>
         ) : (
           <p className="text-muted">
-            This Program requires access before joining.
+            {cta === 'Request Access'
+              ? 'Request access is not available in this browser slice yet.'
+              : cta === 'Buy Program' || cta === 'Subscribe'
+                ? 'Checkout opens when billing is enabled.'
+                : 'This Program requires access before joining.'}
           </p>
         )}
         {p.viewerAccess === 'OWNER' && (
