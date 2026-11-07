@@ -48,3 +48,19 @@ export async function seedAchievements() {
     ],
   })
 }
+
+/** Real media made with ffmpeg so the worker pipeline runs end to end. */
+export function makeMedia(kind: 'png' | 'mp4-with-gps') {
+  const { execFileSync } = require('child_process') as typeof import('child_process')
+  const { mkdtempSync, readFileSync } = require('fs') as typeof import('fs')
+  const { join } = require('path') as typeof import('path')
+  const { tmpdir } = require('os') as typeof import('os')
+  const dir = mkdtempSync(join(tmpdir(), 'fixture-'))
+  const out = join(dir, kind === 'png' ? 'x.png' : 'x.mp4')
+  const args =
+    kind === 'png'
+      ? ['-f', 'lavfi', '-i', 'color=c=red:s=96x64', '-frames:v', '1', out]
+      : ['-f', 'lavfi', '-i', 'testsrc=size=160x120:rate=10', '-f', 'lavfi', '-i', 'sine=frequency=440', '-t', '1.5', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-metadata', 'location=+40.6892-074.0445/', '-movflags', '+use_metadata_tags', out]
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args])
+  return readFileSync(out)
+}

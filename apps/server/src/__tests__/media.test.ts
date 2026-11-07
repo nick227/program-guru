@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, testAdminId } from './helpers'
-import { seedCatalog } from './helpers/fixtures'
+import { makeMedia, seedCatalog } from './helpers/fixtures'
+import { drain } from '../worker/outbox'
 
 const app = buildTestApp()
 let cat: Awaited<ReturnType<typeof seedCatalog>>
@@ -9,7 +10,7 @@ beforeEach(async () => {
   cat = await seedCatalog()
 })
 
-const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(120, 1)])
+const PNG = makeMedia('png')
 const req = (method: string, url: string, payload?: unknown, userId = testUserId) =>
   app.inject({ method: method as any, url, headers: asAuth(userId), ...(payload !== undefined ? { payload: payload as any } : {}) })
 const path = (u: string) => u.replace(/^https?:\/\/[^/]+/, '')
@@ -32,13 +33,17 @@ describe('upload, verify, deliver', () => {
     await validateResponse('completeMediaUpload', 200, done.json())
     expect(done.json().data).toMatchObject({ state: 'PROCESSING', byteSize: PNG.length, isOwner: true })
     expect(await db.outboxEvent.count({ where: { type: 'MediaUploaded' } })).toBe(1)
-    await db.mediaAsset.update({ where: { id: t.mediaId }, data: { state: 'READY' } }) // the worker's job
+    // Not served before processing: the raw upload may carry metadata.
+    expect((await req('GET', `/media/${t.mediaId}/url`)).statusCode).toBe(400)
+    await drain()
+    expect((await db.mediaAsset.findUniqueOrThrow({ where: { id: t.mediaId } })).state).toBe('READY')
     const url = await req('GET', `/media/${t.mediaId}/url`)
     expect(url.statusCode).toBe(200)
     await validateResponse('getMediaUrl', 200, url.json())
     const file = await app.inject({ method: 'GET', url: path(url.json().data.url) })
     expect(file.statusCode).toBe(200)
-    expect(file.rawPayload.equals(PNG)).toBe(true)
+    expect(file.headers['content-type']).toBe('image/jpeg') // the re-encoded, metadata-free rendition
+    expect(file.rawPayload.equals(PNG)).toBe(false)
     expect(file.headers['x-content-type-options']).toBe('nosniff')
     // Tampered signature and other users are refused.
     expect((await app.inject({ method: 'GET', url: path(url.json().data.url).replace(/sig=[^&]+/, 'sig=forged') })).statusCode).toBe(404)
@@ -65,7 +70,7 @@ describe('publications', () => {
   it('a public contribution waits for moderation; approval makes it visible to everyone', async () => {
     const t = await upload()
     await req('POST', `/media/uploads/${t.uploadId}/complete`)
-    await db.mediaAsset.update({ where: { id: t.mediaId }, data: { state: 'READY' } })
+    await drain()
     expect((await req('POST', '/media-publications', { mediaId: t.mediaId, audience: 'PUBLIC', activityId: cat.squats.activity.id })).statusCode).toBe(400) // license required
     const pub = await req('POST', '/media-publications', { mediaId: t.mediaId, audience: 'PUBLIC', activityId: cat.squats.activity.id, license: 'CC-BY-4.0', caption: 'Form check' })
     expect(pub.statusCode).toBe(201)

@@ -22,7 +22,8 @@ apps/server/src/
   domains/{users,catalog,programs,activities,calendars,collaboration,media,social,billing}/
     *.service.ts, *.dao.ts, *.mapper.ts
   infrastructure/{auth,storage,email,events,stripe}/
-apps/worker/src/         # outbox, media processing, schedule horizon, reminders
+apps/server/src/worker.ts + worker/   # second process (own Railway service, same build): outbox,
+                         # media processing, reminders, schedule horizon, ranking, cleanup
 packages/api-spec/       # openapi.yaml: the wire contract, written before implementation
 packages/sdk/            # generated types, typed client, React Query hooks
 packages/db/             # prisma/schema.prisma, migrations, seeds
@@ -123,7 +124,7 @@ Use lazy thumb loading, pagination, poster frame for video, HTTP range for playb
 
 ## 11. Events, notifications, reminders
 
-Events such as `SessionFinished`, `CompletionShared`, `CompletionReacted`, `GroupMediaCommented`, `FollowRequestReceived`, `MediaPublicationModerated`, `ProgramAccessGranted`, and `AchievementEarned` enter a transactional outbox table in the same transaction as the change. `apps/worker` polls it with `FOR UPDATE SKIP LOCKED`; no Redis or external queue in P1. The worker delivers each event at least once, so consumers are idempotent. Notification service resolves audience and deep link; delivery is in-app. No realtime transport in P1: the client refetches on focus and after mutations.
+Events such as `SessionFinished`, `CompletionShared`, `CompletionReacted`, `GroupMediaCommented`, `FollowRequestReceived`, `MediaPublicationModerated`, `ProgramAccessGranted`, and `AchievementEarned` enter a transactional outbox table in the same transaction as the change. The worker process polls it with `FOR UPDATE SKIP LOCKED`; no Redis or external queue in P1. The worker delivers each event at least once, so consumers are idempotent. Notification service resolves audience and deep link; delivery is in-app. No realtime transport in P1: the client refetches on focus and after mutations.
 
 **Reminders:** the worker runs a periodic scan. It creates an in-app reminder when a timed Calendar Item comes due, and a daily in-app summary and optional email at each user's chosen local time. `ReminderDispatch` is unique per user, local date, and channel, so restarts do not double-send. Email goes through a replaceable `EmailProvider` (also used for verification, password reset, and invites).
 

@@ -155,10 +155,11 @@ export async function deliveryUrl(viewerId: string | null, mediaId: string) {
 export async function fileForDelivery(mediaId: string, variant: MediaVariantName) {
   const m = await db.mediaAsset.findUnique({ where: { id: mediaId }, include: { variants: true } })
   if (!m || m.deletedAt || m.state === 'BLOCKED') throw notFound('Media')
-  const wanted = m.variants.find((v) => v.kind === variant.toUpperCase())
-  // Before processing finishes (or for platform seeds without variants), photos and audio fall back
-  // to the original. Unprocessed video originals are never served as the stream.
-  const fallback = m.type !== 'VIDEO' || variant === 'original' ? { storageKey: m.originalStorageKey, mime: m.mime } : null
+  // "original" for a user's photo is the metadata-stripped WEB rendition: raw uploads (with EXIF and
+  // GPS) are never served. Only rights-cleared platform assets without variants fall back to the file.
+  const kind = variant === 'original' && m.type === 'PHOTO' ? 'WEB' : variant === 'original' && m.type === 'AUDIO' ? 'STREAM' : variant.toUpperCase()
+  const wanted = m.variants.find((v) => v.kind === kind) ?? (variant === 'thumb' ? m.variants.find((v) => v.kind === 'POSTER') : undefined)
+  const fallback = m.ownerId === null ? { storageKey: m.originalStorageKey, mime: m.mime } : null
   const file = wanted ? { storageKey: wanted.storageKey, mime: wanted.mime } : fallback
   if (!file) throw notFound('Media')
   const redirect = await storage().presignGet(file.storageKey, 300)

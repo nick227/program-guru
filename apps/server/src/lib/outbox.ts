@@ -21,6 +21,7 @@ export type OutboxEventType =
   | 'ProgramVersionPublished'
   | 'EnrollmentCreated'
   | 'AchievementEarned'
+  | 'PaymentIssue'
 
 export async function enqueue(tx: Prisma.TransactionClient, type: OutboxEventType, payload: Record<string, unknown>) {
   await tx.outboxEvent.create({ data: { type, payload: payload as Prisma.InputJsonValue } })
