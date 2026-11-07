@@ -5,7 +5,7 @@ import { db, type MediaAsset, type Prisma } from '@project/db'
 import { badRequest, conflict, notFound } from '../../lib/errors'
 import { enqueue } from '../../lib/outbox'
 import { offsetArgs, toOffsetPage, type PageQuery } from '../../lib/paging'
-import { storage } from '../../infrastructure/storage'
+import { isStorageMiss, storage } from '../../infrastructure/storage'
 import { canReadRevision } from '../activities/access'
 import { canSeeProgram, isProgramOwner } from '../programs/access'
 import { isBlockedEitherWay } from '../users/follow.service'
@@ -164,13 +164,26 @@ export async function fileForDelivery(mediaId: string, variant: MediaVariantName
   if (!file) throw notFound('Media')
   const redirect = await storage().presignGet(file.storageKey, 300)
   if (redirect) return { redirect } // R2 serves ranges itself
-  const size = await storage().size(file.storageKey)
+  // Size then open before returning a stream: missing keys must 404. Never return a ReadStream that
+  // emits ENOENT later — that raced Fastify's listener and crashed the API process.
+  let size: number | null
+  try {
+    size = await storage().size(file.storageKey)
+  } catch (err) {
+    if (isStorageMiss(err)) throw notFound('Media')
+    throw err
+  }
   if (size === null) throw notFound('Media')
   // HTTP Range lets <video> and <audio> start quickly and seek (05 §10).
   const range = parseRange(rangeHeader, size)
   if (range === 'unsatisfiable') return { unsatisfiable: true as const, size }
-  if (range) return { stream: await storage().read(file.storageKey, range), mime: file.mime, size, range }
-  return { stream: await storage().read(file.storageKey), mime: file.mime, size }
+  try {
+    if (range) return { stream: await storage().read(file.storageKey, range), mime: file.mime, size, range }
+    return { stream: await storage().read(file.storageKey), mime: file.mime, size }
+  } catch (err) {
+    if (isStorageMiss(err)) throw notFound('Media')
+    throw err
+  }
 }
 
 /** Single `bytes=` ranges only (what media elements send); anything else gets the full file. */

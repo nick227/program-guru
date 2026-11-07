@@ -169,7 +169,8 @@ const ready = (user: User, id: string) =>
 
 async function main() {
   console.log(`Media E2E: API ${API}, storage ${STORAGE}, database programs_app_e2e`)
-  const dbEnv = { ...process.env, DATABASE_URL }
+  // The seed writes platform media files too: they must land in the same storage the API reads.
+  const dbEnv = { ...process.env, DATABASE_URL, STORAGE_PROVIDER: 'local', STORAGE_DIR: STORAGE }
   execFileSync('npx', ['prisma', 'migrate', 'reset', '--force', '--skip-seed', '--skip-generate'], { cwd: join(ROOT, 'packages/db'), env: dbEnv, stdio: 'pipe' })
   execFileSync('npx', ['tsx', 'prisma/seed.ts'], { cwd: join(ROOT, 'packages/db'), env: dbEnv, stdio: 'pipe' })
 
@@ -188,6 +189,12 @@ async function main() {
   await check('API and worker are separate processes sharing one storage directory', async () => {
     assert(procs.api!.pid !== procs.worker!.pid, 'same pid')
     assert(logs.worker.includes(`at ${STORAGE}`), `worker storage not reported: ${logs.worker.slice(0, 200)}`)
+  })
+  await check('seeded platform media is served from the shared storage', async () => {
+    const asset = await db.mediaAsset.findFirstOrThrow({ where: { ownerId: null, state: 'READY' } })
+    const url = await ok(null, 'GET', `/media/${asset.id}/url`)
+    const file = await http(null, 'GET', url.url)
+    eq(file.status, 200, 'platform media status')
   })
 
   console.log('\nPhoto')
