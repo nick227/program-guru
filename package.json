@@ -1,0 +1,43 @@
+{
+  "name": "programs-app",
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "dev": "pnpm --parallel --filter './apps/*' dev",
+    "build": "pnpm --filter './packages/*' build && pnpm --filter './apps/*' build",
+    "typecheck": "pnpm --recursive typecheck",
+    "lint": "pnpm --recursive lint",
+    "test": "pnpm --recursive test",
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "factory:add": "tsx scripts/factory-add.ts",
+    "sdk:generate": "pnpm --filter @project/sdk generate",
+    "sdk:check": "tsx scripts/check-sdk-drift.ts",
+    "spec:lint": "npx -y @redocly/cli@1 lint packages/api-spec/openapi.yaml",
+    "test:generate": "tsx scripts/generate-tests.ts",
+    "docs:generate": "tsx scripts/generate-docs.ts",
+    "pages:generate": "tsx scripts/generate-pages.ts",
+    "db:status": "pnpm --filter @project/db db:status",
+    "db:deploy": "pnpm --filter @project/db db:deploy",
+    "db:migrate": "tsx scripts/db-guard.ts db:migrate && pnpm --filter @project/db db:migrate",
+    "db:seed": "tsx scripts/db-guard.ts db:seed && pnpm --filter @project/db db:seed",
+    "db:reset": "tsx scripts/db-guard.ts db:reset && pnpm --filter @project/db db:reset",
+    "db:studio": "tsx scripts/db-guard.ts db:studio && pnpm --filter @project/db db:studio",
+    "release": "git push"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.0",
+    "@types/node": "^20.0.0",
+    "eslint": "^8.0.0",
+    "js-yaml": "^4.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@project/db",
+  "version": "0.0.1",
+  "main": "./src/client.ts",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "scripts": {
+    "db:migrate": "dotenv -e ../../.env -- prisma migrate dev",
+    "db:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "db:studio": "dotenv -e ../../.env -- prisma studio",
+    "generate": "prisma generate",
+    "typecheck": "tsc --noEmit",
+    "db:status": "dotenv -e ../../.env -- prisma migrate status",
+    "db:reset": "dotenv -e ../../.env -- prisma migrate reset"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "prisma": "^5.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "dotenv-cli": "^7.4.0"
+  }
+}

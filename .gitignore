@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.local
+uploads/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+*:Zone.Identifier
