@@ -27,58 +27,58 @@ export function OccurrenceInstructions({
   const current = instructions[Math.min(index, instructions.length - 1)]!
   const media = current.media ?? []
   return (
-    <Stack className="rounded-xl border bg-surface p-4 sm:p-6">
-        <Row className="justify-between">
-          <h2>
-            Guidance
-            {instructions.length > 1
-              ? ` · ${index + 1}/${instructions.length}`
-              : ''}
-          </h2>
-          {instructions.length > 1 && (
-            <Row>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={index === 0}
-                onClick={() => setIndex((i) => i - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={index >= instructions.length - 1}
-                onClick={() => setIndex((i) => i + 1)}
-              >
-                Next
-              </Button>
-            </Row>
-          )}
-        </Row>
-        {current.title && <p className="font-semibold">{current.title}</p>}
-        {current.body && <p className="text-muted">{current.body}</p>}
-        {media.length > 0 && (
-          <ThumbnailGrid
-            columns={4}
-            items={media.map((m) => ({
+    <Stack className="gap-2">
+      <Row className="justify-between">
+        <h3>
+          Guidance
+          {instructions.length > 1
+            ? ` · ${index + 1}/${instructions.length}`
+            : ''}
+        </h3>
+        {instructions.length > 1 && (
+          <Row>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={index === 0}
+              onClick={() => setIndex((i) => i - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={index >= instructions.length - 1}
+              onClick={() => setIndex((i) => i + 1)}
+            >
+              Next
+            </Button>
+          </Row>
+        )}
+      </Row>
+      {current.title && <p className="font-semibold">{current.title}</p>}
+      {current.body && <p className="text-muted">{current.body}</p>}
+      {media.length > 0 && (
+        <ThumbnailGrid
+          columns={5}
+          items={media.map((m) => ({
+            id: m.id,
+            thumbnailUrl: m.thumbnailUrl,
+            type: m.type,
+            alt: m.alt,
+          }))}
+          onSelect={(id) => {
+            const items = media.map((m) => ({
               id: m.id,
               thumbnailUrl: m.thumbnailUrl,
               type: m.type,
               alt: m.alt,
-            }))}
-            onSelect={(id) => {
-              const items = media.map((m) => ({
-                id: m.id,
-                thumbnailUrl: m.thumbnailUrl,
-                type: m.type,
-                alt: m.alt,
-              }))
-              setViewer(items)
-              setViewerIndex(items.findIndex((m) => m.id === id))
-            }}
-          />
-        )}
+            }))
+            setViewer(items)
+            setViewerIndex(items.findIndex((m) => m.id === id))
+          }}
+        />
+      )}
       {viewer && (
         <MediaViewer
           items={viewer}
