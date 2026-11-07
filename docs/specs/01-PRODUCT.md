@@ -104,7 +104,7 @@ One user may perform all these jobs. There is no special `CREATOR` account role 
 | Sessions/logging | Start, pause, resume, finish per Activity occurrence; effective duration and typed metrics | No universal assumption of reps/weight; a Program day is not a session |
 | Collaboration | Groups, three invite paths, shared completion, completion reactions, group-shared media with comments | No general chat or live video |
 | Social | Public content discovery, combined creator profiles, follows, likes and views on public media | No full algorithmic feed; no comments on public media |
-| Marketplace | Open, approval, one-time purchase, monthly Program subscription; server-verified entitlements; creator payouts | Ships after the core experience; no creator-wide plans; USD only |
+| Marketplace | Open, approval, one-time purchase, monthly Program subscription; server-verified entitlements; creator payouts | Ships after the core experience; USD only. Creator-channel membership is the separate **P1+** epic in §10 |
 | Achievements | Simple milestones derived from actual completions | No streaks, leaderboards, or public comparison |
 | Analytics | Personal last/best/count, participant summary, privacy-safe site counts, Program completion and retention | No unverified claims/medical/financial advice |
 | Notifications | In-app notifications on the user widget, deep links, optional daily email reminder | No web push in P1 |
@@ -161,11 +161,15 @@ Do not optimize for inflated screen time, pressure to post, streak anxiety, or p
 
 ## 7. Out of scope for P1
 
-General group chat and direct messaging, video meetings/WebRTC, comments on public media, web push, Apple login, capture presets and video trimming, community media reuse library, creator-wide subscription plans, multi-currency pricing, advanced recommendation feeds, invasive creator analytics, AI coaching, device health integrations, inter-program dependency engines, third-party calendar sync, streaks and leaderboards, and automated financial transactions.
+General group chat and direct messaging, video meetings/WebRTC, comments on public media, web push, Apple login, capture presets and video trimming, community media reuse library, multi-currency pricing, advanced recommendation feeds, invasive creator analytics, AI coaching, device health integrations, inter-program dependency engines, third-party calendar sync, streaks and leaderboards, and automated financial transactions.
+
+**Promoted out of this list into P1+ (§10):** creator-channel membership, channel-subscriber-only content, unified creator content workspace (including Posts), and channel earnings/audience analytics. Those remain out of the original P1 milestone and must not block Program Authoring.
 
 ## 8. Document map
 
 `02-DOMAIN.md` = taxonomy/relationships; `03-UX.md` = flows/layout; `04-UI.md` = primitives; `05-ARCHITECTURE.md` = implementation; `06-USERS.md`, `07-PROGRAMS.md`, `08-ACTIVITIES.md`, `09-CALENDARS.md`, `10-COLLABORATION.md`, `11-MEDIA.md`, `12-SOCIAL.md` = authoritative domain contracts; `13-PROFILES-AND-EXPERIENCE.md` = creator pages, loading states, visual direction. These thirteen documents are the only requirements; `packages/db/prisma/schema.prisma` and `packages/api-spec/openapi.yaml` implement them and must not contradict them.
+
+**P1+ Creator Channel & Publishing** extends `02-DOMAIN.md` §10 and cross-references monetization (`07-PROGRAMS.md`, `05-ARCHITECTURE.md` §12, ADR 0001), profiles (`06-USERS.md`, `12-SOCIAL.md`, `13-PROFILES-AND-EXPERIENCE.md`), Programs (`07-PROGRAMS.md`), Activities/Instructions (`08-ACTIVITIES.md`), and media (`11-MEDIA.md`). Domain contracts 06–13 remain authoritative for their existing surfaces until amended for this epic.
 
 ## 9. Decision log
 
@@ -187,11 +191,122 @@ General group chat and direct messaging, video meetings/WebRTC, comments on publ
 | 14 | What collaborators see | Permitted completion, group-shared media, and comments on that media |
 | 15 | P1 communication | Completion reactions and group media comments; general chat and live video deferred |
 | 16 | Notifications | In-app notifications and optional daily email reminders |
-| 17 | Monetization | One-time purchases and monthly Program subscriptions, implemented after the core experience |
-| 18 | Who can sell | Every user, after payment onboarding, verification, and compliance |
+| 17 | Monetization (P1) | One-time purchases and monthly **Program** subscriptions, implemented after the core experience |
+| 18 | Who can sell | Every user, after payment onboarding, verification, and compliance; no separate creator account role |
 | 19 | Quality signal | Completion and retention |
 | 20 | Top P1 priority | Program authoring |
 | 21 | Program day vs session | A Program day is a schedule unit; every Activity occurrence has its own independent sessions and results |
 | 22 | Personal scheduling | Standalone Activities and recurring personal entries are P1 |
 | 23 | Achievements | Simple milestones derived from actual completions |
 | 24 | Seed media | Rights-cleared illustrations throughout, selected demonstration videos |
+| 25 | Creator channel (P1+) | One public channel/profile + one private management workspace per user who publishes |
+| 26 | Channel vs Program billing | Monthly creator subscription unlocks subscriber-inclusive content; individually priced Programs remain; do not overload `ProgramAccessGrant` or `BillingSubscription.programId` |
+| 27 | Audience relationships | Followers, Program participants, and paying channel subscribers are distinct |
+| 28 | Content access axes | Ownership, publication status, audience access, and pricing are separate; never collapse into one visibility field |
+| 29 | Subscribe ≠ enroll | Channel subscribe never auto-enrolls or populates Calendar; lapse preserves personal history |
+| 30 | Unified creator workspace | One management surface for Programs, Activities, Instructions, Media, and Posts |
+
+## 10. P1+ epic — Creator Channel & Publishing
+
+**Status:** Authoritative product contract for the next milestone after original P1 · **Does not replace P1** · Program Authoring remains the primary P1 success criterion (§1). Implementation of this epic starts only after the original P1 gate; schema, API, billing, and UI changes are deferred until assigned.
+
+### Intent
+
+A creator manages an ongoing **channel**: a public profile/catalog and a private workspace for all owned content, audience, memberships, and earnings. P1 already supports Program-centric access (`OPEN` / `APPROVAL` / `PAID`) and per-Program purchases/subscriptions (`07-PROGRAMS.md`, ADR 0001). P1+ adds **channel membership** so creators can grow a catalog over time without selling every item separately, while retaining à-la-carte Program pricing.
+
+### Locked product rules
+
+1. Every user can become a creator; there is no separate creator account role (`06-USERS.md`).
+2. A creator has **one** public channel/profile and **one** private management workspace (`13-PROFILES-AND-EXPERIENCE.md` extended, not duplicated).
+3. A monthly **creator subscription** unlocks all content explicitly designated **subscriber-inclusive**.
+4. Creators may still sell individual Programs through one-time purchases or Program-specific subscriptions (`07-PROGRAMS.md`).
+5. **Followers**, **Program participants**, and **paying channel subscribers** are distinct relationships (`12-SOCIAL.md`, `07-PROGRAMS.md`, `02-DOMAIN.md` §10).
+6. Publishable content may be **Public**, **Private**, **Program-restricted**, or **Channel-subscriber-only** (audience access; see axes below).
+7. Subscribing never automatically enrolls someone in a Program or populates their calendar.
+8. Cancellation or payment lapse removes protected access but preserves personal history (same locking pattern as Program subscriptions: instructional content withheld; sessions, results, and personal media remain — `09-CALENDARS.md`, `05-ARCHITECTURE.md` §12).
+9. Creator media reuses `MediaAsset`, `MediaAttachment`, and `MediaPublication` (`11-MEDIA.md`); no parallel media stack.
+10. Reuse Stripe Connect and existing billing infrastructure (`docs/adr/0001-billing-stripe-connect.md`). Do **not** overload `ProgramAccessGrant` or `BillingSubscription.programId` for channel membership — introduce channel-scoped instruments and entitlements (`02-DOMAIN.md` §10).
+
+### Content the creator controls
+
+The workspace covers **all owned content types** in one place:
+
+| Type | Notes |
+|---|---|
+| **Programs** | Drafts, versions, publish/unpublish/archive; access policy and Program prices remain as in `07-PROGRAMS.md` |
+| **Activities** | Create, customize copies, publish/archive; library organization |
+| **Instructions** | Owned by Activity revisions (`08-ACTIVITIES.md`); editable/enriched in the authoring workflow without a separate admin system |
+| **Media** | Library, attach, publish, contribute; rights and moderation via `11-MEDIA.md` |
+| **Posts** | First-class channel content: text, images, videos, and links; may **reference** Programs, Activities, and other channel content without duplicating those records |
+
+### Four independent axes (never collapse)
+
+For every publishable item, keep these separate:
+
+| Axis | Controls | Examples |
+|---|---|---|
+| **Ownership** | Who may edit / delete | Creator user id; copy-on-customize for Activities |
+| **Publication status** | Lifecycle | `DRAFT`, `PUBLISHED`, `UNPUBLISHED`, `ARCHIVED` (+ immutable versions where the domain already requires them) |
+| **Audience access** | Who may view protected substance | `PRIVATE`, `PUBLIC`, `PROGRAM_RESTRICTED`, `CHANNEL_SUBSCRIBER` |
+| **Pricing / inclusion** | How money or membership applies | Free; Program one-time; Program monthly; **subscriber-inclusive** (covered by channel plan); individually excluded from the channel plan |
+
+Discoverability (listed vs unlisted vs not indexed) remains the existing Program/Activity visibility concern where already defined; it is not a substitute for audience access or pricing.
+
+### Unified creator workspace
+
+One private management surface (not per-type admin apps) organized around:
+
+1. **Content management and publishing** — create, edit, duplicate, organize, preview, publish, unpublish, archive, and delete where permitted; featured placement; channel organization; publishing history.
+2. **Programs and instructional media** — Programs, Activities, Instructions, MediaAssets/attachments/publications, and Posts in one inventory with filters by type, status, audience, and monetization.
+3. **Subscribers and audience** — followers, channel subscribers, Program participants, pending approvals; access revocation and moderation hooks (`12-SOCIAL.md`).
+4. **Pricing and memberships** — channel plan price; per-Program prices; subscriber-inclusion toggles; payout account status (`CreatorPayoutAccount`).
+5. **Analytics and earnings** — views/engagement where authorized, enrollments, completions/retention (`ProgramStat`), subscriber counts, and earnings aggregates. Minimal truthful metrics first; invasive analytics stay deferred.
+
+### Entitlement precedence
+
+When multiple grants could apply to the same Program or media, resolve access as the **most permissive valid grant** among:
+
+1. Owner / authorized editor.
+2. Active **channel** entitlement covering subscriber-inclusive content.
+3. Active **Program** entitlement (`OPEN`, approved `APPROVAL`, `PURCHASE`, Program `SUBSCRIPTION`, or `ADMIN` — existing `ProgramAccessGrant` sources).
+4. Explicit share / group publication rules for media (`11-MEDIA.md`, `10-COLLABORATION.md`).
+
+Denial rules still win: blocks, moderation hides, revoked grants, and lapsed subscriptions remove protected access. Channel entitlement never bypasses Program-restricted items that are not subscriber-inclusive, nor individually sold Programs excluded from the channel plan.
+
+### Mixed-access content
+
+- A channel may mix public free Posts, subscriber-only media, free OPEN Programs, APPROVAL Programs, PAID Programs excluded from the plan, and PAID Programs also marked subscriber-inclusive.
+- Subscriber-inclusive designation is **explicit** per item (or clear inherited default the creator can override); silence does not enroll content into the plan.
+- Referencing a Program from a Post does not grant Program access; the viewer still needs the appropriate Program or channel entitlement to unlock Program substance.
+- Instructional media attached to a locked Program remains withheld per existing locked-occurrence rules even if a related Post is public.
+
+### Publishing and revisions
+
+- Programs and Activities keep existing version/revision rules (`07-PROGRAMS.md`, `08-ACTIVITIES.md`).
+- Posts use draft → publish → unpublish/archive with edit history sufficient for moderation; unpublishing removes distribution without deleting the creator's source media.
+- Revising published instructional content follows Activity revision / Program version acceptance rules already specified; channel membership does not force participants onto new versions.
+- Featured order and channel organization are creator-controlled presentation metadata, not ownership or entitlement.
+
+### Delivery phases (implementation order when assigned)
+
+| Phase | Scope |
+|---|---|
+| **A — Foundation** | Channel ownership model, followers vs subscribers, channel membership + entitlement, content eligibility axes, access inheritance. No new account role. |
+| **B — Workspace** | Unified management UI for all content types, visibility/audience/pricing controls, publishing status, audience lists. |
+| **C — Subscriber experience** | Follow, subscribe, browse eligible catalog, join Programs still requiring enrollment, retain history after cancel/lapse. |
+| **D — Business tools** | Payouts reuse, earnings, subscriber analytics, monetization settings. |
+
+Reuse Stripe Connect (destination charges, webhook-only fulfillment, `MARKETPLACE_ENABLED` discipline) rather than replacing it.
+
+### Acceptance tests (P1+; in addition to §6)
+
+1. A user with no special role publishes a Post and a Program from the unified workspace; both appear on the same public channel/profile under their respective audience settings.
+2. A monthly channel subscription grants access to items marked subscriber-inclusive and **does not** enroll the subscriber in any Program or add Calendar Items.
+3. An individually priced Program excluded from the channel plan remains locked to a channel subscriber until purchased or Program-subscribed; a subscriber-inclusive Program unlocks without a separate Program payment.
+4. Follow without subscribe shows only public channel content; subscribe without follow still receives subscriber-inclusive access.
+5. Cancel or lapse of the channel subscription locks protected content; the user's prior enrollments' personal sessions, results, and private media remain.
+6. Creating, editing, duplicating, publishing, unpublishing, and archiving work for Programs, Activities, Media publications, and Posts from the **same** workspace; Instructions are edited through Activity revision flows without a second admin system.
+7. A Post may link a Program and an Activity by reference; deleting or archiving the Post does not delete those records; deleting referenced content breaks the reference safely without orphan entitlement grants.
+8. Channel billing instruments are distinct from `BillingSubscription.programId` / `ProgramAccessGrant`; Program checkout and channel checkout can coexist for the same creator and buyer.
+9. Rights, report, and moderation actions can revoke distribution or entitlement without destroying the owner's private library assets (`11-MEDIA.md`, `12-SOCIAL.md`).
+10. Analytics show truthful subscriber count and earnings aggregates without exposing other users' private results.
