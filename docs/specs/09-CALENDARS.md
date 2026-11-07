@@ -146,7 +146,7 @@ Calendar tile unread count references only unread notifications about that group
 
 ## 9a. Achievements
 
-Simple milestones **derived from actual completions**, computed by a worker consumer of `SessionFinished`, never self-reported or client-asserted. A completion means a Calendar Item reached DONE or an unscheduled session FINISHED; an attempt, click, or abandoned session does not count.
+Simple milestones **derived from actual completions**, evaluated in the same transaction that finishes a session (so the Finish return can show them) and re-evaluated when a completion is undone; never self-reported or client-asserted. A completion means a Calendar Item reached DONE or an unscheduled session FINISHED; an attempt, click, or abandoned session does not count.
 
 Seeded `AchievementDefinition` rows (`key`, `label`, `description`, `icon`, `ruleKind`, `threshold?`): first completed Activity; 10, 50, and 100 completed Activities; first full Program week (every placement in a Program's first seven days DONE); halfway through a Program; Program completed (every non-cancelled item DONE). No streaks and no comparison between people.
 

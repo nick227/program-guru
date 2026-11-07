@@ -38,3 +38,13 @@ export async function seedCatalog() {
   const legRaises = await platformActivity('leg-raises', 'Leg Raises', ['Lie flat', 'Raise legs'])
   return { fitness, strength, workout, reps, duration, timer, illustration, squats, legRaises }
 }
+
+export async function seedAchievements() {
+  await db.achievementDefinition.createMany({
+    data: [
+      { key: 'first-completion', label: 'First step', description: 'Completed your first activity', icon: 'sparkles', ruleKind: 'TOTAL_COMPLETIONS', threshold: 1, position: 0 },
+      { key: 'ten-completions', label: 'Ten done', description: 'Completed 10 activities', icon: 'medal', ruleKind: 'TOTAL_COMPLETIONS', threshold: 10, position: 1 },
+      { key: 'program-completed', label: 'Program complete', description: 'Finished every activity in a program', icon: 'trophy', ruleKind: 'PROGRAM_COMPLETED', position: 2 },
+    ],
+  })
+}

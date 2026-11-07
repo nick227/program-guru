@@ -5,24 +5,12 @@ export async function acceptGroupInvitation() {
   throw notImplemented('acceptGroupInvitation')
 }
 
-export async function addCalendarItem() {
-  throw notImplemented('addCalendarItem')
-}
-
 export async function addCompletionReaction() {
   throw notImplemented('addCompletionReaction')
 }
 
 export async function addMediaPublicationComment() {
   throw notImplemented('addMediaPublicationComment')
-}
-
-export async function applySessionAction() {
-  throw notImplemented('applySessionAction')
-}
-
-export async function cancelCalendarItem() {
-  throw notImplemented('cancelCalendarItem')
 }
 
 export async function cancelSubscription() {
@@ -65,10 +53,6 @@ export async function createReport() {
   throw notImplemented('createReport')
 }
 
-export async function createSession() {
-  throw notImplemented('createSession')
-}
-
 export async function deleteMedia() {
   throw notImplemented('deleteMedia')
 }
@@ -83,18 +67,6 @@ export async function deleteMediaComment() {
 
 export async function discover() {
   throw notImplemented('discover')
-}
-
-export async function endCalendarRecurrence() {
-  throw notImplemented('endCalendarRecurrence')
-}
-
-export async function getActivityMyStats() {
-  throw notImplemented('getActivityMyStats')
-}
-
-export async function getActivityOccurrence() {
-  throw notImplemented('getActivityOccurrence')
 }
 
 export async function getCreatorEarnings() {
@@ -125,10 +97,6 @@ export async function getPayoutAccount() {
   throw notImplemented('getPayoutAccount')
 }
 
-export async function getSession() {
-  throw notImplemented('getSession')
-}
-
 export async function getUnreadNotificationCount() {
   throw notImplemented('getUnreadNotificationCount')
 }
@@ -149,14 +117,6 @@ export async function listActivityPublicMedia() {
   throw notImplemented('listActivityPublicMedia')
 }
 
-export async function listCalendarItems() {
-  throw notImplemented('listCalendarItems')
-}
-
-export async function listCalendarRecurrences() {
-  throw notImplemented('listCalendarRecurrences')
-}
-
 export async function listGroupCompletions() {
   throw notImplemented('listGroupCompletions')
 }
@@ -171,10 +131,6 @@ export async function listGroupMedia() {
 
 export async function listMediaPublicationComments() {
   throw notImplemented('listMediaPublicationComments')
-}
-
-export async function listMyAchievements() {
-  throw notImplemented('listMyAchievements')
 }
 
 export async function listMyGroups() {
@@ -209,10 +165,6 @@ export async function listReports() {
   throw notImplemented('listReports')
 }
 
-export async function listUserAchievements() {
-  throw notImplemented('listUserAchievements')
-}
-
 export async function listUserActivities() {
   throw notImplemented('listUserActivities')
 }
@@ -231,10 +183,6 @@ export async function markNotificationsRead() {
 
 export async function moderateMediaPublication() {
   throw notImplemented('moderateMediaPublication')
-}
-
-export async function moveCalendarItemToOpenSlot() {
-  throw notImplemented('moveCalendarItemToOpenSlot')
 }
 
 export async function recordMediaPublicationView() {
@@ -269,16 +217,8 @@ export async function revokeProgramAccess() {
   throw notImplemented('revokeProgramAccess')
 }
 
-export async function saveSessionResult() {
-  throw notImplemented('saveSessionResult')
-}
-
 export async function startPayoutOnboarding() {
   throw notImplemented('startPayoutOnboarding')
-}
-
-export async function undoCalendarItemCompletion() {
-  throw notImplemented('undoCalendarItemCompletion')
 }
 
 export async function unlikeMediaPublication() {
@@ -289,24 +229,12 @@ export async function unsubscribeDailyEmail() {
   throw notImplemented('unsubscribeDailyEmail')
 }
 
-export async function updateCalendarItem() {
-  throw notImplemented('updateCalendarItem')
-}
-
-export async function updateCalendarRecurrence() {
-  throw notImplemented('updateCalendarRecurrence')
-}
-
 export async function updateGroup() {
   throw notImplemented('updateGroup')
 }
 
 export async function updateMedia() {
   throw notImplemented('updateMedia')
-}
-
-export async function updateMyAchievement() {
-  throw notImplemented('updateMyAchievement')
 }
 
 export async function updateMyGroupMembership() {
