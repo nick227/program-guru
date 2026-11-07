@@ -15,6 +15,9 @@ beforeEach(async () => {
     ...tables.map((t) => db.$executeRawUnsafe(`DELETE FROM \`${t}\``)),
     db.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 1'),
   ])
+  // Fail loudly here, not as a confusing unique-key collision inside the next test.
+  const leftover = await db.user.count()
+  if (leftover) throw new Error(`Test reset left ${leftover} users: work from a previous test is still running`)
 })
 
 afterAll(async () => {
