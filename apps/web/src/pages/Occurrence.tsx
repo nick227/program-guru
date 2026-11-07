@@ -1,0 +1,383 @@
+import { useRef, useState } from 'react'
+import {
+  useBeforeUnload,
+  useBlocker,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
+import {
+  useCreateSession,
+  useOccurrence,
+  useSaveResults,
+  useSessionAction,
+  useUndoCompletion,
+  type components,
+} from '@project/sdk'
+import { toast } from 'sonner'
+import { Page, Stage, Panel, Stack, Row, Grid } from '@/components/ui/Layout'
+import { Button } from '@/components/ui/Button'
+import { ErrorMessage, Loading } from '@/components/ui/Feedback'
+import { Back } from '@/components/Navigation'
+import { MetricInput } from '@/components/MetricInput'
+import { calendarUrl, dateLabel, safeReturn } from '@/lib/dates'
+import { useOnline } from '@/lib/useOnline'
+type S = components['schemas']
+const metricKey = (m: S['MetricInput']) =>
+  `${m.instructionId ?? ''}:${m.metricDefinitionId}`
+export function OccurrencePage() {
+  const { id = '' } = useParams()
+  const occurrence = useOccurrence(id)
+  return (
+    <Page>
+      <Stage>
+        <ErrorMessage
+          error={occurrence.error}
+          retry={() => void occurrence.refetch()}
+        />
+        {occurrence.data ? (
+          <OccurrenceContent
+            key={id}
+            occurrence={occurrence.data}
+            refresh={() => void occurrence.refetch()}
+          />
+        ) : occurrence.isPending ? (
+          <Loading />
+        ) : (
+          <Back to="/">Calendar</Back>
+        )}
+      </Stage>
+    </Page>
+  )
+}
+function OccurrenceContent({
+  occurrence: o,
+  refresh,
+}: {
+  occurrence: S['ActivityOccurrence']
+  refresh: () => void
+}) {
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const origin = safeReturn(
+    params.get('returnTo'),
+    calendarUrl(o.item.localDate),
+  )
+  const online = useOnline()
+  const create = useCreateSession(o.item.id)
+  const action = useSessionAction(o.item.id)
+  const save = useSaveResults(o.item.id)
+  const undo = useUndoCompletion()
+  const [dirty, setDirty] = useState<Record<string, string | number | boolean>>(
+    {},
+  )
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<unknown>(null)
+  const working = useRef(false)
+  const createKey = useRef(crypto.randomUUID())
+  const created = useRef<S['ActivitySession'] | null>(null)
+  const leavingAfterFinish = useRef(false)
+  const unsaved = Object.keys(dirty).length > 0
+  const blocker = useBlocker(
+    () => (unsaved || busy) && !leavingAfterFinish.current,
+  )
+  useBeforeUnload((event) => {
+    if (unsaved || busy) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+  })
+  const session = o.session
+  const status = session?.status ?? 'READY'
+  const disabled = busy || !online
+  async function getSession() {
+    if (session && !['FINISHED', 'ABANDONED'].includes(session.status))
+      return session
+    if (created.current && created.current.id !== session?.id)
+      return created.current
+    const next = await create.mutateAsync({
+      calendarItemId: o.item.id,
+      idempotencyKey: createKey.current,
+    })
+    created.current = next
+    return next
+  }
+  async function perform(nextAction?: S['SessionAction']) {
+    if (working.current) return
+    working.current = true
+    setBusy(true)
+    setFailure(null)
+    try {
+      const current = await getSession()
+      // Only user-entered values are written. Targets never become recorded results implicitly.
+      const groups = new Map<string, S['MetricInput'][]>()
+      for (const m of o.resultInputs)
+        if (dirty[metricKey(m)] !== undefined) {
+          const k = m.instructionId ?? ''
+          groups.set(k, [...(groups.get(k) ?? []), m])
+        }
+      for (const [instructionId, metrics] of groups) {
+        await save.mutateAsync({
+          sessionId: current.id,
+          instructionId: instructionId || null,
+          values: metrics.map((m) => ({
+            metricDefinitionId: m.metricDefinitionId,
+            value: dirty[metricKey(m)]!,
+            ...(m.unit ? { unit: m.unit } : {}),
+          })),
+        })
+        setDirty((prev) => {
+          const copy = { ...prev }
+          metrics.forEach((m) => delete copy[metricKey(m)])
+          return copy
+        })
+      }
+      if (nextAction) {
+        await action.mutateAsync({
+          sessionId: current.id,
+          action: nextAction,
+          expectedRevision: current.revision,
+        })
+        if (nextAction === 'FINISH') {
+          createKey.current = crypto.randomUUID()
+          created.current = null
+          const url = new URL(origin, window.location.origin)
+          url.searchParams.set('completed', o.item.id)
+          leavingAfterFinish.current = true
+          navigate(url.pathname + url.search)
+          toast.success('Activity finished')
+        }
+      } else toast.success('Results saved')
+    } catch (error) {
+      setFailure(error)
+    } finally {
+      working.current = false
+      setBusy(false)
+    }
+  }
+  return (
+    <>
+      <Back to={origin}>Calendar</Back>
+      {blocker.state === 'blocked' && (
+        <Panel aria-label="Unsaved results">
+          <Stack>
+            <p>
+              {busy
+                ? 'Wait for the current save to finish.'
+                : 'You have unsaved results.'}
+            </p>
+            <Button autoFocus onClick={() => blocker.reset?.()}>
+              Keep editing
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => blocker.proceed?.()}
+            >
+              Discard changes and leave
+            </Button>
+          </Stack>
+        </Panel>
+      )}
+      <Stack className="gap-2">
+        <p className="text-xs text-muted">
+          {o.item.programTitle} · {dateLabel(o.item.localDate)}
+        </p>
+        <h1>{o.item.title}</h1>
+        <p role="status" className="text-muted">
+          {o.item.status === 'DONE'
+            ? 'Completed'
+            : status === 'ACTIVE'
+              ? 'In progress'
+              : status === 'PAUSED'
+                ? 'Paused'
+                : 'Ready'}
+        </p>
+      </Stack>
+      <Panel>
+        <Stack>
+          <h2>Today's Results</h2>
+          {o.resultInputs.length ? (
+            o.resultInputs.map((m) => (
+              <MetricInput
+                key={metricKey(m)}
+                metric={m}
+                value={dirty[metricKey(m)] ?? m.recorded}
+                disabled={disabled || status === 'FINISHED'}
+                onChange={(value) =>
+                  setDirty((prev) => ({ ...prev, [metricKey(m)]: value }))
+                }
+              />
+            ))
+          ) : (
+            <p className="text-muted">
+              No results to record for this Activity.
+            </p>
+          )}
+          {Object.keys(dirty).length > 0 && (
+            <Button
+              variant="outline"
+              disabled={disabled}
+              onClick={() => void perform()}
+            >
+              Save results
+            </Button>
+          )}
+        </Stack>
+      </Panel>
+      {o.collaborators && (
+        <Panel>
+          <h2>Collaborators</h2>
+          <Row className="mt-3">
+            {o.collaborators.members.map((member) => (
+              <span key={member.user.id}>
+                {member.user.displayName} ·{' '}
+                {member.status === 'DONE'
+                  ? 'Completed'
+                  : member.status === 'UNKNOWN'
+                    ? 'Private'
+                    : 'Planned'}
+              </span>
+            ))}
+          </Row>
+        </Panel>
+      )}
+      <Panel>
+        <Stack>
+          <h2>Session Controls</h2>
+          <ErrorMessage error={failure || undo.error} />
+          {!!failure && (
+            <Button variant="outline" onClick={refresh}>
+              Refresh Activity
+            </Button>
+          )}
+          <Row>
+            {(status === 'READY' || status === 'ABANDONED') && (
+              <>
+                <Button
+                  disabled={disabled}
+                  onClick={() => void perform('START')}
+                >
+                  Start
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() => void perform('FINISH')}
+                >
+                  Mark finished
+                </Button>
+              </>
+            )}
+            {status === 'ACTIVE' && (
+              <Button
+                variant="outline"
+                disabled={disabled}
+                onClick={() => void perform('PAUSE')}
+              >
+                Pause
+              </Button>
+            )}
+            {status === 'PAUSED' && (
+              <Button
+                variant="outline"
+                disabled={disabled}
+                onClick={() => void perform('RESUME')}
+              >
+                Resume
+              </Button>
+            )}
+            {(status === 'ACTIVE' || status === 'PAUSED') && (
+              <Button
+                disabled={disabled}
+                onClick={() => void perform('FINISH')}
+              >
+                Finish
+              </Button>
+            )}
+            {status === 'FINISHED' && (
+              <>
+                <Button
+                  disabled={disabled}
+                  onClick={() => void perform('START')}
+                >
+                  Start again
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={disabled || undo.isPending}
+                  onClick={() => undo.mutate(o.item.id)}
+                >
+                  Undo completion
+                </Button>
+              </>
+            )}
+          </Row>
+          {busy && <p role="status">Saving…</p>}
+          {session?.status === 'FINISHED' && (
+            <p className="text-muted">
+              {session.isManualCompletion
+                ? 'Manually completed · no measured duration'
+                : `${session.activeSeconds} seconds recorded`}
+            </p>
+          )}
+          {!o.item.locked && o.instructions.length > 0 && (
+            <details>
+              <summary className="cursor-pointer py-3">Instructions</summary>
+              <Stack>
+                {o.instructions.map((i) => (
+                  <p key={i.id}>{i.body ?? i.title}</p>
+                ))}
+              </Stack>
+            </details>
+          )}
+          {o.item.locked && (
+            <p className="text-muted">
+              Access required for instructional content.
+            </p>
+          )}
+        </Stack>
+      </Panel>
+      <Panel>
+        <h2>My Metrics</h2>
+        <Grid className="mt-4 grid-cols-3">
+          {o.personalStats.slice(0, 3).map((stat) => (
+            <div key={stat.key}>
+              <p className="text-xs text-muted">{stat.label}</p>
+              <p className="mt-2 font-display text-lg">{stat.value}</p>
+            </div>
+          ))}
+        </Grid>
+      </Panel>
+      <Panel>
+        <h2>My Media</h2>
+        <p className="mt-2 text-muted">
+          {o.myMedia.length
+            ? `${o.myMedia.length} private media items`
+            : 'No private media yet.'}
+        </p>
+      </Panel>
+      {o.sharedMedia.length > 0 && (
+        <Panel>
+          <h2>Shared Media</h2>
+          <p>{o.sharedMedia.length} shared items</p>
+        </Panel>
+      )}
+      {!o.item.locked && o.communityMedia.length > 0 && (
+        <Panel>
+          <h2>Community Media</h2>
+          <p>{o.communityMedia.length} public items</p>
+        </Panel>
+      )}
+      {o.communityStats && (
+        <Panel>
+          <h2>Community Stats</h2>
+          <p>
+            {o.communityStats.participants} participants ·{' '}
+            {o.communityStats.completions} completions
+          </p>
+        </Panel>
+      )}
+    </>
+  )
+}
