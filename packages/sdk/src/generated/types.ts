@@ -7336,7 +7336,10 @@ export interface operations {
                 exp: number;
                 sig: string;
             };
-            header?: never;
+            header?: {
+                /** @description Optional single byte range, e.g. `bytes=0-1023`. */
+                range?: string;
+            };
             path: {
                 mediaId: string;
                 variant: "thumb" | "poster" | "stream" | "original";
@@ -7354,7 +7357,16 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
-            /** @description Redirect to a short-lived storage URL */
+            /** @description Partial content for a `Range: bytes=start-end` request (media playback and seeking) */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Redirect to a short-lived storage URL (R2 serves ranges itself) */
             302: {
                 headers: {
                     [name: string]: unknown;
@@ -7363,6 +7375,13 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            /** @description Requested range not satisfiable */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getMedia: {

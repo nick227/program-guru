@@ -13,7 +13,8 @@
     "generate": "prisma generate",
     "typecheck": "tsc --noEmit",
     "db:status": "dotenv -e ../../.env -- prisma migrate status",
-    "db:reset": "dotenv -e ../../.env -- prisma migrate reset"
+    "db:reset": "dotenv -e ../../.env -- prisma migrate reset",
+    "lint": "eslint src prisma"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0"

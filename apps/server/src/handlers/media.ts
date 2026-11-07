@@ -36,11 +36,22 @@ export async function getMediaUrl(request: any) {
 export async function getMediaFile(request: any, reply: FastifyReply) {
   const { mediaId, variant } = request.params as { mediaId: string; variant: MediaVariantName }
   if (!verifyMediaSignature(mediaId, variant, Number(request.query.exp), request.query.sig)) throw notFound('Media')
-  const file = await media.fileForDelivery(mediaId, variant)
+  const file = await media.fileForDelivery(mediaId, variant, request.headers.range)
   if ('redirect' in file) return reply.redirect(file.redirect!)
   reply.header('cache-control', 'private, max-age=3600')
   reply.header('x-content-type-options', 'nosniff')
-  if (file.size !== null) reply.header('content-length', String(file.size))
+  reply.header('accept-ranges', 'bytes')
+  if ('unsatisfiable' in file) {
+    reply.header('content-range', `bytes */${file.size}`)
+    return reply.code(416).send()
+  }
+  if ('range' in file && file.range) {
+    reply.code(206)
+    reply.header('content-range', `bytes ${file.range.start}-${file.range.end}/${file.size}`)
+    reply.header('content-length', String(file.range.end - file.range.start + 1))
+  } else {
+    reply.header('content-length', String(file.size))
+  }
   return reply.type(file.mime!).send(file.stream)
 }
 export async function deleteMedia(request: any) {

@@ -152,7 +152,7 @@ export async function deliveryUrl(viewerId: string | null, mediaId: string) {
 }
 
 /** Resolves a signed delivery request to a stream or a storage redirect. */
-export async function fileForDelivery(mediaId: string, variant: MediaVariantName) {
+export async function fileForDelivery(mediaId: string, variant: MediaVariantName, rangeHeader?: string) {
   const m = await db.mediaAsset.findUnique({ where: { id: mediaId }, include: { variants: true } })
   if (!m || m.deletedAt || m.state === 'BLOCKED') throw notFound('Media')
   // "original" for a user's photo is the metadata-stripped WEB rendition: raw uploads (with EXIF and
@@ -163,8 +163,33 @@ export async function fileForDelivery(mediaId: string, variant: MediaVariantName
   const file = wanted ? { storageKey: wanted.storageKey, mime: wanted.mime } : fallback
   if (!file) throw notFound('Media')
   const redirect = await storage().presignGet(file.storageKey, 300)
-  if (redirect) return { redirect }
-  return { stream: await storage().read(file.storageKey), mime: file.mime, size: await storage().size(file.storageKey) }
+  if (redirect) return { redirect } // R2 serves ranges itself
+  const size = await storage().size(file.storageKey)
+  if (size === null) throw notFound('Media')
+  // HTTP Range lets <video> and <audio> start quickly and seek (05 §10).
+  const range = parseRange(rangeHeader, size)
+  if (range === 'unsatisfiable') return { unsatisfiable: true as const, size }
+  if (range) return { stream: await storage().read(file.storageKey, range), mime: file.mime, size, range }
+  return { stream: await storage().read(file.storageKey), mime: file.mime, size }
+}
+
+/** Single `bytes=` ranges only (what media elements send); anything else gets the full file. */
+export function parseRange(header: string | undefined, size: number): { start: number; end: number } | 'unsatisfiable' | null {
+  const m = header?.match(/^bytes=(\d*)-(\d*)$/)
+  if (!m || (m[1] === '' && m[2] === '')) return null
+  let start: number
+  let end: number
+  if (m[1] === '') {
+    const suffix = Number(m[2])
+    if (suffix === 0) return 'unsatisfiable'
+    start = Math.max(0, size - suffix)
+    end = size - 1
+  } else {
+    start = Number(m[1])
+    end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1)
+  }
+  if (start >= size || start > end) return 'unsatisfiable'
+  return { start, end }
 }
 
 // ── Library ─────────────────────────────────────────────────────────────────
@@ -218,7 +243,9 @@ export async function update(userId: string, mediaId: string, input: { alt?: str
 
 // ── Upload ──────────────────────────────────────────────────────────────────
 
-export async function createUpload(userId: string, input: { filename: string; mime: string; sizeBytes: number; checksum?: string; durationMs?: number; alt?: string }) {
+export async function createUpload(userId: string, raw: { filename: string; mime: string; sizeBytes: number; checksum?: string; durationMs?: number; alt?: string }) {
+  // MediaRecorder reports types with codec parameters ("video/webm;codecs=vp8,opus"): keep only the type.
+  const input = { ...raw, mime: raw.mime.split(';')[0]!.trim().toLowerCase() }
   const type = MIME[input.mime]
   if (!type) throw badRequest('That file type is not supported', { mime: 'not allowed' })
   if (input.sizeBytes > LIMITS[type]) throw badRequest(`Files up to ${Math.round(LIMITS[type] / MB)} MB`, { sizeBytes: 'too large' })

@@ -4392,6 +4392,12 @@ paths:
           type: string
           minLength: 1
           maxLength: 200
+      - in: header
+        name: range
+        required: false
+        schema:
+          type: string
+        description: Optional single byte range, e.g. `bytes=0-1023`.
       responses:
         '200':
           description: File content
@@ -4400,8 +4406,17 @@ paths:
               schema:
                 type: string
                 format: binary
+        '206':
+          description: 'Partial content for a `Range: bytes=start-end` request (media playback and seeking)'
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         '302':
-          description: Redirect to a short-lived storage URL
+          description: Redirect to a short-lived storage URL (R2 serves ranges itself)
+        '416':
+          description: Requested range not satisfiable
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':

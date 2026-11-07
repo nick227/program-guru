@@ -15,7 +15,7 @@ export interface StorageProvider {
   /** Short-lived URL to read an object directly, or null to stream through the API. */
   presignGet(key: string, expiresSec: number): Promise<string | null>
   write(key: string, body: Readable, maxBytes: number): Promise<number>
-  read(key: string): Promise<Readable>
+  read(key: string, range?: { start: number; end: number }): Promise<Readable>
   size(key: string): Promise<number | null>
   head(key: string, bytes: number): Promise<Buffer>
   remove(key: string): Promise<void>
@@ -51,8 +51,8 @@ class LocalStorage implements StorageProvider {
     }
     return bytes
   }
-  async read(key: string) {
-    return createReadStream(this.path(key))
+  async read(key: string, range?: { start: number; end: number }) {
+    return createReadStream(this.path(key), range)
   }
   async size(key: string) {
     try {
@@ -103,8 +103,8 @@ class R2Storage implements StorageProvider {
     await this.s3.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: Buffer.concat(chunks) }))
     return bytes
   }
-  async read(key: string) {
-    const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }))
+  async read(key: string, range?: { start: number; end: number }) {
+    const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key, ...(range ? { Range: `bytes=${range.start}-${range.end}` } : {}) }))
     return out.Body as Readable
   }
   async size(key: string) {
@@ -131,6 +131,11 @@ export function storage(): StorageProvider {
     if (!process.env.R2_BUCKET) throw new Error('R2_BUCKET is required when STORAGE_PROVIDER=r2')
     provider = new R2Storage(process.env.R2_BUCKET)
   } else {
+    // The API and worker are separate Railway services with separate disks: local storage there would
+    // let the worker write variants the API can never read. Production must use R2.
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_LOCAL_STORAGE !== 'true') {
+      throw new Error('STORAGE_PROVIDER=local is not allowed in production; set STORAGE_PROVIDER=r2')
+    }
     provider = new LocalStorage(process.env.STORAGE_DIR ?? resolve(__dirname, '../../../../uploads'))
   }
   return provider
