@@ -1,7 +1,10 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
+  useAcceptEnrollmentUpdate,
   useCurrentUser,
+  useDismissEnrollmentUpdate,
+  useEnrollment,
   useJoinProgram,
   usePreviewEnrollment,
   useProgramPreview,
@@ -20,11 +23,13 @@ import {
   safeReturn,
   today,
 } from '@/lib/dates'
+import { hasSeenDailyEmailPrompt } from '@/lib/notifications'
 import { useOnline } from '@/lib/useOnline'
 
 export function ProgramPage() {
   const { id = '' } = useParams()
   const [params] = useSearchParams()
+  const groupIdParam = params.get('groupId')?.trim() || undefined
   const program = useProgramPreview(id)
   const me = useCurrentUser()
   const online = useOnline()
@@ -32,11 +37,15 @@ export function ProgramPage() {
   const tz =
     me.data?.data.preferences.timezone ??
     Intl.DateTimeFormat().resolvedOptions().timeZone
-  const [joining, setJoining] = useState(false)
+  const [joining, setJoining] = useState(!!groupIdParam)
   const [date, setDate] = useState('')
   const start = date || today(tz)
   const preview = usePreviewEnrollment(id)
   const join = useJoinProgram(id)
+  const enrollmentId = program.data?.myEnrollmentId ?? ''
+  const enrollment = useEnrollment(enrollmentId)
+  const acceptUpdate = useAcceptEnrollmentUpdate(enrollmentId)
+  const dismissUpdate = useDismissEnrollmentUpdate(enrollmentId)
   const key = useRef(crypto.randomUUID())
   const p = program.data
   if (!p)
@@ -132,11 +141,74 @@ export function ProgramPage() {
               : ''}
           </p>
         )}
-        <ErrorMessage error={program.error || preview.error || join.error} />
+        <ErrorMessage
+          error={
+            program.error ||
+            preview.error ||
+            join.error ||
+            acceptUpdate.error ||
+            dismissUpdate.error
+          }
+        />
         {p.myEnrollmentId ? (
-          <Link className={linkButton} to="/">
-            Open Calendar
-          </Link>
+          <Stack className="gap-3">
+            {enrollment.data?.pendingVersionId && (
+              <Panel className="border-accent bg-accent/5">
+                <Stack className="gap-2">
+                  <h2>Update available</h2>
+                  <p className="text-sm text-muted">
+                    The creator published a new version of this Program. Accept
+                    to update future scheduled Activities while keeping your
+                    past results and personal adjustments.
+                  </p>
+                  <Row>
+                    <Button
+                      disabled={!online}
+                      loading={acceptUpdate.isPending}
+                      onClick={async () => {
+                        try {
+                          await acceptUpdate.mutateAsync()
+                          toast.success('Program updated to latest version')
+                        } catch {
+                          /* shown above */
+                        }
+                      }}
+                    >
+                      Accept update
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={!online}
+                      loading={dismissUpdate.isPending}
+                      onClick={async () => {
+                        try {
+                          await dismissUpdate.mutateAsync()
+                          toast.success('Update dismissed')
+                        } catch {
+                          /* shown above */
+                        }
+                      }}
+                    >
+                      Dismiss
+                    </Button>
+                  </Row>
+                </Stack>
+              </Panel>
+            )}
+            <Row>
+              <Link className={linkButton} to="/">
+                Open Calendar
+              </Link>
+              {enrollment.data?.groupId && (
+                <Link
+                  className={linkButton}
+                  to={`/groups/${enrollment.data.groupId}`}
+                >
+                  Open Group
+                </Link>
+              )}
+            </Row>
+          </Stack>
         ) : me.isPending ? (
           <Loading />
         ) : !me.data ? (
@@ -199,10 +271,24 @@ export function ProgramPage() {
                           try {
                             await join.mutateAsync({
                               ...body,
+                              ...(groupIdParam
+                                ? { groupId: groupIdParam }
+                                : {}),
                               idempotencyKey: key.current,
                             })
                             toast.success('Program added to your calendar')
-                            navigate(calendarUrl(start))
+                            const userId = me.data?.data.id ?? ''
+                            const dailyEmailEnabled =
+                              me.data?.data.preferences.notifications
+                                ?.dailyEmail ?? false
+                            const shouldOfferPrompt =
+                              userId &&
+                              !dailyEmailEnabled &&
+                              !hasSeenDailyEmailPrompt(userId)
+                            const nextUrl = shouldOfferPrompt
+                              ? `${calendarUrl(start)}&promptReminder=1`
+                              : calendarUrl(start)
+                            navigate(nextUrl)
                           } catch {
                             /* keep key and date for safe retry */
                           }

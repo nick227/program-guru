@@ -200,12 +200,52 @@ export async function mockApi(
         status: 'ACTIVE',
         role: 'USER',
         profile: {
+          id: uid(user === 'author' ? 1 : 5),
           displayName: user === 'author' ? 'Author' : 'Participant',
           handle: user,
+          avatarUrl: null,
+          bio: null,
+          coverUrl: null,
+          visibility: 'PUBLIC',
+          relationship: 'NONE',
+          followerCount: 0,
+          followingCount: 0,
+          publicProgramCount: 1,
+          focusChips: [],
         },
-        preferences: { timezone: 'America/Chicago' },
+        preferences: {
+          timezone: 'America/Chicago',
+          locale: 'en-US',
+          defaultVisibility: 'PRIVATE',
+          notifications: {
+            inAppReminders: true,
+            dailyEmail: false,
+            dailyReminderTime: '08:00',
+            groupActivity: true,
+            followRequests: true,
+            mutedGroupIds: [],
+          },
+        },
       })
     }
+    if (path === '/notifications/unread-count') return send({ count: 0 })
+    if (path === '/notifications') return send([], 200, true)
+    if (path === '/notifications/read') return send({ ok: true })
+    if (path === '/users/me/preferences' && method === 'PATCH')
+      return send({
+        timezone: body.timezone ?? 'America/Chicago',
+        locale: 'en-US',
+        defaultVisibility: 'PRIVATE',
+        notifications: {
+          inAppReminders: true,
+          dailyEmail: false,
+          dailyReminderTime: '08:00',
+          groupActivity: true,
+          followRequests: true,
+          mutedGroupIds: [],
+          ...(body.notifications as Record<string, unknown>),
+        },
+      })
     if (path === '/catalog/program-types') return send([type])
     if (path === '/catalog/focuses') return send([focus])
     if (path === '/discover')
@@ -313,6 +353,18 @@ export async function mockApi(
       start = body.startLocalDate
       return send({ id: uid(40) }, 201)
     }
+    if (/^\/enrollments\/[^/]+$/.test(path) && method === 'GET')
+      return send({
+        id: uid(40),
+        program: summary(),
+        programVersionId: uid(12),
+        pendingVersionId: null,
+        groupId: null,
+        startLocalDate: start,
+        timezone: 'America/Chicago',
+        status: 'ACTIVE',
+        calendarItemCount: 12,
+      })
     if (/^\/programs\/[^/]+$/.test(path))
       return send({
         ...summary(path.endsWith(uid(11))),

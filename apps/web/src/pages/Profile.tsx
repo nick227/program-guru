@@ -3,6 +3,7 @@ import {
   useCurrentUser,
   useFollowUser,
   useUnfollowUser,
+  useUserAchievements,
   useUserActivities,
   useUserByHandle,
   useUserPrograms,
@@ -23,6 +24,7 @@ export function ProfilePage() {
   const programs = useUserPrograms(handle)
   const activities = useUserActivities(handle)
   const publications = useUserPublications(handle)
+  const achievements = useUserAchievements(handle)
   const follow = useFollowUser(handle)
   const unfollow = useUnfollowUser(handle)
   const online = useOnline()
@@ -185,6 +187,26 @@ export function ProfilePage() {
                   alt: m.alt,
                 }))}
               />
+            </Stack>
+          </Panel>
+        )}
+        {!!achievements.data?.length && (
+          <Panel>
+            <Stack>
+              <h2>Milestones</h2>
+              <Grid className="grid-cols-1 sm:grid-cols-2">
+                {achievements.data.map((a) => (
+                  <div key={a.id} className="rounded-lg border p-3">
+                    <strong>{a.label}</strong>
+                    <p className="mt-1 text-xs text-muted">{a.description}</p>
+                    {a.programTitle && (
+                      <p className="mt-1 text-xs text-muted">
+                        {a.programTitle}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </Grid>
             </Stack>
           </Panel>
         )}

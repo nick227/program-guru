@@ -198,7 +198,66 @@ export function useJoinProgram(programId: string) {
           body,
         }),
       ).data,
-    [keys.programs, keys.calendar, keys.discover],
+    [keys.programs, keys.calendar, keys.discover, keys.enrollments, keys.groups],
+  )
+}
+export function useMyEnrollments() {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.enrollments),
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/enrollments', {
+          signal,
+          params: { query: { cursor: pageParam, limit: 20 } },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+export function useEnrollment(enrollmentId: string) {
+  return useQuery({
+    queryKey: useViewerKey(keys.enrollment(enrollmentId)),
+    enabled: !!enrollmentId,
+    queryFn: async ({ signal }) =>
+      apiData(
+        await getApiClient().GET('/enrollments/{enrollmentId}', {
+          signal,
+          params: { path: { enrollmentId } },
+        }),
+      ).data,
+  })
+}
+export function useAcceptEnrollmentUpdate(enrollmentId: string) {
+  return useApiMutation(
+    async () =>
+      apiData(
+        await getApiClient().POST('/enrollments/{enrollmentId}/accept-update', {
+          params: { path: { enrollmentId } },
+        }),
+      ).data,
+    [
+      keys.enrollments,
+      keys.programs,
+      keys.calendar,
+      keys.occurrences,
+      keys.notifications,
+      keys.unreadCount,
+    ],
+  )
+}
+export function useDismissEnrollmentUpdate(enrollmentId: string) {
+  return useApiMutation(
+    async () =>
+      apiData(
+        await getApiClient().POST(
+          '/enrollments/{enrollmentId}/dismiss-update',
+          {
+            params: { path: { enrollmentId } },
+          },
+        ),
+      ).data,
+    [keys.enrollments, keys.programs, keys.notifications, keys.unreadCount],
   )
 }
 export function useActivity(activityId: string) {
