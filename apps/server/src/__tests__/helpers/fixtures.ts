@@ -2,6 +2,23 @@
 // tool, and two published platform Activities (Squats, Leg Raises).
 import { db } from '@project/db'
 
+/** The catalog seeded by seedCatalog, if a test file already created it in its own hooks. */
+export async function existingCatalog(): Promise<Awaited<ReturnType<typeof seedCatalog>> | null> {
+  const fitness = await db.category.findUnique({ where: { slug: 'fitness' } })
+  if (!fitness) return null
+  const strength = await db.focus.findUniqueOrThrow({ where: { categoryId_slug: { categoryId: fitness.id, slug: 'strength' } } })
+  const workout = await db.programType.findUniqueOrThrow({ where: { categoryId_slug: { categoryId: fitness.id, slug: 'workout' } } })
+  const reps = await db.metricDefinition.findUniqueOrThrow({ where: { key: 'repetitions' } })
+  const duration = await db.metricDefinition.findUniqueOrThrow({ where: { key: 'duration' } })
+  const timer = await db.toolDefinition.findUniqueOrThrow({ where: { key: 'TIMER' } })
+  const illustration = await db.mediaAsset.findUniqueOrThrow({ where: { originalStorageKey: 'platform/squats.png' } })
+  const load = async (slug: string) => {
+    const activity = await db.activity.findUniqueOrThrow({ where: { slug } })
+    return { activity, revision: await db.activityRevision.findUniqueOrThrow({ where: { id: activity.latestPublishedRevisionId! } }) }
+  }
+  return { fitness, strength, workout, reps, duration, timer, illustration, squats: await load('squats'), legRaises: await load('leg-raises') }
+}
+
 export async function seedCatalog() {
   const fitness = await db.category.create({ data: { slug: 'fitness', label: 'Fitness', position: 1 } })
   const strength = await db.focus.create({ data: { categoryId: fitness.id, slug: 'strength', label: 'Strength' } })
@@ -41,6 +58,7 @@ export async function seedCatalog() {
 
 export async function seedAchievements() {
   await db.achievementDefinition.createMany({
+    skipDuplicates: true,
     data: [
       { key: 'first-completion', label: 'First step', description: 'Completed your first activity', icon: 'sparkles', ruleKind: 'TOTAL_COMPLETIONS', threshold: 1, position: 0 },
       { key: 'ten-completions', label: 'Ten done', description: 'Completed 10 activities', icon: 'medal', ruleKind: 'TOTAL_COMPLETIONS', threshold: 10, position: 1 },

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
 import { seedAchievements, seedCatalog } from './helpers/fixtures'
+import { contractCase } from './helpers/contract'
 
 const app = buildTestApp()
 let cat: Awaited<ReturnType<typeof seedCatalog>>
@@ -241,5 +242,67 @@ describe('locked Program occurrences withhold instructional content while preser
     expect(lockedOcc.personalStats).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'completed', value: '1' })]))
 
     expect((await req('GET', `/activities/${act.id}`, undefined, testOtherUserId)).statusCode).toBe(404)
+  })
+})
+
+// ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
+
+describe('listCalendarItems', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listCalendarItems')
+  })
+})
+
+describe('addCalendarItem', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'addCalendarItem')
+  })
+})
+
+describe('getActivityOccurrence', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getActivityOccurrence')
+  })
+})
+
+describe('updateCalendarItem', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateCalendarItem')
+  })
+})
+
+describe('cancelCalendarItem', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'cancelCalendarItem')
+  })
+})
+
+describe('moveCalendarItemToOpenSlot', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'moveCalendarItemToOpenSlot')
+  })
+})
+
+describe('undoCalendarItemCompletion', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'undoCalendarItemCompletion')
+  })
+})
+
+describe('listCalendarRecurrences', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listCalendarRecurrences')
+  })
+})
+
+describe('updateCalendarRecurrence', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateCalendarRecurrence')
+  })
+})
+
+describe('endCalendarRecurrence', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'endCalendarRecurrence')
   })
 })

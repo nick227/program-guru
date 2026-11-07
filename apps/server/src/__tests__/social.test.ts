@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, testAdminId, seedUser } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
+import { contractCase } from './helpers/contract'
 
 const app = buildTestApp()
 let cat: Awaited<ReturnType<typeof seedCatalog>>
@@ -148,5 +149,73 @@ describe('reports and moderation', () => {
     const res = await req('POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })
     expect(res.statusCode).toBe(400)
     expect(res.json().message).toMatch(/restricted/)
+  })
+})
+
+// ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
+
+describe('getMediaPublication', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getMediaPublication')
+  })
+})
+
+describe('discover', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'discover')
+  })
+})
+
+describe('listUserPrograms', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listUserPrograms')
+  })
+})
+
+describe('listUserActivities', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listUserActivities')
+  })
+})
+
+describe('listUserPublications', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listUserPublications')
+  })
+})
+
+describe('likeMediaPublication', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'likeMediaPublication')
+  })
+})
+
+describe('unlikeMediaPublication', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'unlikeMediaPublication')
+  })
+})
+
+describe('recordMediaPublicationView', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'recordMediaPublicationView')
+  })
+})
+
+describe('listMediaPublicationComments', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listMediaPublicationComments')
+  })
+})
+
+describe('addMediaPublicationComment', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'addMediaPublicationComment')
+  })
+})
+
+describe('deleteMediaComment', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'deleteMediaComment')
   })
 })

@@ -4,7 +4,8 @@ import type { FastifyInstance } from 'fastify'
 import { db } from '@project/db'
 import { buildApp } from '../app'
 import { consumeRateLimit, pruneExpiredRateLimitBuckets } from '../lib/rateLimit'
-import { validateResponse } from './helpers'
+import { buildTestApp, validateResponse } from './helpers'
+import { contractCase } from './helpers/contract'
 
 let app: FastifyInstance
 beforeAll(async () => {
@@ -211,5 +212,51 @@ describe('database-backed rate limiting (RateLimitBucket)', () => {
     expect(pruned).toBe(1)
     expect(await db.rateLimitBucket.findUnique({ where: { key: 'stale:bucket' } })).toBeNull()
     expect(await db.rateLimitBucket.findUnique({ where: { key } })).not.toBeNull()
+  })
+})
+
+// ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
+// These use the test harness (Bearer <userId>); the tests above exercise the real session cookies.
+const contractApp = buildTestApp()
+
+describe('login', () => {
+  it('matches the contract', async () => {
+    await contractCase(contractApp, 'login')
+  })
+})
+
+describe('loginWithGoogle', () => {
+  it('matches the contract', async () => {
+    await contractCase(contractApp, 'loginWithGoogle')
+  })
+})
+
+describe('logout', () => {
+  it('matches the contract', async () => {
+    await contractCase(contractApp, 'logout')
+  })
+})
+
+describe('getCurrentUser', () => {
+  it('matches the contract', async () => {
+    await contractCase(contractApp, 'getCurrentUser')
+  })
+})
+
+describe('resendVerificationEmail', () => {
+  it('matches the contract', async () => {
+    await contractCase(contractApp, 'resendVerificationEmail')
+  })
+})
+
+describe('forgotPassword', () => {
+  it('matches the contract', async () => {
+    await contractCase(contractApp, 'forgotPassword')
+  })
+})
+
+describe('resetPassword', () => {
+  it('matches the contract', async () => {
+    await contractCase(contractApp, 'resetPassword')
   })
 })

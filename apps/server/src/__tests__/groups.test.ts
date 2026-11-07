@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, seedUser } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
+import { contractCase } from './helpers/contract'
 
 const app = buildTestApp()
 let cat: Awaited<ReturnType<typeof seedCatalog>>
@@ -174,5 +175,97 @@ describe('group media comments', () => {
 
     const pubPublic = await db.mediaPublication.create({ data: { mediaId: media.id, publishedById: testUserId, audience: 'PUBLIC', status: 'APPROVED', license: 'CC0' } })
     expect((await req('POST', `/media-publications/${pubPublic.id}/comments`, { body: 'hi' }, testOtherUserId)).statusCode).toBe(400)
+  })
+})
+
+// ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
+
+describe('listMyGroups', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listMyGroups')
+  })
+})
+
+describe('createGroup', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createGroup')
+  })
+})
+
+describe('getGroup', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getGroup')
+  })
+})
+
+describe('updateGroup', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateGroup')
+  })
+})
+
+describe('updateMyGroupMembership', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateMyGroupMembership')
+  })
+})
+
+describe('removeGroupMember', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'removeGroupMember')
+  })
+})
+
+describe('listGroupInvitations', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listGroupInvitations')
+  })
+})
+
+describe('createGroupInvitation', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createGroupInvitation')
+  })
+})
+
+describe('revokeGroupInvitation', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'revokeGroupInvitation')
+  })
+})
+
+describe('getGroupInvitation', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getGroupInvitation')
+  })
+})
+
+describe('acceptGroupInvitation', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'acceptGroupInvitation')
+  })
+})
+
+describe('listGroupCompletions', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listGroupCompletions')
+  })
+})
+
+describe('addCompletionReaction', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'addCompletionReaction')
+  })
+})
+
+describe('removeCompletionReaction', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'removeCompletionReaction')
+  })
+})
+
+describe('listGroupMedia', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listGroupMedia')
   })
 })

@@ -1,18 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db, seedDatabase } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
+import { seedCatalog } from './helpers/fixtures'
+import { contractCase } from './helpers/contract'
 
 const app = buildTestApp()
 let fitnessId = ''
 
 beforeEach(async () => {
-  const fitness = await db.category.create({ data: { slug: 'fitness', label: 'Fitness', position: 1 } })
-  fitnessId = fitness.id
-  const strength = await db.focus.create({ data: { categoryId: fitness.id, slug: 'strength', label: 'Strength' } })
-  await db.programType.create({
-    data: { categoryId: fitness.id, slug: 'workout', label: 'Workout', isFeatured: true, focuses: { create: { focusId: strength.id } } },
-  })
-  await db.metricDefinition.create({ data: { key: 'repetitions', label: 'Reps', valueType: 'INTEGER', unit: 'reps', aggregation: 'SUM' } })
+  fitnessId = (await seedCatalog()).fitness.id
 })
 
 describe('listProgramTypes', () => {
@@ -68,4 +64,30 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
     expect(await db.achievementDefinition.count()).toBe(7)
     expect(await db.mediaAsset.count({ where: { ownerId: null, license: null } })).toBe(0)
   }, 30000)
+})
+
+// ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
+
+describe('listCategories', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listCategories')
+  })
+})
+
+describe('createCustomProgramType', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createCustomProgramType')
+  })
+})
+
+describe('listFocuses', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listFocuses')
+  })
+})
+
+describe('listToolDefinitions', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listToolDefinitions')
+  })
 })

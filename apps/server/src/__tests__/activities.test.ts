@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
+import { contractCase } from './helpers/contract'
 
 const app = buildTestApp()
 let cat: Awaited<ReturnType<typeof seedCatalog>>
@@ -110,5 +111,67 @@ describe('copyActivity', () => {
     expect(src.instructions).toHaveLength(3)
     const edit = await app.inject({ method: 'PATCH', url: `/activities/${cat.squats.activity.id}/draft`, headers: asAuth(testUserId), payload: { title: 'Hijack', expectedRevision: 0 } })
     expect(edit.statusCode).toBe(404)
+  })
+})
+
+// ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
+
+describe('createActivity', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createActivity')
+  })
+})
+
+describe('getActivity', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getActivity')
+  })
+})
+
+describe('updateActivityDraft', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateActivityDraft')
+  })
+})
+
+describe('putActivityInstructions', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'putActivityInstructions')
+  })
+})
+
+describe('putActivityMetrics', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'putActivityMetrics')
+  })
+})
+
+describe('putActivityTools', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'putActivityTools')
+  })
+})
+
+describe('publishActivity', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'publishActivity')
+  })
+})
+
+describe('archiveActivity', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'archiveActivity')
+  })
+})
+
+describe('listActivityPublicMedia', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listActivityPublicMedia')
+  })
+})
+
+describe('getActivityMyStats', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getActivityMyStats')
   })
 })

@@ -7,6 +7,7 @@ import { db } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, seedUser } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 import { setBillingGateway, type BillingGateway, type CheckoutRequest } from '../infrastructure/stripe'
+import { contractCase } from './helpers/contract'
 
 const app = buildTestApp()
 const SECRET = 'whsec_test_snapshot'
@@ -250,5 +251,67 @@ describe('checkout guards', () => {
     await req('POST', `/programs/${programId}/checkout`, { priceId, idempotencyKey: 'first-purchase' }, testOtherUserId)
     await webhook('checkout.session.completed', { id: 'cs_test_1', mode: 'payment', payment_status: 'paid', payment_intent: 'pi_g' })
     expect((await req('POST', `/programs/${programId}/checkout`, { priceId, idempotencyKey: 'second-purchase' }, testOtherUserId)).statusCode).toBe(409)
+  })
+})
+
+// ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
+
+describe('getPayoutAccount', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getPayoutAccount')
+  })
+})
+
+describe('startPayoutOnboarding', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'startPayoutOnboarding')
+  })
+})
+
+describe('createProgramCheckout', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createProgramCheckout')
+  })
+})
+
+describe('listMyPurchases', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listMyPurchases')
+  })
+})
+
+describe('listMySubscriptions', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listMySubscriptions')
+  })
+})
+
+describe('cancelSubscription', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'cancelSubscription')
+  })
+})
+
+describe('resumeSubscription', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'resumeSubscription')
+  })
+})
+
+describe('createBillingPortalLink', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createBillingPortalLink')
+  })
+})
+
+describe('getCreatorEarnings', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getCreatorEarnings')
+  })
+})
+
+describe('handleStripeWebhook', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'handleStripeWebhook')
   })
 })

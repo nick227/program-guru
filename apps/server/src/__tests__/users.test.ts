@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, seedUser } from './helpers'
+import { contractCase } from './helpers/contract'
 
 const app = buildTestApp()
 const carolId = '00000000-0000-4000-8000-0000000000c0'
@@ -81,5 +82,49 @@ describe('searchUsers', () => {
     expect(res.statusCode).toBe(200)
     await validateResponse('searchUsers', 200, res.json())
     expect(res.json().data.map((u: any) => u.handle)).toEqual(['bob'])
+  })
+})
+
+// ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
+
+describe('deactivateMe', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'deactivateMe')
+  })
+})
+
+describe('listMyFollowRequests', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listMyFollowRequests')
+  })
+})
+
+describe('unfollowUser', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'unfollowUser')
+  })
+})
+
+describe('approveFollowRequest', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'approveFollowRequest')
+  })
+})
+
+describe('declineFollowRequest', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'declineFollowRequest')
+  })
+})
+
+describe('blockUser', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'blockUser')
+  })
+})
+
+describe('unblockUser', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'unblockUser')
   })
 })

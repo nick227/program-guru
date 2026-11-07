@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
+import { contractCase } from './helpers/contract'
 
 const app = buildTestApp()
 let cat: Awaited<ReturnType<typeof seedCatalog>>
@@ -206,5 +207,175 @@ describe('setProgramPrices', () => {
     const second = await app.inject({ method: 'PUT', url: `/programs/${ws.id}/prices`, headers: asAuth(testUserId), payload: { prices: [{ kind: 'MONTHLY', amountMinor: 700 }] } })
     expect(second.json().data).toEqual([expect.objectContaining({ kind: 'MONTHLY', amountMinor: 700 })])
     expect(await db.programPrice.count({ where: { programId: ws.id } })).toBe(3)
+  })
+})
+
+// ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
+
+describe('listMyPrograms', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listMyPrograms')
+  })
+})
+
+describe('createProgram', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createProgram')
+  })
+})
+
+describe('getProgramPreview', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getProgramPreview')
+  })
+})
+
+describe('getProgramWorkspace', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getProgramWorkspace')
+  })
+})
+
+describe('updateProgramDraft', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateProgramDraft')
+  })
+})
+
+describe('addProgramActivities', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'addProgramActivities')
+  })
+})
+
+describe('removeProgramActivity', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'removeProgramActivity')
+  })
+})
+
+describe('listProgramPlacements', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listProgramPlacements')
+  })
+})
+
+describe('addProgramPlacement', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'addProgramPlacement')
+  })
+})
+
+describe('updateProgramPlacement', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateProgramPlacement')
+  })
+})
+
+describe('deleteProgramPlacement', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'deleteProgramPlacement')
+  })
+})
+
+describe('regenerateProgramSchedule', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'regenerateProgramSchedule')
+  })
+})
+
+describe('getProgramPublishCheck', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getProgramPublishCheck')
+  })
+})
+
+describe('publishProgram', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'publishProgram')
+  })
+})
+
+describe('archiveProgram', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'archiveProgram')
+  })
+})
+
+describe('getProgramVersion', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getProgramVersion')
+  })
+})
+
+describe('previewEnrollment', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'previewEnrollment')
+  })
+})
+
+describe('joinProgram', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'joinProgram')
+  })
+})
+
+describe('listMyEnrollments', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listMyEnrollments')
+  })
+})
+
+describe('getEnrollment', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getEnrollment')
+  })
+})
+
+describe('updateEnrollment', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateEnrollment')
+  })
+})
+
+describe('leaveEnrollment', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'leaveEnrollment')
+  })
+})
+
+describe('acceptEnrollmentUpdate', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'acceptEnrollmentUpdate')
+  })
+})
+
+describe('dismissEnrollmentUpdate', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'dismissEnrollmentUpdate')
+  })
+})
+
+describe('createProgramAccessRequest', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createProgramAccessRequest')
+  })
+})
+
+describe('listProgramAccessRequests', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listProgramAccessRequests')
+  })
+})
+
+describe('approveProgramAccessRequest', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'approveProgramAccessRequest')
+  })
+})
+
+describe('declineProgramAccessRequest', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'declineProgramAccessRequest')
   })
 })

@@ -3,6 +3,7 @@ import { db } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, testAdminId } from './helpers'
 import { makeMedia, seedCatalog } from './helpers/fixtures'
 import { drain } from '../worker/outbox'
+import { contractCase } from './helpers/contract'
 
 const app = buildTestApp()
 let cat: Awaited<ReturnType<typeof seedCatalog>>
@@ -159,5 +160,91 @@ describe('private media on results (01 §6 required test 4)', () => {
     const after = (await req('GET', `/calendar-items/${bobsItem.id}/occurrence`, undefined, testOtherUserId)).json().data
     expect(after.sharedMedia.map((m: any) => m.id)).toEqual([t.mediaId])
     expect((await req('GET', `/media/${t.mediaId}/url`, undefined, testOtherUserId)).statusCode).toBe(200)
+  })
+})
+
+// ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
+
+describe('listMyMedia', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listMyMedia')
+  })
+})
+
+describe('listPlatformMedia', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listPlatformMedia')
+  })
+})
+
+describe('createMediaUpload', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createMediaUpload')
+  })
+})
+
+describe('completeMediaUpload', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'completeMediaUpload')
+  })
+})
+
+describe('uploadMediaContent', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'uploadMediaContent')
+  })
+})
+
+describe('getMediaFile', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getMediaFile')
+  })
+})
+
+describe('getMedia', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getMedia')
+  })
+})
+
+describe('updateMedia', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateMedia')
+  })
+})
+
+describe('deleteMedia', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'deleteMedia')
+  })
+})
+
+describe('getMediaUrl', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getMediaUrl')
+  })
+})
+
+describe('createMediaAttachment', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createMediaAttachment')
+  })
+})
+
+describe('deleteMediaAttachment', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'deleteMediaAttachment')
+  })
+})
+
+describe('createMediaPublication', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createMediaPublication')
+  })
+})
+
+describe('revokeMediaPublication', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'revokeMediaPublication')
   })
 })
