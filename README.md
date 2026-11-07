@@ -10,15 +10,16 @@ Phase 1 (contract) is complete: database schema, API spec, and generated SDK typ
 
 ## Setup
 
-1. `cp .env.example .env` (points at a local database on localhost)
-2. `pnpm install`
-3. `pnpm --filter @project/db generate`
-4. `pnpm db:deploy`
+1. `pnpm install`
+2. `pnpm db:local:setup` installs an isolated MySQL 8.4.13 on 127.0.0.1:3307 (no sudo, no Docker), creates the `programs_app` user and databases, and writes `.env`
+3. `pnpm db:local:autostart` starts it with your WSL session (optional)
+4. `pnpm --filter @project/db generate && pnpm db:deploy`
 
 ## Database commands
 
 | Command | Where | What it does |
 |---|---|---|
+| `pnpm db:local:start` / `stop` / `status` | Local | Control the local MySQL |
 | `pnpm db:deploy` | Anywhere, including Railway | Applies committed migrations. Never resets or drops data |
 | `pnpm db:status` | Anywhere | Shows which migrations are applied |
 | `pnpm db:migrate` | Local only | Creates a new migration from schema changes |

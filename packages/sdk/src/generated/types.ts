@@ -262,40 +262,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/{handle}/followers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List user followers */
-        get: operations["listUserFollowers"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/users/{handle}/following": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List user following */
-        get: operations["listUserFollowing"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/follow-users/{userId}": {
         parameters: {
             query?: never;
@@ -422,23 +388,6 @@ export interface paths {
          * @description Private to the author until reviewed.
          */
         post: operations["createCustomFocus"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/catalog/tags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List activity tags */
-        get: operations["listActivityTags"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1124,26 +1073,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/billing/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get marketplace status
-         * @description Whether paid access is enabled.
-         */
-        get: operations["getMarketplaceStatus"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/billing/payout-account": {
         parameters: {
             query?: never;
@@ -1192,7 +1121,7 @@ export interface paths {
         put?: never;
         /**
          * Create program checkout
-         * @description Provider-hosted checkout. Access is granted only by a verified webhook.
+         * @description Provider-hosted checkout. Idempotent per idempotencyKey; a reused key with a different price is a 409. Access is granted only by a verified webhook.
          */
         post: operations["createProgramCheckout"];
         delete?: never;
@@ -1379,7 +1308,7 @@ export interface paths {
         post?: never;
         /**
          * Cancel calendar item
-         * @description Soft cancel; supports undo.
+         * @description Soft cancel. Undo by setting status PLANNED.
          */
         delete: operations["cancelCalendarItem"];
         options?: never;
@@ -1389,23 +1318,6 @@ export interface paths {
          * @description Move or skip. Changes only this user's calendar.
          */
         patch: operations["updateCalendarItem"];
-        trace?: never;
-    };
-    "/calendar-items/{itemId}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Restore calendar item */
-        post: operations["restoreCalendarItem"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/calendar-items/{itemId}/move-to-open-slot": {
@@ -1469,8 +1381,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get calendar recurrence */
-        get: operations["getCalendarRecurrence"];
+        get?: never;
         put?: never;
         post?: never;
         /** End calendar recurrence */
@@ -1508,7 +1419,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get session */
+        /**
+         * Get session
+         * @description The session with its result entries. Used to resume an unscheduled session.
+         */
         get: operations["getSession"];
         put?: never;
         post?: never;
@@ -1545,8 +1459,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List session results */
-        get: operations["listSessionResults"];
+        get?: never;
         put?: never;
         /** Save session result */
         post: operations["saveSessionResult"];
@@ -2014,57 +1927,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/media/contributions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create media contribution */
-        post: operations["createMediaContribution"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/media/contributions/{contributionId}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Approve media contribution */
-        post: operations["approveMediaContribution"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/media/contributions/{contributionId}/decline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Decline media contribution */
-        post: operations["declineMediaContribution"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/discover": {
         parameters: {
             query?: never;
@@ -2343,17 +2205,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/moderation/contributions": {
+    "/moderation/publications": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List pending contributions */
-        get: operations["listPendingContributions"];
+        /** List pending publications */
+        get: operations["listPendingPublications"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/moderation/publications/{publicationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moderate media publication
+         * @description Approve or reject a PENDING public publication. Rejecting never deletes the owner's asset.
+         */
+        post: operations["moderateMediaPublication"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2489,8 +2371,6 @@ export interface components {
         MediaAudience: "PUBLIC" | "GROUP";
         /** @enum {string} */
         PublicationStatus: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
-        /** @enum {string} */
-        ContributionStatus: "PENDING" | "APPROVED" | "DECLINED";
         /** @enum {string} */
         AttachmentTargetKind: "PROGRAM" | "ACTIVITY_REVISION" | "INSTRUCTION" | "RESULT_ENTRY" | "PROFILE";
         /** @enum {string} */
@@ -2660,12 +2540,6 @@ export interface components {
             slug: string;
             label: string;
         };
-        ActivityTag: {
-            /** Format: uuid */
-            id: string;
-            slug: string;
-            label: string;
-        };
         MetricDefinition: {
             /** Format: uuid */
             id: string;
@@ -2812,7 +2686,6 @@ export interface components {
             media: components["schemas"]["MediaThumb"][];
             metrics: components["schemas"]["ActivityMetricBinding"][];
             tools: components["schemas"]["ActivityToolBinding"][];
-            tagIds: string[];
             sourceActivity: components["schemas"]["ActivitySummary"] | null;
             draftRevision: number;
             canEdit: boolean;
@@ -2831,7 +2704,6 @@ export interface components {
             /** Format: uuid */
             categoryId?: string;
             focusIds?: string[];
-            tagIds?: string[];
             expectedRevision: number;
         };
         UpsertInstructionInput: {
@@ -3098,6 +2970,8 @@ export interface components {
         PublishCheck: {
             canPublish: boolean;
             issues: components["schemas"]["ValidationIssue"][];
+            marketplaceEnabled: boolean;
+            payoutAccountActive: boolean;
         };
         PublishProgramInput: {
             visibility: components["schemas"]["Visibility"];
@@ -3230,9 +3104,6 @@ export interface components {
             activeSubscriptions: number;
             purchases: number;
         };
-        MarketplaceStatus: {
-            enabled: boolean;
-        };
         /** @description weekdays uses 0=Sunday to 6=Saturday. */
         RecurrenceRule: {
             kind: components["schemas"]["RecurrenceKind"];
@@ -3301,7 +3172,7 @@ export interface components {
             recurrence: components["schemas"]["CalendarRecurrence"] | null;
             createdCount: number;
         };
-        /** @description scope applies to an item generated by a recurrence; defaults to THIS_ONE. */
+        /** @description Move, skip, or restore (status PLANNED undoes a cancel). scope applies to an item generated by a recurrence; defaults to THIS_ONE. */
         UpdateCalendarItemInput: {
             /** Format: date */
             localDate?: string;
@@ -3427,6 +3298,10 @@ export interface components {
             notes: string | null;
             values: components["schemas"]["MetricValue"][];
             media: components["schemas"]["MediaThumb"][];
+        };
+        SessionDetail: {
+            session: components["schemas"]["ActivitySession"];
+            entries: components["schemas"]["ResultEntry"][];
         };
         /** @description calendarItemId from the Calendar; activityId alone for an unscheduled session. Each attempt is a new session. */
         CreateSessionInput: {
@@ -3636,7 +3511,7 @@ export interface components {
             position: number;
             media: components["schemas"]["MediaThumb"];
         };
-        /** @description GROUP requires active membership. PUBLIC enters moderation and requires a rights declaration. */
+        /** @description GROUP requires active membership and is approved immediately. PUBLIC with activityId (and optional instructionKey) is a contribution to that Activity: it requires a license declaration and enters moderation as PENDING. */
         PublishMediaInput: {
             /** Format: uuid */
             mediaId: string;
@@ -3675,30 +3550,10 @@ export interface components {
             creator: components["schemas"]["UserSummary"] | null;
             media: components["schemas"]["MediaThumb"];
         };
-        ContributeMediaInput: {
-            /** Format: uuid */
-            mediaId: string;
-            /** Format: uuid */
-            targetActivityId: string;
-            /** Format: uuid */
-            targetInstructionKey?: string;
-            /** Format: uuid */
-            sourceProgramId?: string;
-            license: string;
-            caption?: string;
-        };
-        MediaContribution: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            mediaId: string;
-            /** Format: uuid */
-            targetActivityId: string;
-            targetInstructionKey: string | null;
-            status: components["schemas"]["ContributionStatus"];
-            submitter: components["schemas"]["UserSummary"];
-            /** Format: date-time */
-            createdAt: string;
+        ModeratePublicationInput: {
+            /** @enum {string} */
+            decision: "APPROVE" | "REJECT";
+            note?: string;
         };
         DiscoverItem: {
             kind: components["schemas"]["DiscoverKind"];
@@ -4299,68 +4154,6 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    listUserFollowers: {
-        parameters: {
-            query?: {
-                /** @description Opaque cursor returned by the previous page. */
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path: {
-                handle: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["UserSummary"][];
-                        meta: components["schemas"]["PaginatedMeta"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listUserFollowing: {
-        parameters: {
-            query?: {
-                /** @description Opaque cursor returned by the previous page. */
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path: {
-                handle: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["UserSummary"][];
-                        meta: components["schemas"]["PaginatedMeta"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-        };
-    };
     followUser: {
         parameters: {
             query?: never;
@@ -4677,29 +4470,6 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    listActivityTags: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["ActivityTag"][];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-        };
-    };
     listMetricDefinitions: {
         parameters: {
             query?: {
@@ -4759,7 +4529,6 @@ export interface operations {
                 q?: components["parameters"]["SearchQuery"];
                 categoryId?: string;
                 focusId?: string;
-                tagId?: string;
                 source?: components["schemas"]["ActivitySource"];
             };
             header?: never;
@@ -6079,29 +5848,6 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    getMarketplaceStatus: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["MarketplaceStatus"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-        };
-    };
     getPayoutAccount: {
         parameters: {
             query?: never;
@@ -6544,36 +6290,6 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    restoreCalendarItem: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                itemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["CalendarItem"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            429: components["responses"]["RateLimited"];
-        };
-    };
     moveCalendarItemToOpenSlot: {
         parameters: {
             query?: never;
@@ -6657,34 +6373,6 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-        };
-    };
-    getCalendarRecurrence: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                recurrenceId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["CalendarRecurrence"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
         };
     };
     endCalendarRecurrence: {
@@ -6802,7 +6490,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["ActivitySession"];
+                        data: components["schemas"]["SessionDetail"];
                     };
                 };
             };
@@ -6844,34 +6532,6 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["RateLimited"];
-        };
-    };
-    listSessionResults: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["ResultEntry"][];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
         };
     };
     saveSessionResult: {
@@ -7860,97 +7520,6 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    createMediaContribution: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ContributeMediaInput"];
-            };
-        };
-        responses: {
-            /** @description Success */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["MediaContribution"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
-            429: components["responses"]["RateLimited"];
-        };
-    };
-    approveMediaContribution: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                contributionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["MediaContribution"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            429: components["responses"]["RateLimited"];
-        };
-    };
-    declineMediaContribution: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                contributionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["MediaContribution"];
-                    };
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            429: components["responses"]["RateLimited"];
-        };
-    };
     discover: {
         parameters: {
             query: {
@@ -8476,7 +8045,7 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
-    listPendingContributions: {
+    listPendingPublications: {
         parameters: {
             query?: {
                 /** @description Opaque cursor returned by the previous page. */
@@ -8496,7 +8065,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["MediaContribution"][];
+                        data: components["schemas"]["MediaPublication"][];
                         meta: components["schemas"]["PaginatedMeta"];
                     };
                 };
@@ -8504,6 +8073,40 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    moderateMediaPublication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModeratePublicationInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaPublication"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
         };
     };
     grantProgramAccess: {

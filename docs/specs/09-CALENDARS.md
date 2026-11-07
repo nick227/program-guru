@@ -4,7 +4,7 @@
 
 ## 1. Core decision
 
-**Each user owns their calendar.** Programs supply schedule templates; individual enrollments generate Calendar Items. Standalone Activities can be placed directly. Multiple programs coexist on one calendar. Friends do not share a writable calendar merely because they join the same program; collaboration overlays participants' independent records through a Program Group.
+**Each user owns their calendar.** In P1 the calendar is the set of Calendar Items and Recurrences owned by the user, shown in their preference timezone; there is no separate calendar record. Programs supply schedule templates; individual enrollments generate Calendar Items. Standalone Activities can be placed directly. Multiple programs coexist on one calendar. Friends do not share a writable calendar merely because they join the same program; collaboration overlays participants' independent records through a Program Group.
 
 **Each scheduled Activity executes independently.** A Program Day with three Activities yields three Calendar Items. Each has its own status, Activity Sessions, timer, and results, and can be started, finished, moved, or skipped without touching the others. There is no day-level session, result, or completion.
 
@@ -14,11 +14,9 @@
 
 | Model | Fields | Purpose/invariants |
 |---|---|---|
-| `Calendar` | id, ownerId, title?, isDefault, timezone, createdAt | One default per user; multiple possible later |
-| `CalendarItem` | id, calendarId, ownerId, activityId, activityRevisionId, enrollmentId?, sourceScheduleItemId?, recurrenceId?, idempotencyKey, groupOccurrenceKey?, programDayIndex?, localDate, localTime?, scheduledAtUtc?, status, targetOverrides JSON?, movedFromDate?, isUserAdjusted, reminderSentAt?, createdAt, updatedAt | Dated or date-only occurrence; origin optional; unique `idempotencyKey` |
-| `CalendarRecurrence` | id, ownerId, calendarId, activityId, activityRevisionId, rule JSON, anchorDate, localTime?, timezone, untilDate?, generatedThroughDate?, status ACTIVE/ENDED, timestamps | Personal repeat rule for a standalone Activity. `rule` is `{kind:DAILY}`, `{kind:WEEKDAYS}`, `{kind:WEEKLY,weekdays:[…]}`, or `{kind:EVERY_N_DAYS,n}` |
-| `ActivitySession` | id, calendarItemId?, activityRevisionId, userId, state, startedAt?, endedAt?, activeSeconds, revision, createdAt | Start/pause/resume/finish attempt; unplanned session allowed |
-| `SessionSegment` | id, sessionId, startedAt, stoppedAt? | Accurate active elapsed calculation; no overlapping segments |
+| `CalendarItem` | id, ownerId, activityId, activityRevisionId, enrollmentId?, sourceScheduleItemId?, recurrenceId?, idempotencyKey, groupOccurrenceKey?, programDayIndex?, localDate, localTime?, scheduledAtUtc?, status, targetOverrides JSON?, movedFromDate?, isUserAdjusted, reminderSentAt?, createdAt, updatedAt | Dated or date-only occurrence; origin optional; unique `idempotencyKey` |
+| `CalendarRecurrence` | id, ownerId, activityId, activityRevisionId, rule JSON, anchorDate, localTime?, timezone, untilDate?, generatedThroughDate?, status ACTIVE/ENDED, timestamps | Personal repeat rule for a standalone Activity. `rule` is `{kind:DAILY}`, `{kind:WEEKDAYS}`, `{kind:WEEKLY,weekdays:[…]}`, or `{kind:EVERY_N_DAYS,n}` |
+| `ActivitySession` | id, calendarItemId?, activityRevisionId, userId, status, startedAt?, endedAt?, activeSeconds, lastResumedAt?, isManualCompletion, revision, createdAt | Start/pause/resume/finish attempt; unplanned session allowed |
 | `ResultEntry` | id, sessionId, instructionId?, recordedAt, notes?, createdAt | Personal record; zero or more |
 | `ResultMetricValue` | id, entryId, metricDefinitionId, intValue?, decimalValue?, boolValue?, textValue?, durationSeconds?, unit? | Exactly one typed value; validate against metric schema |
 | `UserAchievement` | id, userId, definitionId, enrollmentId?, sourceCalendarItemId?, isShared, earnedAt, revokedAt? | See §9a |
@@ -26,21 +24,21 @@
 Calendar Items reference both stable `ActivityId` and pinned `ActivityRevisionId`. For direct unscheduled starts, `ActivitySession.calendarItemId` nullable; when someone starts from Calendar, it is always set. Generated occurrences are stored as rows; a personal move or skip edits that row and sets `isUserAdjusted`, so no separate override table exists. Consolidated persistence: `packages/db/prisma/schema.prisma`.
 
 
-**Critical DB checks:** exactly one typed ResultMetricValue column non-null; user owns calendar and session; when CalendarItem.enrollmentId is present it belongs to same user; activity revision matches source placement; only one open SessionSegment per Session. Use app validation plus DB constraints/triggers/indexes where Prisma alone cannot express. Do not store sensitive amount/notes in group/public aggregate by default.
+**Critical DB checks:** exactly one typed ResultMetricValue column non-null; user owns calendar item and session; when CalendarItem.enrollmentId is present it belongs to same user; activity revision matches source placement; `lastResumedAt` is set only while ACTIVE. Use app validation plus DB constraints/triggers/indexes where Prisma alone cannot express. Do not store sensitive amount/notes in group/public aggregate by default.
 
 ## 3. Session lifecycle and duration semantics
 
 | Current | Action | Next | Side effects |
 |---|---|---|---|
-| READY | Start | ACTIVE | open SessionSegment, startedAt |
-| ACTIVE | Pause | PAUSED | close segment; accumulate elapsed |
-| PAUSED | Resume | ACTIVE | new segment |
-| ACTIVE / PAUSED | Finish | FINISHED | close open segment, endedAt, final activeSeconds; mark this CalendarItem DONE; emit `SessionFinished` |
+| READY | Start | ACTIVE | startedAt, lastResumedAt = now |
+| ACTIVE | Pause | PAUSED | activeSeconds += now − lastResumedAt; clear lastResumedAt |
+| PAUSED | Resume | ACTIVE | lastResumedAt = now |
+| ACTIVE / PAUSED | Finish | FINISHED | add any running interval, endedAt, final activeSeconds; mark this CalendarItem DONE; emit `SessionFinished` |
 | READY | Quick Finish | FINISHED | record manual result and completion; measured duration unknown unless supplied |
 | READY / PAUSED | Abandon | ABANDONED | preserve attempt/partial data, do not mark DONE |
 | FINISHED | Start again | new ACTIVE Session | new attempt; old result immutable/editable only through audit trail |
 
-State transitions use CAS/`expectedRevision` and server times for accurate duration; client may show an optimistic timer but final server value wins. If offline/interrupted, recover active/open segment conservatively and ask user to confirm resumption/end; do not silently count a day overnight. Multiple attempts for same Calendar Item allowed; chosen completion policy (at least one finished attempt) yields DONE. Undo completion = explicit correction/mark not done with audit event, not deletion of media.
+State transitions use CAS/`expectedRevision` and server times for accurate duration; client may show an optimistic timer but final server value wins. If offline/interrupted, recover an ACTIVE session conservatively and ask user to confirm resumption/end; do not silently count a day overnight. Multiple attempts for same Calendar Item allowed; chosen completion policy (at least one finished attempt) yields DONE. Undo completion = explicit correction/mark not done with audit event, not deletion of media.
 
 **Result Metric Values:** snapshots typed at entry time, not overwritten by later targets. At Activity level vs Instruction level store `instructionId` to disambiguate. `Last` from most recent valid finished session; `Best` only for metrics with meaningful `betterDirection`; `Completed` number of completed occurrences, not count of clicks/attempts.
 
@@ -121,7 +119,6 @@ interface PersonalStatDto { key:string; label:string; value:string; computedAt:s
 
 ```ts
 interface CalendarDao {
-  getDefault(userId:string,db:Db):Promise<CalendarRow>;
   listItems(userId:string,range:DateRange,db:Db):Promise<CalendarItemRow[]>;
   addItem(data:NewCalendarItem,db:Db):Promise<CalendarItemRow>;
   moveItem(userId:string,itemId:string,next:CalendarPosition,db:Db):Promise<CalendarItemRow>;
@@ -139,7 +136,7 @@ interface SessionDao {
 
 `CalendarService`: placement, recurrence, materialization, moves, conflicts. `SessionService`: transition/timing/finish; `ResultService`: validation/privacy/projections; `AchievementService`: evaluates completions. `ActivityOccurrenceQueryService`: combines domain view data in correct row order; don't make Calendar DAO pull all media/social items.
 
-Routes: `GET /calendar/items?start&end`, `POST /calendar/items`, `PATCH|DELETE /calendar-items/:id`, `POST /calendar-items/:id/move-to-open-slot`, `GET /calendar-items/:id/occurrence`, `GET|PATCH|DELETE /calendar/recurrences/:id`, `GET /calendar/recurrences`, `POST /sessions`, `POST /sessions/:id/actions`, `POST /sessions/:id/results`, `POST /calendar-items/:id/undo-completion`, `GET /activities/:id/my-stats`, `GET /achievements/me`, `PATCH /achievements/:id`.
+Routes: `GET /calendar/items?start&end`, `POST /calendar/items`, `PATCH|DELETE /calendar-items/:id` (PATCH with status PLANNED restores a cancelled item), `POST /calendar-items/:id/move-to-open-slot`, `GET /calendar-items/:id/occurrence`, `PATCH|DELETE /calendar/recurrences/:id`, `GET /calendar/recurrences`, `POST /sessions`, `GET /sessions/:id` (with its result entries), `POST /sessions/:id/actions`, `POST /sessions/:id/results`, `POST /calendar-items/:id/undo-completion`, `GET /activities/:id/my-stats`, `GET /achievements/me`, `PATCH /achievements/:id`.
 
 ## 9. Notifications and privacy
 

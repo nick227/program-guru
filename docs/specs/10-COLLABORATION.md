@@ -15,7 +15,7 @@ Example: “30 Days — 10 Push-ups + 10 Sit-ups.” Group owner creates a group
 | Entity | Key fields | Ownership / rule |
 |---|---|---|
 | `ProgramGroup` | id, programVersionId, ownerId, name?, mode SYNC/ASYNC, startLocalDate?, timezone?, joinLinkEnabled, status ACTIVE/CLOSED, createdAt | Group tied to one Program Version; not a separate Program |
-| `GroupMember` | groupId, userId, role OWNER/MEMBER, status INVITED/ACTIVE/LEFT/REMOVED, joinedAt?, sharedCompletionEnabled | Exactly one row per pair; participation/access checked |
+| `GroupMember` | groupId, userId, role OWNER/MEMBER, status ACTIVE/LEFT/REMOVED (pending invites live in `GroupInvitation`), joinedAt?, sharedCompletionEnabled | Exactly one row per pair; participation/access checked |
 | `GroupInvitation` | id, groupId, kind USER/EMAIL/LINK, invitedUserId?, invitedEmailHash?, tokenHash, expiresAt, status PENDING/ACCEPTED/REVOKED/EXPIRED, createdAt | USER and EMAIL are single-use; LINK is reusable until revoked or expired; no email disclosure in public API |
 | `CompletionShare` | id, groupId, occurrenceKey, calendarItemId, userId, activityId, programDayIndex, completedAt, revokedAt? | Minimal completion event, never metric detail; unique per calendarItemId |
 | `CompletionReaction` | completionShareId, userId, emoji, createdAt | Unique per share, user, emoji; emoji from a small fixed set |

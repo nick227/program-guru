@@ -10,7 +10,7 @@ Daily user opens **Calendar**, not a feed. Social experiences develop from meani
 
 - **Creator profile:** one combined public UserProfile with handle/bio/avatar and permitted public Programs, Activities, media, shared achievements. No `Creator` role/model.
 - **Program discovery:** published PUBLIC Programs, filter by Category/Type/Focus, duration/frequency, access mode, creator; seeded Programs featured first for new users; ranked by relevance plus completion and retention. UNLISTED only direct-link preview; PRIVATE not indexed.
-- **Activity discovery:** approved public canonical Activities, tags/category, instruction counts/media, creator attribution; use as is or customize a copy.
+- **Activity discovery:** approved public canonical Activities, Category/Focus, instruction counts/media, creator attribution; use as is or customize a copy.
 - **Media discovery:** approved publications attached to canonical Activity or Instruction; views and likes accrue **per publication** not private files.
 - **Follow:** accepted relationship to user; private profiles use approval. Never implies Program enrollment or unlock.
 - **Group social:** completion reactions and comments on group-shared media, scoped to the group; never public.

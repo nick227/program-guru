@@ -4,7 +4,7 @@
 
 ## 1. Stack
 
-pnpm monorepo. React + TypeScript + Vite (responsive web/PWA), Tailwind, React Router, TanStack Query. Fastify TypeScript API routed from an OpenAPI 3.1 spec (`fastify-openapi-glue`), Prisma ORM, MySQL 8 in production and CI. Migrations also apply on MariaDB 10.11, but MariaDB stores JSON as LONGTEXT and reports full-text indexes differently, so `prisma migrate dev` must not be used to author migrations against it. S3-compatible object storage on Cloudflare R2 and CDN for media. Secure httpOnly session cookies. Hosted on Railway (API, worker, database) and Vercel (web), on sibling subdomains. Use standard open-source accessibility primitives selectively for dialogs/popovers; do not adopt a giant UI kit as a second design language.
+pnpm monorepo. React + TypeScript + Vite (responsive web/PWA), Tailwind, React Router, TanStack Query. Fastify TypeScript API routed from an OpenAPI 3.1 spec (`fastify-openapi-glue`), Prisma ORM, MySQL 8.4 everywhere: Railway's MySQL template (`mysql:8`, currently 8.4.13), CI (`mysql:8.4.13`), and local development (an isolated user-level 8.4.13 from `scripts/local-mysql.sh`). One Prisma schema and one migration history serve every environment; only `prisma migrate deploy` runs outside a developer machine. S3-compatible object storage on Cloudflare R2 and CDN for media. Secure httpOnly session cookies. Hosted on Railway (API, worker, database) and Vercel (web), on sibling subdomains. Use standard open-source accessibility primitives selectively for dialogs/popovers; do not adopt a giant UI kit as a second design language.
 
 Avoid importing Prisma types into browser packages. The SDK is the only bridge between frontend and backend.
 
@@ -45,7 +45,8 @@ Favor plain functions + focused DAO/service modules. Data hooks live in `package
 - UUIDs opaque strings; RFC3339 UTC instants; local date `YYYY-MM-DD`; timezone IANA; pagination `cursor`+`limit` capped (default 20, max 100).
 - Every mutation checks ownership/role/access and returns either updated DTO or a typed success state.
 - Immutable `Version` IDs are explicit on Program enrollments, schedule snapshot entries and any referenced Activity revision.
-- Idempotency keys for join/unlock, checkout, reaction, media upload completion, and session transitions where retried writes are possible. Payment webhooks are deduplicated by provider event ID.
+- **Idempotency:** every retried write (join, checkout, add calendar item, session action, reaction, comment, upload completion) carries an `idempotencyKey`. The service claims it in `IdempotencyKey` with a hash of the request before doing work. A replay with the same request returns the stored result; the same key with a different request is a `CONFLICT`; a concurrent duplicate waits on the claim. Payments are protected three ways: idempotency keys on checkout, unique provider IDs on purchases and subscriptions, and webhook deduplication by provider event ID in `BillingEvent`.
+- **Concurrency:** drafts, sessions, and calendar items use optimistic guards (`expectedRevision` or `expectedUpdatedAt`); a stale write is a `VERSION_CONFLICT`, never a silent overwrite.
 - Optimistic updates only for reversible, low-risk changes (toggle reaction); completion and paid access display confirmed server state.
 
 ## 5. DAO / service transaction rules
@@ -56,7 +57,7 @@ Favor plain functions + focused DAO/service modules. Data hooks live in `package
 - Program join validates access, creates Enrollment/AccessGrant and the first horizon of planned Calendar Items atomically, with idempotent result; the worker extends the horizon later.
 - Follow approval creates accepted relationship and resolves request atomically.
 - Group invite acceptance creates membership and allowed calendar linkage without leaking others' private data.
-- Session `Start/Pause/Resume/Finish` uses optimistic version/state guard to prevent double-finish or overlapping time segments.
+- Session `Start/Pause/Resume/Finish` uses an optimistic revision guard to prevent double-finish or double-counted time.
 - Media publish attaches only READY/licensed asset; writes audit record; removal from public discovery invalidates CDN/public tokens.
 
 ## 6. Authoritative security gates
@@ -122,7 +123,7 @@ Use lazy thumb loading, pagination, poster frame for video, HTTP range for playb
 
 ## 11. Events, notifications, reminders
 
-Events such as `SessionFinished`, `CompletionShared`, `CompletionReacted`, `GroupMediaCommented`, `FollowRequestReceived`, `MediaContributionApproved`, `ProgramAccessGranted`, and `AchievementEarned` enter a transactional outbox table in the same transaction as the change. `apps/worker` polls it with `FOR UPDATE SKIP LOCKED`; no Redis or external queue in P1. The worker delivers each event at least once, so consumers are idempotent. Notification service resolves audience and deep link; delivery is in-app. No realtime transport in P1: the client refetches on focus and after mutations.
+Events such as `SessionFinished`, `CompletionShared`, `CompletionReacted`, `GroupMediaCommented`, `FollowRequestReceived`, `MediaPublicationModerated`, `ProgramAccessGranted`, and `AchievementEarned` enter a transactional outbox table in the same transaction as the change. `apps/worker` polls it with `FOR UPDATE SKIP LOCKED`; no Redis or external queue in P1. The worker delivers each event at least once, so consumers are idempotent. Notification service resolves audience and deep link; delivery is in-app. No realtime transport in P1: the client refetches on focus and after mutations.
 
 **Reminders:** the worker runs a periodic scan. It creates an in-app reminder when a timed Calendar Item comes due, and a daily in-app summary and optional email at each user's chosen local time. `ReminderDispatch` is unique per user, local date, and channel, so restarts do not double-send. Email goes through a replaceable `EmailProvider` (also used for verification, password reset, and invites).
 

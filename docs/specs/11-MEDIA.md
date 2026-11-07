@@ -13,12 +13,10 @@ Capture is valuable to the creator and to the user's private progress log; do no
 
 | Model | Fields | Rule |
 |---|---|---|
-| `MediaAsset` | id, ownerId? (null=platform), type PHOTO/VIDEO/AUDIO, originalStorageKey, mime, byteSize, width?, height?, durationMs?, checksum?, alt?, state, license?, attribution?, sourceUrl?, createdAt, deletedAt? | Private file identity, not automatically published. Platform assets must record license and source |
+| `MediaAsset` | id, ownerId? (null=platform), type PHOTO/VIDEO/AUDIO, originalStorageKey, mime, byteSize, width?, height?, durationMs?, checksum?, alt?, state, license?, attribution?, sourceUrl?, uploadExpiresAt?, uploadedAt?, createdAt, deletedAt? | Private file identity, not automatically published. Platform assets must record license and source. While `UPLOADING`, `uploadExpiresAt` bounds the signed upload window and completion is verified against the claimed size and type |
 | `MediaVariant` | id, mediaId, variant THUMB/POSTER/STREAM/ORIGINAL/WEB, storageKey, mime, width?, height?, durationMs?, byteSize | Generated versions; controlled delivery |
 | `MediaAttachment` | id, mediaId, programId?, activityRevisionId?, instructionId?, resultEntryId?, userProfileId?, purpose, position, createdAt | **Exactly one target**; rights check; doesn't grant visibility alone |
-| `MediaPublication` | id, mediaId, publishedById, audience PUBLIC/GROUP, groupId?, occurrenceKey?, activityId?, instructionKey?, programId?, status PENDING/APPROVED/REJECTED/REVOKED, publishedAt?, license?, caption?, likeCount, viewCount, commentCount, rankScore, qualityReviewedAt? | Explicit audience + moderation, attribution. GROUP publications need no moderation review and are APPROVED on creation |
-| `MediaContribution` | id, publicationId?, mediaId, submitterId, targetActivityId, targetInstructionKey?, sourceProgramId?, status PENDING/APPROVED/DECLINED, reviewedById?, createdAt | Proposed association to someone else's content, not edit right |
-| `UploadSession` | id, userId, storageKey, expectedSize, status, expiresAt, completedAt? | Signed-upload verification/idempotence |
+| `MediaPublication` | id, mediaId, publishedById, audience PUBLIC/GROUP, groupId?, occurrenceKey?, activityId?, instructionKey?, programId?, status PENDING/APPROVED/REJECTED/REVOKED, publishedAt?, license?, caption?, likeCount, viewCount, commentCount, rankScore, qualityReviewedAt?, reviewedById?, reviewedAt?, reviewNote? | Explicit audience + moderation, attribution. GROUP publications need no moderation review and are APPROVED on creation. A PUBLIC publication targeting an Activity is a **contribution** and enters moderation as PENDING |
 
 ### MediaAttachment referential integrity
 
@@ -74,7 +72,9 @@ Store timestamps/byte sizes, perceptual/cryptographic hashes for duplicate/uploa
 
 ## 7. Public Activity hub / contribution workflow
 
-Creator selects owned media → choose `Contribute to Activity` from viewer or Activity Detail → target canonical Activity/optional Instruction → confirm PUBLIC + display license + caption → media publication `PENDING` → moderation approval → included in shared Activity carousel/grid; engagements accrue on MediaPublication. A program-sourced video may be eligible if author explicitly permits Activity-level public discoverability. **Do not automatically pool all videos from all 100 Programs**: private/paid/attribution/scope restrictions still apply.
+A contribution is a PUBLIC `MediaPublication` with `activityId` (and optional `instructionKey`); there is no separate contribution record.
+
+Creator selects owned media → choose `Contribute to Activity` from viewer or Activity Detail → target canonical Activity/optional Instruction → confirm PUBLIC + display license + caption → media publication `PENDING` → moderator approves or rejects (`POST /moderation/publications/:id`) → included in shared Activity carousel/grid; engagements accrue on MediaPublication. A program-sourced video may be eligible if author explicitly permits Activity-level public discoverability. **Do not automatically pool all videos from all 100 Programs**: private/paid/attribution/scope restrictions still apply.
 
 A contribution may be rejected without deleting the submitter's source asset; creator can edit/retry. Approved contribution doesn't permit target creator to overwrite original media or assume ownership.
 
@@ -94,15 +94,14 @@ interface AttachMediaDto { mediaId:string; target:{kind:'PROGRAM'|'ACTIVITY_REVI
   purpose:'COVER'|'DEMONSTRATION'|'ILLUSTRATION'|'JOURNAL'|'AVATAR'|'OTHER'; position?:number; }
 interface PublishMediaDto { mediaId:string; audience:'PUBLIC'|'GROUP'; groupId?:string; occurrenceKey?:string;
   activityId?:string; instructionKey?:string; programId?:string; license?:string; caption?:string; }
-interface MediaContributionDto { id:string; mediaId:string; targetActivityId:string;
-  targetInstructionKey:string|null; status:'PENDING'|'APPROVED'|'DECLINED'; }
+interface ModeratePublicationDto { decision:'APPROVE'|'REJECT'; note?:string; }
 ```
 
 ## 9. DAO/services/endpoints
 
 ```ts
 interface MediaDao {
-  createUploadSession(userId:string,input:RequestUploadDto,db:Db):Promise<UploadSessionRow>;
+  createUploadingAsset(userId:string,input:RequestUploadDto,expiresAt:Date,db:Db):Promise<MediaAssetRow>;
   markReady(mediaId:string,variants:VariantWrite[],db:Db):Promise<void>;
   listMine(userId:string,query:MediaQuery,page:Page,db:Db):Promise<PageOf<MediaAssetRow>>;
   attach(mediaId:string,target:AttachmentTarget,purpose:string,db:Db):Promise<MediaAttachmentRow>;
@@ -115,7 +114,7 @@ interface MediaDao {
 
 `UploadService`: tickets and validation. `MediaPipeline`: conversions/variants. `MediaLibraryService`: browsing/rights. `MediaAttachmentService`: owner/target and ordering. `MediaPublicationService`: audience, contribution, moderation and public links. Browser recorder implementation stays UI-side.
 
-Routes: `GET /media/mine`, `GET /media/platform`, `POST /media/uploads`, `POST /media/uploads/:id/complete`, `GET /media/:id`, `GET /media/:id/url`, `DELETE /media/:id`, `POST /media-attachments`, `DELETE /media-attachments/:id`, `POST /media-publications`, `DELETE /media-publications/:id`, `POST /media/contributions`, `POST /media/contributions/:id/approve|decline`, `GET /activities/:id/public-media`.
+Routes: `GET /media/mine`, `GET /media/platform`, `POST /media/uploads`, `POST /media/uploads/:id/complete`, `GET /media/:id`, `GET /media/:id/url`, `DELETE /media/:id`, `POST /media-attachments`, `DELETE /media-attachments/:id`, `POST /media-publications`, `GET|DELETE /media-publications/:id`, `PATCH /media/:id` (alt text), `GET /moderation/publications`, `POST /moderation/publications/:id`, `GET /activities/:id/public-media`.
 
 ## 10. P1 defaults and policy constraints
 

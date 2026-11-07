@@ -496,80 +496,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
-  /users/{handle}/followers:
-    get:
-      operationId: listUserFollowers
-      summary: List user followers
-      tags:
-      - users
-      security: []
-      parameters:
-      - in: path
-        name: handle
-        required: true
-        schema:
-          type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
-      - $ref: '#/components/parameters/Cursor'
-      - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                - meta
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/UserSummary'
-                  meta:
-                    $ref: '#/components/schemas/PaginatedMeta'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /users/{handle}/following:
-    get:
-      operationId: listUserFollowing
-      summary: List user following
-      tags:
-      - users
-      security: []
-      parameters:
-      - in: path
-        name: handle
-        required: true
-        schema:
-          type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
-      - $ref: '#/components/parameters/Cursor'
-      - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                - meta
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/UserSummary'
-                  meta:
-                    $ref: '#/components/schemas/PaginatedMeta'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /follow-users/{userId}:
     post:
       operationId: followUser
@@ -945,29 +871,6 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
-  /catalog/tags:
-    get:
-      operationId: listActivityTags
-      summary: List activity tags
-      tags:
-      - catalog
-      security: []
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ActivityTag'
-        '400':
-          $ref: '#/components/responses/BadRequest'
   /catalog/metrics:
     get:
       operationId: listMetricDefinitions
@@ -1035,11 +938,6 @@ paths:
           format: uuid
       - in: query
         name: focusId
-        schema:
-          type: string
-          format: uuid
-      - in: query
-        name: tagId
         schema:
           type: string
           format: uuid
@@ -2690,28 +2588,6 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
-  /billing/status:
-    get:
-      operationId: getMarketplaceStatus
-      summary: Get marketplace status
-      tags:
-      - billing
-      description: Whether paid access is enabled.
-      security: []
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                properties:
-                  data:
-                    $ref: '#/components/schemas/MarketplaceStatus'
-        '400':
-          $ref: '#/components/responses/BadRequest'
   /billing/payout-account:
     get:
       operationId: getPayoutAccount
@@ -2773,7 +2649,8 @@ paths:
       summary: Create program checkout
       tags:
       - billing
-      description: Provider-hosted checkout. Access is granted only by a verified webhook.
+      description: Provider-hosted checkout. Idempotent per idempotencyKey; a reused key with a different price
+        is a 409. Access is granted only by a verified webhook.
       parameters:
       - in: path
         name: programId
@@ -3191,7 +3068,7 @@ paths:
       summary: Cancel calendar item
       tags:
       - calendar
-      description: Soft cancel; supports undo.
+      description: Soft cancel. Undo by setting status PLANNED.
       parameters:
       - in: path
         name: itemId
@@ -3203,43 +3080,6 @@ paths:
         name: scope
         schema:
           $ref: '#/components/schemas/RecurrenceScope'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                properties:
-                  data:
-                    $ref: '#/components/schemas/CalendarItem'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-  /calendar-items/{itemId}/restore:
-    post:
-      operationId: restoreCalendarItem
-      summary: Restore calendar item
-      tags:
-      - calendar
-      parameters:
-      - in: path
-        name: itemId
-        required: true
-        schema:
-          type: string
-          format: uuid
       responses:
         '200':
           description: Success
@@ -3366,38 +3206,6 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
   /calendar/recurrences/{recurrenceId}:
-    get:
-      operationId: getCalendarRecurrence
-      summary: Get calendar recurrence
-      tags:
-      - calendar
-      parameters:
-      - in: path
-        name: recurrenceId
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                properties:
-                  data:
-                    $ref: '#/components/schemas/CalendarRecurrence'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
     patch:
       operationId: updateCalendarRecurrence
       summary: Update calendar recurrence
@@ -3523,6 +3331,7 @@ paths:
       summary: Get session
       tags:
       - sessions
+      description: The session with its result entries. Used to resume an unscheduled session.
       parameters:
       - in: path
         name: sessionId
@@ -3541,7 +3350,7 @@ paths:
                 - data
                 properties:
                   data:
-                    $ref: '#/components/schemas/ActivitySession'
+                    $ref: '#/components/schemas/SessionDetail'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -3595,40 +3404,6 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
   /sessions/{sessionId}/results:
-    get:
-      operationId: listSessionResults
-      summary: List session results
-      tags:
-      - sessions
-      parameters:
-      - in: path
-        name: sessionId
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ResultEntry'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
     post:
       operationId: saveSessionResult
       summary: Save session result
@@ -4847,118 +4622,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
-  /media/contributions:
-    post:
-      operationId: createMediaContribution
-      summary: Create media contribution
-      tags:
-      - media
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ContributeMediaInput'
-      responses:
-        '201':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                properties:
-                  data:
-                    $ref: '#/components/schemas/MediaContribution'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-  /media/contributions/{contributionId}/approve:
-    post:
-      operationId: approveMediaContribution
-      summary: Approve media contribution
-      tags:
-      - media
-      security:
-      - adminAuth: []
-      parameters:
-      - in: path
-        name: contributionId
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                properties:
-                  data:
-                    $ref: '#/components/schemas/MediaContribution'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-  /media/contributions/{contributionId}/decline:
-    post:
-      operationId: declineMediaContribution
-      summary: Decline media contribution
-      tags:
-      - media
-      security:
-      - adminAuth: []
-      parameters:
-      - in: path
-        name: contributionId
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                - data
-                properties:
-                  data:
-                    $ref: '#/components/schemas/MediaContribution'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/RateLimited'
   /discover:
     get:
       operationId: discover
@@ -5600,10 +5263,10 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
-  /moderation/contributions:
+  /moderation/publications:
     get:
-      operationId: listPendingContributions
-      summary: List pending contributions
+      operationId: listPendingPublications
+      summary: List pending publications
       tags:
       - moderation
       security:
@@ -5625,7 +5288,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/MediaContribution'
+                      $ref: '#/components/schemas/MediaPublication'
                   meta:
                     $ref: '#/components/schemas/PaginatedMeta'
         '400':
@@ -5634,6 +5297,52 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /moderation/publications/{publicationId}:
+    post:
+      operationId: moderateMediaPublication
+      summary: Moderate media publication
+      tags:
+      - moderation
+      description: Approve or reject a PENDING public publication. Rejecting never deletes the owner's asset.
+      security:
+      - adminAuth: []
+      parameters:
+      - in: path
+        name: publicationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeratePublicationInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MediaPublication'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /moderation/programs/{programId}/grants:
     post:
       operationId: grantProgramAccess
@@ -6072,12 +5781,6 @@ components:
       - APPROVED
       - REJECTED
       - REVOKED
-    ContributionStatus:
-      type: string
-      enum:
-      - PENDING
-      - APPROVED
-      - DECLINED
     AttachmentTargetKind:
       type: string
       enum:
@@ -6573,20 +6276,6 @@ components:
           type: string
         label:
           type: string
-    ActivityTag:
-      type: object
-      required:
-      - id
-      - slug
-      - label
-      properties:
-        id:
-          type: string
-          format: uuid
-        slug:
-          type: string
-        label:
-          type: string
     MetricDefinition:
       type: object
       required:
@@ -6973,7 +6662,6 @@ components:
       - media
       - metrics
       - tools
-      - tagIds
       - sourceActivity
       - draftRevision
       - canEdit
@@ -7041,11 +6729,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ActivityToolBinding'
-        tagIds:
-          type: array
-          items:
-            type: string
-            format: uuid
         sourceActivity:
           anyOf:
           - $ref: '#/components/schemas/ActivitySummary'
@@ -7100,11 +6783,6 @@ components:
           type: string
           format: uuid
         focusIds:
-          type: array
-          items:
-            type: string
-            format: uuid
-        tagIds:
           type: array
           items:
             type: string
@@ -7888,6 +7566,8 @@ components:
       required:
       - canPublish
       - issues
+      - marketplaceEnabled
+      - payoutAccountActive
       properties:
         canPublish:
           type: boolean
@@ -7895,6 +7575,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ValidationIssue'
+        marketplaceEnabled:
+          type: boolean
+        payoutAccountActive:
+          type: boolean
     PublishProgramInput:
       type: object
       required:
@@ -8235,13 +7919,6 @@ components:
           type: integer
         purchases:
           type: integer
-    MarketplaceStatus:
-      type: object
-      required:
-      - enabled
-      properties:
-        enabled:
-          type: boolean
     RecurrenceRule:
       type: object
       description: weekdays uses 0=Sunday to 6=Saturday.
@@ -8428,7 +8105,8 @@ components:
           type: integer
     UpdateCalendarItemInput:
       type: object
-      description: scope applies to an item generated by a recurrence; defaults to THIS_ONE.
+      description: Move, skip, or restore (status PLANNED undoes a cancel). scope applies to an item generated by
+        a recurrence; defaults to THIS_ONE.
       required:
       - expectedUpdatedAt
       properties:
@@ -8814,6 +8492,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MediaThumb'
+    SessionDetail:
+      type: object
+      required:
+      - session
+      - entries
+      properties:
+        session:
+          $ref: '#/components/schemas/ActivitySession'
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultEntry'
     CreateSessionInput:
       type: object
       description: calendarItemId from the Calendar; activityId alone for an unscheduled session. Each attempt is
@@ -9390,7 +9080,9 @@ components:
           $ref: '#/components/schemas/MediaThumb'
     PublishMediaInput:
       type: object
-      description: GROUP requires active membership. PUBLIC enters moderation and requires a rights declaration.
+      description: 'GROUP requires active membership and is approved immediately. PUBLIC with activityId (and optional
+        instructionKey) is a contribution to that Activity: it requires a license declaration and enters moderation
+        as PENDING.'
       required:
       - mediaId
       - audience
@@ -9491,65 +9183,21 @@ components:
           - type: 'null'
         media:
           $ref: '#/components/schemas/MediaThumb'
-    ContributeMediaInput:
+    ModeratePublicationInput:
       type: object
       required:
-      - mediaId
-      - targetActivityId
-      - license
+      - decision
       properties:
-        mediaId:
+        decision:
           type: string
-          format: uuid
-        targetActivityId:
-          type: string
-          format: uuid
-        targetInstructionKey:
-          type: string
-          format: uuid
-        sourceProgramId:
-          type: string
-          format: uuid
-        license:
-          type: string
-          minLength: 1
-          maxLength: 120
-        caption:
+          enum:
+          - APPROVE
+          - REJECT
+        note:
           type: string
           minLength: 0
           maxLength: 500
       additionalProperties: false
-    MediaContribution:
-      type: object
-      required:
-      - id
-      - mediaId
-      - targetActivityId
-      - targetInstructionKey
-      - status
-      - submitter
-      - createdAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        mediaId:
-          type: string
-          format: uuid
-        targetActivityId:
-          type: string
-          format: uuid
-        targetInstructionKey:
-          type:
-          - string
-          - 'null'
-        status:
-          $ref: '#/components/schemas/ContributionStatus'
-        submitter:
-          $ref: '#/components/schemas/UserSummary'
-        createdAt:
-          type: string
-          format: date-time
     DiscoverItem:
       type: object
       required:

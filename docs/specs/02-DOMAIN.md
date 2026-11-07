@@ -29,7 +29,7 @@
 | **Completion Share** | Minimal, consented record that a member finished a group occurrence | Result Entry |
 | **Media Asset** | Privately owned file/library item with storage metadata | Published attachment |
 | **Media Attachment** | A link from asset to Program, Activity, Instruction, Log, or Profile | Permission to publish |
-| **Media Contribution** | Submission/recommendation of owned media for another entity | Approved/public asset automatically |
+| **Media Contribution** | A PUBLIC Media Publication targeting someone else's Activity or Instruction; enters moderation as PENDING | Approved/public asset automatically |
 | **Post/Public Media** | Explicitly published audience-facing item | Private activity journal |
 | **Follow** | Relationship with another user | Enrollment in program |
 | **Access Grant** | Authoritative permission to unlock Program content | Subscription billing event |
@@ -42,7 +42,7 @@ Avoid `Workout`, `Exercise`, `Set`, `Lesson`, or `Habit` in core entities; these
 
 ## 2. Proposed taxonomy (data, not enums for every label)
 
-Hierarchy: `Category → ProgramType → Focus`; optional `ActivityTag` classifications and `MetricDefinition` at Activity/Instruction. These are seedable lookup records with stable IDs/slugs, position, icon, active/retired state, and optional `createdById`; custom types/focus may initially be private to author. Do not make user-entered titles into taxonomy records automatically.
+Hierarchy: `Category → ProgramType → Focus`; `MetricDefinition` at Activity/Instruction. These are seedable lookup records with stable IDs/slugs, position, icon, active/retired state, and optional `createdById`; custom types/focus may initially be private to author. Do not make user-entered titles into taxonomy records automatically.
 
 | Category | Seeded Program Types | Example Focus values |
 |---|---|---|
@@ -58,7 +58,7 @@ Taxonomy requirements:
 - `Category`: immutable stable slug/ID; public label editable via localization; global broad aggregation.
 - `ProgramType`: belongs to one Category; stable slug, label, icon; `isFeatured` marks the types on the first creation screen (Workout, Wellness Routine, Savings Plan, Study Program, Relationship Plan); seeded or user-defined; not Program title.
 - `Focus`: belongs to one Category; scoped slug, label, position; seeded/user-defined. `ProgramTypeFocus` lists which Focus values each Program Type offers. Activities link to Focus many-to-many so the library can be browsed by Category and Focus.
-- `ActivityTag`: many-to-many, narrow tags such as `bodyweight`, `no-equipment`, `beginner`, `indoor`; no hardcoded workout columns.
+- Narrow descriptors (`bodyweight`, `no-equipment`, `beginner`) are deferred; P1 Activities are browsed by Category and Focus. Never add hardcoded workout columns.
 - `MetricDefinition`: stable key, data type, unit, aggregation, display format, favorable direction if relevant, optional range/validation. Reps/count, duration, distance, amount, yes/no, free text are metric configurations, not fixed Activity columns.
 - `ToolDefinition`: timer, counter, checklist, notes, calculator, media-capture; component key + safe declarative configuration; no executable code from users.
 - `SchedulePattern`: daily, weekdays, N per week, relative days, sequential, flexible, ongoing; stored as structured scheduling rule, not as taxonomy-only strings.
@@ -69,7 +69,7 @@ Taxonomy requirements:
 ## 3. Cardinalities and authority
 
 ```text
-User 1─1 Profile, Preferences; User 1─N Calendar (one default in P1)
+User 1─1 Profile, Preferences; User 1─1 personal Calendar (its Calendar Items and Recurrences are owned by the user directly)
 User 1─N Programs authored; User 1─N Activities authored; User 1─N Media Assets
 Program 1─N Versions (at most one unpublished draft); Version 1─N Schedule Template Items
 Schedule Template Item N─1 Activity Revision (versioned content reference)
@@ -115,7 +115,7 @@ A user's Calendar can contain **several Programs and standalone activities**. Pr
 - Program Purchase: `PENDING`, `PAID`, `REFUNDED`, `DISPUTED`.
 - Billing Subscription: `INCOMPLETE`, `ACTIVE`, `PAST_DUE`, `CANCELED`, `EXPIRED`.
 - Creator Payout Account: `ONBOARDING`, `ACTIVE`, `RESTRICTED`.
-- Group membership: `INVITED`, `ACTIVE`, `LEFT`, `REMOVED`.
+- Group membership: `ACTIVE`, `LEFT`, `REMOVED` (pending invites are `GroupInvitation`).
 
 All state transitions must be checked by services with actor, ownership, and role. Do not create a universal status enum.
 

@@ -79,7 +79,7 @@ interface FollowDao {
   approve(requestId:UUID,db:Db):Promise<void>;
   decline(requestId:UUID,db:Db):Promise<void>;
   unfollow(a:UUID,b:UUID,db:Db):Promise<void>;
-  listFollowers(userId:UUID,page:Page,db:Db):Promise<PageOf<UserRow>>;
+  countFollowers(userId:UUID,db:Db):Promise<{followers:number;following:number}>;
 }
 ```
 

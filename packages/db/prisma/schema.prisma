@@ -97,32 +97,29 @@ model User {
   purchases            ProgramPurchase[]
   billingSubscriptions BillingSubscription[]
 
-  calendars          Calendar[]
-  calendarItems      CalendarItem[]
-  recurrences        CalendarRecurrence[]
-  activitySessions   ActivitySession[]
-  achievements       UserAchievement[]
+  calendarItems    CalendarItem[]
+  recurrences      CalendarRecurrence[]
+  activitySessions ActivitySession[]
+  achievements     UserAchievement[]
 
-  groupsOwned        ProgramGroup[]
-  groupMemberships   GroupMember[]
-  groupInvitesSent   GroupInvitation[]    @relation("InvitationCreatedBy")
-  groupInvitesGot    GroupInvitation[]    @relation("InvitationInvited")
-  completionShares   CompletionShare[]
+  groupsOwned         ProgramGroup[]
+  groupMemberships    GroupMember[]
+  groupInvitesSent    GroupInvitation[]    @relation("InvitationCreatedBy")
+  groupInvitesGot     GroupInvitation[]    @relation("InvitationInvited")
+  completionShares    CompletionShare[]
   completionReactions CompletionReaction[]
 
-  mediaAssets             MediaAsset[]
-  mediaPublications       MediaPublication[]
-  mediaContributions      MediaContribution[] @relation("ContributionSubmitter")
-  contributionsReviewed   MediaContribution[] @relation("ContributionReviewer")
-  uploadSessions          UploadSession[]
-  mediaReactions          MediaReaction[]
-  mediaComments           MediaComment[]
-  notifications           Notification[]      @relation("NotificationRecipient")
-  notificationsCaused     Notification[]      @relation("NotificationActor")
-  reminderDispatches      ReminderDispatch[]
-  reportsFiled            ContentReport[]
-  moderationActions       ModerationAction[]
-  idempotencyKeys         IdempotencyKey[]
+  mediaAssets          MediaAsset[]
+  mediaPublications    MediaPublication[] @relation("PublicationPublisher")
+  publicationsReviewed MediaPublication[] @relation("PublicationReviewer")
+  mediaReactions       MediaReaction[]
+  mediaComments        MediaComment[]
+  notifications        Notification[]     @relation("NotificationRecipient")
+  notificationsCaused  Notification[]     @relation("NotificationActor")
+  reminderDispatches   ReminderDispatch[]
+  reportsFiled         ContentReport[]
+  moderationActions    ModerationAction[]
+  idempotencyKeys      IdempotencyKey[]
 
   @@index([status])
 }
@@ -342,25 +339,6 @@ model ProgramTypeFocus {
   @@index([focusId])
 }
 
-model ActivityTag {
-  id    String @id @default(uuid()) @db.Char(36)
-  slug  String @unique @db.VarChar(64)
-  label String @db.VarChar(80)
-
-  links ActivityTagLink[]
-}
-
-model ActivityTagLink {
-  activityId String @db.Char(36)
-  tagId      String @db.Char(36)
-
-  activity Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  tag      ActivityTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([activityId, tagId])
-  @@index([tagId])
-}
-
 model ActivityFocus {
   activityId String @db.Char(36)
   focusId    String @db.Char(36)
@@ -425,10 +403,10 @@ model MetricDefinition {
 }
 
 model ToolDefinition {
-  id                  String  @id @default(uuid()) @db.Char(36)
-  key                 String  @unique @db.VarChar(64)
-  label               String  @db.VarChar(80)
-  componentKey        String  @db.VarChar(64)
+  id                  String @id @default(uuid()) @db.Char(36)
+  key                 String @unique @db.VarChar(64)
+  label               String @db.VarChar(80)
+  componentKey        String @db.VarChar(64)
   defaultConfig       Json?
   supportedValueTypes Json?
 
@@ -452,28 +430,26 @@ model Activity {
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
 
-  creator         User?             @relation(fields: [creatorId], references: [id], onDelete: SetNull)
-  category        Category          @relation(fields: [categoryId], references: [id])
-  source          Activity?         @relation("ActivitySource", fields: [sourceActivityId], references: [id], onDelete: SetNull)
-  copies          Activity[]        @relation("ActivitySource")
-  canonical       Activity?         @relation("ActivityCanonical", fields: [canonicalActivityId], references: [id], onDelete: SetNull)
-  equivalents     Activity[]        @relation("ActivityCanonical")
-  latestPublished ActivityRevision? @relation("ActivityLatestRevision", fields: [latestPublishedRevisionId], references: [id], onDelete: SetNull)
-  revisions       ActivityRevision[] @relation("ActivityRevisions")
-  tags            ActivityTagLink[]
-  focuses         ActivityFocus[]
-  scheduleItems   ProgramScheduleItem[]
-  calendarItems   CalendarItem[]
-  recurrences     CalendarRecurrence[]
+  creator          User?                 @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  category         Category              @relation(fields: [categoryId], references: [id])
+  source           Activity?             @relation("ActivitySource", fields: [sourceActivityId], references: [id], onDelete: SetNull)
+  copies           Activity[]            @relation("ActivitySource")
+  canonical        Activity?             @relation("ActivityCanonical", fields: [canonicalActivityId], references: [id], onDelete: SetNull)
+  equivalents      Activity[]            @relation("ActivityCanonical")
+  latestPublished  ActivityRevision?     @relation("ActivityLatestRevision", fields: [latestPublishedRevisionId], references: [id], onDelete: SetNull)
+  revisions        ActivityRevision[]    @relation("ActivityRevisions")
+  focuses          ActivityFocus[]
+  scheduleItems    ProgramScheduleItem[]
+  calendarItems    CalendarItem[]
+  recurrences      CalendarRecurrence[]
   completionShares CompletionShare[]
-  publications    MediaPublication[]
-  contributions   MediaContribution[]
+  publications     MediaPublication[]
 
   @@index([categoryId, status, visibility])
   @@index([creatorId, status])
   @@index([canonicalActivityId])
   @@index([sourceActivityId])
-  @@fulltext([title, summary])
+  @@fulltext([title, summary], map: "Activity_title_summary_ft")
 }
 
 model ActivityRevision {
@@ -486,17 +462,17 @@ model ActivityRevision {
   editorId        String?   @db.Char(36)
   createdAt       DateTime  @default(now())
 
-  activity          Activity  @relation("ActivityRevisions", fields: [activityId], references: [id])
-  latestOfActivity  Activity? @relation("ActivityLatestRevision")
-  editor            User?     @relation(fields: [editorId], references: [id], onDelete: SetNull)
-  instructions      Instruction[]
-  metrics           ActivityMetric[]
-  tools             ActivityTool[]
-  attachments       MediaAttachment[]
-  scheduleItems     ProgramScheduleItem[]
-  calendarItems     CalendarItem[]
-  recurrences       CalendarRecurrence[]
-  activitySessions  ActivitySession[]
+  activity         Activity              @relation("ActivityRevisions", fields: [activityId], references: [id])
+  latestOfActivity Activity?             @relation("ActivityLatestRevision")
+  editor           User?                 @relation(fields: [editorId], references: [id], onDelete: SetNull)
+  instructions     Instruction[]
+  metrics          ActivityMetric[]
+  tools            ActivityTool[]
+  attachments      MediaAttachment[]
+  scheduleItems    ProgramScheduleItem[]
+  calendarItems    CalendarItem[]
+  recurrences      CalendarRecurrence[]
+  activitySessions ActivitySession[]
 
   @@unique([activityId, revisionNumber])
   @@index([editorId])
@@ -511,10 +487,10 @@ model Instruction {
   body               String? @db.Text
   mediaLayoutHint    String? @db.VarChar(40)
 
-  revision    ActivityRevision  @relation(fields: [activityRevisionId], references: [id], onDelete: Cascade)
-  metrics     ActivityMetric[]
-  tools       ActivityTool[]
-  attachments MediaAttachment[]
+  revision      ActivityRevision  @relation(fields: [activityRevisionId], references: [id], onDelete: Cascade)
+  metrics       ActivityMetric[]
+  tools         ActivityTool[]
+  attachments   MediaAttachment[]
   resultEntries ResultEntry[]
 
   @@unique([activityRevisionId, position])
@@ -619,32 +595,31 @@ model Program {
   createdAt                DateTime      @default(now())
   updatedAt                DateTime      @updatedAt
 
-  creator         User?           @relation(fields: [creatorId], references: [id], onDelete: SetNull)
-  category        Category        @relation(fields: [categoryId], references: [id])
-  programType     ProgramType     @relation(fields: [programTypeId], references: [id])
-  focus           Focus?          @relation(fields: [focusId], references: [id], onDelete: SetNull)
-  coverMedia      MediaAsset?     @relation("ProgramCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
-  latestPublished ProgramVersion? @relation("ProgramLatestVersion", fields: [latestPublishedVersionId], references: [id], onDelete: SetNull)
-  versions        ProgramVersion[] @relation("ProgramVersions")
-  policy          ProgramAccessPolicy?
-  prices          ProgramPrice[]
-  enrollments     ProgramEnrollment[]
-  accessGrants    ProgramAccessGrant[]
+  creator          User?                    @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  category         Category                 @relation(fields: [categoryId], references: [id])
+  programType      ProgramType              @relation(fields: [programTypeId], references: [id])
+  focus            Focus?                   @relation(fields: [focusId], references: [id], onDelete: SetNull)
+  coverMedia       MediaAsset?              @relation("ProgramCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  latestPublished  ProgramVersion?          @relation("ProgramLatestVersion", fields: [latestPublishedVersionId], references: [id], onDelete: SetNull)
+  versions         ProgramVersion[]         @relation("ProgramVersions")
+  policy           ProgramAccessPolicy?
+  prices           ProgramPrice[]
+  enrollments      ProgramEnrollment[]
+  accessGrants     ProgramAccessGrant[]
   approvalRequests ProgramApprovalRequest[]
-  source          ProgramSource?
-  stat            ProgramStat?
-  purchases       ProgramPurchase[]
-  subscriptions   BillingSubscription[]
-  attachments     MediaAttachment[]
-  publications    MediaPublication[]
-  contributions   MediaContribution[]
+  source           ProgramSource?
+  stat             ProgramStat?
+  purchases        ProgramPurchase[]
+  subscriptions    BillingSubscription[]
+  attachments      MediaAttachment[]
+  publications     MediaPublication[]
 
   @@index([creatorId, status])
   @@index([categoryId, programTypeId, status, visibility])
   @@index([focusId])
   @@index([programTypeId])
   @@index([coverMediaId])
-  @@fulltext([title])
+  @@fulltext([title], map: "Program_title_ft")
 }
 
 // publishedAt null = the single editable draft of a Program. Immutable once published.
@@ -666,14 +641,14 @@ model ProgramVersion {
   createdById     String?                @db.Char(36)
   createdAt       DateTime               @default(now())
 
-  program            Program             @relation("ProgramVersions", fields: [programId], references: [id])
-  latestOfProgram    Program?            @relation("ProgramLatestVersion")
-  programType        ProgramType         @relation(fields: [programTypeId], references: [id])
-  focus              Focus?              @relation(fields: [focusId], references: [id], onDelete: SetNull)
-  createdBy          User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  program            Program               @relation("ProgramVersions", fields: [programId], references: [id])
+  latestOfProgram    Program?              @relation("ProgramLatestVersion")
+  programType        ProgramType           @relation(fields: [programTypeId], references: [id])
+  focus              Focus?                @relation(fields: [focusId], references: [id], onDelete: SetNull)
+  createdBy          User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
   items              ProgramScheduleItem[]
-  enrollments        ProgramEnrollment[] @relation("EnrollmentVersion")
-  pendingEnrollments ProgramEnrollment[] @relation("EnrollmentPendingVersion")
+  enrollments        ProgramEnrollment[]   @relation("EnrollmentVersion")
+  pendingEnrollments ProgramEnrollment[]   @relation("EnrollmentPendingVersion")
   copiedTo           ProgramSource[]
   groups             ProgramGroup[]
 
@@ -754,11 +729,11 @@ model ProgramEnrollment {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id])
-  program        Program         @relation(fields: [programId], references: [id])
-  version        ProgramVersion  @relation("EnrollmentVersion", fields: [programVersionId], references: [id])
-  pendingVersion ProgramVersion? @relation("EnrollmentPendingVersion", fields: [pendingVersionId], references: [id], onDelete: SetNull)
-  group          ProgramGroup?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  user           User              @relation(fields: [userId], references: [id])
+  program        Program           @relation(fields: [programId], references: [id])
+  version        ProgramVersion    @relation("EnrollmentVersion", fields: [programVersionId], references: [id])
+  pendingVersion ProgramVersion?   @relation("EnrollmentPendingVersion", fields: [pendingVersionId], references: [id], onDelete: SetNull)
+  group          ProgramGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
   calendarItems  CalendarItem[]
   achievements   UserAchievement[]
 
@@ -953,25 +928,9 @@ enum AchievementRuleKind {
   PROGRAM_COMPLETED
 }
 
-model Calendar {
-  id        String   @id @default(uuid()) @db.Char(36)
-  ownerId   String   @db.Char(36)
-  title     String?  @db.VarChar(80)
-  isDefault Boolean  @default(true)
-  timezone  String   @db.VarChar(64)
-  createdAt DateTime @default(now())
-
-  owner       User                 @relation(fields: [ownerId], references: [id])
-  items       CalendarItem[]
-  recurrences CalendarRecurrence[]
-
-  @@index([ownerId, isDefault])
-}
-
 model CalendarRecurrence {
   id                   String           @id @default(uuid()) @db.Char(36)
   ownerId              String           @db.Char(36)
-  calendarId           String           @db.Char(36)
   activityId           String           @db.Char(36)
   activityRevisionId   String           @db.Char(36)
   rule                 Json
@@ -985,14 +944,12 @@ model CalendarRecurrence {
   updatedAt            DateTime         @updatedAt
 
   owner    User             @relation(fields: [ownerId], references: [id])
-  calendar Calendar         @relation(fields: [calendarId], references: [id])
   activity Activity         @relation(fields: [activityId], references: [id])
   revision ActivityRevision @relation(fields: [activityRevisionId], references: [id])
   items    CalendarItem[]
 
   @@index([ownerId, status])
   @@index([status, generatedThroughDate])
-  @@index([calendarId])
   @@index([activityId])
   @@index([activityRevisionId])
 }
@@ -1000,7 +957,6 @@ model CalendarRecurrence {
 // One dated occurrence of one Activity. Independent status, sessions, and results: never a whole Program Day.
 model CalendarItem {
   id                   String             @id @default(uuid()) @db.Char(36)
-  calendarId           String             @db.Char(36)
   ownerId              String             @db.Char(36)
   activityId           String             @db.Char(36)
   activityRevisionId   String             @db.Char(36)
@@ -1022,16 +978,15 @@ model CalendarItem {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
-  calendar     Calendar             @relation(fields: [calendarId], references: [id])
-  owner        User                 @relation(fields: [ownerId], references: [id])
-  activity     Activity             @relation(fields: [activityId], references: [id])
-  revision     ActivityRevision     @relation(fields: [activityRevisionId], references: [id])
-  enrollment   ProgramEnrollment?   @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
-  scheduleItem ProgramScheduleItem? @relation(fields: [sourceScheduleItemId], references: [id], onDelete: SetNull)
-  recurrence   CalendarRecurrence?  @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
-  sessions     ActivitySession[]
+  owner           User                 @relation(fields: [ownerId], references: [id])
+  activity        Activity             @relation(fields: [activityId], references: [id])
+  revision        ActivityRevision     @relation(fields: [activityRevisionId], references: [id])
+  enrollment      ProgramEnrollment?   @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  scheduleItem    ProgramScheduleItem? @relation(fields: [sourceScheduleItemId], references: [id], onDelete: SetNull)
+  recurrence      CalendarRecurrence?  @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+  sessions        ActivitySession[]
   completionShare CompletionShare?
-  achievements UserAchievement[]
+  achievements    UserAchievement[]
 
   @@index([ownerId, localDate, status])
   @@index([ownerId, activityId, status])
@@ -1039,7 +994,6 @@ model CalendarItem {
   @@index([recurrenceId, localDate])
   @@index([groupOccurrenceKey])
   @@index([status, scheduledAtUtc, reminderSentAt])
-  @@index([calendarId])
   @@index([activityId])
   @@index([activityRevisionId])
   @@index([sourceScheduleItemId])
@@ -1054,6 +1008,8 @@ model ActivitySession {
   startedAt          DateTime?
   endedAt            DateTime?
   activeSeconds      Int                   @default(0)
+  // Set while ACTIVE; pause and finish add (now - lastResumedAt) to activeSeconds and clear it
+  lastResumedAt      DateTime?
   isManualCompletion Boolean               @default(false)
   revision           Int                   @default(0)
   createdAt          DateTime              @default(now())
@@ -1061,23 +1017,11 @@ model ActivitySession {
   calendarItem     CalendarItem?    @relation(fields: [calendarItemId], references: [id], onDelete: SetNull)
   activityRevision ActivityRevision @relation(fields: [activityRevisionId], references: [id])
   user             User             @relation(fields: [userId], references: [id])
-  segments         SessionSegment[]
   entries          ResultEntry[]
 
   @@index([userId, status])
   @@index([calendarItemId])
   @@index([activityRevisionId])
-}
-
-model SessionSegment {
-  id        String    @id @default(uuid()) @db.Char(36)
-  sessionId String    @db.Char(36)
-  startedAt DateTime
-  stoppedAt DateTime?
-
-  session ActivitySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId, startedAt])
 }
 
 model ResultEntry {
@@ -1171,7 +1115,6 @@ enum GroupRole {
 }
 
 enum GroupMemberStatus {
-  INVITED
   ACTIVE
   LEFT
   REMOVED
@@ -1203,12 +1146,12 @@ model ProgramGroup {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  version     ProgramVersion      @relation(fields: [programVersionId], references: [id])
-  owner       User                @relation(fields: [ownerId], references: [id])
-  members     GroupMember[]
-  invitations GroupInvitation[]
-  enrollments ProgramEnrollment[]
-  completions CompletionShare[]
+  version      ProgramVersion      @relation(fields: [programVersionId], references: [id])
+  owner        User                @relation(fields: [ownerId], references: [id])
+  members      GroupMember[]
+  invitations  GroupInvitation[]
+  enrollments  ProgramEnrollment[]
+  completions  CompletionShare[]
   publications MediaPublication[]
 
   @@index([programVersionId, status])
@@ -1219,7 +1162,7 @@ model GroupMember {
   groupId                 String            @db.Char(36)
   userId                  String            @db.Char(36)
   role                    GroupRole         @default(MEMBER)
-  status                  GroupMemberStatus @default(INVITED)
+  status                  GroupMemberStatus @default(ACTIVE)
   sharedCompletionEnabled Boolean           @default(true)
   joinedAt                DateTime?
   createdAt               DateTime          @default(now())
@@ -1334,19 +1277,6 @@ enum PublicationStatus {
   REVOKED
 }
 
-enum ContributionStatus {
-  PENDING
-  APPROVED
-  DECLINED
-}
-
-enum UploadStatus {
-  PENDING
-  COMPLETED
-  EXPIRED
-  FAILED
-}
-
 model MediaAsset {
   id                 String     @id @default(uuid()) @db.Char(36)
   ownerId            String?    @db.Char(36)
@@ -1364,21 +1294,22 @@ model MediaAsset {
   license            String?    @db.VarChar(120)
   attribution        String?    @db.VarChar(300)
   sourceUrl          String?    @db.VarChar(500)
+  // Signed upload window while state is UPLOADING; completion is verified against byteSize and mime
+  uploadExpiresAt    DateTime?
+  uploadedAt         DateTime?
   createdAt          DateTime   @default(now())
   deletedAt          DateTime?
 
-  owner         User?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  variants      MediaVariant[]
-  attachments   MediaAttachment[]
-  publications  MediaPublication[]
-  contributions MediaContribution[]
-  avatarFor     UserProfile[]       @relation("ProfileAvatar")
-  profileCoverFor UserProfile[]     @relation("ProfileCover")
-  coverFor      Program[]           @relation("ProgramCover")
-  uploads       UploadSession[]
+  owner           User?              @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  variants        MediaVariant[]
+  attachments     MediaAttachment[]
+  publications    MediaPublication[]
+  avatarFor       UserProfile[]      @relation("ProfileAvatar")
+  profileCoverFor UserProfile[]      @relation("ProfileCover")
+  coverFor        Program[]          @relation("ProgramCover")
 
   @@index([ownerId, createdAt])
-  @@index([state])
+  @@index([state, uploadExpiresAt])
 }
 
 model MediaVariant {
@@ -1444,72 +1375,29 @@ model MediaPublication {
   commentCount      Int               @default(0)
   rankScore         Decimal           @default(0) @db.Decimal(12, 4)
   qualityReviewedAt DateTime?
+  // PUBLIC publications enter moderation as PENDING: this is how media is contributed to an Activity
+  reviewedById      String?           @db.Char(36)
+  reviewedAt        DateTime?
+  reviewNote        String?           @db.VarChar(500)
   createdAt         DateTime          @default(now())
 
-  media         MediaAsset          @relation(fields: [mediaId], references: [id])
-  publishedBy   User                @relation(fields: [publishedById], references: [id])
-  group         ProgramGroup?       @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  activity      Activity?           @relation(fields: [activityId], references: [id], onDelete: SetNull)
-  program       Program?            @relation(fields: [programId], references: [id], onDelete: SetNull)
-  contributions MediaContribution[]
-  reactions     MediaReaction[]
-  comments      MediaComment[]
-  views         PublicationView[]
+  media       MediaAsset        @relation(fields: [mediaId], references: [id])
+  publishedBy User              @relation("PublicationPublisher", fields: [publishedById], references: [id])
+  reviewedBy  User?             @relation("PublicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  group       ProgramGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  activity    Activity?         @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  program     Program?          @relation(fields: [programId], references: [id], onDelete: SetNull)
+  reactions   MediaReaction[]
+  comments    MediaComment[]
+  views       PublicationView[]
 
   @@index([activityId, audience, status, rankScore])
   @@index([groupId, occurrenceKey, status])
   @@index([publishedById, audience, status])
+  @@index([status, audience, createdAt])
   @@index([mediaId])
   @@index([programId])
-}
-
-model MediaContribution {
-  id                   String             @id @default(uuid()) @db.Char(36)
-  publicationId        String?            @db.Char(36)
-  mediaId              String             @db.Char(36)
-  submitterId          String             @db.Char(36)
-  targetActivityId     String             @db.Char(36)
-  targetInstructionKey String?            @db.Char(36)
-  sourceProgramId      String?            @db.Char(36)
-  status               ContributionStatus @default(PENDING)
-  reviewedById         String?            @db.Char(36)
-  createdAt            DateTime           @default(now())
-  resolvedAt           DateTime?
-
-  publication    MediaPublication? @relation(fields: [publicationId], references: [id], onDelete: SetNull)
-  media          MediaAsset        @relation(fields: [mediaId], references: [id])
-  submitter      User              @relation("ContributionSubmitter", fields: [submitterId], references: [id])
-  reviewedBy     User?             @relation("ContributionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  targetActivity Activity          @relation(fields: [targetActivityId], references: [id])
-  sourceProgram  Program?          @relation(fields: [sourceProgramId], references: [id], onDelete: SetNull)
-
-  @@index([targetActivityId, status])
-  @@index([status, createdAt])
-  @@index([publicationId])
-  @@index([mediaId])
-  @@index([submitterId])
   @@index([reviewedById])
-  @@index([sourceProgramId])
-}
-
-model UploadSession {
-  id            String       @id @default(uuid()) @db.Char(36)
-  userId        String       @db.Char(36)
-  mediaId       String       @db.Char(36)
-  storageKey    String       @unique @db.VarChar(191)
-  expectedSize  BigInt
-  expectedMime  String       @db.VarChar(100)
-  status        UploadStatus @default(PENDING)
-  expiresAt     DateTime
-  completedAt   DateTime?
-  createdAt     DateTime     @default(now())
-
-  user  User       @relation(fields: [userId], references: [id])
-  media MediaAsset @relation(fields: [mediaId], references: [id])
-
-  @@index([userId, status])
-  @@index([mediaId])
-  @@index([status, expiresAt])
 }
 
 // ─── Social (12-SOCIAL) ──────────────────────────────────────────────────────
@@ -1703,28 +1591,40 @@ enum OutboxStatus {
 
 // Written in the same transaction as the change it describes; apps/worker delivers it at least once.
 model OutboxEvent {
-  id           String       @id @default(uuid()) @db.Char(36)
-  type         String       @db.VarChar(80)
-  payload      Json
-  status       OutboxStatus @default(PENDING)
-  attempts     Int          @default(0)
-  availableAt  DateTime     @default(now())
-  processedAt  DateTime?
-  lastError    String?      @db.Text
-  createdAt    DateTime     @default(now())
+  id          String       @id @default(uuid()) @db.Char(36)
+  type        String       @db.VarChar(80)
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  availableAt DateTime     @default(now())
+  processedAt DateTime?
+  lastError   String?      @db.Text
+  createdAt   DateTime     @default(now())
 
   @@index([status, availableAt])
 }
 
+enum IdempotencyState {
+  IN_PROGRESS
+  COMPLETED
+}
+
+// Claimed before a retried write runs (join, checkout, session action, add item, reaction, comment, upload).
+// A replay with the same key and request returns the stored result; a different request is a 409.
+// Payments are also protected by unique provider IDs and BillingEvent.providerEventId.
 model IdempotencyKey {
-  userId     String   @db.Char(36)
-  scope      String   @db.VarChar(64)
-  key        String   @db.VarChar(120)
-  resultRef  String?  @db.VarChar(191)
-  createdAt  DateTime @default(now())
+  userId         String           @db.Char(36)
+  scope          String           @db.VarChar(64)
+  key            String           @db.VarChar(120)
+  requestHash    String           @db.Char(64)
+  state          IdempotencyState @default(IN_PROGRESS)
+  responseStatus Int?
+  resultRef      String?          @db.VarChar(191)
+  createdAt      DateTime         @default(now())
+  expiresAt      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, scope, key])
-  @@index([createdAt])
+  @@index([expiresAt])
 }

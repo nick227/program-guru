@@ -20,14 +20,13 @@ An **Activity** is a reusable, category-agnostic action: Leg Raises, Read, Daily
 | `ActivityTool` | id, activityRevisionId?, instructionId?, toolDefinitionId, config JSON?, position | Declarative controls only; no executable user JS |
 | `MetricDefinition` | id, key, label, valueType, unit?, precision?, aggregation?, betterDirection?, validation JSON, ownerId? | Reusable typed dictionary |
 | `ToolDefinition` | id, key, label, defaultConfig JSON?, componentKey, supportedValueTypes JSON? | Approved platform control registry |
-| `ActivityTag` / `ActivityTagLink` | id, slug, label; activityId+tagId | Category-neutral filtering |
 
 **No generic `content` field, no `variations[]`, no separately forced steps.** `summary` is brief; `Instruction.body` holds guidance where needed. Instruction title optional; if video alone explains action, body can be omitted after accessible media alt/caption.
 
 ## 3. Sample Prisma-style schema
 
 
-**CHECK** for exactly one target in `ActivityMetric` and `ActivityTool` (`CHECK ((activityRevisionId IS NULL) <> (instructionId IS NULL))`) and enforce uniqueness per scope/metric key in services. Community contributions use `MediaContribution` in `11-MEDIA.md`. Consolidated persistence: `packages/db/prisma/schema.prisma`.
+**CHECK** for exactly one target in `ActivityMetric` and `ActivityTool` (`CHECK ((activityRevisionId IS NULL) <> (instructionId IS NULL))`) and enforce uniqueness per scope/metric key in services. Community contributions are PUBLIC Media Publications in `11-MEDIA.md` §7. Consolidated persistence: `packages/db/prisma/schema.prisma`.
 
 ## 4. Metric schema and rendering contracts
 
@@ -114,11 +113,11 @@ interface MetricDefinitionDao { listForPicker(query:string,db:Db):Promise<Metric
 
 `ActivityService` validates revisions/rights and authorship; `ActivityCatalogService` powers picker/search/seeding; `ActivityMetricsService` validates typed values against definitions; `ActivityHubService` aggregates explicitly public/approved media links (using Media/Social services), not logs.
 
-Endpoints: `GET /activities` (filters: category, focus, tag, q, source), `POST /activities`, `GET /activities/:id`, `PATCH /activities/:id/draft`, `PUT /activities/:id/draft/instructions`, `PUT /activities/:id/draft/metrics`, `PUT /activities/:id/draft/tools`, `POST /activities/:id/copy`, `POST /activities/:id/publish`, `GET /activities/:id/public-media`, `GET /catalog/metrics`, `GET /catalog/tools`.
+Endpoints: `GET /activities` (filters: category, focus, q, source), `POST /activities`, `GET /activities/:id`, `PATCH /activities/:id/draft`, `PUT /activities/:id/draft/instructions`, `PUT /activities/:id/draft/metrics`, `PUT /activities/:id/draft/tools`, `POST /activities/:id/copy`, `POST /activities/:id/publish`, `GET /activities/:id/public-media`, `GET /catalog/metrics`, `GET /catalog/tools`.
 
 ## 9. Seed library proposal
 
-Strong seeded P1 set should be **quality-led and category-balanced** rather than hundreds of placeholders. The §12 inventory is 81 Activities, each with category, focus, tags, 1–3 concise correct Instructions, a **rights-cleared illustration**, useful metric(s), tool(s), suggested difficulty/context and attribution. **Selected demonstration videos** supplement illustrations, starting with the most-used Fitness Activities and any other Activity that is hard to understand without motion. Include outliers: simple one-media instruction, text-only activity, multi-step activity with 4–6 instructions. Avoid unsafe or overprescriptive wellness/finance advice.
+Strong seeded P1 set should be **quality-led and category-balanced** rather than hundreds of placeholders. The §12 inventory is 81 Activities, each with category, focus, 1–3 concise correct Instructions, a **rights-cleared illustration**, useful metric(s), tool(s), suggested difficulty/context and attribution. **Selected demonstration videos** supplement illustrations, starting with the most-used Fitness Activities and any other Activity that is hard to understand without motion. Include outliers: simple one-media instruction, text-only activity, multi-step activity with 4–6 instructions. Avoid unsafe or overprescriptive wellness/finance advice.
 
 **Seed examples:** Leg Raises, Squats, Walk, Stretch; Vocabulary Review, Reading, Instrument Practice; Meditation, Reflection; Weekly Budget Review, Savings Contribution; Call a Friend, Plan Shared Time. All Activity content must be instructionally meaningful, accessible and rights-cleared. Platform graphics may be generic; creators can replace without duplicating source asset bytes.
 

@@ -28,9 +28,9 @@ Phase 1 — Contract. Next: Phase 2 — Server.
 
 ## Modules Built
 
-- [x] Schema: 67 models, initial migration with CHECK constraints
+- [x] Schema: 61 models, initial migration with CHECK constraints, verified on MySQL 8.4.13
 - [x] Railway pre-deploy migration config and guarded database scripts
-- [x] OpenAPI: 155 operations; SDK types generated
+- [x] OpenAPI: 146 operations; SDK types generated
 - [ ] Server, worker, frontend, seed content: not started
 
 ## Deviations from Factory Defaults
@@ -57,15 +57,15 @@ Phase 1 — Contract. Next: Phase 2 — Server.
 
 ## Database
 
-- **One schema, one migration history** (`packages/db/prisma`) for every environment. Migrations are authored locally with `pnpm db:migrate` and committed; every other environment only runs `pnpm db:deploy` (`prisma migrate deploy`), which never resets or drops data.
-- **Railway:** `railway.json` runs `pnpm db:deploy` as the pre-deploy command, before the new release starts. The server service sets `DATABASE_URL=${{MySQL.MYSQL_URL}}`. Railway's stock MySQL template runs **MySQL 9.4**, not 8.
-- **Local:** `.env` points at localhost only. `db:migrate`, `db:seed`, `db:reset`, and `db:studio` go through `scripts/db-guard.ts`, which refuses any host other than localhost, `NODE_ENV=production`, or a Railway environment.
-- **Local MySQL is not set up yet.** This machine runs MariaDB 10.11 on port 3306 holding about 20 other projects' databases; it must not be modified. Native MySQL conflicts with it (see Last Session Summary).
-- Migration `0001_init` is verified on MariaDB 10.11 only. Do not author migrations against MariaDB: it reports JSON columns and full-text indexes as drift.
+- **MySQL 8.4.13 everywhere.** Railway's MySQL template uses `image: mysql:8`, which resolves to 8.4.13 (same Docker digest, checked 2026-11-07). CI pins `mysql:8.4.13`. Local runs the same release.
+- **Local MySQL** is user-level, from `scripts/local-mysql.sh` (no sudo, no Docker): binaries in `~/.local/opt/mysql-8.4.13`, data in `~/.local/share/programs-app-mysql`, `127.0.0.1:3307`, systemd user service `programs-app-mysql` (enabled). Same start flags as Railway's template. Root credentials: `~/.local/share/programs-app-mysql/root.cnf` (0600). App user `programs_app` can reach only `programs_app_dev`, `programs_app_shadow`, `programs_app_test`. `pnpm db:local:setup` rebuilds all of this idempotently and writes the URLs into `.env`.
+- **Never touch MariaDB.** The system MariaDB 10.11 on 3306 holds ~20 other projects' databases. Ubuntu's `mysql-server` package conflicts with it; that is why local MySQL is user-level.
+- **One schema, one migration history** for every environment. Author migrations locally with `pnpm db:migrate`; everything else runs only `pnpm db:deploy` (`prisma migrate deploy`), which never resets or drops data.
+- **Railway:** `railway.json` runs `pnpm db:deploy` as the pre-deploy command. The server service sets `DATABASE_URL=${{MySQL.MYSQL_URL}}`.
+- **Guard:** `db:migrate`, `db:seed`, `db:reset`, `db:studio` go through `scripts/db-guard.ts` and refuse any host but localhost, `NODE_ENV=production`, or a Railway environment.
+- **Verified on MySQL 8.4.13:** `0001_init` applies cleanly; all 4 CHECKs reject invalid rows; `prisma migrate dev` generates an empty migration (no drift). `prisma migrate diff --from-migrations` falsely lists the two FULLTEXT indexes; ignore that tool's output for them. A full rebuild takes ~30s.
 - A column in a CHECK cannot have a CASCADE or SET NULL foreign key on MySQL; those relations declare `Restrict`.
 
 ## Last Session Summary
 
-Merged the addendum, the follow-up adjustments, and `13-PROFILES-AND-EXPERIENCE.md` into one authoritative spec set. Phase 1 contract complete and committed. Added Railway pre-deploy migrations and guarded database scripts.
-
-**Blocked before Phase 2:** local MySQL. Ubuntu's `mysql-server-8.0` package conflicts with the installed `mariadb-server` (both provide `virtual-mysql-server`, share `/var/lib/mysql`, `/etc/mysql`, the `mysql` service name and port 3306), and installing it would remove MariaDB. Pending decision: run a user-level MySQL alongside MariaDB on port 3307, matching Railway's version. Also pending: whether to apply the P1 scope simplifications from the review.
+Revised Phase 1: applied approved simplifications (removed Calendar, SessionSegment, UploadSession, MediaContribution, ActivityTag/Link; GroupMember INVITED), strengthened IdempotencyKey (request hash, state, expiry), and reviewed overlapping operations one by one (155 → 146). Kept instruction-level metrics, Tools, user-defined taxonomy, Program copying. Installed isolated MySQL 8.4.13 and verified the migration on it. Phase 2 (server) started.

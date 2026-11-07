@@ -204,25 +204,6 @@ CREATE TABLE `ProgramTypeFocus` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `ActivityTag` (
-    `id` CHAR(36) NOT NULL,
-    `slug` VARCHAR(64) NOT NULL,
-    `label` VARCHAR(80) NOT NULL,
-
-    UNIQUE INDEX `ActivityTag_slug_key`(`slug`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `ActivityTagLink` (
-    `activityId` CHAR(36) NOT NULL,
-    `tagId` CHAR(36) NOT NULL,
-
-    INDEX `ActivityTagLink_tagId_idx`(`tagId`),
-    PRIMARY KEY (`activityId`, `tagId`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
 CREATE TABLE `ActivityFocus` (
     `activityId` CHAR(36) NOT NULL,
     `focusId` CHAR(36) NOT NULL,
@@ -286,7 +267,7 @@ CREATE TABLE `Activity` (
     INDEX `Activity_creatorId_status_idx`(`creatorId`, `status`),
     INDEX `Activity_canonicalActivityId_idx`(`canonicalActivityId`),
     INDEX `Activity_sourceActivityId_idx`(`sourceActivityId`),
-    FULLTEXT INDEX `Activity_title_summary_idx`(`title`, `summary`),
+    FULLTEXT INDEX `Activity_title_summary_ft`(`title`, `summary`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -378,7 +359,7 @@ CREATE TABLE `Program` (
     INDEX `Program_focusId_idx`(`focusId`),
     INDEX `Program_programTypeId_idx`(`programTypeId`),
     INDEX `Program_coverMediaId_idx`(`coverMediaId`),
-    FULLTEXT INDEX `Program_title_idx`(`title`),
+    FULLTEXT INDEX `Program_title_ft`(`title`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -613,23 +594,9 @@ CREATE TABLE `BillingEvent` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `Calendar` (
-    `id` CHAR(36) NOT NULL,
-    `ownerId` CHAR(36) NOT NULL,
-    `title` VARCHAR(80) NULL,
-    `isDefault` BOOLEAN NOT NULL DEFAULT true,
-    `timezone` VARCHAR(64) NOT NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    INDEX `Calendar_ownerId_isDefault_idx`(`ownerId`, `isDefault`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
 CREATE TABLE `CalendarRecurrence` (
     `id` CHAR(36) NOT NULL,
     `ownerId` CHAR(36) NOT NULL,
-    `calendarId` CHAR(36) NOT NULL,
     `activityId` CHAR(36) NOT NULL,
     `activityRevisionId` CHAR(36) NOT NULL,
     `rule` JSON NOT NULL,
@@ -644,7 +611,6 @@ CREATE TABLE `CalendarRecurrence` (
 
     INDEX `CalendarRecurrence_ownerId_status_idx`(`ownerId`, `status`),
     INDEX `CalendarRecurrence_status_generatedThroughDate_idx`(`status`, `generatedThroughDate`),
-    INDEX `CalendarRecurrence_calendarId_idx`(`calendarId`),
     INDEX `CalendarRecurrence_activityId_idx`(`activityId`),
     INDEX `CalendarRecurrence_activityRevisionId_idx`(`activityRevisionId`),
     PRIMARY KEY (`id`)
@@ -653,7 +619,6 @@ CREATE TABLE `CalendarRecurrence` (
 -- CreateTable
 CREATE TABLE `CalendarItem` (
     `id` CHAR(36) NOT NULL,
-    `calendarId` CHAR(36) NOT NULL,
     `ownerId` CHAR(36) NOT NULL,
     `activityId` CHAR(36) NOT NULL,
     `activityRevisionId` CHAR(36) NOT NULL,
@@ -681,7 +646,6 @@ CREATE TABLE `CalendarItem` (
     INDEX `CalendarItem_recurrenceId_localDate_idx`(`recurrenceId`, `localDate`),
     INDEX `CalendarItem_groupOccurrenceKey_idx`(`groupOccurrenceKey`),
     INDEX `CalendarItem_status_scheduledAtUtc_reminderSentAt_idx`(`status`, `scheduledAtUtc`, `reminderSentAt`),
-    INDEX `CalendarItem_calendarId_idx`(`calendarId`),
     INDEX `CalendarItem_activityId_idx`(`activityId`),
     INDEX `CalendarItem_activityRevisionId_idx`(`activityRevisionId`),
     INDEX `CalendarItem_sourceScheduleItemId_idx`(`sourceScheduleItemId`),
@@ -698,6 +662,7 @@ CREATE TABLE `ActivitySession` (
     `startedAt` DATETIME(3) NULL,
     `endedAt` DATETIME(3) NULL,
     `activeSeconds` INTEGER NOT NULL DEFAULT 0,
+    `lastResumedAt` DATETIME(3) NULL,
     `isManualCompletion` BOOLEAN NOT NULL DEFAULT false,
     `revision` INTEGER NOT NULL DEFAULT 0,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -705,17 +670,6 @@ CREATE TABLE `ActivitySession` (
     INDEX `ActivitySession_userId_status_idx`(`userId`, `status`),
     INDEX `ActivitySession_calendarItemId_idx`(`calendarItemId`),
     INDEX `ActivitySession_activityRevisionId_idx`(`activityRevisionId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `SessionSegment` (
-    `id` CHAR(36) NOT NULL,
-    `sessionId` CHAR(36) NOT NULL,
-    `startedAt` DATETIME(3) NOT NULL,
-    `stoppedAt` DATETIME(3) NULL,
-
-    INDEX `SessionSegment_sessionId_startedAt_idx`(`sessionId`, `startedAt`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -809,7 +763,7 @@ CREATE TABLE `GroupMember` (
     `groupId` CHAR(36) NOT NULL,
     `userId` CHAR(36) NOT NULL,
     `role` ENUM('OWNER', 'MEMBER') NOT NULL DEFAULT 'MEMBER',
-    `status` ENUM('INVITED', 'ACTIVE', 'LEFT', 'REMOVED') NOT NULL DEFAULT 'INVITED',
+    `status` ENUM('ACTIVE', 'LEFT', 'REMOVED') NOT NULL DEFAULT 'ACTIVE',
     `sharedCompletionEnabled` BOOLEAN NOT NULL DEFAULT true,
     `joinedAt` DATETIME(3) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -887,12 +841,14 @@ CREATE TABLE `MediaAsset` (
     `license` VARCHAR(120) NULL,
     `attribution` VARCHAR(300) NULL,
     `sourceUrl` VARCHAR(500) NULL,
+    `uploadExpiresAt` DATETIME(3) NULL,
+    `uploadedAt` DATETIME(3) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `deletedAt` DATETIME(3) NULL,
 
     UNIQUE INDEX `MediaAsset_originalStorageKey_key`(`originalStorageKey`),
     INDEX `MediaAsset_ownerId_createdAt_idx`(`ownerId`, `createdAt`),
-    INDEX `MediaAsset_state_idx`(`state`),
+    INDEX `MediaAsset_state_uploadExpiresAt_idx`(`state`, `uploadExpiresAt`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -955,57 +911,18 @@ CREATE TABLE `MediaPublication` (
     `commentCount` INTEGER NOT NULL DEFAULT 0,
     `rankScore` DECIMAL(12, 4) NOT NULL DEFAULT 0,
     `qualityReviewedAt` DATETIME(3) NULL,
+    `reviewedById` CHAR(36) NULL,
+    `reviewedAt` DATETIME(3) NULL,
+    `reviewNote` VARCHAR(500) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     INDEX `MediaPublication_activityId_audience_status_rankScore_idx`(`activityId`, `audience`, `status`, `rankScore`),
     INDEX `MediaPublication_groupId_occurrenceKey_status_idx`(`groupId`, `occurrenceKey`, `status`),
     INDEX `MediaPublication_publishedById_audience_status_idx`(`publishedById`, `audience`, `status`),
+    INDEX `MediaPublication_status_audience_createdAt_idx`(`status`, `audience`, `createdAt`),
     INDEX `MediaPublication_mediaId_idx`(`mediaId`),
     INDEX `MediaPublication_programId_idx`(`programId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `MediaContribution` (
-    `id` CHAR(36) NOT NULL,
-    `publicationId` CHAR(36) NULL,
-    `mediaId` CHAR(36) NOT NULL,
-    `submitterId` CHAR(36) NOT NULL,
-    `targetActivityId` CHAR(36) NOT NULL,
-    `targetInstructionKey` CHAR(36) NULL,
-    `sourceProgramId` CHAR(36) NULL,
-    `status` ENUM('PENDING', 'APPROVED', 'DECLINED') NOT NULL DEFAULT 'PENDING',
-    `reviewedById` CHAR(36) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `resolvedAt` DATETIME(3) NULL,
-
-    INDEX `MediaContribution_targetActivityId_status_idx`(`targetActivityId`, `status`),
-    INDEX `MediaContribution_status_createdAt_idx`(`status`, `createdAt`),
-    INDEX `MediaContribution_publicationId_idx`(`publicationId`),
-    INDEX `MediaContribution_mediaId_idx`(`mediaId`),
-    INDEX `MediaContribution_submitterId_idx`(`submitterId`),
-    INDEX `MediaContribution_reviewedById_idx`(`reviewedById`),
-    INDEX `MediaContribution_sourceProgramId_idx`(`sourceProgramId`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `UploadSession` (
-    `id` CHAR(36) NOT NULL,
-    `userId` CHAR(36) NOT NULL,
-    `mediaId` CHAR(36) NOT NULL,
-    `storageKey` VARCHAR(191) NOT NULL,
-    `expectedSize` BIGINT NOT NULL,
-    `expectedMime` VARCHAR(100) NOT NULL,
-    `status` ENUM('PENDING', 'COMPLETED', 'EXPIRED', 'FAILED') NOT NULL DEFAULT 'PENDING',
-    `expiresAt` DATETIME(3) NOT NULL,
-    `completedAt` DATETIME(3) NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    UNIQUE INDEX `UploadSession_storageKey_key`(`storageKey`),
-    INDEX `UploadSession_userId_status_idx`(`userId`, `status`),
-    INDEX `UploadSession_mediaId_idx`(`mediaId`),
-    INDEX `UploadSession_status_expiresAt_idx`(`status`, `expiresAt`),
+    INDEX `MediaPublication_reviewedById_idx`(`reviewedById`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -1137,10 +1054,14 @@ CREATE TABLE `IdempotencyKey` (
     `userId` CHAR(36) NOT NULL,
     `scope` VARCHAR(64) NOT NULL,
     `key` VARCHAR(120) NOT NULL,
+    `requestHash` CHAR(64) NOT NULL,
+    `state` ENUM('IN_PROGRESS', 'COMPLETED') NOT NULL DEFAULT 'IN_PROGRESS',
+    `responseStatus` INTEGER NULL,
     `resultRef` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `expiresAt` DATETIME(3) NOT NULL,
 
-    INDEX `IdempotencyKey_createdAt_idx`(`createdAt`),
+    INDEX `IdempotencyKey_expiresAt_idx`(`expiresAt`),
     PRIMARY KEY (`userId`, `scope`, `key`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -1206,12 +1127,6 @@ ALTER TABLE `ProgramTypeFocus` ADD CONSTRAINT `ProgramTypeFocus_programTypeId_fk
 
 -- AddForeignKey
 ALTER TABLE `ProgramTypeFocus` ADD CONSTRAINT `ProgramTypeFocus_focusId_fkey` FOREIGN KEY (`focusId`) REFERENCES `Focus`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `ActivityTagLink` ADD CONSTRAINT `ActivityTagLink_activityId_fkey` FOREIGN KEY (`activityId`) REFERENCES `Activity`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `ActivityTagLink` ADD CONSTRAINT `ActivityTagLink_tagId_fkey` FOREIGN KEY (`tagId`) REFERENCES `ActivityTag`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `ActivityFocus` ADD CONSTRAINT `ActivityFocus_activityId_fkey` FOREIGN KEY (`activityId`) REFERENCES `Activity`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1370,22 +1285,13 @@ ALTER TABLE `BillingSubscription` ADD CONSTRAINT `BillingSubscription_programId_
 ALTER TABLE `BillingSubscription` ADD CONSTRAINT `BillingSubscription_priceId_fkey` FOREIGN KEY (`priceId`) REFERENCES `ProgramPrice`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Calendar` ADD CONSTRAINT `Calendar_ownerId_fkey` FOREIGN KEY (`ownerId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `CalendarRecurrence` ADD CONSTRAINT `CalendarRecurrence_ownerId_fkey` FOREIGN KEY (`ownerId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `CalendarRecurrence` ADD CONSTRAINT `CalendarRecurrence_calendarId_fkey` FOREIGN KEY (`calendarId`) REFERENCES `Calendar`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `CalendarRecurrence` ADD CONSTRAINT `CalendarRecurrence_activityId_fkey` FOREIGN KEY (`activityId`) REFERENCES `Activity`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `CalendarRecurrence` ADD CONSTRAINT `CalendarRecurrence_activityRevisionId_fkey` FOREIGN KEY (`activityRevisionId`) REFERENCES `ActivityRevision`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `CalendarItem` ADD CONSTRAINT `CalendarItem_calendarId_fkey` FOREIGN KEY (`calendarId`) REFERENCES `Calendar`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `CalendarItem` ADD CONSTRAINT `CalendarItem_ownerId_fkey` FOREIGN KEY (`ownerId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1413,9 +1319,6 @@ ALTER TABLE `ActivitySession` ADD CONSTRAINT `ActivitySession_activityRevisionId
 
 -- AddForeignKey
 ALTER TABLE `ActivitySession` ADD CONSTRAINT `ActivitySession_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `SessionSegment` ADD CONSTRAINT `SessionSegment_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `ActivitySession`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `ResultEntry` ADD CONSTRAINT `ResultEntry_sessionId_fkey` FOREIGN KEY (`sessionId`) REFERENCES `ActivitySession`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -1511,6 +1414,9 @@ ALTER TABLE `MediaPublication` ADD CONSTRAINT `MediaPublication_mediaId_fkey` FO
 ALTER TABLE `MediaPublication` ADD CONSTRAINT `MediaPublication_publishedById_fkey` FOREIGN KEY (`publishedById`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `MediaPublication` ADD CONSTRAINT `MediaPublication_reviewedById_fkey` FOREIGN KEY (`reviewedById`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `MediaPublication` ADD CONSTRAINT `MediaPublication_groupId_fkey` FOREIGN KEY (`groupId`) REFERENCES `ProgramGroup`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1518,30 +1424,6 @@ ALTER TABLE `MediaPublication` ADD CONSTRAINT `MediaPublication_activityId_fkey`
 
 -- AddForeignKey
 ALTER TABLE `MediaPublication` ADD CONSTRAINT `MediaPublication_programId_fkey` FOREIGN KEY (`programId`) REFERENCES `Program`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `MediaContribution` ADD CONSTRAINT `MediaContribution_publicationId_fkey` FOREIGN KEY (`publicationId`) REFERENCES `MediaPublication`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `MediaContribution` ADD CONSTRAINT `MediaContribution_mediaId_fkey` FOREIGN KEY (`mediaId`) REFERENCES `MediaAsset`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `MediaContribution` ADD CONSTRAINT `MediaContribution_submitterId_fkey` FOREIGN KEY (`submitterId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `MediaContribution` ADD CONSTRAINT `MediaContribution_reviewedById_fkey` FOREIGN KEY (`reviewedById`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `MediaContribution` ADD CONSTRAINT `MediaContribution_targetActivityId_fkey` FOREIGN KEY (`targetActivityId`) REFERENCES `Activity`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `MediaContribution` ADD CONSTRAINT `MediaContribution_sourceProgramId_fkey` FOREIGN KEY (`sourceProgramId`) REFERENCES `Program`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `UploadSession` ADD CONSTRAINT `UploadSession_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `UploadSession` ADD CONSTRAINT `UploadSession_mediaId_fkey` FOREIGN KEY (`mediaId`) REFERENCES `MediaAsset`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `MediaReaction` ADD CONSTRAINT `MediaReaction_publicationId_fkey` FOREIGN KEY (`publicationId`) REFERENCES `MediaPublication`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
