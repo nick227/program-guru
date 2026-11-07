@@ -1,7 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify'
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
-import rateLimit from '@fastify/rate-limit'
 import swagger from '@fastify/swagger'
 import swaggerUi from '@fastify/swagger-ui'
 import openapiGlue from 'fastify-openapi-glue'
@@ -12,6 +11,7 @@ import { Prisma } from '@project/db'
 import * as handlers from './handlers'
 import * as security from './plugins/security'
 import { AppError } from './lib/errors'
+import { rateLimitPreHandler } from './lib/rateLimit'
 
 export const specPath = resolve(__dirname, '../../../packages/api-spec/openapi.yaml')
 
@@ -35,7 +35,10 @@ export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance
   // Local-storage uploads arrive as a raw stream; it is piped to storage with a size limit, never buffered.
   app.addContentTypeParser('application/octet-stream', (_request, payload, done) => done(null, payload))
   if (opts.rateLimit !== false) {
-    await app.register(rateLimit, { max: 300, timeWindow: '1 minute' })
+    app.addHook('preHandler', async (request, reply) => {
+      if (request.url === '/health') return
+      await rateLimitPreHandler(request, reply)
+    })
   }
 
   if (opts.docs) {

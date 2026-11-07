@@ -51,5 +51,7 @@ export const notFound = (what = 'Resource') => new AppError('NOT_FOUND', `${what
 export const conflict = (message: string) => new AppError('CONFLICT', message)
 export const versionConflict = (message = 'This was changed elsewhere. Reload to see the latest version.') =>
   new AppError('VERSION_CONFLICT', message)
+export const rateLimited = (message = 'Too many requests') =>
+  new AppError('RATE_LIMITED', message)
 export const notImplemented = (operationId: string) =>
   new AppError('NOT_IMPLEMENTED', `${operationId} is not implemented yet`)

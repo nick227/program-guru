@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { db } from '@project/db'
 import { buildApp } from '../app'
+import { consumeRateLimit, pruneExpiredRateLimitBuckets } from '../lib/rateLimit'
 import { validateResponse } from './helpers'
 
 let app: FastifyInstance
@@ -111,5 +112,104 @@ describe('security errors', () => {
     const res = await app.inject({ method: 'GET', url: '/moderation/reports', headers: sessionCookie(reg) })
     expect(res.statusCode).toBe(403)
     expect(res.json().code).toBe('FORBIDDEN')
+  })
+})
+
+describe('database-backed rate limiting (RateLimitBucket)', () => {
+  it('enforces auth rate limits across multiple server instances and preserves the 429 error contract', async () => {
+    const instanceA = await buildApp({ rateLimit: true })
+    const instanceB = await buildApp({ rateLimit: true })
+    await Promise.all([instanceA.ready(), instanceB.ready()])
+
+    try {
+      // POST /auth/forgot-password allows 5 requests per minute per IP/email across the cluster.
+      for (let i = 0; i < 5; i++) {
+        const target = i % 2 === 0 ? instanceA : instanceB
+        const ok = await target.inject({
+          method: 'POST',
+          url: '/auth/forgot-password',
+          remoteAddress: '203.0.113.10',
+          payload: { email: 'Casey@Example.com' },
+        })
+        expect(ok.statusCode).toBe(200)
+        expect(ok.headers['x-ratelimit-limit']).toBe('5')
+        expect(ok.headers['x-ratelimit-remaining']).toBe(String(4 - i))
+      }
+
+      const blocked = await instanceB.inject({
+        method: 'POST',
+        url: '/auth/forgot-password',
+        remoteAddress: '203.0.113.10',
+        payload: { email: 'Casey@Example.com' },
+      })
+      expect(blocked.statusCode).toBe(429)
+      await validateResponse('forgotPassword', 429, blocked.json())
+      expect(blocked.json()).toMatchObject({
+        code: 'RATE_LIMITED',
+        message: 'Too many requests',
+      })
+      expect(blocked.headers['x-ratelimit-remaining']).toBe('0')
+      expect(Number(blocked.headers['retry-after'])).toBeGreaterThanOrEqual(1)
+    } finally {
+      await Promise.all([instanceA.close(), instanceB.close()])
+    }
+  })
+
+  it('atomically admits exactly max requests under high concurrency', async () => {
+    const now = new Date('2026-11-07T12:00:00.000Z')
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        consumeRateLimit({
+          key: 'concurrent:auth:login:ip:198.51.100.7',
+          max: 5,
+          windowMs: 60_000,
+          now,
+        }),
+      ),
+    )
+
+    const allowed = results.filter((r) => r.allowed)
+    const denied = results.filter((r) => !r.allowed)
+    expect(allowed).toHaveLength(5)
+    expect(denied).toHaveLength(15)
+
+    // Every concurrent caller receives a distinct monotonic slot count from 1..20.
+    const counts = results.map((r) => r.count).sort((a, b) => a - b)
+    expect(counts).toEqual(Array.from({ length: 20 }, (_, i) => i + 1))
+
+    const bucket = await db.rateLimitBucket.findUniqueOrThrow({
+      where: { key: 'concurrent:auth:login:ip:198.51.100.7' },
+    })
+    expect(bucket.count).toBe(20)
+  })
+
+  it('resets expired buckets atomically under concurrency and prunes stale rows', async () => {
+    const t0 = new Date('2026-11-07T12:00:00.000Z')
+    const key = 'expiry:auth:login:ip:198.51.100.99'
+
+    expect((await consumeRateLimit({ key, max: 2, windowMs: 10_000, now: t0 })).allowed).toBe(true)
+    expect((await consumeRateLimit({ key, max: 2, windowMs: 10_000, now: new Date(t0.getTime() + 1_000) })).allowed).toBe(true)
+    const deniedMidWindow = await consumeRateLimit({ key, max: 2, windowMs: 10_000, now: new Date(t0.getTime() + 5_000) })
+    expect(deniedMidWindow.allowed).toBe(false)
+    expect(deniedMidWindow.retryAfterSeconds).toBe(5)
+
+    // At t0 + 10_000ms the bucket has expired; 6 concurrent requests should reset the window once and admit 2.
+    const tExpired = new Date(t0.getTime() + 10_000)
+    const afterExpiry = await Promise.all(
+      Array.from({ length: 6 }, () => consumeRateLimit({ key, max: 2, windowMs: 10_000, now: tExpired })),
+    )
+    expect(afterExpiry.filter((r) => r.allowed)).toHaveLength(2)
+    expect(afterExpiry.filter((r) => !r.allowed)).toHaveLength(4)
+
+    const refreshed = await db.rateLimitBucket.findUniqueOrThrow({ where: { key } })
+    expect(refreshed.count).toBe(6)
+    expect(refreshed.resetAt.toISOString()).toBe(new Date(tExpired.getTime() + 10_000).toISOString())
+
+    // Add a stale bucket and verify pruneExpiredRateLimitBuckets removes only expired rows.
+    await consumeRateLimit({ key: 'stale:bucket', max: 5, windowMs: 1_000, now: t0 })
+    const pruned = await pruneExpiredRateLimitBuckets(tExpired)
+    expect(pruned).toBe(1)
+    expect(await db.rateLimitBucket.findUnique({ where: { key: 'stale:bucket' } })).toBeNull()
+    expect(await db.rateLimitBucket.findUnique({ where: { key } })).not.toBeNull()
   })
 })

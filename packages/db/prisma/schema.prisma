@@ -1628,3 +1628,13 @@ model IdempotencyKey {
   @@id([userId, scope, key])
   @@index([expiresAt])
 }
+
+// Shared fixed-window rate-limit counter across server instances (05-ARCHITECTURE.md §6, 06-USERS.md §7).
+model RateLimitBucket {
+  key       String   @id @db.VarChar(191)
+  count     Int      @default(1)
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
+}
