@@ -1,9 +1,9 @@
 import createClient, { type Middleware } from 'openapi-fetch'
-import type { paths } from './generated/types'
+import type { paths, components } from './generated/types'
 
 type ClientConfig = {
   baseUrl: string
-  getToken?: () => string | null  // only for native apps; web uses httpOnly cookies
+  getToken?: () => string | null // only for native apps; web uses httpOnly cookies
 }
 
 let _client: ReturnType<typeof createClient<paths>> | null = null
@@ -11,7 +11,7 @@ let _client: ReturnType<typeof createClient<paths>> | null = null
 export function createApiClient(config: ClientConfig) {
   const client = createClient<paths>({
     baseUrl: config.baseUrl,
-    credentials: 'include',  // send httpOnly session cookie automatically
+    credentials: 'include', // send httpOnly session cookie automatically
   })
 
   if (config.getToken) {
@@ -39,8 +39,40 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: string,
+    public fieldErrors?: Record<string, string>,
+    public requestId?: string,
   ) {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+/** Preserve the server error envelope, including validation and diagnostic context. */
+export function apiError(
+  response: Response,
+  error: components['schemas']['Error'],
+): ApiError {
+  return new ApiError(
+    response.status,
+    error.message,
+    error.code,
+    error.fieldErrors,
+    error.requestId,
+  )
+}
+
+/** Unwrap an openapi-fetch result without introducing another transport layer. */
+export function apiData<T>(result: {
+  data?: T
+  error?: components['schemas']['Error']
+  response: Response
+}): T {
+  if (result.error) throw apiError(result.response, result.error)
+  if (result.data === undefined)
+    throw new ApiError(
+      result.response.status,
+      'The server returned an empty response.',
+      'EMPTY_RESPONSE',
+    )
+  return result.data
 }

@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getApiClient, ApiError } from '../client'
+import { getApiClient, apiError } from '../client'
 
 export function useCurrentUser() {
   return useQuery({
     queryKey: ['me'],
-    queryFn: async () => {
-      const { data, error, response } = await getApiClient().GET('/auth/me')
-      if (error) throw new ApiError(response.status, (error as any).message, (error as any).code)
+    queryFn: async ({ signal }) => {
+      const { data, error, response } = await getApiClient().GET('/auth/me', {
+        signal,
+      })
+      if (error) throw apiError(response, error)
       return data!
     },
     retry: false,
@@ -18,12 +20,17 @@ export function useLogin() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (body: { email: string; password: string }) => {
-      const { data, error, response } = await getApiClient().POST('/auth/login', { body })
-      if (error) throw new ApiError(response.status, (error as any).message, (error as any).code)
+      const { data, error, response } = await getApiClient().POST(
+        '/auth/login',
+        { body },
+      )
+      if (error) throw apiError(response, error)
       return data!
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['me'] })
+    onSuccess: async () => {
+      await queryClient.cancelQueries()
+      queryClient.clear()
+      await queryClient.invalidateQueries({ queryKey: ['me'] })
     },
   })
 }
@@ -31,13 +38,24 @@ export function useLogin() {
 export function useRegister() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { email: string; password: string; handle: string; displayName: string; timezone?: string }) => {
-      const { data, error, response } = await getApiClient().POST('/auth/register', { body })
-      if (error) throw new ApiError(response.status, (error as any).message, (error as any).code)
+    mutationFn: async (body: {
+      email: string
+      password: string
+      handle: string
+      displayName: string
+      timezone?: string
+    }) => {
+      const { data, error, response } = await getApiClient().POST(
+        '/auth/register',
+        { body },
+      )
+      if (error) throw apiError(response, error)
       return data!
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['me'] })
+    onSuccess: async () => {
+      await queryClient.cancelQueries()
+      queryClient.clear()
+      await queryClient.invalidateQueries({ queryKey: ['me'] })
     },
   })
 }
@@ -47,9 +65,10 @@ export function useLogout() {
   return useMutation({
     mutationFn: async () => {
       const { error, response } = await getApiClient().POST('/auth/logout')
-      if (error) throw new ApiError(response.status, (error as any).message, (error as any).code)
+      if (error) throw apiError(response, error)
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.cancelQueries()
       queryClient.clear()
     },
   })

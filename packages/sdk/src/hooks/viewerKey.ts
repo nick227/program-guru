@@ -1,0 +1,11 @@
+import type { QueryKey } from '@tanstack/react-query'
+import { useCurrentUser } from './useAuth'
+
+/** Public DTOs also contain viewer permissions. Never reuse another viewer's projection. */
+export function useViewerKey(key: QueryKey): QueryKey {
+  const me = useCurrentUser()
+  return [
+    ...key,
+    { viewer: me.isError ? 'anonymous' : (me.data?.data.id ?? 'anonymous') },
+  ]
+}
