@@ -211,6 +211,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/group-invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List group invitations addressed to me
+         * @description Pending, unexpired USER invitations and EMAIL invitations to the viewer's verified address, newest first, each with its join state.
+         */
+        get: operations["listMyGroupInvitations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/group-invitations/{invitationId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept a group invitation addressed to me
+         * @description Same rules as acceptGroupInvitation, addressed by invitation id instead of token.
+         */
+        post: operations["acceptMyGroupInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/group-invitations/{invitationId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline a group invitation addressed to me */
+        post: operations["declineMyGroupInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/follow-requests": {
         parameters: {
             query?: never;
@@ -1679,9 +1736,29 @@ export interface paths {
         put?: never;
         /**
          * Accept group invitation
-         * @description Never bypasses Program access. Continues to the enrollment flow.
+         * @description Never bypasses Program access. Check `join.status` on the preview first; send `enrollment` when the participant must confirm or choose a schedule.
          */
         post: operations["acceptGroupInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-invitations/{token}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline group invitation
+         * @description USER and EMAIL invitations only; a join link is simply not used.
+         */
+        post: operations["declineGroupInvitation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2422,7 +2499,7 @@ export interface components {
         /** @enum {string} */
         InviteKind: "USER" | "EMAIL" | "LINK";
         /** @enum {string} */
-        InviteStatus: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
+        InviteStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "REVOKED" | "EXPIRED";
         /** @enum {string} */
         MemberDayStatus: "DONE" | "PENDING" | "UNKNOWN";
         /** @enum {string} */
@@ -3439,6 +3516,55 @@ export interface components {
             joinLinkEnabled: boolean;
             members: components["schemas"]["GroupMember"][];
             mySharedCompletion: boolean;
+            /** @description The viewer's enrollment linked to this group, or null when they follow it without one (for example a Program owner hosting the group). */
+            myEnrollment: components["schemas"]["GroupEnrollmentLink"] | null;
+        };
+        GroupEnrollmentLink: {
+            /** Format: uuid */
+            enrollmentId: string;
+            /** Format: date */
+            startLocalDate: string;
+            /** @description True when a SYNC group's shared start date differs from this personal schedule; label by Program Day. */
+            startDateDiffers: boolean;
+        };
+        /** @description What the viewer must do to join (10-COLLABORATION.md §3). */
+        GroupJoinState: {
+            /** @enum {string} */
+            status: "SIGN_IN_REQUIRED" | "UNAVAILABLE" | "ACCESS_REQUIRED" | "PAYMENT_REQUIRED" | "ALREADY_MEMBER" | "READY_TO_JOIN" | "CONFIRM_ENROLLMENT" | "SELECT_SCHEDULE" | "ENROLLED_OTHER_VERSION" | "LEAVE_OTHER_GROUP";
+            /**
+             * Format: uuid
+             * @description The viewer's live enrollment in this Program, when there is one.
+             */
+            enrollmentId: string | null;
+            /**
+             * Format: date
+             * @description The fixed start date to confirm (SYNC), or the existing enrollment's start date.
+             */
+            startLocalDate: string | null;
+            startDateDiffers: boolean;
+        };
+        /** @description `enrollment` is required when `join.status` is CONFIRM_ENROLLMENT or SELECT_SCHEDULE and ignored otherwise. Membership and enrollment are created together or not at all. */
+        AcceptGroupInvitationInput: {
+            enrollment?: {
+                /**
+                 * Format: date
+                 * @description Required for ASYNC groups. For SYNC groups it may be omitted and must equal the group's start date if given.
+                 */
+                startLocalDate?: string;
+                timezone: string;
+                idempotencyKey: string;
+            };
+        };
+        /** @description A pending USER or EMAIL invitation addressed to the viewer. */
+        ReceivedGroupInvitation: {
+            /** Format: uuid */
+            id: string;
+            kind: components["schemas"]["InviteKind"];
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            groupId: string;
+            preview: components["schemas"]["InvitationPreview"];
         };
         CreateGroupInput: {
             /** Format: uuid */
@@ -3485,6 +3611,7 @@ export interface components {
             startLocalDate: string | null;
             canAccept: boolean;
             requiresAccess: boolean;
+            join: components["schemas"]["GroupJoinState"];
         };
         /** @description Activity, day, and status only: never metric values. */
         CompletionShare: {
@@ -4151,6 +4278,99 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listMyGroupInvitations: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReceivedGroupInvitation"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    acceptMyGroupInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AcceptGroupInvitationInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GroupDetail"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    declineMyGroupInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Ack"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["RateLimited"];
         };
@@ -7091,7 +7311,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AcceptGroupInvitationInput"];
+            };
+        };
         responses: {
             /** @description Success */
             200: {
@@ -7101,6 +7325,36 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["GroupDetail"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    declineGroupInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Ack"];
                     };
                 };
             };

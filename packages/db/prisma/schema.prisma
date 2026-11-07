@@ -1129,6 +1129,7 @@ enum InviteKind {
 enum InviteStatus {
   PENDING
   ACCEPTED
+  DECLINED
   REVOKED
   EXPIRED
 }

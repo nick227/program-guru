@@ -127,8 +127,7 @@ describe('private media on results (01 §6 required test 4)', () => {
     await enroll(testUserId, 'alice-enrolls')
     const groupId = (await req('POST', '/groups', { programVersionId: versionId, mode: 'SYNC' })).json().data.id
     const token = (await req('POST', `/groups/${groupId}/invitations`, { kind: 'USER', handle: 'bob' })).json().data.joinUrl.split('/join/')[1]
-    await req('POST', `/group-invitations/${token}/accept`, undefined, testOtherUserId)
-    await enroll(testOtherUserId, 'bob-enrolls', groupId)
+    await req('POST', `/group-invitations/${token}/accept`, { enrollment: { timezone: 'America/Chicago', idempotencyKey: 'bob-enrolls' } }, testOtherUserId)
 
     const item = await db.calendarItem.findFirstOrThrow({ where: { ownerId: testUserId, programDayIndex: 0 } })
     const s = (await req('POST', '/sessions', { calendarItemId: item.id, idempotencyKey: 'private-media-session' })).json().data
