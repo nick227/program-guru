@@ -21,6 +21,7 @@ import { ProfilePage } from '@/pages/Profile'
 import { MediaStudioPage } from '@/pages/MediaStudio'
 import { NotificationsPage } from '@/pages/Notifications'
 import { SettingsPage } from '@/pages/Settings'
+import { StudioPage } from '@/pages/Studio'
 import { Page, Stage } from '@/components/ui/Layout'
 import { ErrorMessage } from '@/components/ui/Feedback'
 
@@ -94,6 +95,7 @@ const router = createBrowserRouter([
           { path: '/media', element: <MediaStudioPage /> },
           { path: '/notifications', element: <NotificationsPage /> },
           { path: '/settings', element: <SettingsPage /> },
+          { path: '/studio', element: <StudioPage /> },
         ],
       },
       // After static app routes so handles never shadow /media, /settings, etc.

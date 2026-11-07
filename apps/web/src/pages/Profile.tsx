@@ -192,6 +192,9 @@ export function ProfilePage() {
           <Panel>
             <Stack>
               <h2>Manage</h2>
+              <Link to="/studio" className={linkButton}>
+                Creator Studio
+              </Link>
               <Link to="/programs/new" className={linkButton}>
                 Create Program
               </Link>

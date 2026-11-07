@@ -42,4 +42,10 @@ export const queryKeys = {
   platformMedia: (q: string) => ['media', 'platform', { q }] as const,
   notifications: ['notifications'] as const,
   unreadCount: ['notifications', 'unread'] as const,
+  followRequests: ['users', 'follow-requests'] as const,
+  accessRequests: (programId: string) =>
+    ['programs', programId, 'access-requests'] as const,
+  earnings: ['billing', 'earnings'] as const,
+  payoutAccount: ['billing', 'payout-account'] as const,
+  myActivities: (q = '') => ['activities', 'mine', { q }] as const,
 }

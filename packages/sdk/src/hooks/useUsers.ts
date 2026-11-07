@@ -1,8 +1,11 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiData, getApiClient } from '../client'
 import { queryKeys as keys } from '../queryKeys'
+import type { components } from '../generated/types'
 import { useApiMutation } from './mutation'
 import { useViewerKey } from './viewerKey'
+
+type S = components['schemas']
 
 export function useUserByHandle(handle: string) {
   return useQuery({
@@ -96,5 +99,54 @@ export function useUnfollowUser(handle: string) {
         }),
       ).data,
     [keys.user(handle), keys.userPrograms(handle)],
+  )
+}
+
+export function useUpdateMyProfile() {
+  return useApiMutation(
+    async (body: S['UpdateProfileInput']) =>
+      apiData(
+        await getApiClient().PATCH('/users/me/profile', { body }),
+      ).data,
+    [keys.me, ['users']],
+  )
+}
+
+export function useMyFollowRequests() {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.followRequests),
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/users/me/follow-requests', {
+          signal,
+          params: { query: { cursor: pageParam, limit: 20 } },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+
+export function useApproveFollowRequest() {
+  return useApiMutation(
+    async (requestId: string) =>
+      apiData(
+        await getApiClient().POST('/follow-requests/{requestId}/approve', {
+          params: { path: { requestId } },
+        }),
+      ).data,
+    [keys.followRequests, keys.me],
+  )
+}
+
+export function useDeclineFollowRequest() {
+  return useApiMutation(
+    async (requestId: string) =>
+      apiData(
+        await getApiClient().POST('/follow-requests/{requestId}/decline', {
+          params: { path: { requestId } },
+        }),
+      ).data,
+    [keys.followRequests, keys.me],
   )
 }
