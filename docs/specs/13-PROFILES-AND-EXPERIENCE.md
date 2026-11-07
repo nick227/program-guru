@@ -26,7 +26,8 @@
 | Fullscreen Media Viewer | Thumbnail on Program, Activity, Instruction, Profile | View, react, navigate media | P1 |
 | Notifications | User widget indicator | Open related Activity / Program / invitation | P1 |
 | Subscription & Purchase Management | Own Profile → Settings / access | See entitlements, cancel/manage subscription | P1 when billing launches |
-| Creator Dashboard | Own Profile → Manage | Review subscribers, revenue, Program enrollment, completion and retention | Minimal P1 using aggregate earnings and `ProgramStat`; richer reporting later |
+| Creator Dashboard | Own Profile → Manage → Creator Studio | Review earnings, Program enrollment/completion, approval queues; channel subscribers when P1+ contracts land | Minimal via Creator Studio (`01-PRODUCT.md` §10); richer reporting later |
+| Creator Studio | Own Profile → Manage, account menu | Unified library, publishing, channel branding, audience, dashboard | P1+ API-backed subset now; Posts/collections/channel membership when contracts exist |
 | Settings | Own Profile | Privacy, reminders, account, billing | P1 |
 | Welcome / Initial Loading | App boot | Automatically enter weekly Calendar | P1 |
 | Empty / Pending / Error / Offline | Every remote-data surface | Retry, recover or take next action | P1 |
@@ -46,7 +47,7 @@
 5. **Published Activities:** compact grid or list; open the canonical Activity detail. Omit section when empty.
 5a. **Achievements:** only those the creator chose to share (`09-CALENDARS.md` §9a). Omit when none.
 6. **Media portfolio:** small thumbnails from public, authorized assets only; open fullscreen viewer. Omit when empty.
-7. **Owner-only controls:** Manage Programs, Create Program, My Media, Analytics, Settings, Billing. Keep owner controls contextual and separate from visitor CTAs.
+7. **Owner-only controls:** Creator Studio, Create Program, My Programs, My Media, Settings. Keep owner controls contextual and separate from visitor CTAs. Creator Studio hosts Analytics/Billing/Audience rather than separate admin apps (`01-PRODUCT.md` §10).
 
 **On small screens:** full-width cover, overlapping or adjacent avatar/identity, single obvious Follow or Edit control, compact stacked program cards or two-column cards, then tiny media thumbnail grid. Avoid persistent sidebars, giant bios, or simultaneous edit fields.
 
