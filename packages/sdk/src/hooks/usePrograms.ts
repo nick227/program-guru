@@ -41,16 +41,21 @@ export function useMyPrograms() {
     getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
   })
 }
-export function useActivities(q = '') {
+export function useActivities(q = '', focusId = '') {
   return useInfiniteQuery({
-    queryKey: useViewerKey(keys.activities(q)),
+    queryKey: useViewerKey(keys.activities(q, focusId)),
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) =>
       apiData(
         await getApiClient().GET('/activities', {
           signal,
           params: {
-            query: { q: q || undefined, cursor: pageParam, limit: 20 },
+            query: {
+              q: q || undefined,
+              focusId: focusId || undefined,
+              cursor: pageParam,
+              limit: 20,
+            },
           },
         }),
       ),

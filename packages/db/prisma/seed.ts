@@ -1505,7 +1505,7 @@ type StarterProgramSeed = {
   programTypeSlug: string
   focusSlug: string
   durationDays: number
-  frequency: { kind: 'DAILY' } | { kind: 'DAYS_PER_WEEK'; daysPerWeek: number }
+  frequency: { kind: 'DAILY' } | { kind: 'N_PER_WEEK'; n: number }
   generationMode: 'ALL_EACH_DAY' | 'ROTATE'
   activitySlugs: string[]
   placements: { relativeDay: number; activitySlug: string; position: number; localTime: string }[]
@@ -1520,7 +1520,7 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
     programTypeSlug: 'workout',
     focusSlug: 'strength',
     durationDays: 28,
-    frequency: { kind: 'DAYS_PER_WEEK', daysPerWeek: 3 },
+    frequency: { kind: 'N_PER_WEEK', n: 3 },
     generationMode: 'ALL_EACH_DAY',
     activitySlugs: ['warm-up', 'squats', 'push-ups', 'plank', 'glute-bridge', 'cool-down'],
     placements: [1, 3, 5, 8, 10, 12, 15, 17, 19, 22, 24, 26].flatMap((day) => [
@@ -1557,7 +1557,7 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
     programTypeSlug: 'study-program',
     focusSlug: 'languages',
     durationDays: 21,
-    frequency: { kind: 'DAYS_PER_WEEK', daysPerWeek: 5 },
+    frequency: { kind: 'N_PER_WEEK', n: 5 },
     generationMode: 'ALL_EACH_DAY',
     activitySlugs: ['vocabulary-review', 'read-for-20-minutes', 'practice-speaking'],
     placements: [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19].flatMap((day) => [
@@ -1574,7 +1574,7 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
     programTypeSlug: 'savings-plan',
     focusSlug: 'emergency-fund',
     durationDays: 28,
-    frequency: { kind: 'DAYS_PER_WEEK', daysPerWeek: 2 },
+    frequency: { kind: 'N_PER_WEEK', n: 2 },
     generationMode: 'ROTATE',
     activitySlugs: ['savings-contribution', 'weekly-budget-review', 'categorize-expenses', 'review-subscriptions'],
     placements: [1, 4, 8, 11, 15, 18, 22, 25].map((day, idx) => ({
@@ -1592,7 +1592,7 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
     programTypeSlug: 'relationship-plan',
     focusSlug: 'friends',
     durationDays: 28,
-    frequency: { kind: 'DAYS_PER_WEEK', daysPerWeek: 2 },
+    frequency: { kind: 'N_PER_WEEK', n: 2 },
     generationMode: 'ROTATE',
     activitySlugs: ['send-a-check-in-message', 'call-a-friend', 'plan-quality-time', 'write-a-thank-you-note'],
     placements: [2, 6, 9, 13, 16, 20, 23, 27].map((day, idx) => ({

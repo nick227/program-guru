@@ -80,6 +80,8 @@ export function ProgramPage() {
           <Link className={linkButton} to="/">
             Open Calendar
           </Link>
+        ) : me.isPending ? (
+          <Loading />
         ) : !me.data ? (
           <Link
             className={linkButton}

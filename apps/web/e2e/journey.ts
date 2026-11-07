@@ -4,7 +4,10 @@ export async function login(page: Page, email: string, password: string) {
   await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Your week' })).toBeVisible()
+  // exact: true — login heading "Sign in to your week" must not match.
+  await expect(
+    page.getByRole('heading', { name: 'Your week', exact: true }),
+  ).toBeVisible()
 }
 export async function journey(
   page: Page,
@@ -25,7 +28,8 @@ export async function journey(
   await page.getByRole('link', { name: 'Create Program', exact: true }).click()
   await page.getByRole('button', { name: 'Workout', exact: true }).click()
   await page.getByRole('button', { name: 'Strength', exact: true }).click()
-  await page.getByRole('button', { name: /Squats/ }).click()
+  // Title is the accessible-name prefix; avoid matching "Chair Squats".
+  await page.getByRole('button', { name: /^Squats/ }).click()
   await page.getByRole('button', { name: 'Add 1 Activities' }).click()
   await expect(
     page.getByRole('heading', { name: 'Activities', exact: true }),
@@ -71,7 +75,7 @@ export async function journey(
   await expect(page).toHaveURL(/week=2026-11-09&day=2026-11-09/)
   await page.reload()
   await page
-    .getByRole('link', { name: /Squats/ })
+    .getByRole('link', { name: /^Squats/ })
     .first()
     .click()
   await expect(
@@ -83,18 +87,20 @@ export async function journey(
   await page.getByRole('button', { name: 'Pause', exact: true }).click()
   await page.getByRole('button', { name: 'Resume', exact: true }).click()
   await page.getByRole('button', { name: 'Finish', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Your week' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Your week', exact: true }),
+  ).toBeVisible()
   await expect(page).toHaveURL(/week=2026-11-09&day=2026-11-09/)
-  await expect(
-    page.getByRole('link', { name: /Squats/ }).first(),
-  ).toContainText('Completed')
+  await expect(page.getByRole('link', { name: /^Squats/ }).first()).toContainText(
+    'Completed',
+  )
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
-  await expect(
-    page.getByRole('link', { name: /Squats/ }).first(),
-  ).toContainText('Planned')
+  await expect(page.getByRole('link', { name: /^Squats/ }).first()).toContainText(
+    'Planned',
+  )
   await page.reload()
-  await expect(
-    page.getByRole('link', { name: /Squats/ }).first(),
-  ).toContainText('Planned')
+  await expect(page.getByRole('link', { name: /^Squats/ }).first()).toContainText(
+    'Planned',
+  )
   return { title, publishedPath }
 }

@@ -10,7 +10,8 @@ export const queryKeys = {
   discover: ['discover'] as const,
   discovery: (q: string) =>
     ['discover', 'list', { kind: 'PROGRAM', q }] as const,
-  activities: (q: string) => ['activities', 'list', { q }] as const,
+  activities: (q: string, focusId = '') =>
+    ['activities', 'list', { q, focusId }] as const,
   types: ['catalog', 'program-types'] as const,
   focuses: (id: string) => ['catalog', 'focuses', id] as const,
   calendar: ['calendar'] as const,

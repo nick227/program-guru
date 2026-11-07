@@ -129,7 +129,7 @@ export function ProgramWorkspacePage() {
 function ActivityPicker({ ws, close }: { ws: Workspace; close: string }) {
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState<string[]>([])
-  const activities = useActivities(q)
+  const activities = useActivities(q, ws.focus?.id ?? '')
   const add = useAddProgramActivities(ws.id)
   const navigate = useNavigate()
   const online = useOnline()
