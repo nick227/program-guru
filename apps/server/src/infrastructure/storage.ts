@@ -21,7 +21,9 @@ export class StorageError extends Error {
 
 export function isStorageMiss(err: unknown): boolean {
   if (err instanceof StorageError) return true
-  const code = (err as { code?: string } | null)?.code
+  const details = err as { code?: string; name?: string; $metadata?: { httpStatusCode?: number } } | null
+  if (details?.$metadata?.httpStatusCode === 404) return true
+  const code = details?.code ?? details?.name
   return code === 'ENOENT' || code === 'EINVAL_KEY' || code === 'NoSuchKey' || code === 'NotFound' || code === '404'
 }
 
@@ -168,8 +170,9 @@ class R2Storage implements StorageProvider {
   async size(key: string) {
     try {
       return (await this.s3.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }))).ContentLength ?? null
-    } catch {
-      return null
+    } catch (err) {
+      if (isStorageMiss(err)) return null
+      throw err
     }
   }
   async head(key: string, bytes: number) {

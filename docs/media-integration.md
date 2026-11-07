@@ -1,7 +1,7 @@
 # Media integration for the frontend and SDK
 
 For: the frontend agent (owner of frontend media architecture and the SDK hooks). Server owner: Claude.
-Verified against a running API and worker by `pnpm --filter server media:e2e` (18/18 checks).
+Verified against a running API and worker by `pnpm --filter server media:e2e` (19/19 checks).
 Requirements: `docs/specs/11-MEDIA.md`, `03-UX.md` §6 and §8. Operations: `packages/api-spec/openapi.yaml`, tag `media`.
 
 ## 1. Upload
@@ -41,9 +41,9 @@ What the worker produces:
 
 ## 3. Playback URLs
 
-- Every `thumbnailUrl`, `coverUrl`, `avatarUrl`, `posterUrl`, and `GET /media/{id}/url` result is a **signed URL**, issued only after the server checked the viewer's access. Use it directly in `<img>`, `<video>`, `<audio>`; it needs no cookies.
-- A signed URL is a **bearer capability** valid for one to two hours (`expiresAt`). Do not persist it (no localStorage, no long-lived cache). On a `404` from a media URL, refetch the parent query or call `GET /media/{id}/url` again.
-- For video use `url` as `src` and `posterUrl` as `poster`. Byte-range requests work (`206`, `Accept-Ranges: bytes`), so seeking works without downloading the whole file. With R2 the URL redirects (`302`) to storage, which also supports ranges.
+- Every `thumbnailUrl`, `coverUrl`, `avatarUrl`, `posterUrl`, and `GET /media/{id}/url` result is a **signed URL**, issued only after the server checked the viewer's access. Use it directly in `<img>`, `<video>`, `<audio>`; it needs no cookies. The one exception: media inside a viewer's own unpublished Activity or Program draft is re-checked against the session cookie, which same-site `<img>`/`<video>` requests send automatically.
+- A signed URL is a **bearer capability** valid for one to two hours (`expiresAt`). Do not persist it (no localStorage, no long-lived cache). It is bound to the viewer it was issued to and stops working as soon as access is revoked, the viewer is blocked, or group membership ends. On a `404` from a media URL, refetch the parent query or call `GET /media/{id}/url` again.
+- For video use `url` as `src` and `posterUrl` as `poster`. Byte-range requests work (`206`, `Accept-Ranges: bytes`), so seeking works without downloading the whole file. The API proxies both local and R2 storage (no redirect), so every fetch, including each range request, re-checks access; responses are `Cache-Control: private, no-store`.
 - `GET /media/{id}/url` works for anonymous viewers when the media is public or platform media; send the session cookie otherwise.
 
 ## 4. Who sees what

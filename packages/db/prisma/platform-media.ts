@@ -2,6 +2,7 @@
 // local storage root before any MediaAsset / MediaVariant row is created. Never invents DB keys
 // that do not exist on disk.
 import { createHash } from 'crypto'
+import { execFileSync } from 'child_process'
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'fs'
 import { dirname, join, resolve } from 'path'
 import { deflateSync } from 'zlib'
@@ -69,25 +70,22 @@ export function platformPng(slug: string, width = 1200, height = 900): Buffer {
   ])
 }
 
-/** Minimal lossy-looking WebP (VP8L 1×1) — browsers accept it as image/webp. */
+// Valid deterministic placeholders, not instructional demonstrations. ffmpeg is already required
+// by the worker. Cache the bytes during seed so this runs once, not once per Activity.
+let webp: Buffer | undefined
+let mp4: Buffer | undefined
 export function platformWebp(): Buffer {
-  return Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA', 'base64')
+  return webp ??= execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=0x176b73:s=400x300', '-frames:v', '1', '-c:v', 'libwebp', '-f', 'image2pipe', 'pipe:1'])
 }
-
-/** Minimal ISO BMFF `ftyp`+`mdat` stub so the object is a non-empty readable video key. */
-export function platformMp4Stub(): Buffer {
-  const ftyp = Buffer.from([
-    0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0x00, 0x00, 0x00, 0x01, 0x69, 0x73, 0x6f, 0x6d, 0x61, 0x76, 0x63, 0x31,
-  ])
-  const mdatHeader = Buffer.from([0x00, 0x00, 0x00, 0x08, 0x6d, 0x64, 0x61, 0x74])
-  return Buffer.concat([ftyp, mdatHeader])
+export function platformMp4(): Buffer {
+  return mp4 ??= execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=0x176b73:s=1280x720:r=25', '-t', '1', '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'ultrafast', '-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1'])
 }
 
 function writeKey(key: string, bytes: Buffer): number {
   const path = join(storageRoot(), key)
   mkdirSync(dirname(path), { recursive: true })
   // Idempotent: rewrite only when missing or content length differs (keeps re-seed cheap and safe).
-  if (!existsSync(path) || readFileSync(path).length !== bytes.length) writeFileSync(path, bytes)
+  if (!existsSync(path) || !readFileSync(path).equals(bytes)) writeFileSync(path, bytes)
   return bytes.length
 }
 
@@ -120,7 +118,7 @@ export function ensurePlatformVideo(slug: string): PlatformVideoFiles {
   const originalKey = `platform/demos/${slug}.mp4`
   const streamKey = `platform/demos/${slug}-stream.mp4`
   const posterKey = `platform/demos/${slug}-poster.webp`
-  const mp4 = platformMp4Stub()
+  const mp4 = platformMp4()
   const webp = platformWebp()
   return {
     original: {
@@ -129,7 +127,7 @@ export function ensurePlatformVideo(slug: string): PlatformVideoFiles {
       byteSize: writeKey(originalKey, mp4),
       width: 1280,
       height: 720,
-      durationMs: 15000,
+      durationMs: 1000,
     },
     stream: {
       storageKey: streamKey,
@@ -142,8 +140,8 @@ export function ensurePlatformVideo(slug: string): PlatformVideoFiles {
       storageKey: posterKey,
       mime: 'image/webp',
       byteSize: writeKey(posterKey, webp),
-      width: 1280,
-      height: 720,
+      width: 400,
+      height: 300,
     },
   }
 }
@@ -151,7 +149,9 @@ export function ensurePlatformVideo(slug: string): PlatformVideoFiles {
 /** Assert every platform MediaAsset / MediaVariant key is readable under the storage root. */
 export function assertReadable(keys: string[]) {
   const root = storageRoot()
-  const missing = keys.filter((k) => !existsSync(join(root, k)))
+  const missing = keys.filter((k) => {
+    try { return readFileSync(join(root, k)).length === 0 } catch { return true }
+  })
   if (missing.length) {
     throw new Error(`Platform media missing on disk (${missing.length}): ${missing.slice(0, 5).join(', ')}`)
   }

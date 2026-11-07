@@ -364,7 +364,7 @@ export async function listMedia(userId: string, groupId: string, query: PageQuer
   })
   return toPage(rows, limit, (p) => ({
     id: p.media.id,
-    thumbnailUrl: thumbFor(p.media),
+    thumbnailUrl: thumbFor(p.media, { publicationId: p.id }),
     type: p.media.type,
     durationMs: p.media.durationMs,
     alt: p.media.alt ?? '',

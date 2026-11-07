@@ -4,6 +4,7 @@
 import { db, type Prisma } from '@project/db'
 import { notFound } from '../../lib/errors'
 import { mediaUrl } from '../media/urls'
+import { ownerThumb } from '../media/media.service'
 import { revisionInclude, toInstruction, toToolBinding } from '../activities/mapper'
 import { toUserSummary } from '../users/mapper'
 import { ownItem, toCalendarItems } from './calendar.service'
@@ -162,7 +163,7 @@ export async function occurrence(userId: string, itemId: string) {
     take: 30,
     include: { media: true },
   })
-  const myMedia = mine.map((a) => ({ id: a.media.id, thumbnailUrl: a.media.state === 'READY' ? mediaUrl(a.media.id) : null, type: a.media.type, durationMs: a.media.durationMs, alt: a.media.alt ?? '', canSelect: true }))
+  const myMedia = mine.map((a) => ({ id: a.media.id, thumbnailUrl: ownerThumb(a.media), type: a.media.type, durationMs: a.media.durationMs, alt: a.media.alt ?? '', canSelect: true }))
 
   // ── Shared Media: explicitly group-shared for this occurrence.
   const sharedMedia = groupId && item.groupOccurrenceKey
@@ -175,7 +176,7 @@ export async function occurrence(userId: string, itemId: string) {
         })
       ).map((p) => ({
         id: p.media.id,
-        thumbnailUrl: mediaUrl(p.media.id),
+        thumbnailUrl: mediaUrl(p.media.id, 'thumb', { publicationId: p.id }),
         type: p.media.type,
         durationMs: p.media.durationMs,
         alt: p.media.alt ?? '',
@@ -231,7 +232,7 @@ export async function occurrence(userId: string, itemId: string) {
       : []
   const communityMedia = [...featured, ...rest].map((p) => ({
     id: p.media.id,
-    thumbnailUrl: mediaUrl(p.media.id),
+    thumbnailUrl: mediaUrl(p.media.id, 'thumb', { publicationId: p.id }),
     type: p.media.type,
     durationMs: p.media.durationMs,
     alt: p.media.alt ?? '',

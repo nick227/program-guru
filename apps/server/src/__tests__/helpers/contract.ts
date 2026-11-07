@@ -365,6 +365,7 @@ export const cases: Record<string, Case> = {
   removeCompletionReaction: { as: 'bob', protected: true, request: async (w) => { const s = await w.share(); await w.ok('bob', 'POST', `/completion-shares/${s.id}/reactions`, { emoji: '👏', idempotencyKey: 'contract-reaction-2' }); return { method: 'DELETE', url: `/completion-shares/${s.id}/reactions/${encodeURIComponent('👏')}` } } },
   listGroupMedia: { as: 'bob', protected: true, request: async (w) => (await w.groupPublication(), { method: 'GET', url: `/groups/${(await w.group()).id}/media` }) },
   // ── media
+  listMediaAttachments: { as: 'alice', protected: true, request: async (w) => (await w.attachment(), { method: 'GET', url: `/media-attachments?targetKind=RESULT_ENTRY&targetId=${(await w.session()).entryId}` }) },
   listMyMedia: { as: 'alice', protected: true, request: async (w) => (await w.photo(), { method: 'GET', url: '/media/mine' }) },
   listPlatformMedia: { as: 'alice', protected: true, request: async (w) => (await w.cat(), { method: 'GET', url: '/media/platform' }) },
   createMediaUpload: { as: 'alice', protected: true, request: async () => ({ method: 'POST', url: '/media/uploads', payload: { filename: 'x.png', mime: 'image/png', sizeBytes: 100 } }) },

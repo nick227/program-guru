@@ -4361,8 +4361,7 @@ paths:
       tags:
       - media
       security: []
-      description: Signed delivery URL (from any mediaUrl in API responses). The signature authorizes the request;
-        storage keys are never exposed. Streams the file, or redirects to a short-lived storage URL.
+      description: Signed delivery URL with origin authorization rechecked on each fetch. Optional viewerId and publicationId are signature-bound; clients must use the URL unchanged. Streams both local and remote objects without cacheable redirects.
       parameters:
       - in: path
         name: mediaId
@@ -4392,6 +4391,12 @@ paths:
           type: string
           minLength: 1
           maxLength: 200
+      - in: query
+        name: viewerId
+        schema: { type: string, format: uuid }
+      - in: query
+        name: publicationId
+        schema: { type: string, format: uuid }
       - in: header
         name: range
         required: false
@@ -4413,8 +4418,6 @@ paths:
               schema:
                 type: string
                 format: binary
-        '302':
-          description: Redirect to a short-lived storage URL (R2 serves ranges itself)
         '416':
           description: Requested range not satisfiable
         '400':
@@ -4570,12 +4573,50 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /media-attachments:
+    get:
+      operationId: listMediaAttachments
+      summary: List attachment links for an owned target
+      description: Owner-only management projection, including published targets and unavailable asset status. Ordered by position then ID. Detaching from a published revision still requires an editable draft.
+      tags: [media]
+      parameters:
+      - in: query
+        name: targetKind
+        required: true
+        schema:
+          $ref: '#/components/schemas/AttachmentTargetKind'
+      - in: query
+        name: targetId
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated attachment links
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MediaAttachment'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
       operationId: createMediaAttachment
       summary: Create media attachment
       tags:
       - media
-      description: Attaching never changes who can see the asset.
+      description: Requires READY media and target ownership. No publication is created. Repeating the same media, target and purpose returns the existing attachment; a conflicting explicit position returns 409. Database uniqueness protects concurrent retries.
       requestBody:
         required: true
         content:
@@ -9185,11 +9226,17 @@ components:
       required:
       - id
       - mediaId
+      - mediaState
+      - mediaDeleted
       - target
       - purpose
       - position
       - media
       properties:
+        mediaState:
+          $ref: '#/components/schemas/MediaState'
+        mediaDeleted:
+          type: boolean
         id:
           type: string
           format: uuid

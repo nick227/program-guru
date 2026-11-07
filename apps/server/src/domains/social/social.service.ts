@@ -122,7 +122,7 @@ export async function userActivities(viewerId: string | null, handle: string, qu
 
 const publicThumb = (p: Prisma.MediaPublicationGetPayload<{ include: { media: true; publishedBy: { include: { profile: true } } } }>, likedByMe: boolean) => ({
   id: p.media.id,
-  thumbnailUrl: mediaUrl(p.media.id),
+  thumbnailUrl: mediaUrl(p.media.id, 'thumb', { publicationId: p.id }),
   type: p.media.type,
   durationMs: p.media.durationMs,
   alt: p.media.alt ?? '',

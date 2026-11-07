@@ -301,9 +301,12 @@ async function main() {
     eq((await http(carol, 'GET', `/media/${photoId}/url`)).status, 404, 'carol (not a member)')
     eq((await http(null, 'GET', `/media/${photoId}/url`)).status, 404, 'anonymous')
   })
-  await check('GROUP: a removed member loses access to new URLs', async () => {
+  await check('GROUP: a removed member loses access, including URLs issued before removal', async () => {
+    const issued = await ok(bob, 'GET', `/media/${photoId}/url`)
+    eq((await http(null, 'GET', issued.url)).status, 200, 'bob before removal')
     await ok(alice, 'DELETE', `/groups/${group.id}/members/${bob.id}`)
     eq((await http(bob, 'GET', `/media/${photoId}/url`)).status, 404, 'bob after removal')
+    eq((await http(null, 'GET', issued.url)).status, 404, 'previously issued URL after removal')
   })
 
   await check('COMMUNITY: a public contribution is hidden while pending, public once approved, gone once revoked', async () => {
@@ -314,14 +317,21 @@ async function main() {
     eq((await http(null, 'GET', `/media-publications/${pub.id}`)).status, 404, 'publication while pending')
     eq((await http(carol, 'GET', '/moderation/publications')).status, 403, 'non-moderator queue')
     await ok(mod, 'POST', `/moderation/publications/${pub.id}`, { decision: 'APPROVE' })
+    const issued: string[] = []
     for (const who of [carol, null]) {
       const url = await ok(who, 'GET', `/media/${videoId}/url`)
-      eq((await http(null, 'GET', url.url)).status, 200, `playback for ${who?.handle ?? 'anonymous'}`)
+      const res = await http(null, 'GET', url.url)
+      eq([res.status, res.headers.get('cache-control')], [200, 'private, no-store'], `playback for ${who?.handle ?? 'anonymous'}`)
+      issued.push(url.url)
     }
     const hub = await ok(null, 'GET', `/activities/${activityId}/public-media`)
     assert(hub.some((m: any) => m.publicationId === pub.id), 'missing from the Activity’s community media')
     await ok(alice, 'DELETE', `/media-publications/${pub.id}`)
     eq((await http(null, 'GET', `/media/${videoId}/url`)).status, 404, 'anonymous after revoke')
+    for (const url of issued) {
+      eq((await http(null, 'GET', url)).status, 404, 'previously issued URL after revoke')
+      eq((await http(null, 'GET', url, undefined, { range: 'bytes=0-99' })).status, 404, 'range request after revoke')
+    }
   })
 
   console.log('\nFailures, retries, cleanup')

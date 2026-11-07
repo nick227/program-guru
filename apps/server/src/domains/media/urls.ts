@@ -15,15 +15,19 @@ function expiry(now = Date.now()) {
   return (Math.floor(now / 3_600_000) + 2) * 3600
 }
 
-export function mediaUrl(mediaId: string | null | undefined, variant: MediaVariantName = 'thumb'): string | null {
+export type DeliveryContext = { viewerId?: string; publicationId?: string }
+const contextSuffix = (context: DeliveryContext) => context.viewerId || context.publicationId ? `:${context.viewerId ?? ''}:${context.publicationId ?? ''}` : ''
+
+export function mediaUrl(mediaId: string | null | undefined, variant: MediaVariantName = 'thumb', context: DeliveryContext = {}): string | null {
   if (!mediaId) return null
   const exp = expiry()
-  return `${apiBase()}/media-files/${mediaId}/${variant}?exp=${exp}&sig=${sign(`${mediaId}:${variant}:${exp}`)}`
+  const query = new URLSearchParams({ exp: String(exp), sig: sign(`${mediaId}:${variant}:${exp}${contextSuffix(context)}`), ...context })
+  return `${apiBase()}/media-files/${mediaId}/${variant}?${query}`
 }
 
-export function verifyMediaSignature(mediaId: string, variant: string, exp: number, sig: string) {
+export function verifyMediaSignature(mediaId: string, variant: string, exp: number, sig: string, context: DeliveryContext = {}) {
   if (!Number.isFinite(exp) || exp * 1000 < Date.now()) return false
-  const expected = Buffer.from(sign(`${mediaId}:${variant}:${exp}`))
+  const expected = Buffer.from(sign(`${mediaId}:${variant}:${exp}${contextSuffix(context)}`))
   const given = Buffer.from(sig)
   return expected.length === given.length && timingSafeEqual(expected, given)
 }

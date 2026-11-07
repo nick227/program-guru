@@ -1,5 +1,6 @@
 // Who may read an Activity (08-ACTIVITIES.md §6, 07-PROGRAMS.md §6).
 import { db, type Activity } from '@project/db'
+import { isBlockedEitherWay } from '../users/follow.service'
 
 export function isOwner(activity: Pick<Activity, 'creatorId'>, viewerId: string | null) {
   return !!viewerId && activity.creatorId === viewerId
@@ -22,7 +23,8 @@ export function canUseActivity(a: Activity, viewerId: string | null) {
  */
 export async function canReadRevision(viewerId: string | null, activity: Activity, revision: { id: string; publishedAt: Date | null }) {
   if (isOwner(activity, viewerId)) return true
-  if (!revision.publishedAt) return false
+  if (!revision.publishedAt || activity.moderatedAt) return false
+  if (viewerId && activity.creatorId && await isBlockedEitherWay(viewerId, activity.creatorId)) return false
   if (isOpenlyReadable(activity)) return true
   if (!viewerId) return false
   const pinned = await db.programScheduleItem.findFirst({
@@ -30,6 +32,7 @@ export async function canReadRevision(viewerId: string | null, activity: Activit
       activityRevisionId: revision.id,
       version: {
         publishedAt: { not: null },
+        program: { moderatedAt: null },
         OR: [
           { program: { creatorId: viewerId } },
           {

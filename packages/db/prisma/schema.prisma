@@ -1348,6 +1348,11 @@ model MediaAttachment {
   resultEntry ResultEntry?      @relation(fields: [resultEntryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   userProfile UserProfile?      @relation(fields: [userProfileId], references: [userId], onDelete: Restrict, onUpdate: Restrict)
 
+  @@unique([mediaId, programId, purpose])
+  @@unique([mediaId, activityRevisionId, purpose])
+  @@unique([mediaId, instructionId, purpose])
+  @@unique([mediaId, resultEntryId, purpose])
+  @@unique([mediaId, userProfileId, purpose])
   @@index([mediaId])
   @@index([programId, position])
   @@index([activityRevisionId, position])
