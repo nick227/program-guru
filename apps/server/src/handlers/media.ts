@@ -31,14 +31,16 @@ export async function updateMedia(request: any) {
 }
 export async function getMediaUrl(request: any) {
   const viewer = await resolveViewer(request)
-  return { data: await media.deliveryUrl(viewer?.id ?? null, request.params.mediaId) }
+  return { data: await media.deliveryUrl(viewer?.id ?? null, request.params.mediaId, request.query.publicationId) }
 }
 export async function getMediaFile(request: any, reply: FastifyReply) {
   const { mediaId, variant } = request.params as { mediaId: string; variant: MediaVariantName }
-  if (!verifyMediaSignature(mediaId, variant, Number(request.query.exp), request.query.sig)) throw notFound('Media')
+  const context = { ...(request.query.viewerId ? { viewerId: request.query.viewerId } : {}), ...(request.query.publicationId ? { publicationId: request.query.publicationId } : {}) }
+  if (!verifyMediaSignature(mediaId, variant, Number(request.query.exp), request.query.sig, context)) throw notFound('Media')
+  const viewer = context.viewerId ?? (await resolveViewer(request))?.id ?? null
+  await media.authorizeDelivery(viewer, mediaId, context.publicationId)
   const file = await media.fileForDelivery(mediaId, variant)
-  if ('redirect' in file) return reply.redirect(file.redirect!)
-  reply.header('cache-control', 'private, max-age=3600')
+  reply.header('cache-control', 'private, no-store')
   reply.header('x-content-type-options', 'nosniff')
   if (file.size !== null) reply.header('content-length', String(file.size))
   const stream = file.stream!
@@ -77,4 +79,8 @@ export async function listPendingPublications(request: any) {
 }
 export async function moderateMediaPublication(request: any) {
   return { data: await media.moderate(uid(request), request.params.publicationId, request.body) }
+}
+
+export async function listMediaAttachments(request: any) {
+  return media.listAttachments(uid(request), request.query)
 }

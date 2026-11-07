@@ -1,13 +1,13 @@
 // Media assets, uploads, attachments, publications (11-MEDIA.md). An asset is private to its owner;
 // attaching never changes who can see it; only an explicit publication gives it an audience.
 import type { Readable } from 'stream'
-import { db, type MediaAsset, type Prisma } from '@project/db'
+import { db, Prisma, type MediaAsset } from '@project/db'
 import { badRequest, conflict, notFound } from '../../lib/errors'
 import { enqueue } from '../../lib/outbox'
 import { offsetArgs, toOffsetPage, type PageQuery } from '../../lib/paging'
 import { isStorageMiss, storage } from '../../infrastructure/storage'
 import { canReadRevision } from '../activities/access'
-import { canSeeProgram, isProgramOwner } from '../programs/access'
+import { canSeeProgram, hasActiveGrant, isProgramOwner } from '../programs/access'
 import { isBlockedEitherWay } from '../users/follow.service'
 import { toUserSummary } from '../users/mapper'
 import { localUploadUrl, mediaUrl, uploadToken, verifyUploadToken, type MediaVariantName } from './urls'
@@ -98,30 +98,8 @@ export async function canViewMedia(viewerId: string | null, m: MediaAsset): Prom
   if (m.ownerId === null) return true // platform library, rights-cleared
   if (viewerId && m.ownerId === viewerId) return true
   if (viewerId && m.ownerId && (await isBlockedEitherWay(viewerId, m.ownerId))) return false
-  const publications = await db.mediaPublication.findMany({
-    where: { mediaId: m.id, status: 'APPROVED' },
-    include: { program: { include: { policy: true } } },
-  })
-  if (
-    publications.some(
-      (p) =>
-        p.audience === 'PUBLIC' &&
-        p.license !== null &&
-        (!p.program ||
-          (p.program.status === 'PUBLISHED' &&
-            p.program.visibility === 'PUBLIC' &&
-            !p.program.moderatedAt &&
-            (p.program.policy?.accessMode ?? 'OPEN') === 'OPEN')),
-    )
-  ) {
-    return true
-  }
-  if (viewerId) {
-    for (const p of publications.filter((x) => x.audience === 'GROUP' && x.groupId)) {
-      const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: p.groupId!, userId: viewerId } } })
-      if (member?.status === 'ACTIVE') return true
-    }
-  }
+  const publications = await db.mediaPublication.findMany({ where: { mediaId: m.id, status: 'APPROVED' }, select: { id: true } })
+  for (const publication of publications) if (await canSeePublication(viewerId, publication)) return true
   // Instructional media inside a Program the viewer may read (07 §6), covers and avatars.
   const attachments = await db.mediaAttachment.findMany({
     where: { mediaId: m.id, OR: [{ activityRevisionId: { not: null } }, { instructionId: { not: null } }, { programId: { not: null } }] },
@@ -130,22 +108,41 @@ export async function canViewMedia(viewerId: string | null, m: MediaAsset): Prom
   for (const a of attachments) {
     const rev = a.revision ?? a.instruction?.revision
     if (rev && (await canReadRevision(viewerId, rev.activity, rev))) return true
-    if (a.program && (await canSeeProgram(viewerId, a.program))) return true
+    if (a.program && await canReadProgramMedia(viewerId, a.program.id, a.purpose === 'COVER')) return true
   }
   const profile = await db.userProfile.findFirst({ where: { user: { status: 'ACTIVE' }, OR: [{ avatarMediaId: m.id }, { coverMediaId: m.id }] } })
   if (profile) return true
   const cover = await db.program.findFirst({ where: { coverMediaId: m.id } })
-  return !!cover && (await canSeeProgram(viewerId, cover))
+  return !!cover && (await canReadProgramMedia(viewerId, cover.id, true))
 }
 
-export async function deliveryUrl(viewerId: string | null, mediaId: string) {
+async function canReadProgramMedia(viewerId: string | null, programId: string, preview = false) {
+  const program = await db.program.findUnique({ where: { id: programId }, include: { policy: true } })
+  if (!program || program.moderatedAt || !(await canSeeProgram(viewerId, program))) return false
+  if (viewerId && program.creatorId && await isBlockedEitherWay(viewerId, program.creatorId)) return false
+  return preview || isProgramOwner(program, viewerId) || (program.policy?.accessMode ?? 'OPEN') === 'OPEN' || (!!viewerId && await hasActiveGrant(viewerId, programId))
+}
+
+/** Rechecked at URL issuance AND origin fetch: a signature is integrity, not a lasting grant. */
+export async function authorizeDelivery(viewerId: string | null, mediaId: string, publicationId?: string) {
+  if (viewerId && !(await db.user.findFirst({ where: { id: viewerId, status: 'ACTIVE' } }))) throw notFound('Media')
   const m = await db.mediaAsset.findUnique({ where: { id: mediaId } })
-  if (!m || !(await canViewMedia(viewerId, m))) throw notFound('Media')
+  if (!m || m.deletedAt || m.state === 'BLOCKED') throw notFound('Media')
+  if (publicationId) {
+    const publication = await db.mediaPublication.findUnique({ where: { id: publicationId } })
+    if (!publication || publication.mediaId !== mediaId || publication.status !== 'APPROVED' || !(await canSeePublication(viewerId, publication))) throw notFound('Media')
+  } else if (!(await canViewMedia(viewerId, m))) throw notFound('Media')
   if (m.state !== 'READY') throw badRequest('This media is still processing')
+  return m
+}
+
+export async function deliveryUrl(viewerId: string | null, mediaId: string, publicationId?: string) {
+  const m = await authorizeDelivery(viewerId, mediaId, publicationId)
+  const context = { ...(viewerId ? { viewerId } : {}), ...(publicationId ? { publicationId } : {}) }
   const variant: MediaVariantName = m.type === 'VIDEO' ? 'stream' : 'original'
   return {
-    url: mediaUrl(m.id, variant)!,
-    posterUrl: m.type === 'VIDEO' ? mediaUrl(m.id, 'poster') : null,
+    url: mediaUrl(m.id, variant, context)!,
+    posterUrl: m.type === 'VIDEO' ? mediaUrl(m.id, 'poster', context) : null,
     mime: m.type === 'VIDEO' ? 'video/mp4' : m.mime,
     expiresAt: new Date((Math.floor(Date.now() / 3_600_000) + 2) * 3_600_000).toISOString(),
   }
@@ -162,8 +159,7 @@ export async function fileForDelivery(mediaId: string, variant: MediaVariantName
   const fallback = m.ownerId === null ? { storageKey: m.originalStorageKey, mime: m.mime } : null
   const file = wanted ? { storageKey: wanted.storageKey, mime: wanted.mime } : fallback
   if (!file) throw notFound('Media')
-  const redirect = await storage().presignGet(file.storageKey, 300)
-  if (redirect) return { redirect }
+  // Proxy both providers: a storage redirect would bypass subsequent revocation checks.
   // Size then open before returning a stream: missing keys must 404. Never return a ReadStream that
   // emits ENOENT later — that raced Fastify's listener and crashed the API process.
   let size: number | null
@@ -305,11 +301,11 @@ export async function remove(userId: string, mediaId: string) {
 type TargetKind = 'PROGRAM' | 'ACTIVITY_REVISION' | 'INSTRUCTION' | 'RESULT_ENTRY' | 'PROFILE'
 
 /** Only the owner of the target may attach, and only to editable drafts of their content. */
-async function assertTargetOwner(userId: string, kind: TargetKind, id: string) {
+async function assertTargetOwner(userId: string, kind: TargetKind, id: string, editable = true) {
   const draftRevisionOwned = async (revisionId: string) => {
     const rev = await db.activityRevision.findUnique({ where: { id: revisionId }, include: { activity: true } })
     if (!rev || rev.activity.creatorId !== userId) throw notFound('Target')
-    if (rev.publishedAt) throw badRequest('Edit the draft to change its media', { target: 'is published' })
+    if (editable && rev.publishedAt) throw badRequest('Edit the draft to change its media', { target: 'is published' })
   }
   switch (kind) {
     case 'PROGRAM': {
@@ -342,10 +338,12 @@ const toAttachment = (a: Prisma.MediaAttachmentGetPayload<{ include: { media: tr
   return {
     id: a.id,
     mediaId: a.mediaId,
+    mediaState: a.media.state,
+    mediaDeleted: !!a.media.deletedAt,
     target: { kind, id: (a.programId ?? a.activityRevisionId ?? a.instructionId ?? a.resultEntryId ?? a.userProfileId)! },
     purpose: a.purpose,
     position: a.position,
-    media: { id: a.media.id, thumbnailUrl: thumbFor(a.media), type: a.media.type, durationMs: a.media.durationMs, alt: a.media.alt ?? '', canSelect: true },
+    media: { id: a.media.id, thumbnailUrl: a.media.deletedAt ? null : thumbFor(a.media), type: a.media.type, durationMs: a.media.durationMs, alt: a.media.alt ?? '', canSelect: a.media.state === 'READY' && !a.media.deletedAt },
   }
 }
 
@@ -353,11 +351,32 @@ export async function attach(userId: string, input: { mediaId: string; target: {
   const m = await db.mediaAsset.findUnique({ where: { id: input.mediaId } })
   // Your own assets or the rights-cleared platform library (11 §3).
   if (!m || m.deletedAt || (m.ownerId !== null && m.ownerId !== userId)) throw badRequest('Choose one of your files or a platform image', { mediaId: 'not available' })
-  if (m.state !== 'READY' && m.state !== 'PROCESSING') throw badRequest('That file is not ready', { mediaId: 'not ready' })
+  if (m.state !== 'READY') throw badRequest('That file is not ready', { mediaId: 'not ready' })
   const target = await assertTargetOwner(userId, input.target.kind, input.target.id)
+  const where = { mediaId: m.id, purpose: input.purpose, ...target }
+  const replay = (a: Prisma.MediaAttachmentGetPayload<{ include: { media: true } }>) => {
+    if (input.position !== undefined && input.position !== a.position) throw conflict('This media is already attached at a different position')
+    return toAttachment(a)
+  }
+  const existing = await db.mediaAttachment.findFirst({ where, include: { media: true } })
+  if (existing) return replay(existing)
   const position = input.position ?? (await db.mediaAttachment.count({ where: target }))
-  const a = await db.mediaAttachment.create({ data: { mediaId: m.id, purpose: input.purpose, position, ...target }, include: { media: true } })
-  return toAttachment(a)
+  try {
+    return toAttachment(await db.mediaAttachment.create({ data: { ...where, position }, include: { media: true } }))
+  } catch (error) {
+    // The unique indexes, not this preflight lookup, arbitrate concurrent requests.
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error
+    const winner = await db.mediaAttachment.findFirstOrThrow({ where, include: { media: true } })
+    return replay(winner)
+  }
+}
+
+/** Management projection: ownership is checked before reading links, including empty lists. */
+export async function listAttachments(userId: string, query: PageQuery & { targetKind: TargetKind; targetId: string }) {
+  const target = await assertTargetOwner(userId, query.targetKind, query.targetId, false)
+  const { limit, skip, take } = offsetArgs(query)
+  const rows = await db.mediaAttachment.findMany({ where: target, include: { media: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }], skip, take })
+  return toOffsetPage(rows, limit, skip, toAttachment)
 }
 
 export async function detach(userId: string, attachmentId: string) {
@@ -391,7 +410,7 @@ export async function toPublication(viewerId: string | null, p: PublicationRow) 
     commentCount: p.commentCount,
     likedByMe: liked,
     creator: p.publishedBy.profile ? toUserSummary(p.publishedBy.profile) : null,
-    media: { id: p.media.id, thumbnailUrl: thumbFor(p.media), type: p.media.type, durationMs: p.media.durationMs, alt: p.media.alt ?? '', canSelect: false },
+    media: { id: p.media.id, thumbnailUrl: p.media.state === 'READY' ? mediaUrl(p.media.id, 'thumb', { publicationId: p.id }) : null, type: p.media.type, durationMs: p.media.durationMs, alt: p.media.alt ?? '', canSelect: false },
   }
 }
 
@@ -461,14 +480,25 @@ export async function getPublication(viewerId: string | null, publicationId: str
   return toPublication(viewerId, p)
 }
 
-export async function canSeePublication(viewerId: string | null, p: { publishedById: string; status: string; audience: string; groupId: string | null; media: { deletedAt: Date | null } }) {
-  if (p.media.deletedAt) return false
-  if (viewerId === p.publishedById) return p.status !== 'REVOKED'
-  if (p.status !== 'APPROVED') return false
-  if (p.audience === 'PUBLIC') return true
-  if (!viewerId || !p.groupId) return false
-  const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: p.groupId, userId: viewerId } } })
-  return member?.status === 'ACTIVE'
+export async function canSeePublication(viewerId: string | null, reference: { id: string }) {
+  const p = await db.mediaPublication.findUnique({ where: { id: reference.id }, include: {
+    media: true, publishedBy: true, activity: true, program: { include: { policy: true } },
+    group: { include: { version: true } },
+  } })
+  if (!p || p.media.deletedAt || p.media.state !== 'READY' || p.status === 'REVOKED' || p.publishedBy.status !== 'ACTIVE') return false
+  if (viewerId && await isBlockedEitherWay(viewerId, p.publishedById)) return false
+  if (p.media.ownerId && viewerId && await isBlockedEitherWay(viewerId, p.media.ownerId)) return false
+  if (p.activity && (p.activity.moderatedAt || p.activity.status !== 'PUBLISHED' || p.activity.visibility === 'PRIVATE')) return false
+  if (p.program && !(await canReadProgramMedia(viewerId, p.program.id))) return false
+  if (p.audience === 'GROUP') {
+    if (!viewerId || !p.group || p.group.status !== 'ACTIVE') return false
+    if (!(await canReadProgramMedia(viewerId, p.group.version.programId))) return false
+    const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: p.group.id, userId: viewerId } } })
+    return p.status === 'APPROVED' && member?.status === 'ACTIVE'
+  }
+  if (viewerId === p.publishedById && p.status !== 'APPROVED') return true // review status, never delivery
+  if (p.program && (p.program.visibility !== 'PUBLIC' || p.program.status !== 'PUBLISHED' || (p.program.policy?.accessMode ?? 'OPEN') !== 'OPEN')) return false
+  return p.status === 'APPROVED' && !!p.license
 }
 
 export async function listPending(query: PageQuery) {

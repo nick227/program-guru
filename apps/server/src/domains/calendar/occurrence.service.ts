@@ -175,7 +175,7 @@ export async function occurrence(userId: string, itemId: string) {
         })
       ).map((p) => ({
         id: p.media.id,
-        thumbnailUrl: mediaUrl(p.media.id),
+        thumbnailUrl: mediaUrl(p.media.id, 'thumb', { publicationId: p.id }),
         type: p.media.type,
         durationMs: p.media.durationMs,
         alt: p.media.alt ?? '',
@@ -231,7 +231,7 @@ export async function occurrence(userId: string, itemId: string) {
       : []
   const communityMedia = [...featured, ...rest].map((p) => ({
     id: p.media.id,
-    thumbnailUrl: mediaUrl(p.media.id),
+    thumbnailUrl: mediaUrl(p.media.id, 'thumb', { publicationId: p.id }),
     type: p.media.type,
     durationMs: p.media.durationMs,
     alt: p.media.alt ?? '',
