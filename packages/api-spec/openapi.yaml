@@ -479,7 +479,8 @@ paths:
         required: true
         schema:
           type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,29}$
+          description: Case-insensitive; stored and returned in lowercase.
       responses:
         '200':
           description: Success
@@ -3529,7 +3530,8 @@ paths:
         required: true
         schema:
           type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,29}$
+          description: Case-insensitive; stored and returned in lowercase.
       responses:
         '200':
           description: Success
@@ -4695,7 +4697,8 @@ paths:
         required: true
         schema:
           type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,29}$
+          description: Case-insensitive; stored and returned in lowercase.
       - $ref: '#/components/parameters/Cursor'
       - $ref: '#/components/parameters/Limit'
       responses:
@@ -4732,7 +4735,8 @@ paths:
         required: true
         schema:
           type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,29}$
+          description: Case-insensitive; stored and returned in lowercase.
       - $ref: '#/components/parameters/Cursor'
       - $ref: '#/components/parameters/Limit'
       responses:
@@ -4769,7 +4773,8 @@ paths:
         required: true
         schema:
           type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,29}$
+          description: Case-insensitive; stored and returned in lowercase.
       - $ref: '#/components/parameters/Cursor'
       - $ref: '#/components/parameters/Limit'
       responses:
@@ -6032,7 +6037,8 @@ components:
           maxLength: 200
         handle:
           type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,29}$
+          description: Case-insensitive; stored and returned in lowercase.
         displayName:
           type: string
           minLength: 1
@@ -6066,7 +6072,8 @@ components:
           maxLength: 4096
         handle:
           type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,29}$
+          description: Case-insensitive; stored and returned in lowercase.
         timezone:
           type: string
           maxLength: 64
@@ -6110,7 +6117,8 @@ components:
       properties:
         handle:
           type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,29}$
+          description: Case-insensitive; stored and returned in lowercase.
         displayName:
           type: string
           minLength: 1
@@ -8754,7 +8762,8 @@ components:
           $ref: '#/components/schemas/InviteKind'
         handle:
           type: string
-          pattern: ^[a-z0-9][a-z0-9._-]{2,29}$
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,29}$
+          description: Case-insensitive; stored and returned in lowercase.
         email:
           type: string
           format: email

@@ -2449,6 +2449,7 @@ export interface components {
             /** Format: email */
             email: string;
             password: string;
+            /** @description Case-insensitive; stored and returned in lowercase. */
             handle: string;
             displayName: string;
             timezone?: string;
@@ -2460,6 +2461,7 @@ export interface components {
         };
         GoogleLoginInput: {
             idToken: string;
+            /** @description Case-insensitive; stored and returned in lowercase. */
             handle?: string;
             timezone?: string;
         };
@@ -2475,6 +2477,7 @@ export interface components {
             password: string;
         };
         UpdateProfileInput: {
+            /** @description Case-insensitive; stored and returned in lowercase. */
             handle?: string;
             displayName?: string;
             bio?: string | null;
@@ -3393,6 +3396,7 @@ export interface components {
         };
         InviteToGroupInput: {
             kind: components["schemas"]["InviteKind"];
+            /** @description Case-insensitive; stored and returned in lowercase. */
             handle?: string;
             /** Format: email */
             email?: string;
