@@ -332,3 +332,9 @@ describe('revokeMediaPublication', () => {
     await contractCase(app, 'revokeMediaPublication')
   })
 })
+
+describe('listMediaAttachments', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listMediaAttachments')
+  })
+})
