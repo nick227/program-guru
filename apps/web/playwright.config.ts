@@ -15,7 +15,8 @@ export default defineConfig({
   webServer: {
     command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    // Never reuse another worktree's Vite on the same port (e.g. main on 5173).
+    reuseExistingServer: process.env.E2E_REUSE === '1',
   },
   projects: process.env.E2E_MEDIA_LIVE
     ? [
