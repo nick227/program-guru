@@ -48,7 +48,9 @@ Occurrence key is stable across members, not a user's Calendar Item ID: `program
 
 When enrollment is needed, membership, entitlement, enrollment and calendar items are created in **one transaction** after the participant confirmed the schedule: a validation or scheduling failure leaves no membership, enrollment, or calendar items behind. Calendar items are never created without that confirmation.
 
-**Leaving and removal** take effect on the next request: group views, completions, reactions, shared media, comments and signed URLs stop. The member's enrollment is unlinked (its group occurrence keys cleared) and their completion shares to the group are revoked; their calendar, sessions, results and media are untouched. Pending invitations the departing member created are revoked. Removal also revokes pending invitations addressed to the removed user; a removed member cannot rejoin through a join link, and only the group owner can invite them again.
+**Late joiners.** A same-start-date (SYNC) group keeps the Program's original schedule for everyone: a participant who joins after the start date gets the same calendar dates and Program Days as the group. Activities dated before they joined are `NOT_PARTICIPATING` (`09-CALENDARS.md` §4.11): shown as Not Participating, never Missed, and excluded from their completion and adherence. In other members' Collaborators row such an occurrence reads `NOT_PARTICIPATING` and is left out of `finished of total`.
+
+**Leaving and removal** take effect on the next request: group views, completions, reactions, shared media, comments and signed URLs stop. The member's enrollment is unlinked (its group occurrence keys cleared) and their completion shares to the group are revoked; their calendar, sessions, results and media are untouched. Media they shared to the group stays visible to remaining members unless they withdraw it (`DELETE /media-publications/:id`, allowed after leaving), delete the asset, or it is moderated. Pending invitations the departing member created are revoked. Removal also revokes pending invitations addressed to the removed user; a removed member cannot rejoin through a join link, and only the group owner can invite them again.
 
 **Completion:** participant finishes one Activity occurrence → personal result saved → service checks `sharedCompletionEnabled` and active membership → creates a minimal `CompletionShare` for that occurrence (activity, program day, status only) → members can react. Each Activity occurrence shares separately; there is no whole-day share. Turning sharing off or undoing the completion sets `revokedAt`, which hides it; this never changes the member's personal log.
 
@@ -122,6 +124,8 @@ Endpoints: `GET|POST /groups`, `GET|PATCH /groups/:id` (includes members), `PATC
 - `SYNC` and `ASYNC` have correct day labels when start dates differ.
 - Membership removed: group media, comments, and signed URLs return no unauthorized data.
 - Handle, email, and link invitations: single-use where specified, expiry, revoke, decline, duplicate pending invitations refused, blocked user, no enrollment access bypass.
+- Late joiner in a SYNC group: original dates kept, pre-join items NOT_PARTICIPATING and excluded from progress, completion rate and group counts; catch-up and undo behave as specified.
+- After leaving: completion shares withdrawn, shared media retained for members until withdrawn by its owner.
 - Accept → enrollment → personal calendar in one step; an existing enrollment links without calendar changes; enrollment or schedule failure leaves no membership; removed members cannot rejoin by link.
 - Reaction and comment auth, idempotency, moderation/rate limits; undoing a completion hides its share.
 - Solo Activity page never displays empty collaborator/Shared Media placeholders.

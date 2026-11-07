@@ -2478,8 +2478,11 @@ export interface components {
         MetricAggregation: "SUM" | "MAX" | "MIN" | "AVERAGE" | "LAST" | "COUNT" | "NONE";
         /** @enum {string} */
         MetricDirection: "HIGHER" | "LOWER" | "TARGET" | "NONE";
-        /** @enum {string} */
-        CalendarItemStatus: "PLANNED" | "SKIPPED" | "CANCELLED" | "DONE";
+        /**
+         * @description NOT_PARTICIPATING marks items dated before the participant joined (show "Not participating", never "Missed"). Set by the server only.
+         * @enum {string}
+         */
+        CalendarItemStatus: "PLANNED" | "SKIPPED" | "CANCELLED" | "DONE" | "NOT_PARTICIPATING";
         /** @enum {string} */
         SessionStatus: "READY" | "ACTIVE" | "PAUSED" | "FINISHED" | "ABANDONED";
         /** @enum {string} */
@@ -2500,8 +2503,11 @@ export interface components {
         InviteKind: "USER" | "EMAIL" | "LINK";
         /** @enum {string} */
         InviteStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "REVOKED" | "EXPIRED";
-        /** @enum {string} */
-        MemberDayStatus: "DONE" | "PENDING" | "UNKNOWN";
+        /**
+         * @description NOT_PARTICIPATING when the occurrence is dated before that member joined; excluded from finishedCount and totalCount.
+         * @enum {string}
+         */
+        MemberDayStatus: "DONE" | "PENDING" | "UNKNOWN" | "NOT_PARTICIPATING";
         /** @enum {string} */
         MediaType: "PHOTO" | "VIDEO" | "AUDIO";
         /** @enum {string} */
@@ -3145,6 +3151,11 @@ export interface components {
             timezone: string;
             status: components["schemas"]["EnrollmentStatus"];
             calendarItemCount: number;
+            /**
+             * Format: date
+             * @description Local date the participant enrolled; earlier items are NOT_PARTICIPATING and excluded from progress. Null for enrollments created before this was recorded.
+             */
+            participationStartDate: string | null;
         };
         PreviewEnrollmentInput: {
             /** Format: uuid */

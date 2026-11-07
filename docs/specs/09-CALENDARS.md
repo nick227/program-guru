@@ -54,6 +54,7 @@ State transitions use CAS/`expectedRevision` and server times for accurate durat
 8. **Personal recurrences** use the same horizon, with `idempotencyKey` `recurrenceId:localDate`. `This one` edits one row. `This and future` ends the recurrence at that date, cancels future non-adjusted PLANNED rows, and for an edit starts a new recurrence. Past results are never touched.
 9. **Conflicts:** overlap is allowed. Timed items sharing a local time get `conflict:true` in the API, computed at read time. `POST /calendar-items/:id/move-to-open-slot` moves one to the next open slot that day, or the next day.
 10. **Accepting a Program update** replaces future non-adjusted PLANNED items and leaves DONE, adjusted, and past items alone.
+11. **Dates before joining.** Each enrollment records `participationStartDate`, the participant's local date when they enrolled. Items generated for earlier dates (a late joiner in a same-start-date group, or a start date chosen in the past) are `NOT_PARTICIPATING`: shown as Not Participating, never Missed, and never reminded. The participant may still log one as a catch-up (it becomes DONE; undo returns it to NOT_PARTICIPATING). Moving one to a date on or after `participationStartDate` makes it PLANNED. Clients cannot set NOT_PARTICIPATING. Completion and adherence (Program progress milestones, Program completion rate, group finished counts) exclude every date before `participationStartDate`, whatever the item's status.
 
 ### Date/time corner cases
 

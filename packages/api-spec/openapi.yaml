@@ -6045,11 +6045,14 @@ components:
       - NONE
     CalendarItemStatus:
       type: string
+      description: NOT_PARTICIPATING marks items dated before the participant joined (show "Not participating",
+        never "Missed"). Set by the server only.
       enum:
       - PLANNED
       - SKIPPED
       - CANCELLED
       - DONE
+      - NOT_PARTICIPATING
     SessionStatus:
       type: string
       enum:
@@ -6116,10 +6119,13 @@ components:
       - EXPIRED
     MemberDayStatus:
       type: string
+      description: NOT_PARTICIPATING when the occurrence is dated before that member joined; excluded from
+        finishedCount and totalCount.
       enum:
       - DONE
       - PENDING
       - UNKNOWN
+      - NOT_PARTICIPATING
     MediaType:
       type: string
       enum:
@@ -8006,6 +8012,7 @@ components:
       - timezone
       - status
       - calendarItemCount
+      - participationStartDate
       properties:
         id:
           type: string
@@ -8035,6 +8042,13 @@ components:
           $ref: '#/components/schemas/EnrollmentStatus'
         calendarItemCount:
           type: integer
+        participationStartDate:
+          description: Local date the participant enrolled; earlier items are NOT_PARTICIPATING and excluded from
+            progress. Null for enrollments created before this was recorded.
+          type:
+          - string
+          - 'null'
+          format: date
     PreviewEnrollmentInput:
       type: object
       required:
