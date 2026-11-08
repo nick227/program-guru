@@ -1,0 +1,72 @@
+/* Category Semantic Tokens & Theme Overrides */
+:root {
+  /* Category: Fitness (Strength, Cardio, Mobility, Endurance) */
+  --cat-fitness: 160 84% 36%;
+  --cat-fitness-fg: 160 90% 96%;
+  --cat-fitness-bg: 160 84% 36% / 0.12;
+  --cat-fitness-border: 160 84% 36% / 0.35;
+
+  /* Category: Wellness (Mindfulness, Breathwork, Yoga, Sleep, Habits) */
+  --cat-wellness: 152 68% 40%;
+  --cat-wellness-fg: 152 90% 96%;
+  --cat-wellness-bg: 152 68% 40% / 0.12;
+  --cat-wellness-border: 152 68% 40% / 0.35;
+
+  /* Category: Education & Skills (Language, Reading, Practice, Career) */
+  --cat-education: 262 80% 58%;
+  --cat-education-fg: 262 90% 97%;
+  --cat-education-bg: 262 80% 58% / 0.14;
+  --cat-education-border: 262 80% 58% / 0.38;
+
+  /* Category: Finance (Budget, Spending, Planning, Investing) */
+  --cat-finance: 38 92% 48%;
+  --cat-finance-fg: 38 90% 96%;
+  --cat-finance-bg: 38 92% 48% / 0.14;
+  --cat-finance-border: 38 92% 48% / 0.38;
+
+  /* Category: Relationships & Community (Social, Mentorship, Team) */
+  --cat-relationships: 340 78% 54%;
+  --cat-relationships-fg: 340 90% 97%;
+  --cat-relationships-bg: 340 78% 54% / 0.13;
+  --cat-relationships-border: 340 78% 54% / 0.36;
+
+  /* Category: Custom & Creative (Music, Art, Focus Blocks) */
+  --cat-custom: 199 89% 46%;
+  --cat-custom-fg: 199 90% 97%;
+  --cat-custom-bg: 199 89% 46% / 0.13;
+  --cat-custom-border: 199 89% 46% / 0.36;
+}
+
+.dark {
+  /* Dark mode category contrast enhancements */
+  --cat-fitness: 156 65% 52%;
+  --cat-fitness-fg: 156 90% 96%;
+  --cat-fitness-bg: 156 65% 52% / 0.16;
+  --cat-fitness-border: 156 65% 52% / 0.42;
+
+  --cat-wellness: 145 60% 52%;
+  --cat-wellness-fg: 145 90% 96%;
+  --cat-wellness-bg: 145 60% 52% / 0.16;
+  --cat-wellness-border: 145 60% 52% / 0.42;
+
+  --cat-education: 265 85% 68%;
+  --cat-education-fg: 265 95% 97%;
+  --cat-education-bg: 265 85% 68% / 0.18;
+  --cat-education-border: 265 85% 68% / 0.45;
+
+  --cat-finance: 38 90% 55%;
+  --cat-finance-fg: 38 95% 96%;
+  --cat-finance-bg: 38 90% 55% / 0.16;
+  --cat-finance-border: 38 90% 55% / 0.42;
+
+  --cat-relationships: 340 82% 64%;
+  --cat-relationships-fg: 340 95% 97%;
+  --cat-relationships-bg: 340 82% 64% / 0.16;
+  --cat-relationships-border: 340 82% 64% / 0.42;
+
+  --cat-custom: 199 89% 58%;
+  --cat-custom-fg: 199 95% 97%;
+  --cat-custom-bg: 199 89% 58% / 0.16;
+  --cat-custom-border: 199 89% 58% / 0.42;
+}
+
