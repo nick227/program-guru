@@ -5,7 +5,7 @@ import type { AddressInfo } from 'net'
 import { db } from '@project/db'
 import { buildTestApp, seedUser, validateResponse, testUserId as alice, testOtherUserId as bob } from './helpers'
 import { seedAchievements, seedCatalog } from './helpers/fixtures'
-import { addDays, todayIn, toDbDate } from '../lib/time'
+import { addDays, localToUtc, todayIn, toDbDate } from '../lib/time'
 import { programStats } from '../worker/jobs'
 
 const app = buildTestApp()
@@ -163,9 +163,14 @@ describe('historical completion calculations exclude pre-join dates', () => {
     for (const i of alicePast.slice(0, 5)) await finish(alice, i.id)
     await finish(bob, (await itemOn(bob, 0)).id) // a catch-up does not count either
     await finish(bob, (await itemOn(bob, 1)).id)
-    await programStats()
-    const stat = await db.programStat.findUniqueOrThrow({ where: { programId } })
-    expect(Number(stat.completionRate)).toBeCloseTo(0.5)
+    // Item dates are local: the result is the same at local noon and late evening, when UTC is already tomorrow.
+    for (const time of ['12:00', '23:30']) {
+      const now = localToUtc(today(), time, TZ)
+      if (time === '23:30') expect(now.toISOString().slice(0, 10)).not.toBe(today())
+      await programStats(now)
+      const stat = await db.programStat.findUniqueOrThrow({ where: { programId } })
+      expect(Number(stat.completionRate), `at ${time} ${TZ}`).toBeCloseTo(0.5)
+    }
   })
 })
 
