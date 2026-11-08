@@ -14,29 +14,26 @@ export async function journey(
   credentials: { author: [string, string]; participant: [string, string] },
 ) {
   await login(page, ...credentials.author)
-  await page.getByRole('link', { name: 'Program', exact: true }).click()
+  await page.getByRole('link', { name: 'Add Program', exact: true }).click()
   await expect(
-    page.getByRole('heading', { name: 'Find your next Program' }),
+    page.getByRole('heading', { name: 'Add a Program', exact: true }),
   ).toBeVisible()
-  // A real library must have at least one Program before we begin authoring.
+  await page.getByRole('button', { name: /Workout/ }).click()
+  const title = `Browser strength ${Date.now()}`
+  await page.getByLabel('Program name').fill(title)
+  await page.getByRole('button', { name: 'Create Program', exact: true }).click()
   await expect(
-    page
-      .locator('a[href^="/programs/"]')
-      .filter({ has: page.locator('h2') })
-      .first(),
+    page.getByRole('heading', { name: 'Activities', exact: true }),
   ).toBeVisible()
-  await page.getByRole('link', { name: 'Create Program', exact: true }).click()
-  await page.getByRole('button', { name: 'Workout', exact: true }).click()
-  await page.getByRole('button', { name: 'Strength', exact: true }).click()
+  await page.getByRole('link', { name: 'Add Activity', exact: true }).click()
   await page.getByText('Browse suggestions to customize').click()
+  await page.getByLabel('Search Activities').fill('Squats')
   // Title is the accessible-name prefix; avoid matching "Chair Squats".
   await page.getByRole('button', { name: /^Squats/ }).click()
   await page.getByRole('button', { name: 'Use 1 selected Activity' }).click()
   await expect(
     page.getByRole('heading', { name: 'Activities', exact: true }),
   ).toBeVisible()
-  const title = `Browser strength ${Date.now()}`
-  await page.getByLabel('Program name').fill(title)
   await expect(
     page.getByRole('status').filter({ hasText: /^Saved$/ }),
   ).toBeVisible()

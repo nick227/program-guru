@@ -722,6 +722,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/resolve-slug": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve friendly slug or legacy UUID to canonical content */
+        get: operations["resolveSlug"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/programs": {
         parameters: {
             query?: never;
@@ -2798,6 +2815,8 @@ export interface components {
             status: components["schemas"]["ActivityStatus"];
             isCopy: boolean;
             isPlatform: boolean;
+            slug?: string | null;
+            canonicalUrl?: string | null;
         };
         ActivityMetricBinding: {
             /** Format: uuid */
@@ -2852,6 +2871,8 @@ export interface components {
             status: components["schemas"]["ActivityStatus"];
             isCopy: boolean;
             isPlatform: boolean;
+            slug?: string | null;
+            canonicalUrl?: string | null;
             instructions: components["schemas"]["Instruction"][];
             media: components["schemas"]["MediaThumb"][];
             metrics: components["schemas"]["ActivityMetricBinding"][];
@@ -2961,6 +2982,18 @@ export interface components {
             prices: components["schemas"]["ProgramPrice"][];
             viewerAccess: components["schemas"]["ViewerAccess"];
             isPlatform: boolean;
+            slug?: string | null;
+            canonicalUrl?: string | null;
+        };
+        SlugResolution: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "PROGRAM" | "ACTIVITY";
+            canonicalSlug: string | null;
+            creatorHandle: string | null;
+            isAlias: boolean;
+            canonicalUrl: string;
         };
         ProgramActivityRow: {
             /** Format: uuid */
@@ -2992,6 +3025,8 @@ export interface components {
             prices: components["schemas"]["ProgramPrice"][];
             viewerAccess: components["schemas"]["ViewerAccess"];
             isPlatform: boolean;
+            slug?: string | null;
+            canonicalUrl?: string | null;
             status: components["schemas"]["ProgramStatus"];
             frequency: components["schemas"]["Frequency"] | null;
             generationMode: components["schemas"]["GenerationMode"];
@@ -3029,6 +3064,8 @@ export interface components {
             prices: components["schemas"]["ProgramPrice"][];
             viewerAccess: components["schemas"]["ViewerAccess"];
             isPlatform: boolean;
+            slug?: string | null;
+            canonicalUrl?: string | null;
             description: string | null;
             /** Format: uuid */
             latestVersionId: string | null;
@@ -5335,6 +5372,34 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    resolveSlug: {
+        parameters: {
+            query: {
+                kind: "PROGRAM" | "ACTIVITY";
+                slugOrId: string;
+                creatorHandle?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resolved slug */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SlugResolution"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };

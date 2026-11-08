@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { safeReturn } from '@/lib/dates'
+import { useDocumentTitle } from '@/lib/title'
 export function MediaStudioPage() {
+  useDocumentTitle('Media Library')
   const [params] = useSearchParams()
   const [item, setItem] = useState<components['schemas']['MediaAsset'] | null>(
     null,

@@ -18,6 +18,7 @@ import { Form } from '@/components/ui/Form'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { safeReturn } from '@/lib/dates'
+import { useDocumentTitle } from '@/lib/title'
 
 const fieldErrors = (error: unknown) => (error instanceof ApiError ? error.fieldErrors : undefined)
 const browserTimezone = () => {
@@ -53,6 +54,7 @@ const registerSchema = z.object({
 })
 
 export function RegisterPage() {
+  useDocumentTitle('Create account')
   const register = useRegister()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -110,6 +112,7 @@ function ResendVerification() {
 
 /** /verify-email?token=… consumes the emailed link; without a token it shows the verification-required state. */
 export function VerifyEmailPage() {
+  useDocumentTitle('Verify email')
   const [params] = useSearchParams()
   const token = params.get('token')
   const returnTo = safeReturn(params.get('returnTo'))
@@ -224,6 +227,7 @@ export function VerifyEmailPage() {
 const forgotSchema = z.object({ email: z.string().email('Enter a valid email') })
 
 export function ForgotPasswordPage() {
+  useDocumentTitle('Forgot password')
   const forgot = useForgotPassword()
   const [sentTo, setSentTo] = useState<string | null>(null)
   return (
@@ -271,6 +275,7 @@ const resetSchema = z
   .refine((v) => v.password === v.confirm, { path: ['confirm'], message: 'Passwords do not match' })
 
 export function ResetPasswordPage() {
+  useDocumentTitle('Reset password')
   const [params] = useSearchParams()
   const token = params.get('token')
   const reset = useResetPassword()

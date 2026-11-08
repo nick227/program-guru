@@ -17,6 +17,7 @@ import {
   getNotificationMeta,
   type NotificationCategory,
 } from '@/lib/notifications'
+import { useDocumentTitle } from '@/lib/title'
 
 const FILTERS: { id: NotificationCategory; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -29,6 +30,7 @@ const FILTERS: { id: NotificationCategory; label: string }[] = [
 ]
 
 export function NotificationsPage() {
+  useDocumentTitle('Notifications')
   const me = useCurrentUser()
   const list = useNotifications()
   const unread = useUnreadNotificationCount()

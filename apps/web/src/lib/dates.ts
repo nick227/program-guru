@@ -22,6 +22,29 @@ export function addDays(date: string, days: number) {
   d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
 }
+export function addMonths(date: string, months: number) {
+  const source = new Date(`${date}T12:00:00Z`)
+  const day = source.getUTCDate()
+  source.setUTCDate(1)
+  source.setUTCMonth(source.getUTCMonth() + months)
+  const lastDay = new Date(
+    Date.UTC(source.getUTCFullYear(), source.getUTCMonth() + 1, 0),
+  ).getUTCDate()
+  source.setUTCDate(Math.min(day, lastDay))
+  return source.toISOString().slice(0, 10)
+}
+export function monthBounds(date: string) {
+  const year = Number(date.slice(0, 4))
+  const month = Number(date.slice(5, 7))
+  const start = `${date.slice(0, 7)}-01`
+  const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10)
+  return { start, end }
+}
+export function monthGrid(date: string) {
+  const { start } = monthBounds(date)
+  const firstWeek = weekOf(start)
+  return Array.from({ length: 42 }, (_, index) => addDays(firstWeek, index))
+}
 export function weekOf(date: string) {
   const day = new Date(`${date}T12:00:00Z`).getUTCDay()
   return addDays(date, -((day + 6) % 7))

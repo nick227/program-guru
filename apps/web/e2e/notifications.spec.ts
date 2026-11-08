@@ -403,6 +403,17 @@ async function setupNotificationsMock(
       } satisfies S['ActivityOccurrence'])
     }
 
+    if (path === '/resolve-slug') {
+      return send({
+        id: programId,
+        kind: 'PROGRAM',
+        canonicalSlug: null,
+        creatorHandle: null,
+        isAlias: false,
+        canonicalUrl: `/programs/${programId}`,
+      } satisfies S['SlugResolution'])
+    }
+
     if (path === `/programs/${programId}`) {
       return send({
         ...programSummary,

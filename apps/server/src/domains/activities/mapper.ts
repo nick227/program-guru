@@ -108,6 +108,8 @@ export function toActivitySummary(a: ActivityWithCreator, rev: RevisionFull | nu
     status: a.status,
     isCopy: a.sourceActivityId !== null,
     isPlatform: a.creatorId === null,
+    slug: a.slug ?? null,
+    canonicalUrl: a.slug ? `/activities/${a.slug}` : `/activities/${a.id}`,
   }
 }
 

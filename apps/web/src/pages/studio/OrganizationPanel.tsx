@@ -3,6 +3,7 @@ import { useMyPrograms } from '@project/sdk'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { linkButton } from '@/components/Navigation'
+import { buildProgramUrl } from '@/lib/urls'
 
 /** Catalog preview until Featured/Collection APIs exist — no local fake featured order. */
 export function OrganizationPanel() {
@@ -34,7 +35,7 @@ export function OrganizationPanel() {
           {rows.slice(0, 6).map((program) => (
             <Row key={program.id} className="justify-between">
               <span className="truncate font-medium">{program.title}</span>
-              <Link to={`/programs/${program.id}`} className={linkButton}>
+              <Link to={buildProgramUrl(program)} className={linkButton}>
                 Preview
               </Link>
             </Row>

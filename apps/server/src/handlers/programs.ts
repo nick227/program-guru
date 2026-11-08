@@ -2,8 +2,21 @@ import { requireUser, resolveViewer } from '../lib/auth'
 import * as authoring from '../domains/programs/authoring.service'
 import * as browse from '../domains/programs/browse.service'
 import * as enrollment from '../domains/programs/enrollment.service'
+import * as slugService from '../domains/programs/slug.service'
 
 const uid = (request: any) => requireUser(request).id
+
+export async function resolveSlug(request: any) {
+  const viewer = await resolveViewer(request)
+  const { kind, slugOrId, creatorHandle } = request.query
+  return {
+    data: await slugService.resolveSlug(viewer?.id ?? null, {
+      kind,
+      slugOrId,
+      creatorHandle,
+    }),
+  }
+}
 
 export async function listMyPrograms(request: any) {
   return authoring.listMine(uid(request), request.query)

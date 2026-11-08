@@ -6,9 +6,10 @@ import { queryKeys as keys } from '../queryKeys'
 import type { components } from '../generated/types'
 type S = components['schemas']
 
-export function useDiscoverPrograms(q = '') {
+export function useDiscoverPrograms(q = '', programTypeId = '') {
   return useInfiniteQuery({
-    queryKey: useViewerKey(keys.discovery(q)),
+    queryKey: useViewerKey(keys.discovery(q, programTypeId)),
+    enabled: !!programTypeId,
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) =>
       apiData(
@@ -18,6 +19,7 @@ export function useDiscoverPrograms(q = '') {
             query: {
               kind: 'PROGRAM',
               q: q || undefined,
+              programTypeId: programTypeId || undefined,
               cursor: pageParam,
               limit: 20,
             },
@@ -93,6 +95,13 @@ export function useProgramTypes() {
         .data,
   })
 }
+export function useCategories() {
+  return useQuery({
+    queryKey: useViewerKey(keys.categories),
+    queryFn: async ({ signal }) =>
+      apiData(await getApiClient().GET('/catalog/categories', { signal })).data,
+  })
+}
 export function useFocuses(programTypeId: string) {
   return useQuery({
     queryKey: useViewerKey(keys.focuses(programTypeId)),
@@ -109,6 +118,7 @@ export function useFocuses(programTypeId: string) {
 export function useProgramPreview(programId: string) {
   return useQuery({
     queryKey: useViewerKey(keys.preview(programId)),
+    enabled: !!programId,
     queryFn: async ({ signal }) =>
       apiData(
         await getApiClient().GET('/programs/{programId}', {
@@ -116,6 +126,31 @@ export function useProgramPreview(programId: string) {
           params: { path: { programId } },
         }),
       ).data,
+  })
+}
+export function useResolveSlugQuery(
+  kind: 'PROGRAM' | 'ACTIVITY',
+  slugOrId: string,
+  creatorHandle?: string | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: useViewerKey(keys.resolveSlug(kind, slugOrId, creatorHandle)),
+    queryFn: async ({ signal }) =>
+      apiData(
+        await getApiClient().GET('/resolve-slug', {
+          signal,
+          params: {
+            query: {
+              kind,
+              slugOrId,
+              creatorHandle: creatorHandle || undefined,
+            },
+          },
+        }),
+      ).data,
+    enabled: enabled && !!slugOrId,
+    staleTime: 60 * 1000,
   })
 }
 export function useProgramWorkspace(programId: string) {
@@ -142,6 +177,65 @@ export function useProgramPlacements(programId: string) {
       ).data,
   })
 }
+export function useAddProgramPlacement(programId: string) {
+  return useApiMutation(
+    async (body: S['AddPlacementInput']) =>
+      apiData(
+        await getApiClient().POST(
+          '/programs/{programId}/draft/placements',
+          {
+            params: { path: { programId } },
+            body,
+          },
+        ),
+      ).data,
+    [keys.programs],
+    `draft:${programId}`,
+  )
+}
+export function useUpdateProgramPlacement(programId: string) {
+  return useApiMutation(
+    async ({
+      placementId,
+      ...body
+    }: S['UpdatePlacementInput'] & { placementId: string }) =>
+      apiData(
+        await getApiClient().PATCH(
+          '/programs/{programId}/draft/placements/{placementId}',
+          {
+            params: { path: { programId, placementId } },
+            body,
+          },
+        ),
+      ).data,
+    [keys.programs],
+    `draft:${programId}`,
+  )
+}
+export function useDeleteProgramPlacement(programId: string) {
+  return useApiMutation(
+    async ({
+      placementId,
+      expectedRevision,
+    }: {
+      placementId: string
+      expectedRevision: number
+    }) =>
+      apiData(
+        await getApiClient().DELETE(
+          '/programs/{programId}/draft/placements/{placementId}',
+          {
+            params: {
+              path: { programId, placementId },
+              query: { expectedRevision },
+            },
+          },
+        ),
+      ),
+    [keys.programs],
+    `draft:${programId}`,
+  )
+}
 export function usePublishCheck(programId: string) {
   return useQuery({
     queryKey: useViewerKey(keys.publishCheck(programId)),
@@ -159,6 +253,90 @@ export function useCreateProgram() {
     async (body: S['CreateProgramInput']) =>
       apiData(await getApiClient().POST('/programs', { body })).data,
     [keys.mine],
+  )
+}
+export function useCopyProgram() {
+  return useApiMutation(
+    async (programId: string) =>
+      apiData(
+        await getApiClient().POST('/programs/{programId}/copy', {
+          params: { path: { programId } },
+        }),
+      ).data,
+    [keys.programs, keys.mine, keys.discover],
+  )
+}
+export function useRenameProgram() {
+  return useApiMutation(
+    async ({
+      programId,
+      title,
+      expectedRevision,
+    }: {
+      programId: string
+      title: string
+      expectedRevision: number
+    }) =>
+      apiData(
+        await getApiClient().PATCH('/programs/{programId}/draft', {
+          params: { path: { programId } },
+          body: { title, expectedRevision },
+        }),
+      ).data,
+    [keys.programs, keys.mine],
+  )
+}
+export function useCreateActivity() {
+  return useApiMutation(
+    async (body: S['CreateActivityInput']) =>
+      apiData(await getApiClient().POST('/activities', { body })).data,
+    [['activities'], keys.programs],
+  )
+}
+export function useUpdateActivityDraft(activityId: string) {
+  return useApiMutation(
+    async (body: S['UpdateActivityDraftInput']) =>
+      apiData(
+        await getApiClient().PATCH('/activities/{activityId}/draft', {
+          params: { path: { activityId } },
+          body,
+        }),
+      ).data,
+    [['activities'], keys.programs],
+    `activity-draft:${activityId}`,
+  )
+}
+export function usePutActivityInstructions() {
+  return useApiMutation(
+    async ({
+      activityId,
+      ...body
+    }: S['PutInstructionsInput'] & { activityId: string }) =>
+      apiData(
+        await getApiClient().PUT(
+          '/activities/{activityId}/draft/instructions',
+          {
+            params: { path: { activityId } },
+            body,
+          },
+        ),
+      ).data,
+    [['activities'], keys.programs],
+  )
+}
+export function useCopyActivity() {
+  return useApiMutation(
+    async ({
+      activityId,
+      ...body
+    }: S['CopyActivityInput'] & { activityId: string }) =>
+      apiData(
+        await getApiClient().POST('/activities/{activityId}/copy', {
+          params: { path: { activityId } },
+          body,
+        }),
+      ).data,
+    [['activities'], keys.programs],
   )
 }
 export function useUpdateProgram(programId: string) {

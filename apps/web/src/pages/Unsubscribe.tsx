@@ -5,8 +5,10 @@ import { Page, Stage, Stack, Panel, Row } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back, linkButton } from '@/components/Navigation'
+import { useDocumentTitle } from '@/lib/title'
 
 export function UnsubscribePage() {
+  useDocumentTitle('Email Preferences')
   const [params] = useSearchParams()
   const token = params.get('token')?.trim() ?? ''
   const unsubscribe = useUnsubscribeDailyEmail()

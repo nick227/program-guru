@@ -46,6 +46,12 @@ export function toProgramSummary(p: ProgramFull, viewerAccess: ViewerAccess, ver
     prices: p.prices.map(toPrice),
     viewerAccess,
     isPlatform: p.creatorId === null,
+    slug: p.slug ?? null,
+    canonicalUrl: p.creator?.profile?.handle && p.slug
+      ? `/@${p.creator.profile.handle}/${p.slug}`
+      : p.slug
+      ? `/programs/${p.slug}`
+      : `/programs/${p.id}`,
   }
 }
 

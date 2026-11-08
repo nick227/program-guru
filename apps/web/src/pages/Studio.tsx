@@ -13,6 +13,7 @@ import {
   studioSections,
   type StudioSection,
 } from './studio/sections'
+import { useDocumentTitle } from '@/lib/title'
 
 const labels: Record<StudioSection, string> = {
   library: 'Library',
@@ -26,6 +27,7 @@ const labels: Record<StudioSection, string> = {
 export function StudioPage() {
   const [params, setParams] = useSearchParams()
   const section = parseStudioSection(params.get('section'))
+  useDocumentTitle(`Creator Studio · ${labels[section]}`)
   return (
     <Page>
       <Stage className="max-w-2xl">

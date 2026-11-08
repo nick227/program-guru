@@ -13,11 +13,12 @@ export const queryKeys = {
   placements: (id: string) => ['programs', id, 'placements'] as const,
   publishCheck: (id: string) => ['programs', id, 'publish-check'] as const,
   discover: ['discover'] as const,
-  discovery: (q: string) =>
-    ['discover', 'list', { kind: 'PROGRAM', q }] as const,
+  discovery: (q: string, programTypeId = '') =>
+    ['discover', 'list', { kind: 'PROGRAM', q, programTypeId }] as const,
   activities: (q: string, focusId = '') =>
     ['activities', 'list', { q, focusId }] as const,
   types: ['catalog', 'program-types'] as const,
+  categories: ['catalog', 'categories'] as const,
   focuses: (id: string) => ['catalog', 'focuses', id] as const,
   calendar: ['calendar'] as const,
   week: (start: string, end: string) =>
@@ -57,6 +58,8 @@ export const queryKeys = {
     ['programs', programId, 'access-requests'] as const,
   earnings: ['billing', 'earnings'] as const,
   payoutAccount: ['billing', 'payout-account'] as const,
+  resolveSlug: (kind: 'PROGRAM' | 'ACTIVITY', slugOrId: string, creatorHandle?: string | null) =>
+    ['resolve-slug', kind, slugOrId, creatorHandle ?? ''] as const,
   myActivities: (q = '') => ['activities', 'mine', { q }] as const,
   achievements: ['achievements'] as const,
   myAchievements: ['achievements', 'me'] as const,

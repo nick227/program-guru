@@ -12,7 +12,8 @@ An **Activity** is a reusable, category-agnostic action: Leg Raises, Read, Daily
 
 | Entity | Main fields | Notes |
 |---|---|---|
-| `Activity` | id, slug? (seeds), creatorId? (null=platform), `canonicalActivityId?`, `sourceActivityId?`, categoryId, title, summary?, visibility, status, latestPublishedRevisionId?, timestamps | Reusable identity; customizing produces new ID with lineage |
+| `Activity` | id, slug? (seeds/published), creatorId? (null=platform), `canonicalActivityId?`, `sourceActivityId?`, categoryId, title, summary?, visibility, status, latestPublishedRevisionId?, timestamps | Reusable identity; customizing produces new ID with lineage |
+| `ActivitySlugAlias` | id, activityId, slug, createdAt | Preserves historical activity slugs across renames |
 | `ActivityFocus` | activityId, focusId | Library is browsable by Category and Focus |
 | `ActivityRevision` | id, activityId, revisionNumber, titleSnapshot, summarySnapshot, publishedAt?, editorId | Immutable if published; editable draft separate |
 | `Instruction` | id, instructionKey, activityRevisionId, position, title?, body? (sanitized rich text), media layout hint? | Revision-owned ordered children; no recursive nesting; `instructionKey` stays the same across revisions so contributions and media survive new revisions |
@@ -37,7 +38,7 @@ Seed usable reusable metric dictionary (not workout-specific DB fields):
 | `completion` | BOOLEAN | — | COUNT | checkbox/Finish; optional |
 | `repetitions` | INTEGER | reps | SUM/MAX | `− 10 +` |
 | `sets` | INTEGER | sets | SUM | `− 3 +` (can also be planned parameter) |
-| `duration` | DURATION | seconds stored; minutes shown | SUM | time entry or timer |
+| `duration` | DURATION | seconds stored; minutes shown | SUM | timer or time entry only when measuring a separate, user-entered duration |
 | `distance` | DECIMAL | selected unit (m/km/mi) | SUM | numeric + unit picker |
 | `weight` | DECIMAL | kg/lb | MAX/LAST | numeric + unit picker |
 | `contribution_amount` | DECIMAL | currency (user's unit) | SUM | currency amount; keep private |
@@ -47,6 +48,8 @@ Seed usable reusable metric dictionary (not workout-specific DB fields):
 | `notes` | TEXT | — | NONE | optional input |
 
 Metric definitions are **not** recommendations for health/finance outcomes. `betterDirection=NONE` when higher/lower is not intrinsically good. For measurement units, keep canonical storage + display preference and convert at API/UI boundary. Target overrides can be attached to ProgramScheduleItem and later Calendar Item; recorded value always separate.
+
+An Activity Session's elapsed time is derived from its server-recorded start, pause/resume, and finish timestamps (`activeSeconds`). Do not ask users to fill in a second generic Activity duration field or require a DURATION result for ordinary session timing. Keep a DURATION metric only when an Activity measures a distinct duration that cannot be inferred from its Session.
 
 **Metric precedence:** Program template suggests a target > Calendar Item personal override > explicit user log (actual). Activity-level metric declares available schema. Instruction metrics are **additional scoped inputs**, not automatically summed twice with parent metrics. If Instruction intends to contribute to a parent aggregate, declare `rollupToMetricKey` explicitly and validate compatible types/units. Display just the relevant 1–3 primary inputs initially; further metrics under `More`.
 

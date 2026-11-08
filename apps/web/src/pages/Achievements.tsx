@@ -10,8 +10,11 @@ import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back, linkButton } from '@/components/Navigation'
 import { dateLabel } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
+import { useDocumentTitle } from '@/lib/title'
+import { buildProfileUrl } from '@/lib/urls'
 
 export function AchievementsPage() {
+  useDocumentTitle('Achievements')
   const me = useCurrentUser()
   const achievements = useMyAchievements()
   const update = useUpdateAchievement()
@@ -28,7 +31,7 @@ export function AchievementsPage() {
         <Row className="justify-between">
           <Back to="/">Calendar</Back>
           {handle && (
-            <Link to={`/${handle}`} className={linkButton}>
+            <Link to={buildProfileUrl(handle)} className={linkButton}>
               View Profile
             </Link>
           )}

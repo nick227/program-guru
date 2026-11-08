@@ -16,19 +16,32 @@ import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { ThumbnailGrid } from '@/components/ThumbnailGrid'
 import { Back, linkButton } from '@/components/Navigation'
 import { useOnline } from '@/lib/useOnline'
+import { useDocumentTitle } from '@/lib/title'
+import { buildActivityUrl, buildProfileUrl, buildProgramUrl } from '@/lib/urls'
 
 export function ProfilePage() {
   const { handle = '' } = useParams()
+  const cleanHandle = handle.replace(/^@+/, '')
+
   const me = useCurrentUser()
-  const profile = useUserByHandle(handle)
-  const programs = useUserPrograms(handle)
-  const activities = useUserActivities(handle)
-  const publications = useUserPublications(handle)
-  const achievements = useUserAchievements(handle)
-  const follow = useFollowUser(handle)
-  const unfollow = useUnfollowUser(handle)
+  const profile = useUserByHandle(cleanHandle)
+  const programs = useUserPrograms(cleanHandle)
+  const activities = useUserActivities(cleanHandle)
+  const publications = useUserPublications(cleanHandle)
+  const achievements = useUserAchievements(cleanHandle)
+  const follow = useFollowUser(cleanHandle)
+  const unfollow = useUnfollowUser(cleanHandle)
   const online = useOnline()
   const p = profile.data
+
+  useDocumentTitle(
+    p
+      ? p.displayName
+        ? `${p.displayName} (@${p.handle})`
+        : `@${p.handle}`
+      : `@${cleanHandle}`,
+  )
+
   if (!p)
     return (
       <Page>
@@ -42,6 +55,7 @@ export function ProfilePage() {
         </Stage>
       </Page>
     )
+
   const isOwner = me.data?.data.profile.handle === p.handle
   const programRows =
     programs.data?.pages.flatMap((page) => page.data).slice(0, 6) ?? []
@@ -49,6 +63,9 @@ export function ProfilePage() {
     activities.data?.pages.flatMap((page) => page.data).slice(0, 8) ?? []
   const mediaRows =
     publications.data?.pages.flatMap((page) => page.data).slice(0, 12) ?? []
+
+  const profileUrl = buildProfileUrl(p.handle)
+
   return (
     <Page>
       <Stage className="max-w-2xl">
@@ -72,7 +89,7 @@ export function ProfilePage() {
                   className="-mt-12 ring-4 ring-surface"
                 />
                 <div>
-                  <h1>{p.displayName}</h1>
+                  <h1 className="text-xl font-bold">{p.displayName}</h1>
                   <p className="text-muted">@{p.handle}</p>
                 </div>
               </Row>
@@ -132,7 +149,10 @@ export function ProfilePage() {
                 {programRows.map((program) => (
                   <Link
                     key={program.id}
-                    to={`/programs/${program.id}?returnTo=${encodeURIComponent(`/${handle}`)}`}
+                    to={buildProgramUrl(
+                      { ...program, creatorHandle: p.handle },
+                      { scoped: true, returnTo: profileUrl },
+                    )}
                     className="rounded-lg border p-3 transition-colors hover:border-accent"
                   >
                     {program.coverUrl && (
@@ -163,7 +183,7 @@ export function ProfilePage() {
               {activityRows.map((a) => (
                 <Link
                   key={a.id}
-                  to={`/activities/${a.id}?returnTo=${encodeURIComponent(`/${handle}`)}`}
+                  to={buildActivityUrl(a, { returnTo: profileUrl })}
                   className="rounded-lg border p-3 hover:border-accent"
                 >
                   <strong>{a.title}</strong>
@@ -217,8 +237,11 @@ export function ProfilePage() {
               <Link to="/studio" className={linkButton}>
                 Creator Studio
               </Link>
-              <Link to="/programs/new" className={linkButton}>
-                Create Program
+              <Link
+                to={`/programs/new?returnTo=${encodeURIComponent(profileUrl)}`}
+                className={linkButton}
+              >
+                Add a Program
               </Link>
               <Link to="/library" className={linkButton}>
                 My Programs

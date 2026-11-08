@@ -10,6 +10,7 @@ import { loadRevisions, summarizeRevision } from '../activities/mapper'
 import { publish as publishActivityRevision } from '../activities/activity.service'
 import { canSeeProgram, isProgramOwner, marketplaceEnabled } from './access'
 import { isPublishingRestricted } from '../social/moderation.service'
+import { allocateProgramSlug } from './slug.service'
 import { programInclude, toPlacement, toPrice, toProgramSummary } from './mapper'
 import {
   DEFAULT_DURATION_DAYS,
@@ -194,6 +195,7 @@ export async function create(userId: string, input: { programTypeId: string; foc
         createdById: userId,
       },
     })
+    await allocateProgramSlug(tx, { programId: program.id, creatorId: userId, title })
     return program
   })
   return workspace(userId, p.id)
@@ -267,6 +269,9 @@ export async function updateDraft(
         visibility: input.visibility,
       },
     })
+    if (title) {
+      await allocateProgramSlug(tx, { programId, creatorId: userId, title })
+    }
     if (scheduleChanged) await regenerate(tx, updated, await selectedActivities(tx, updated.id))
   })
   return workspace(userId, programId)
@@ -495,6 +500,9 @@ export async function publish(userId: string, programId: string, input: { visibi
       where: { id: programId },
       data: { status: 'PUBLISHED', visibility: input.visibility, latestPublishedVersionId: published.id, policy: { upsert: { create: { accessMode: input.accessMode }, update: { accessMode: input.accessMode } } } },
     })
+    if (!check.program.slug) {
+      await allocateProgramSlug(tx, { programId, creatorId: userId, title: check.program.title })
+    }
     if (previous) {
       // 07 §6: existing participants keep their version and are offered the update.
       await tx.programEnrollment.updateMany({
@@ -578,6 +586,7 @@ export async function copy(userId: string, programId: string) {
       },
     })
     await refreshCounts(tx, version.id)
+    await allocateProgramSlug(tx, { programId: program.id, creatorId: userId, title: from.title })
     return program
   })
   return workspace(userId, created.id)

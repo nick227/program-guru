@@ -120,6 +120,7 @@ model User {
   reportsFiled         ContentReport[]
   moderationActions    ModerationAction[]
   idempotencyKeys      IdempotencyKey[]
+  programSlugAliases   ProgramSlugAlias[]   @relation("UserProgramAliases")
 
   @@index([status])
 }
@@ -444,6 +445,7 @@ model Activity {
   recurrences      CalendarRecurrence[]
   completionShares CompletionShare[]
   publications     MediaPublication[]
+  aliases          ActivitySlugAlias[]   @relation("ActivityAliases")
 
   @@index([categoryId, status, visibility])
   @@index([creatorId, status])
@@ -580,6 +582,7 @@ enum ApprovalRequestStatus {
 
 model Program {
   id                       String        @id @default(uuid()) @db.Char(36)
+  slug                     String?       @db.VarChar(120)
   creatorId                String?       @db.Char(36)
   title                    String        @db.VarChar(140)
   description              String?       @db.Text
@@ -613,13 +616,42 @@ model Program {
   subscriptions    BillingSubscription[]
   attachments      MediaAttachment[]
   publications     MediaPublication[]
+  slugAliases      ProgramSlugAlias[]       @relation("ProgramAliases")
 
+  @@unique([creatorId, slug])
+  @@index([slug])
   @@index([creatorId, status])
   @@index([categoryId, programTypeId, status, visibility])
   @@index([focusId])
   @@index([programTypeId])
   @@index([coverMediaId])
   @@fulltext([title], map: "Program_title_ft")
+}
+
+model ProgramSlugAlias {
+  id        String   @id @default(uuid()) @db.Char(36)
+  programId String   @db.Char(36)
+  creatorId String?  @db.Char(36)
+  slug      String   @db.VarChar(120)
+  createdAt DateTime @default(now())
+
+  program Program @relation("ProgramAliases", fields: [programId], references: [id], onDelete: Cascade)
+  creator User?   @relation("UserProgramAliases", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, slug])
+  @@index([programId])
+  @@index([slug])
+}
+
+model ActivitySlugAlias {
+  id         String   @id @default(uuid()) @db.Char(36)
+  activityId String   @db.Char(36)
+  slug       String   @unique @db.VarChar(120)
+  createdAt  DateTime @default(now())
+
+  activity Activity @relation("ActivityAliases", fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId])
 }
 
 // publishedAt null = the single editable draft of a Program. Immutable once published.

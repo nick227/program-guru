@@ -25,6 +25,8 @@ import {
 } from '@/lib/notifications'
 import { toggleTheme } from '@/lib/theme'
 import { useOnline } from '@/lib/useOnline'
+import { useDocumentTitle } from '@/lib/title'
+import { buildProfileUrl } from '@/lib/urls'
 
 const DEFAULT_NOTIF_PREFS = {
   inAppReminders: true,
@@ -36,6 +38,7 @@ const DEFAULT_NOTIF_PREFS = {
 }
 
 export function SettingsPage() {
+  useDocumentTitle('Settings')
   const me = useCurrentUser()
   const updatePrefs = useUpdatePreferences()
   const groups = useMyGroups()
@@ -139,7 +142,7 @@ export function SettingsPage() {
     <Page>
       <Stage>
         <Row className="justify-between">
-          <Back to={`/${profile.handle}`}>Profile</Back>
+          <Back to={buildProfileUrl(profile.handle)}>Profile</Back>
           <Link to="/notifications" className={linkButton}>
             Notification Inbox
           </Link>
@@ -378,7 +381,7 @@ export function SettingsPage() {
                     className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
                   >
                     <Link
-                      to={`/u/${req.requester.handle}`}
+                      to={buildProfileUrl(req.requester.handle)}
                       className="flex items-center gap-2"
                     >
                       <Avatar
@@ -426,7 +429,7 @@ export function SettingsPage() {
               Signed in as {user.email} · @{profile.handle}
             </p>
             <Row>
-              <Link to={`/${profile.handle}`} className={linkButton}>
+              <Link to={buildProfileUrl(profile.handle)} className={linkButton}>
                 View profile
               </Link>
               <Link to="/achievements" className={linkButton}>

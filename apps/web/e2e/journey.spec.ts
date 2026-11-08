@@ -38,6 +38,67 @@ test('author publishes; another user joins, records, finishes and undoes', async
     fullPage: true,
   })
 })
+
+test('Add Program filters by type and copies a selected starting point', async ({
+  page,
+}) => {
+  const { requests } = await mockApi(page)
+  await login(page, 'author@test.local', 'password')
+  await page.goto('/programs/new')
+
+  const discoveryRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url())
+    return url.pathname === '/discover' && url.searchParams.has('programTypeId')
+  })
+  await page.getByRole('button', { name: /Workout/ }).click()
+  expect(
+    new URL((await discoveryRequest).url()).searchParams.get('programTypeId'),
+  ).toBe('00000000-0000-4000-8000-000000000002')
+
+  await page.getByRole('button', { name: /Beginner Strength/ }).click()
+  await expect(page.getByLabel('Program name')).toHaveValue('Beginner Strength')
+  await page
+    .getByRole('button', { name: 'Use this starting point', exact: true })
+    .click()
+  await expect(
+    page.getByRole('heading', { name: 'Activities', exact: true }),
+  ).toBeVisible()
+
+  expect(
+    requests.filter(
+      (request) =>
+        request.path === '/programs/00000000-0000-4000-8000-000000000011/copy',
+    ),
+  ).toHaveLength(1)
+  expect(
+    requests.find(
+      (request) =>
+        request.path.endsWith('/draft') &&
+        request.body.title === 'Beginner Strength',
+    ),
+  ).toBeDefined()
+
+  await page.getByRole('button', { name: 'Add to Calendar' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Calendar', exact: true }),
+  ).toBeVisible()
+  const privatePublish = requests.find(
+    (request) =>
+      request.path === '/programs/00000000-0000-4000-8000-000000000010/publish',
+  )
+  const personalJoinIndex = requests.findIndex(
+    (request) =>
+      request.path ===
+        '/programs/00000000-0000-4000-8000-000000000010/enrollments' &&
+      request.method === 'POST',
+  )
+  expect(privatePublish).toBeDefined()
+  expect(privatePublish?.body.visibility).toBe('PRIVATE')
+  expect(personalJoinIndex).toBeGreaterThan(
+    privatePublish ? requests.indexOf(privatePublish) : -1,
+  )
+})
+
 test('draft conflicts preserve the local title and require explicit resolution', async ({
   page,
 }) => {

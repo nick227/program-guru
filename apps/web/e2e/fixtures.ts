@@ -62,6 +62,7 @@ export async function mockApi(
     revision = 1,
     added = false,
     published = false,
+    programVisibility: S['Visibility'] = 'PRIVATE',
     joined = false,
     groupCreated = false,
     createdGroupName: string | null = null,
@@ -95,7 +96,7 @@ export async function mockApi(
     programDays: 12,
     placements: 12,
     frequencyLabel: '3 days/week',
-    visibility: 'PUBLIC',
+    visibility: seed ? 'PUBLIC' : programVisibility,
     accessMode: 'OPEN',
     prices: [],
     viewerAccess: user === 'author' ? 'OWNER' : 'PREVIEW',
@@ -103,6 +104,8 @@ export async function mockApi(
   })
   const workspace = (): S['ProgramWorkspace'] => ({
     ...summary(),
+    visibility: published ? programVisibility : 'PRIVATE',
+    accessMode: 'OPEN',
     status: published ? 'PUBLISHED' : 'DRAFT',
     frequency: { kind: 'N_PER_WEEK', n: 3 },
     generationMode: 'ALL_EACH_DAY',
@@ -380,6 +383,11 @@ export async function mockApi(
     if (path === '/media-attachments' && method === 'POST')
       return send({ id: uid(90) }, 201)
     if (path === '/programs' && method === 'POST') return send(workspace(), 201)
+    if (path === `/programs/${uid(11)}/copy` && method === 'POST') {
+      title = 'Beginner Strength'
+      added = true
+      return send(workspace(), 201)
+    }
     if (path === '/programs') return send([summary()], 200, true)
     if (path === '/groups' && method === 'GET')
       return send(
@@ -515,6 +523,12 @@ export async function mockApi(
       })
     if (path.endsWith('/publish')) {
       published = true
+      programVisibility =
+        body.visibility === 'PUBLIC' ||
+        body.visibility === 'UNLISTED' ||
+        body.visibility === 'PRIVATE'
+          ? body.visibility
+          : 'PRIVATE'
       return send(workspace())
     }
     if (path.endsWith('/enrollments/preview'))
@@ -531,11 +545,32 @@ export async function mockApi(
           },
         ],
       })
-    if (path.endsWith('/enrollments')) {
+    if (path.endsWith('/enrollments') && method === 'POST') {
       joined = true
       start = body.startLocalDate
       return send({ id: uid(40) }, 201)
     }
+    if (path === '/enrollments' && method === 'GET')
+      return send(
+        joined
+          ? [
+              {
+                id: uid(40),
+                program: summary(),
+                programVersionId: uid(12),
+                pendingVersionId: null,
+                groupId: null,
+                startLocalDate: start,
+                timezone: 'America/Chicago',
+                status: 'ACTIVE',
+                calendarItemCount: 12,
+                participationStartDate: start,
+              } satisfies S['Enrollment'],
+            ]
+          : [],
+        200,
+        true,
+      )
     if (/^\/enrollments\/[^/]+$/.test(path) && method === 'GET')
       return send({
         id: uid(40),
@@ -549,6 +584,20 @@ export async function mockApi(
         calendarItemCount: 12,
         participationStartDate: start,
       })
+    if (path === '/resolve-slug') {
+      const kind = url.searchParams.get('kind')
+      return send({
+        id: kind === 'ACTIVITY' ? activityId : programId,
+        kind: kind === 'ACTIVITY' ? 'ACTIVITY' : 'PROGRAM',
+        canonicalSlug: null,
+        creatorHandle: null,
+        isAlias: false,
+        canonicalUrl:
+          kind === 'ACTIVITY'
+            ? `/activities/${activityId}`
+            : `/programs/${programId}`,
+      } satisfies S['SlugResolution'])
+    }
     if (/^\/programs\/[^/]+$/.test(path))
       return send({
         ...summary(path.endsWith(uid(11))),

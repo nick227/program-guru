@@ -6,13 +6,17 @@ import {
   useLocation,
   useRouteError,
   Link,
+  Navigate,
+  useParams,
 } from 'react-router-dom'
 import { AuthGuard } from '@/lib/AuthGuard'
 import { useOnline } from '@/lib/useOnline'
+import { useDocumentTitle } from '@/lib/title'
+import { buildProfileUrl } from '@/lib/urls'
 import { CalendarPage } from '@/pages/Calendar'
 import { LoginPage } from '@/pages/Login'
 import { ForgotPasswordPage, RegisterPage, ResetPasswordPage, VerifyEmailPage } from '@/pages/Auth'
-import { DiscoverPage, LibraryPage } from '@/pages/Discover'
+import { LibraryPage } from '@/pages/Discover'
 import { ProgramCreatePage } from '@/pages/ProgramCreate'
 import { ProgramWorkspacePage } from '@/pages/ProgramWorkspace'
 import { ProgramPage } from '@/pages/Program'
@@ -29,10 +33,13 @@ import { UnsubscribePage } from '@/pages/Unsubscribe'
 import { StudioPage } from '@/pages/Studio'
 import { Page, Stage } from '@/components/ui/Layout'
 import { ErrorMessage } from '@/components/ui/Feedback'
+import { AccountMenu } from '@/components/AccountMenu'
+import { useCurrentUser } from '@project/sdk'
 
 function Root() {
   const online = useOnline()
   const location = useLocation()
+  const me = useCurrentUser()
   useEffect(() => {
     window.scrollTo(0, 0)
     const main = document.querySelector<HTMLElement>('main')
@@ -56,12 +63,42 @@ function Root() {
           changes.
         </p>
       )}
+      <header className="sticky top-0 z-20 border-b bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+          <Link
+            to="/"
+            className="flex items-center gap-2 font-display text-lg font-semibold tracking-tight"
+          >
+            <span
+              aria-hidden
+              className="h-2.5 w-2.5 rounded-full bg-accent"
+            />
+            Programs
+          </Link>
+          {me.data ? (
+            <AccountMenu />
+          ) : (
+            <div className="flex items-center gap-3">
+              <Link
+                to="/discover"
+                className="text-sm text-muted hover:text-text"
+              >
+                Add a Program
+              </Link>
+              <Link to="/login" className="text-sm font-semibold text-accent">
+                Sign in
+              </Link>
+            </div>
+          )}
+        </div>
+      </header>
       <Outlet />
     </>
   )
 }
 
 function RouteError() {
+  useDocumentTitle('Error')
   const error = useRouteError()
   return (
     <Page>
@@ -71,6 +108,33 @@ function RouteError() {
         <a href="/" className="text-accent underline">
           Return to Calendar
         </a>
+      </Stage>
+    </Page>
+  )
+}
+
+function ProfileRedirect() {
+  const { handle = '' } = useParams()
+  return <Navigate to={buildProfileUrl(handle)} replace />
+}
+
+function HandleRoute() {
+  const { handle = '' } = useParams()
+  return handle.startsWith('@') ? <ProfilePage /> : <ProfileRedirect />
+}
+
+function ProgramAliasRoute() {
+  const { handle = '' } = useParams()
+  return handle.startsWith('@') ? <ProgramPage /> : <NotFoundPage />
+}
+
+function NotFoundPage() {
+  useDocumentTitle('Page not found')
+  return (
+    <Page>
+      <Stage>
+        <h1>Page not found</h1>
+        <Link to="/" className="text-accent underline">Return to Calendar</Link>
       </Stage>
     </Page>
   )
@@ -87,13 +151,16 @@ const router = createBrowserRouter([
       { path: '/verify-email', element: <VerifyEmailPage /> },
       { path: '/forgot-password', element: <ForgotPasswordPage /> },
       { path: '/reset-password', element: <ResetPasswordPage /> },
-      { path: '/discover', element: <DiscoverPage /> },
+      { path: '/discover', element: <ProgramCreatePage /> },
+      // Friendly creator-scoped routes use a handle segment prefixed with @.
+      { path: '/:handle/:slug', element: <ProgramAliasRoute /> },
       { path: '/programs/:id', element: <ProgramPage /> },
       { path: '/activities/:id', element: <ActivityPage /> },
       { path: '/join/:token', element: <GroupInvitationJoinPage /> },
       { path: '/unsubscribe', element: <UnsubscribePage /> },
       { path: '/email/unsubscribe', element: <UnsubscribePage /> },
-      { path: '/u/:handle', element: <ProfilePage /> },
+      // Compatibility redirect for legacy /u/:handle
+      { path: '/u/:handle', element: <ProfileRedirect /> },
       {
         element: <AuthGuard />,
         children: [
@@ -121,18 +188,11 @@ const router = createBrowserRouter([
           { path: '/studio', element: <StudioPage /> },
         ],
       },
-      // After static app routes so handles never shadow /media, /settings, etc.
-      { path: '/:handle', element: <ProfilePage /> },
+      // After static and guarded routes, render /@handle or redirect legacy /handle.
+      { path: '/:handle', element: <HandleRoute /> },
       {
         path: '*',
-        element: (
-          <Page>
-            <Stage>
-              <h1>Page not found</h1>
-              <Link to="/">Return to Calendar</Link>
-            </Stage>
-          </Page>
-        ),
+        element: <NotFoundPage />,
       },
     ],
   },

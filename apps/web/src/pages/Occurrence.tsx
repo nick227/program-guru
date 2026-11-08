@@ -30,12 +30,33 @@ import { OccurrenceInstructions } from '@/components/OccurrenceInstructions'
 import { OccurrenceMedia } from '@/components/OccurrenceMedia'
 import { calendarUrl, dateLabel, safeReturn } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
+import { useDocumentTitle } from '@/lib/title'
 type S = components['schemas']
 const metricKey = (m: S['MetricInput']) =>
   `${m.instructionId ?? ''}:${m.metricDefinitionId}`
+function formatElapsed(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds))
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainder = seconds % 60
+  if (hours) return `${hours}h ${minutes}m`
+  if (minutes) return `${minutes}m ${remainder}s`
+  return `${remainder}s`
+}
 export function OccurrencePage() {
   const { id = '' } = useParams()
   const occurrence = useOccurrence(id)
+  useDocumentTitle(
+    occurrence.data
+      ? `${occurrence.data.item.title}${
+          occurrence.data.item.programDayIndex !== null
+            ? ` (Day ${occurrence.data.item.programDayIndex + 1})`
+            : ''
+        }`
+      : occurrence.isPending
+        ? 'Occurrence'
+        : 'Occurrence',
+  )
   return (
     <Page>
       <Stage>
@@ -101,6 +122,9 @@ function OccurrenceContent({
   const session = o.session
   const status = session?.status ?? 'READY'
   const disabled = busy || !online
+  const resultInputs = o.resultInputs.filter(
+    (metric) => metric.valueType !== 'DURATION',
+  )
   async function getSession() {
     if (session && !['FINISHED', 'ABANDONED'].includes(session.status))
       return session
@@ -122,7 +146,7 @@ function OccurrenceContent({
       const current = await getSession()
       // Only user-entered values are written. Targets never become recorded results implicitly.
       const groups = new Map<string, S['MetricInput'][]>()
-      for (const m of o.resultInputs)
+      for (const m of resultInputs)
         if (dirty[metricKey(m)] !== undefined) {
           const k = m.instructionId ?? ''
           groups.set(k, [...(groups.get(k) ?? []), m])
@@ -207,6 +231,138 @@ function OccurrenceContent({
                   : 'Ready'}
         </p>
       </Stack>
+      <OccurrenceMedia
+        activityId={o.item.activityId}
+        sessionId={o.session?.id}
+        onAttach={async (asset) => {
+          if (!online) throw new Error('Connect to attach media.')
+          if (working.current)
+            throw new Error('Wait for the current save to finish.')
+          working.current = true
+          setBusy(true)
+          try {
+            const current =
+              o.session && o.session.status !== 'ABANDONED'
+                ? o.session
+                : await getSession()
+            await attach.mutateAsync({
+              mediaId: asset.id,
+              sessionId: current.id,
+            })
+          } finally {
+            working.current = false
+            setBusy(false)
+          }
+        }}
+        myMedia={o.myMedia}
+        sharedMedia={o.sharedMedia}
+        communityMedia={o.communityMedia}
+        locked={o.item.locked}
+      />
+      <Panel>
+        <Stack>
+          <Row className="justify-between">
+            <h2>Session</h2>
+            <span className="text-xs text-muted">
+              {status === 'READY' || status === 'ABANDONED'
+                ? 'Ready to start'
+                : status === 'ACTIVE'
+                  ? 'In progress'
+                  : status === 'PAUSED'
+                    ? 'Paused'
+                    : 'Completed'}
+            </span>
+          </Row>
+          <p className="text-sm text-muted">
+            Start when you begin. Pause for breaks; finish when you&apos;re done.
+            Active time is calculated automatically.
+          </p>
+          <ErrorMessage error={failure || undo.error} />
+          {!!failure && (
+            <Button variant="outline" onClick={refresh}>
+              Refresh Activity
+            </Button>
+          )}
+          <Row>
+            {(status === 'READY' || status === 'ABANDONED') && (
+              <>
+                <Button
+                  disabled={disabled}
+                  onClick={() => void perform('START')}
+                >
+                  Start
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() => void perform('FINISH')}
+                >
+                  Finish now
+                </Button>
+              </>
+            )}
+            {status === 'ACTIVE' && (
+              <>
+                <Button
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() => void perform('PAUSE')}
+                >
+                  Pause
+                </Button>
+                <Button
+                  disabled={disabled}
+                  onClick={() => void perform('FINISH')}
+                >
+                  Finish Activity
+                </Button>
+              </>
+            )}
+            {status === 'PAUSED' && (
+              <>
+                <Button
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() => void perform('RESUME')}
+                >
+                  Resume
+                </Button>
+                <Button
+                  disabled={disabled}
+                  onClick={() => void perform('FINISH')}
+                >
+                  Finish Activity
+                </Button>
+              </>
+            )}
+            {status === 'FINISHED' && (
+              <>
+                <Button
+                  disabled={disabled}
+                  onClick={() => void perform('START')}
+                >
+                  Start again
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={disabled || undo.isPending}
+                  onClick={() => undo.mutate(o.item.id)}
+                >
+                  Undo completion
+                </Button>
+              </>
+            )}
+          </Row>
+          {busy && <p role="status">Saving…</p>}
+          {session?.status === 'FINISHED' && (
+            <p className="text-muted">
+              {session.isManualCompletion
+                ? 'Manually completed · no measured duration'
+                : `Active time · ${formatElapsed(session.activeSeconds)}`}
+            </p>
+          )}
+        </Stack>
+      </Panel>
 
       <Panel>
         <Stack>
@@ -215,8 +371,8 @@ function OccurrenceContent({
             instructions={o.instructions}
             locked={o.item.locked}
           />
-          {o.resultInputs.length ? (
-            o.resultInputs.map((m) => (
+          {resultInputs.length ? (
+            resultInputs.map((m) => (
               <MetricInput
                 key={metricKey(m)}
                 metric={m}
@@ -334,87 +490,6 @@ function OccurrenceContent({
         </Panel>
       )}
       <Panel>
-        <Stack>
-          <h2>Session Controls</h2>
-          <ErrorMessage error={failure || undo.error} />
-          {!!failure && (
-            <Button variant="outline" onClick={refresh}>
-              Refresh Activity
-            </Button>
-          )}
-          <Row>
-            {(status === 'READY' || status === 'ABANDONED') && (
-              <>
-                <Button
-                  disabled={disabled}
-                  onClick={() => void perform('START')}
-                >
-                  Start
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={() => void perform('FINISH')}
-                >
-                  Mark finished
-                </Button>
-              </>
-            )}
-            {status === 'ACTIVE' && (
-              <Button
-                variant="outline"
-                disabled={disabled}
-                onClick={() => void perform('PAUSE')}
-              >
-                Pause
-              </Button>
-            )}
-            {status === 'PAUSED' && (
-              <Button
-                variant="outline"
-                disabled={disabled}
-                onClick={() => void perform('RESUME')}
-              >
-                Resume
-              </Button>
-            )}
-            {(status === 'ACTIVE' || status === 'PAUSED') && (
-              <Button
-                disabled={disabled}
-                onClick={() => void perform('FINISH')}
-              >
-                Finish
-              </Button>
-            )}
-            {status === 'FINISHED' && (
-              <>
-                <Button
-                  disabled={disabled}
-                  onClick={() => void perform('START')}
-                >
-                  Start again
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={disabled || undo.isPending}
-                  onClick={() => undo.mutate(o.item.id)}
-                >
-                  Undo completion
-                </Button>
-              </>
-            )}
-          </Row>
-          {busy && <p role="status">Saving…</p>}
-          {session?.status === 'FINISHED' && (
-            <p className="text-muted">
-              {session.isManualCompletion
-                ? 'Manually completed · no measured duration'
-                : `${session.activeSeconds} seconds recorded`}
-            </p>
-          )}
-        </Stack>
-      </Panel>
-      <Panel>
         <h2>My Metrics</h2>
         <Grid className="mt-4 grid-cols-3">
           {o.personalStats.slice(0, 3).map((stat) => (
@@ -425,34 +500,6 @@ function OccurrenceContent({
           ))}
         </Grid>
       </Panel>
-      <OccurrenceMedia
-        activityId={o.item.activityId}
-        sessionId={o.session?.id}
-        onAttach={async (asset) => {
-          if (!online) throw new Error('Connect to attach media.')
-          if (working.current)
-            throw new Error('Wait for the current save to finish.')
-          working.current = true
-          setBusy(true)
-          try {
-            const current =
-              o.session && o.session.status !== 'ABANDONED'
-                ? o.session
-                : await getSession()
-            await attach.mutateAsync({
-              mediaId: asset.id,
-              sessionId: current.id,
-            })
-          } finally {
-            working.current = false
-            setBusy(false)
-          }
-        }}
-        myMedia={o.myMedia}
-        sharedMedia={o.sharedMedia}
-        communityMedia={o.communityMedia}
-        locked={o.item.locked}
-      />
       {o.communityStats && (
         <Panel>
           <h2>Community Stats</h2>

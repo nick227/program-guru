@@ -5,11 +5,13 @@ import { Page, Stage, Panel } from '@/components/ui/Layout'
 import { Form } from '@/components/ui/Form'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { safeReturn } from '@/lib/dates'
+import { useDocumentTitle } from '@/lib/title'
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(1, 'Enter your password'),
 })
 export function LoginPage() {
+  useDocumentTitle('Sign in')
   const login = useLogin()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -59,7 +61,7 @@ export function LoginPage() {
             Forgot your password?
           </Link>
           <Link to="/discover" className="text-accent underline">
-            Browse Programs
+            Add a Program
           </Link>
         </p>
       </Stage>

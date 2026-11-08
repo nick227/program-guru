@@ -215,11 +215,11 @@ export function CalendarPage() {
           </div>
           <Row>
             <Link
-              to={`/discover?returnTo=${encodeURIComponent(origin)}`}
+              to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
               className={linkButton}
             >
               <Plus size={16} />
-              Program
+              Add Program
             </Link>
             <Link
               to={`/add-activity?day=${selected}&returnTo=${encodeURIComponent(origin)}`}
@@ -383,10 +383,10 @@ export function CalendarPage() {
                 <Stack className="items-center py-6">
                   <h2>Nothing scheduled here</h2>
                   <Link
-                    to={`/discover?returnTo=${encodeURIComponent(origin)}`}
+                    to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
                     className="btn btn--primary"
                   >
-                    Browse Programs
+                    Add a Program
                   </Link>
                   <Link
                     to={`/add-activity?day=${selected}`}

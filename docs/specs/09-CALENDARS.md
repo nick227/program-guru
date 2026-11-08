@@ -66,20 +66,20 @@ State transitions use CAS/`expectedRevision` and server times for accurate durat
 
 ## 5. Calendar UI contract
 
-Open app at the **weekly Calendar**, today highlighted. Compact week navigation, `+ Program`, `+ Activity`, user widget/notifications. Small visual tiles display thumbnail/avatar, title, optional source program, time if specified, status, unread indicator, conflict mark. No navigation sidebar. Tap a tile to open occurrence; edit/move from contextual actions, not drag alone. After `Finish`, return to the same week and date. Shared calendar component has two adapters: Program authoring uses relative days and template placements; Personal Calendar uses absolute dates/user items; interactions visually match, domain persistence differs.
+Open app at the **monthly Calendar**, today highlighted. The user can switch between Day, Week, Month, and Year views. Compact navigation, `+ Program`, `+ Activity`, and a consistent app header with the user widget/notifications appear across pages. Small visual tiles display thumbnail/avatar, title, optional source program, time if specified, status, unread indicator, and conflict mark. No navigation sidebar. Tap a tile to open occurrence; edit/move from contextual actions, not drag alone. After `Finish`, return to the same calendar view and date. Shared calendar component has two adapters: Program authoring uses relative days and template placements; Personal Calendar uses absolute dates/user items; interactions visually match, domain persistence differs.
 
 When there are no entries: `Nothing scheduled this week` + `Browse Programs` / `Add Activity`. New user browses seeded programs without having to build one. A participant may add an Activity independent of a Program, once or repeating; authoring its definition opens dedicated builder and returns to selected date.
 
 ## 6. Activity occurrence: exact row order
 
 1. Header — Title, Program, Date, Status.
-2. Today's Results — Reps, Duration, and only applicable custom metrics, with small buttons.
-3. Collaborators — Prominent avatars, permitted completion, completion reactions. **Omit when solo.**
-4. Session Controls — Start/Pause/Resume/Finish.
-5. My Metrics — Last, Best, Completed (choose relevant maximum three).
-6. My Media — Small thumb grid; Record/Upload/private history.
-7. Shared Media — Explicitly group-shared thumbs, comments in viewer; omit empty.
-8. Community Media — Public approved thumbs (current Program creator first), views/likes within viewer.
+2. My Media — Relevant private media, with a clear optional action to add a photo/video to this session.
+3. Shared Media — Explicitly group-shared thumbs, comments in viewer; omit empty. Explain who can see shared items.
+4. Community Media — Public approved thumbs (current Program creator first), views/likes within viewer; omit empty.
+5. Session Controls — Clear Start/Pause/Resume/Finish progression; elapsed time is calculated from session timestamps and paused time is excluded.
+6. Today's Results — Reps and only applicable custom metrics, with clear targets and small controls. Do not ask for elapsed session duration a second time.
+7. Collaborators — Prominent avatars, permitted completion, completion reactions. **Omit when solo.**
+8. My Metrics — Last, Best, Completed (choose relevant maximum three).
 9. Community Stats — Privacy-safe participants, completions, popularity; omit unhelpful.
 
 These nine rows are locked. No tabs between private/group/public media. Instructions blend into content as compact text and media; no forced “read instructions”. There is no chat or live video control in P1.

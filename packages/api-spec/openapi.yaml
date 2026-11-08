@@ -1616,6 +1616,48 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /resolve-slug:
+    get:
+      operationId: resolveSlug
+      summary: Resolve friendly slug or legacy UUID to canonical content
+      tags:
+      - programs
+      security: []
+      parameters:
+      - in: query
+        name: kind
+        required: true
+        schema:
+          type: string
+          enum:
+          - PROGRAM
+          - ACTIVITY
+      - in: query
+        name: slugOrId
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: creatorHandle
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Resolved slug
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SlugResolution'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /programs:
     get:
       operationId: listMyPrograms
@@ -6969,6 +7011,14 @@ components:
           type: boolean
         isPlatform:
           type: boolean
+        slug:
+          type:
+          - string
+          - 'null'
+        canonicalUrl:
+          type:
+          - string
+          - 'null'
     ActivityMetricBinding:
       type: object
       required:
@@ -7141,6 +7191,14 @@ components:
           type: boolean
         isPlatform:
           type: boolean
+        slug:
+          type:
+          - string
+          - 'null'
+        canonicalUrl:
+          type:
+          - string
+          - 'null'
         instructions:
           type: array
           items:
@@ -7460,6 +7518,44 @@ components:
           $ref: '#/components/schemas/ViewerAccess'
         isPlatform:
           type: boolean
+        slug:
+          type:
+          - string
+          - 'null'
+        canonicalUrl:
+          type:
+          - string
+          - 'null'
+    SlugResolution:
+      type: object
+      required:
+      - id
+      - kind
+      - canonicalSlug
+      - creatorHandle
+      - isAlias
+      - canonicalUrl
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - PROGRAM
+          - ACTIVITY
+        canonicalSlug:
+          type:
+          - string
+          - 'null'
+        creatorHandle:
+          type:
+          - string
+          - 'null'
+        isAlias:
+          type: boolean
+        canonicalUrl:
+          type: string
     ProgramActivityRow:
       type: object
       required:
@@ -7572,6 +7668,14 @@ components:
           $ref: '#/components/schemas/ViewerAccess'
         isPlatform:
           type: boolean
+        slug:
+          type:
+          - string
+          - 'null'
+        canonicalUrl:
+          type:
+          - string
+          - 'null'
         status:
           $ref: '#/components/schemas/ProgramStatus'
         frequency:
@@ -7699,6 +7803,14 @@ components:
           $ref: '#/components/schemas/ViewerAccess'
         isPlatform:
           type: boolean
+        slug:
+          type:
+          - string
+          - 'null'
+        canonicalUrl:
+          type:
+          - string
+          - 'null'
         description:
           type:
           - string

@@ -13,10 +13,12 @@ import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back, linkButton } from '@/components/Navigation'
 import { dateLabel } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
+import { useDocumentTitle } from '@/lib/title'
 
 export function MediaPublicationPage() {
   const { id = '' } = useParams()
   const pub = useMediaPublicationDetail(id)
+  useDocumentTitle(pub.data?.media.alt || 'Media')
   const comments = useMediaComments(id)
   const addComment = useAddMediaComment(id)
   const online = useOnline()

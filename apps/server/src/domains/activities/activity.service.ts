@@ -7,6 +7,7 @@ import { badRequest, forbidden, notFound, versionConflict } from '../../lib/erro
 import { offsetArgs, toOffsetPage, type PageQuery } from '../../lib/paging'
 import { canReadRevision, canUseActivity, isOwner } from './access'
 import { isPublishingRestricted } from '../social/moderation.service'
+import { allocateActivitySlug } from '../programs/slug.service'
 import {
   activityInclude,
   loadRevisions,
@@ -201,6 +202,7 @@ export async function create(userId: string, input: { title: string; categoryId:
     await tx.activityRevision.create({
       data: { activityId: activity.id, revisionNumber: 1, titleSnapshot: title, summarySnapshot: input.summary?.trim() || null, editorId: userId },
     })
+    await allocateActivitySlug(tx, { activityId: activity.id, title })
     return activity
   })
   return detailForOwner(userId, a.id)
@@ -219,6 +221,9 @@ export async function updateDraft(
     const summary = input.summary === undefined ? undefined : input.summary?.trim() || null
     await tx.activityRevision.update({ where: { id: draft.id }, data: { titleSnapshot: title, summarySnapshot: summary } })
     await tx.activity.update({ where: { id: activityId }, data: { title, summary, categoryId: input.categoryId } })
+    if (title) {
+      await allocateActivitySlug(tx, { activityId, title })
+    }
     if (input.focusIds) {
       await tx.activityFocus.deleteMany({ where: { activityId } })
       await tx.activityFocus.createMany({ data: [...new Set(input.focusIds)].map((focusId) => ({ activityId, focusId })) })
@@ -362,6 +367,9 @@ export async function publish(tx: Tx, userId: string, activityId: string, visibi
   }
   const publishedId = latest.publishedAt ? latest.id : (await tx.activityRevision.update({ where: { id: latest.id }, data: { publishedAt: new Date() } })).id
   await tx.activity.update({ where: { id: activityId }, data: { status: 'PUBLISHED', visibility, latestPublishedRevisionId: publishedId } })
+  if (!a.slug) {
+    await allocateActivitySlug(tx, { activityId, title: latest.titleSnapshot })
+  }
   return publishedId
 }
 
@@ -412,6 +420,7 @@ export async function copy(userId: string, activityId: string, input: { sourceRe
     })
     const r = await cloneRevision(tx, { ...rev, titleSnapshot: title }, a.id, 1, userId, (ownerId) => ownerId === null || ownerId === userId)
     await tx.activityRevision.update({ where: { id: r.id }, data: { titleSnapshot: title } })
+    await allocateActivitySlug(tx, { activityId: a.id, title })
     return a
   })
   return detailForOwner(userId, created.id)

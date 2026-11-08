@@ -26,15 +26,40 @@ import {
 } from '@/lib/dates'
 import { hasSeenDailyEmailPrompt } from '@/lib/notifications'
 import { useOnline } from '@/lib/useOnline'
+import { useDocumentTitle } from '@/lib/title'
+import { useResolveProgramTarget } from '@/lib/useResolveSlug'
+import { buildGroupUrl, buildProfileUrl, buildProgramUrl, buildWorkspaceUrl } from '@/lib/urls'
 
 export function ProgramPage() {
-  const { id = '' } = useParams()
+  const paramsFromRouter = useParams()
+  const rawHandle = paramsFromRouter.handle ? paramsFromRouter.handle.replace(/^@+/, '') : null
+  const rawSlugOrId = paramsFromRouter.slug || paramsFromRouter.id || ''
+
+  const resolved = useResolveProgramTarget(rawSlugOrId, rawHandle)
+  const id = resolved.programId
+
   const [params] = useSearchParams()
   const groupIdParam = params.get('groupId')?.trim() || undefined
   const program = useProgramPreview(id)
   const me = useCurrentUser()
   const online = useOnline()
   const navigate = useNavigate()
+
+  useDocumentTitle(
+    program.data?.title ??
+      (resolved.isLoading || program.isPending
+        ? 'Program'
+        : resolved.notFound
+          ? 'Program not found'
+          : 'Program'),
+  )
+
+  useEffect(() => {
+    if (resolved.isAlias && resolved.canonicalUrl) {
+      navigate(resolved.canonicalUrl, { replace: true })
+    }
+  }, [resolved.isAlias, resolved.canonicalUrl, navigate])
+
   const tz =
     me.data?.data.preferences.timezone ??
     Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -45,6 +70,7 @@ export function ProgramPage() {
       ? requestedStartDate
       : '',
   )
+
   useEffect(() => {
     if (!groupIdParam) return
     setJoining(true)
@@ -52,6 +78,7 @@ export function ProgramPage() {
       setDate(requestedStartDate)
     }
   }, [groupIdParam, requestedStartDate])
+
   const start = date || today(tz)
   const preview = usePreviewEnrollment(id)
   const join = useJoinProgram(id)
@@ -61,7 +88,25 @@ export function ProgramPage() {
   const dismissUpdate = useDismissEnrollmentUpdate(enrollmentId)
   const key = useRef(crypto.randomUUID())
   const p = program.data
-  if (!p)
+
+  if (resolved.notFound) {
+    return (
+      <Page>
+        <Stage>
+          <Back to="/discover" />
+          <h1>Program not found</h1>
+          <p className="text-muted">
+            The requested program does not exist or may have been unpublished.
+          </p>
+          <Link to="/discover" className="text-accent underline">
+            Return to Discovery
+          </Link>
+        </Stage>
+      </Page>
+    )
+  }
+
+  if (!p) {
     return (
       <Page>
         <Back to="/discover" />
@@ -69,9 +114,11 @@ export function ProgramPage() {
           error={program.error}
           retry={() => void program.refetch()}
         />
-        {program.isPending && <Loading />}
+        {(resolved.isLoading || program.isPending) && <Loading />}
       </Page>
     )
+  }
+
   const body = {
     programVersionId: p.latestVersionId!,
     startLocalDate: start,
@@ -87,6 +134,9 @@ export function ProgramPage() {
             ? 'Subscribe'
             : 'Buy Program'
           : null
+
+  const canonicalUrl = buildProgramUrl(p, { scoped: !!rawHandle })
+
   return (
     <Page>
       <Stage>
@@ -102,7 +152,7 @@ export function ProgramPage() {
           <Row>
             {p.creator && (
               <Link
-                to={`/${p.creator.handle}`}
+                to={buildProfileUrl(p.creator.handle)}
                 className="flex items-center gap-2 text-muted hover:text-text"
               >
                 <Avatar
@@ -230,7 +280,7 @@ export function ProgramPage() {
               {enrollment.data?.groupId && (
                 <Link
                   className={linkButton}
-                  to={`/groups/${enrollment.data.groupId}`}
+                  to={buildGroupUrl(enrollment.data.groupId)}
                 >
                   Open Group
                 </Link>
@@ -242,7 +292,7 @@ export function ProgramPage() {
         ) : !me.data ? (
           <Link
             className={linkButton}
-            to={`/login?returnTo=${encodeURIComponent(`/programs/${id}`)}`}
+            to={`/login?returnTo=${encodeURIComponent(canonicalUrl)}`}
           >
             Sign in to join
           </Link>
@@ -341,7 +391,7 @@ export function ProgramPage() {
         )}
         {p.viewerAccess === 'OWNER' && (
           <Row>
-            <Link className={linkButton} to={`/programs/${id}/workspace`}>
+            <Link className={linkButton} to={buildWorkspaceUrl(id)}>
               Edit Program
             </Link>
           </Row>

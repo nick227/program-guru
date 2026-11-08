@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { linkButton } from '@/components/Navigation'
+import { buildWorkspaceUrl } from '@/lib/urls'
 
 export function PublishingPanel() {
   const [programId, setProgramId] = useState('')
@@ -102,7 +103,7 @@ function ProgramActions({ programId }: { programId: string }) {
           </p>
           <Row>
             <Link
-              to={`/programs/${programId}/workspace`}
+              to={buildWorkspaceUrl(programId)}
               className={linkButton}
             >
               Edit in Workspace

@@ -1953,12 +1953,28 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
     const placementCount = sp.placements.length
 
     // Content only, and only when it changed: never re-publish an archived or moderated starter Program.
-    const programContent = { categoryId, programTypeId, focusId, title: sp.title, description: sp.description, coverMediaId: firstActivityMediaId }
+    const canonicalSlug = sp.slug.replace(/^starter-/, '')
+    const programContent = { categoryId, programTypeId, focusId, title: sp.title, description: sp.description, coverMediaId: firstActivityMediaId, slug: canonicalSlug }
     const existingProgram = await prisma.program.findUnique({ where: { id: programId } })
     if (!existingProgram) {
       await prisma.program.create({ data: { id: programId, creatorId: null, ...programContent, status: 'PUBLISHED', visibility: 'PUBLIC', draftRevision: 1 } })
-    } else if (changed(existingProgram, programContent)) {
+    } else {
       await prisma.program.update({ where: { id: programId }, data: programContent })
+    }
+
+    const aliasId = deterministicUuid(`program-alias:${sp.slug}`)
+    const existingAlias = await prisma.programSlugAlias.findFirst({
+      where: { creatorId: null, slug: sp.slug },
+    })
+    if (!existingAlias) {
+      await prisma.programSlugAlias.create({
+        data: {
+          id: aliasId,
+          programId,
+          creatorId: null,
+          slug: sp.slug,
+        },
+      })
     }
 
     await prisma.programAccessPolicy.upsert({

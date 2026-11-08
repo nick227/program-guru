@@ -36,6 +36,8 @@ import {
   isValidTimezone,
 } from '@/lib/notifications'
 import { useOnline } from '@/lib/useOnline'
+import { useDocumentTitle } from '@/lib/title'
+import { buildProfileUrl, buildProgramUrl } from '@/lib/urls'
 
 type S = components['schemas']
 const REACTION_EMOJIS = ['👏', '🔥', '💪'] as const
@@ -155,7 +157,7 @@ function InvitationDecisionPanel({
             </p>
             <Row>
               <Link
-                to={`/programs/${preview.program.id}`}
+                to={buildProgramUrl(preview.program)}
                 className={linkButton}
               >
                 View Program Access
@@ -180,7 +182,7 @@ function InvitationDecisionPanel({
             </p>
             <Row>
               <Link
-                to={`/programs/${preview.program.id}`}
+                to={buildProgramUrl(preview.program)}
                 className={linkButton}
               >
                 Open Program
@@ -205,7 +207,7 @@ function InvitationDecisionPanel({
             </p>
             <Row>
               <Link
-                to={`/programs/${preview.program.id}`}
+                to={buildProgramUrl(preview.program)}
                 className={linkButton}
               >
                 Open Program
@@ -228,7 +230,7 @@ function InvitationDecisionPanel({
               This invitation is no longer available. The group may be closed or
               the Program is no longer open for new participants.
             </p>
-            <Link to={`/programs/${preview.program.id}`} className={linkButton}>
+            <Link to={buildProgramUrl(preview.program)} className={linkButton}>
               Preview Program
             </Link>
           </Stack>
@@ -384,7 +386,7 @@ function InvitationDecisionPanel({
                 </Button>
               )}
               <Link
-                to={`/programs/${preview.program.id}`}
+                to={buildProgramUrl(preview.program)}
                 className={linkButton}
               >
                 Preview Program
@@ -398,6 +400,7 @@ function InvitationDecisionPanel({
 }
 
 export function GroupInvitationJoinPage() {
+  useDocumentTitle('Join Group')
   const { token = '' } = useParams()
   const invite = useGroupInvitation(token)
   const accept = useAcceptGroupInvitation()
@@ -450,6 +453,9 @@ export function GroupPage() {
 
   const me = useCurrentUser()
   const group = useGroup(id)
+  useDocumentTitle(
+    group.data?.name ?? (group.isPending ? 'Group' : 'Group'),
+  )
   const myEnrollment = useEnrollment(
     group.data?.myEnrollment?.enrollmentId ?? '',
   )

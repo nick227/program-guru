@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   useActivities,
   useActivity,
@@ -13,10 +13,50 @@ import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back } from '@/components/Navigation'
 import { calendarUrl, isLocalDate, safeReturn, today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
+import { useDocumentTitle } from '@/lib/title'
+import { useResolveActivityTarget } from '@/lib/useResolveSlug'
+import { buildActivityUrl } from '@/lib/urls'
+
 export function ActivityPage() {
-  const { id = '' } = useParams()
+  const { id: rawSlugOrId = '' } = useParams()
   const [params] = useSearchParams()
-  const activity = useActivity(id)
+  const navigate = useNavigate()
+
+  const resolved = useResolveActivityTarget(rawSlugOrId)
+  const activity = useActivity(resolved.activityId)
+
+  useDocumentTitle(
+    activity.data?.title ??
+      (resolved.isLoading || activity.isPending
+        ? 'Activity'
+        : resolved.notFound
+          ? 'Activity not found'
+          : 'Activity'),
+  )
+
+  useEffect(() => {
+    if (resolved.isAlias && resolved.canonicalUrl) {
+      navigate(resolved.canonicalUrl, { replace: true })
+    }
+  }, [resolved.isAlias, resolved.canonicalUrl, navigate])
+
+  if (resolved.notFound) {
+    return (
+      <Page>
+        <Stage>
+          <Back to={safeReturn(params.get('returnTo'), '/discover')} />
+          <h1>Activity not found</h1>
+          <p className="text-muted">
+            The requested activity does not exist or may have been unpublished.
+          </p>
+          <Link to="/discover" className="text-accent underline">
+            Return to Discovery
+          </Link>
+        </Stage>
+      </Page>
+    )
+  }
+
   return (
     <Page>
       <Stage>
@@ -25,7 +65,7 @@ export function ActivityPage() {
           error={activity.error}
           retry={() => void activity.refetch()}
         />
-        {activity.isPending ? (
+        {resolved.isLoading || activity.isPending ? (
           <Loading />
         ) : (
           activity.data && (
@@ -40,8 +80,19 @@ export function ActivityPage() {
                   ))}
                 </Stack>
               </Panel>
-              <p className="text-muted">
-                {activity.data.metricLabels.join(' · ')}
+              {!!activity.data.metricLabels.filter(
+                (label) => !label.toLowerCase().startsWith('duration'),
+              ).length && (
+                <p className="text-muted">
+                  {activity.data.metricLabels
+                    .filter(
+                      (label) => !label.toLowerCase().startsWith('duration'),
+                    )
+                    .join(' · ')}
+                </p>
+              )}
+              <p className="text-sm text-muted">
+                Session duration is calculated automatically while you work.
               </p>
             </>
           )
@@ -50,6 +101,7 @@ export function ActivityPage() {
     </Page>
   )
 }
+
 export function AddActivityPage() {
   const [params] = useSearchParams()
   const me = useCurrentUser()
@@ -58,11 +110,15 @@ export function AddActivityPage() {
   const add = useAddCalendarItem()
   const online = useOnline()
   const navigate = useNavigate()
+
+  useDocumentTitle('Add Activity')
+
   const [day, setDay] = useState(
     params.get('day') ?? today(me.data!.data.preferences.timezone),
   )
   const [selected, setSelected] = useState('')
   const key = useRef(crypto.randomUUID())
+
   return (
     <Page>
       <Stage>

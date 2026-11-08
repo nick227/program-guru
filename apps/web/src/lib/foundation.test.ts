@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '@project/sdk'
 import { apiData, apiError } from '../../../../packages/sdk/src/client'
-import { addDays, isLocalDate, safeReturn, weekOf } from './dates'
+import {
+  addDays,
+  addMonths,
+  isLocalDate,
+  monthBounds,
+  monthGrid,
+  safeReturn,
+  weekOf,
+} from './dates'
 describe('frontend boundary contracts', () => {
   it('preserves the complete server error envelope', () => {
     const error = apiError(new Response(null, { status: 409 }), {
@@ -35,6 +43,19 @@ describe('frontend boundary contracts', () => {
     expect(weekOf('2027-01-01')).toBe('2026-12-28')
     expect(isLocalDate('2026-02-30')).toBe(false)
     expect(isLocalDate('2026-11-09')).toBe(true)
+  })
+  it('builds month navigation and Monday-first six-week grids', () => {
+    expect(addMonths('2026-01-31', 1)).toBe('2026-02-28')
+    expect(monthBounds('2024-02-20')).toEqual({
+      start: '2024-02-01',
+      end: '2024-02-29',
+    })
+    const grid = monthGrid('2026-11-15')
+    expect(grid).toHaveLength(42)
+    expect(grid[0]).toBe('2026-10-26')
+    expect(grid[6]).toBe('2026-11-01')
+    expect(grid[35]).toBe('2026-11-30')
+    expect(grid[41]).toBe('2026-12-06')
   })
   it('only accepts same-app return paths', () => {
     expect(safeReturn('//evil.test')).toBe('/')

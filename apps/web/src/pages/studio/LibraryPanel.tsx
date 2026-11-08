@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { linkButton } from '@/components/Navigation'
+import { buildWorkspaceUrl } from '@/lib/urls'
 import { useState } from 'react'
 
 type Kind = 'programs' | 'activities' | 'media' | 'posts'
@@ -91,7 +92,7 @@ function ProgramsList() {
               </span>
             </Stack>
             <Link
-              to={`/programs/${program.id}/workspace`}
+              to={buildWorkspaceUrl(program.id)}
               className={linkButton}
             >
               Open

@@ -14,7 +14,8 @@ Program is **not** Calendar. `ProgramScheduleItem` is a template placement and n
 
 | Model | Essential columns | Constraints |
 |---|---|---|
-| `Program` | `id`, `creatorId`, `title`, `description?`, `categoryId`, `programTypeId`, `focusId?`, `coverMediaId?`, `visibility`, `status`, `latestPublishedVersionId?`, `draftRevision`, timestamps | creator FK; indexes by category/type/focus/status |
+| `Program` | `id`, `slug?`, `creatorId`, `title`, `description?`, `categoryId`, `programTypeId`, `focusId?`, `coverMediaId?`, `visibility`, `status`, `latestPublishedVersionId?`, `draftRevision`, timestamps | creator FK; unique `(creatorId,slug)`; indexes by category/type/focus/status |
+| `ProgramSlugAlias` | `id`, `programId`, `creatorId?`, `slug`, `createdAt` | unique `(creatorId,slug)`; preserves historical slugs across renames |
 | `ProgramVersion` | `id`, `programId`, `versionNumber`, `title`, `description?`, `programTypeId`, `focusId?`, `durationDays?`, `cycleDays?`, `frequency`, `generationMode`, `programDayCount`, `placementCount`, `publishedAt?`, `createdById` | unique `(programId,versionNumber)`; `publishedAt` null = the single editable draft; immutable once published |
 | `ProgramScheduleItem` | `id`, `programVersionId`, `activityId`, `activityRevisionId`, `relativeDay`, `localTime?`, `position`, `targetOverrides JSON?`, `isManual` | FK, valid offsets, ordered index; `isManual` placements survive regeneration |
 | `ProgramAccessPolicy` | `programId PK`, `accessMode OPEN/APPROVAL/PAID`, `previewPolicy JSON?` | PAID requires an active `ProgramPrice` and ACTIVE payout account |
@@ -87,6 +88,8 @@ interface AccessDao {
   revoke(grantId:string,reason:string,db:Db):Promise<void>;
 }
 ```
+
+Copying a published starting point creates a new private Program and editable draft, copies reusable Activities/placements that the user may access, and records the source Program Version in `ProgramSource`. The source remains unchanged. A personal Program is added to the Calendar by publishing its customized snapshot as PRIVATE/OPEN and enrolling the owner in that version; these existing API calls are sequential, so the client must surface a partial failure and let the owner retry enrollment without publishing another version.
 
 `ProgramAuthoringService`: stages/autosave, source references, copy, publish validation. `ProgramScheduleService`: automatic generation and manual adjustments. `ProgramBrowseService`: public search and preview. `ProgramAccessService`: access policy, approval requests, grant resolution. `ProgramEnrollmentService`: join, group selection, calendar materialization, leave, accept update. `BillingService`: payout onboarding, checkout, webhooks, grant changes. Keep money operations out of ProgramAuthoringService.
 

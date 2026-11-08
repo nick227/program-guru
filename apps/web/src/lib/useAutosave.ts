@@ -16,6 +16,12 @@ export function useAutosave(
   saveRef.current = save
   const dirty = value !== saved
   useEffect(() => {
+    if (dirty || pending || error) return
+    revision.current = initialRevision
+    setValue(initial)
+    setSaved(initial)
+  }, [initial, initialRevision, dirty, pending, error])
+  useEffect(() => {
     if (!online && dirty && !error) {
       setError(
         new Error('Your edit is kept here. Reconnect, then Retry to save.'),

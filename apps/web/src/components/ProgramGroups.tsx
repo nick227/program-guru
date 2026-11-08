@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { isLocalDate, today } from '@/lib/dates'
+import { buildGroupUrl, buildProgramUrl } from '@/lib/urls'
 
 type GroupSummary = components['schemas']['GroupSummary']
 
@@ -47,11 +48,17 @@ export function ProgramGroups({
           : {}),
       })
       if (enrollmentId) {
-        navigate(`/groups/${group.id}`)
+        navigate(buildGroupUrl(group.id))
       } else {
-        const params = new URLSearchParams({ groupId: group.id })
-        if (mode === 'SYNC') params.set('startDate', startDate)
-        navigate(`/programs/${programId}?${params}`)
+        navigate(
+          buildProgramUrl(
+            { id: programId },
+            {
+              groupId: group.id,
+              startDate: mode === 'SYNC' ? startDate : undefined,
+            },
+          ),
+        )
       }
     } catch {
       // The mutation error remains visible so the user can correct and retry.

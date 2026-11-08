@@ -62,15 +62,23 @@ export function OccurrenceMedia({
     <>
       <Panel>
         <Stack>
-          <h2>My Media</h2>
+          <div>
+            <h2>Your session media</h2>
+            <p className="text-sm text-muted">
+              Add a photo or video to your private session history. Sharing is
+              optional.
+            </p>
+          </div>
           <ErrorMessage
             error={session.error}
             retry={() => void session.refetch()}
           />
           <ThumbnailGrid
             items={myMedia}
-            empty="No private media yet."
+            empty="No session media yet."
             onAdd={() => setPicking(true)}
+            addLabel="Add media to this session"
+            columns={4}
             onSelect={(id) =>
               setViewer({
                 items: toViewer(myMedia),
@@ -115,8 +123,12 @@ export function OccurrenceMedia({
         <Panel>
           <Stack>
             <h2>Shared Media</h2>
+            <p className="text-sm text-muted">
+              Shared by people in this Program group.
+            </p>
             <ThumbnailGrid
               items={sharedMedia}
+              columns={4}
               onSelect={(id) =>
                 setViewer({
                   items: toViewer(
@@ -134,8 +146,12 @@ export function OccurrenceMedia({
         <Panel>
           <Stack>
             <h2>Community Media</h2>
+            <p className="text-sm text-muted">
+              Public examples from the community.
+            </p>
             <ThumbnailGrid
               items={communityMedia}
+              columns={4}
               onSelect={(id) =>
                 setViewer({
                   items: toViewer(communityMedia, (i) =>
