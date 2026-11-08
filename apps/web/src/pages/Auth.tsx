@@ -73,8 +73,9 @@ export function RegisterPage() {
           serverErrors={fieldErrors(register.error)}
           onSubmit={async (body) => {
             try {
-              await register.mutateAsync({ ...body, timezone: browserTimezone() })
-              navigate(`/verify-email?sent=1&returnTo=${encodeURIComponent(returnTo)}`, { replace: true })
+              const me = await register.mutateAsync({ ...body, timezone: browserTimezone() })
+              // When confirmation is not required (UAT), go straight on; the emailed link still works.
+              navigate(me.data.emailVerificationRequired ? `/verify-email?sent=1&returnTo=${encodeURIComponent(returnTo)}` : returnTo, { replace: true })
             } catch {
               /* shown below; keep input */
             }
@@ -208,7 +209,9 @@ export function VerifyEmailPage() {
       <Panel className="space-y-3">
         <p role="status">
           {params.get('sent') ? 'Your account is ready. ' : ''}We sent a confirmation link to <strong>{me.data?.data.email}</strong>.
-          Confirming is required before you publish Programs or Activities; everything else works now.
+          {me.data?.data.emailVerificationRequired === false
+            ? ' Confirming is optional right now; you can already publish Programs and Activities.'
+            : ' Confirming is required before you publish Programs or Activities; everything else works now.'}
         </p>
         <ResendVerification />
         <Link to={returnTo} className="text-accent underline">

@@ -108,6 +108,7 @@ Migrations are additive and run only via `prisma migrate deploy`. Bootstrap fail
 | `RAILPACK_DEPLOY_APT_PACKAGES` | | ✓ | `ffmpeg` |
 | `GOOGLE_CLIENT_ID` | ✓ | | Optional; only if Google sign-in UI ships |
 | `MARKETPLACE_ENABLED` | ✓ | ✓ | `false` (Stripe variables not needed while false) |
+| `REQUIRE_EMAIL_VERIFICATION` | ✓ | | Unset in production (required). Hosted UAT sets `false` until email exists |
 | Vercel: `VITE_API_URL` | | | `https://api.<domain>` (build time) |
 
 The startup gate enforces every required row: a missing value fails the deploy with a list, rather than running insecurely.

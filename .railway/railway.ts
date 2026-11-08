@@ -50,6 +50,9 @@ export default defineRailway(() => {
       CLIENT_IP_HEADER: "x-real-ip",
       TRUSTED_PROXY_CIDRS: "fd12:3c86:6500::/48",
       MARKETPLACE_ENABLED: "false",
+      // UAT only, while no email provider exists: unverified accounts may publish. Verification itself
+      // keeps working and nobody is marked verified. Remove (defaults to required) for production.
+      REQUIRE_EMAIL_VERIFICATION: "false",
     },
   });
 

@@ -1,4 +1,5 @@
 // Output projections for 06-USERS.md DTOs. Never return Prisma rows (05 §4).
+import { emailVerificationRequired } from '../../lib/verification'
 import type { User, UserPreference, UserProfile } from '@project/db'
 import { mediaUrl } from '../media/urls'
 
@@ -53,6 +54,8 @@ export function toUserMe(user: User, profile: ReturnType<typeof toUserProfile>, 
     id: user.id,
     email: user.email,
     emailVerified: user.emailVerifiedAt !== null,
+    // Whether unverified accounts are held back from publishing right now (REQUIRE_EMAIL_VERIFICATION).
+    emailVerificationRequired: emailVerificationRequired(),
     status: user.status,
     role: user.role,
     profile,

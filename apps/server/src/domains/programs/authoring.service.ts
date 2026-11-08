@@ -1,6 +1,7 @@
 // Program authoring (07-PROGRAMS.md §6–7, 03-UX.md §3–4).
 // The draft is a ProgramVersion with publishedAt = null. Publishing freezes it; the next edit opens
 // a new draft copied from the latest published version. Program.draftRevision guards concurrent edits.
+import { passesEmailVerification } from '../../lib/verification'
 import { Prisma, db, type ProgramVersion } from '@project/db'
 import { badRequest, forbidden, notFound, versionConflict } from '../../lib/errors'
 import { enqueue } from '../../lib/outbox'
@@ -461,7 +462,7 @@ async function collectIssues(userId: string, programId: string, target?: { visib
       add('ACTIVITY_NOT_AVAILABLE', `"${a.title}" is not available to publish with`, 'activities', a.id)
     }
   }
-  if (visibility !== 'PRIVATE' && !user.emailVerifiedAt) add('EMAIL_NOT_VERIFIED', 'Verify your email before publishing to others', 'visibility')
+  if (visibility !== 'PRIVATE' && !passesEmailVerification(user)) add('EMAIL_NOT_VERIFIED', 'Verify your email before publishing to others', 'visibility')
   if (visibility !== 'PRIVATE' && (await isPublishingRestricted(userId))) add('PUBLISHING_RESTRICTED', 'Publishing is restricted on this account', 'visibility')
   if (visibility === 'PRIVATE' && accessMode !== 'OPEN') add('PRIVATE_NOT_OPEN', 'Private programs can only use open access', 'accessMode')
   if (accessMode === 'PAID') {

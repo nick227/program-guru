@@ -189,7 +189,7 @@ async function setupNotificationsMock(
       return send({
         id: uid(1),
         email: 'participant@test.local',
-        emailVerified: true,
+        emailVerified: true, emailVerificationRequired: true,
         status: 'ACTIVE',
         role: 'USER',
         profile: {

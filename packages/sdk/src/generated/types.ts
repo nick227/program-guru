@@ -2605,6 +2605,8 @@ export interface components {
             id: string;
             email: string;
             emailVerified: boolean;
+            /** @description Whether an unverified address is currently held back from publishing and payouts (REQUIRE_EMAIL_VERIFICATION). When false, show confirmation as optional. */
+            emailVerificationRequired: boolean;
             status: components["schemas"]["UserStatus"];
             role: components["schemas"]["UserRole"];
             profile: components["schemas"]["UserProfile"];
