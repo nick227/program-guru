@@ -33,7 +33,7 @@ export function useCreateSession(itemId: string) {
   return useApiMutation(
     async (body: S['CreateSessionInput']) =>
       apiData(await getApiClient().POST('/sessions', { body })).data,
-    [keys.occurrence(itemId)],
+    [keys.occurrence(itemId), keys.activityAttempts],
   )
 }
 export function useSessionAction(itemId: string) {
@@ -48,7 +48,7 @@ export function useSessionAction(itemId: string) {
           body,
         }),
       ).data,
-    [keys.calendar, keys.occurrences, ['achievements'], keys.programs],
+    [keys.calendar, keys.occurrences, ['achievements'], keys.programs, keys.activityAttempts],
     `session:${itemId}`,
   )
 }
@@ -64,7 +64,7 @@ export function useSaveResults(itemId: string) {
           body,
         }),
       ).data,
-    [keys.occurrence(itemId)],
+    [keys.occurrence(itemId), keys.activityAttempts],
   )
 }
 export function useUndoCompletion() {
@@ -75,7 +75,7 @@ export function useUndoCompletion() {
           params: { path: { itemId } },
         }),
       ).data,
-    [keys.calendar, keys.occurrences, ['achievements'], keys.programs],
+    [keys.calendar, keys.occurrences, ['achievements'], keys.programs, keys.activityAttempts],
   )
 }
 export function useAddCalendarItem() {

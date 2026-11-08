@@ -1,3 +1,4 @@
+import { assertHistoryReadable } from '../activities/history.service'
 // Media assets, uploads, attachments, publications (11-MEDIA.md). An asset is private to its owner;
 // attaching never changes who can see it; only an explicit publication gives it an audience.
 import type { Readable } from 'stream'
@@ -435,15 +436,8 @@ export async function listActivityHistory(
   activityId: string,
   query: PageQuery & { calendarItemId?: string; type?: MediaAsset['type'] },
 ) {
-  const activity = await db.activity.findUnique({ where: { id: activityId } })
-  if (!activity) throw notFound('Activity')
+  await assertHistoryReadable(userId, activityId)
   const own = { userId, activityRevision: { activityId } }
-  const hasHistory = !!(await db.activitySession.findFirst({ where: own, select: { id: true } }))
-  if (!hasHistory) {
-    const latest = activity.latestPublishedRevisionId ? await db.activityRevision.findUnique({ where: { id: activity.latestPublishedRevisionId } }) : null
-    const readable = activity.creatorId === userId || (!!latest && (await canReadRevision(userId, activity, latest)))
-    if (!readable) throw notFound('Activity')
-  }
   const { limit, take } = pageArgs(query)
   const rows = await db.mediaAttachment.findMany({
     where: {

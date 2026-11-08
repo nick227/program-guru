@@ -30,6 +30,13 @@ export const queryKeys = {
   userPublications: (handle: string) =>
     ['users', handle, 'publications'] as const,
   media: ['media'] as const,
+  activityAttempts: ['media', 'activity-attempts'] as const,
+  activityMyAttempts: (activityId: string, calendarItemId?: string) =>
+    ['media', 'activity-attempts', activityId, { calendarItemId }] as const,
+  activityMyMedia: (
+    activityId: string,
+    filters: { calendarItemId?: string; type?: string } = {},
+  ) => ['media', 'activity-history', activityId, filters] as const,
   mediaAttachments: (context?: MediaContext) =>
     ['media', 'attachments', context ? mediaTarget(context) : null] as const,
   session: (id: string) => ['sessions', id] as const,

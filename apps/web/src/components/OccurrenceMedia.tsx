@@ -1,3 +1,4 @@
+import { ActivityMediaHistory } from './ActivityMediaHistory'
 import { MediaAttachments } from './MediaAttachments'
 import { ErrorMessage, Loading } from './ui/Feedback'
 import { Button } from './ui/Button'
@@ -31,6 +32,7 @@ function toViewer(
 }
 
 export function OccurrenceMedia({
+  activityId,
   sessionId,
   onAttach,
   myMedia,
@@ -38,6 +40,7 @@ export function OccurrenceMedia({
   communityMedia,
   locked,
 }: {
+  activityId: string
   sessionId?: string
   onAttach: (asset: S['MediaAsset']) => Promise<void>
   myMedia: S['MediaThumb'][]
@@ -101,6 +104,11 @@ export function OccurrenceMedia({
                 ))}
             </Stack>
           )}
+          <ActivityMediaHistory
+            key={activityId}
+            activityId={activityId}
+            currentSessionId={sessionId}
+          />
         </Stack>
       </Panel>
       {sharedMedia.length > 0 && (

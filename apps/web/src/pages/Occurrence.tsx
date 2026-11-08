@@ -426,6 +426,7 @@ function OccurrenceContent({
         </Grid>
       </Panel>
       <OccurrenceMedia
+        activityId={o.item.activityId}
         sessionId={o.session?.id}
         onAttach={async (asset) => {
           if (!online) throw new Error('Connect to attach media.')
