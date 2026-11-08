@@ -366,6 +366,7 @@ export const cases: Record<string, Case> = {
   listGroupMedia: { as: 'bob', protected: true, request: async (w) => (await w.groupPublication(), { method: 'GET', url: `/groups/${(await w.group()).id}/media` }) },
   // ── media
   listActivityMyMedia: { as: 'alice', protected: true, request: async (w) => (await w.attachment(), { method: 'GET', url: `/activities/${(await w.cat()).squats.activity.id}/my-media` }) },
+  listActivityMyAttempts: { as: 'alice', protected: true, request: async (w) => (await w.attachment(), { method: 'GET', url: `/activities/${(await w.cat()).squats.activity.id}/my-attempts` }) },
   listMediaAttachments: { as: 'alice', protected: true, request: async (w) => (await w.attachment(), { method: 'GET', url: `/media-attachments?targetKind=RESULT_ENTRY&targetId=${(await w.session()).entryId}` }) },
   listMyMedia: { as: 'alice', protected: true, request: async (w) => (await w.photo(), { method: 'GET', url: '/media/mine' }) },
   listPlatformMedia: { as: 'alice', protected: true, request: async (w) => (await w.cat(), { method: 'GET', url: '/media/platform' }) },

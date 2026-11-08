@@ -1,13 +1,19 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
-  useActivityMyMedia,
+  queryKeys,
+  useActivityMyAttempts,
   useAttachMedia,
+  useAttachSessionMedia,
+  useCurrentUser,
   useDetachMedia,
+  useMediaAttachments,
+  type components,
 } from '@project/sdk'
 import {
-  groupActivityMedia,
-  historyDate,
-  type HistoryItem,
+  attemptDate,
+  type Attempt,
+  type AttemptEntry,
 } from '@/lib/activityMediaHistory'
 import { useOnline } from '@/lib/useOnline'
 import { MediaItem } from './MediaGrid'
@@ -17,7 +23,259 @@ import { Button } from './ui/Button'
 import { ErrorMessage, Loading } from './ui/Feedback'
 import { Grid, Row, Stack } from './ui/Layout'
 
-/** History stays inside My Media; no navigation or changes to current results. */
+type Attachment = components['schemas']['MediaAttachment']
+
+/** One persisted result target; even an empty list still offers attachment to that exact ID. */
+function ResultMedia({
+  entry,
+  label,
+  multiple,
+}: {
+  entry: AttemptEntry
+  label: string
+  multiple: boolean
+}) {
+  const context = {
+    kind: 'Activity' as const,
+    resultEntryId: entry.resultEntryId,
+  }
+  const links = useMediaAttachments(context)
+  const detach = useDetachMedia()
+  const attach = useAttachMedia()
+  const online = useOnline()
+  const [viewing, setViewing] = useState<Attachment | null>(null)
+  const [picking, setPicking] = useState(false)
+  const [removed, setRemoved] = useState<Attachment[]>([])
+  const rows = links.data?.pages.flatMap((page) => page.data) ?? []
+  const busy = detach.isPending || attach.isPending
+  return (
+    <Stack
+      aria-label={
+        entry.instructionId
+          ? 'Instruction result media'
+          : 'Activity result media'
+      }
+    >
+      {(multiple || entry.instructionId) && (
+        <p className="text-xs text-muted">
+          {entry.instructionId ? 'Instruction result' : 'Activity result'} ·{' '}
+          {new Date(entry.recordedAt).toLocaleString()}
+        </p>
+      )}
+      <ErrorMessage error={links.error} retry={() => void links.refetch()} />
+      <ErrorMessage error={detach.error || attach.error} />
+      {links.isPending && <Loading />}
+      {!links.error && !links.isPending && (
+        <>
+          {rows.length === 0 && (
+            <p className="text-sm text-muted">
+              No media attached to this result.
+            </p>
+          )}
+          {rows.map((link) => (
+            <Row
+              key={link.id}
+              aria-label={`Historical attachment ${link.media.alt || link.media.type}`}
+            >
+              <Grid className="w-16 shrink-0 grid-cols-1 gap-0">
+                <MediaItem
+                  asset={{ ...link.media, state: link.mediaState }}
+                  disabled={link.mediaDeleted || link.mediaState !== 'READY'}
+                  onSelect={() => setViewing(link)}
+                />
+              </Grid>
+              <span className="min-w-0 flex-1 text-sm">
+                {link.media.alt || link.media.type}
+                {link.mediaDeleted
+                  ? ' · deleted'
+                  : link.mediaState !== 'READY'
+                    ? ` · ${link.mediaState.toLowerCase()}`
+                    : ''}
+              </span>
+              <Button
+                variant="outline"
+                disabled={!online || busy}
+                onClick={async () => {
+                  try {
+                    await detach.mutateAsync(link.id)
+                    if (!link.mediaDeleted)
+                      setRemoved((previous) => [...previous, link])
+                  } catch {
+                    /* Keep the server row on failure. */
+                  }
+                }}
+              >
+                Detach
+              </Button>
+            </Row>
+          ))}
+          {removed.map((link) => (
+            <Row key={link.id}>
+              <span className="text-sm">
+                Detached {link.media.alt || 'media'}
+              </span>
+              <Button
+                variant="outline"
+                disabled={!online || busy || link.mediaState !== 'READY'}
+                onClick={async () => {
+                  try {
+                    await attach.mutateAsync({
+                      mediaId: link.mediaId,
+                      target: { kind: 'RESULT_ENTRY', id: entry.resultEntryId },
+                      purpose: link.purpose,
+                      position: link.position,
+                    })
+                    setRemoved((items) =>
+                      items.filter((item) => item.id !== link.id),
+                    )
+                  } catch {
+                    /* Mutation error stays visible; retry explicitly. */
+                  }
+                }}
+              >
+                Undo detach
+              </Button>
+            </Row>
+          ))}
+          {links.hasNextPage && (
+            <Button
+              variant="outline"
+              disabled={!online || links.isFetchingNextPage}
+              onClick={() => void links.fetchNextPage()}
+            >
+              More attachments
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            disabled={!online || busy}
+            onClick={() => setPicking(true)}
+          >
+            {multiple || entry.instructionId
+              ? 'Attach to this result'
+              : 'Attach to this attempt'}
+          </Button>
+        </>
+      )}
+      {!links.error && viewing && (
+        <MediaViewer
+          items={[viewing.media]}
+          index={0}
+          onIndex={() => {}}
+          onClose={() => setViewing(null)}
+        />
+      )}
+      {!links.error && picking && (
+        <MediaPicker
+          title={`Attach to attempt · ${label}`}
+          context={context}
+          onClose={() => setPicking(false)}
+          onSelect={async (asset) => {
+            await attach.mutateAsync({
+              mediaId: asset.id,
+              target: { kind: 'RESULT_ENTRY', id: entry.resultEntryId },
+              purpose: 'JOURNAL',
+            })
+            setRemoved((items) =>
+              items.filter((item) => item.mediaId !== asset.id),
+            )
+          }}
+        />
+      )}
+    </Stack>
+  )
+}
+
+/** Creating a first result is explicit and uses the existing session, never a new attempt. */
+function EmptyAttempt({ attempt, label }: { attempt: Attempt; label: string }) {
+  const [picking, setPicking] = useState(false)
+  const attach = useAttachSessionMedia()
+  const online = useOnline()
+  return (
+    <Stack>
+      <p className="text-sm text-muted">
+        No results recorded for this attempt.
+      </p>
+      {attempt.status !== 'ABANDONED' && (
+        <Button
+          variant="ghost"
+          disabled={!online || attach.isPending}
+          onClick={() => setPicking(true)}
+        >
+          Attach to this attempt
+        </Button>
+      )}
+      {picking && (
+        <MediaPicker
+          title={`Attach to attempt · ${label}`}
+          onClose={() => setPicking(false)}
+          onSelect={async (asset) => {
+            await attach.mutateAsync({
+              sessionId: attempt.sessionId,
+              mediaId: asset.id,
+            })
+          }}
+        />
+      )}
+    </Stack>
+  )
+}
+
+/** Keep attachment fetching bounded to attempts the viewer chooses to manage. */
+function AttemptMedia({
+  attempt,
+  current,
+  timezone,
+}: {
+  attempt: Attempt
+  current: boolean
+  timezone: string
+}) {
+  const [open, setOpen] = useState(current)
+  const label = attemptDate(attempt, timezone)
+  return (
+    <Stack
+      className="border-t pt-4"
+      aria-label={`Attempt ${attempt.sessionId}`}
+    >
+      <h3>
+        {label} · {current ? 'Current attempt' : 'Earlier attempt'} ·{' '}
+        {attempt.status.toLowerCase()}
+      </h3>
+      <p className="text-xs text-muted">
+        Session {attempt.sessionId.slice(-8)} ·{' '}
+        {new Date(attempt.startedAt ?? attempt.createdAt).toLocaleString(
+          undefined,
+          { timeZone: timezone },
+        )}
+      </p>
+      <Button
+        variant="outline"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {open ? 'Hide media' : 'Manage media'}
+      </Button>
+      {open && (
+        <>
+          {attempt.entries.map((entry) => (
+            <ResultMedia
+              key={entry.resultEntryId}
+              entry={entry}
+              label={label}
+              multiple={attempt.entries.length > 1}
+            />
+          ))}
+          {!attempt.entries.length && (
+            <EmptyAttempt attempt={attempt} label={label} />
+          )}
+        </>
+      )}
+    </Stack>
+  )
+}
+
+/** History stays inside My Media. Sessions and result targets never depend on attachment existence. */
 export function ActivityMediaHistory({
   activityId,
   currentSessionId,
@@ -26,28 +284,12 @@ export function ActivityMediaHistory({
   currentSessionId?: string
 }) {
   const [expanded, setExpanded] = useState(false)
-  const history = useActivityMyMedia(activityId, {}, expanded)
-  const detach = useDetachMedia()
-  const attach = useAttachMedia()
+  const history = useActivityMyAttempts(activityId, undefined, expanded)
+  const cache = useQueryClient()
+  const me = useCurrentUser()
+  const timezone = me.data?.data.preferences.timezone ?? 'UTC'
   const online = useOnline()
-  const [viewing, setViewing] = useState<HistoryItem | null>(null)
-  const [picking, setPicking] = useState<HistoryItem | null>(null)
-  const [removed, setRemoved] = useState<HistoryItem[]>([])
-  const groups = groupActivityMedia(
-    history.data?.pages.flatMap((page) => page.data) ?? [],
-  )
-  const busy = detach.isPending || attach.isPending
-  async function restore(item: HistoryItem) {
-    await attach.mutateAsync({
-      mediaId: item.attachment.mediaId,
-      target: { kind: 'RESULT_ENTRY', id: item.resultEntryId },
-      purpose: item.attachment.purpose,
-      position: item.attachment.position,
-    })
-    setRemoved((items) =>
-      items.filter((row) => row.attachment.id !== item.attachment.id),
-    )
-  }
+  const attempts = history.data?.pages.flatMap((page) => page.data) ?? []
   return (
     <Stack>
       <Button
@@ -65,8 +307,10 @@ export function ActivityMediaHistory({
             </p>
             <Button
               variant="ghost"
-              disabled={history.isFetching || !online || busy}
-              onClick={() => void history.refetch()}
+              disabled={history.isFetching || !online}
+              onClick={() =>
+                void cache.invalidateQueries({ queryKey: queryKeys.media })
+              }
             >
               Refresh history
             </Button>
@@ -75,139 +319,28 @@ export function ActivityMediaHistory({
             error={history.error}
             retry={() => void history.refetch()}
           />
-          <ErrorMessage error={detach.error || attach.error} />
           {history.isPending && <Loading />}
           {!history.error && !history.isPending && (
             <>
-              {!groups.length && (
-                <p>No media attached to your attempts yet.</p>
-              )}
-              {groups.map(({ sessionId, items }) => (
-                <Stack key={sessionId} className="border-t pt-4">
-                  <h3>
-                    {historyDate(items[0]!)} ·{' '}
-                    {sessionId === currentSessionId
-                      ? 'Current attempt'
-                      : 'Earlier attempt'}{' '}
-                    · {items[0]!.sessionStatus.toLowerCase()}
-                  </h3>
-                  <p className="text-xs text-muted">
-                    Session {sessionId.slice(-8)} · Recorded{' '}
-                    {new Date(items[0]!.recordedAt).toLocaleString()}
-                  </p>
-                  {items.map((item) => {
-                    const link = item.attachment
-                    const available =
-                      !link.mediaDeleted && link.mediaState === 'READY'
-                    return (
-                      <Row
-                        key={link.id}
-                        aria-label={`Historical attachment ${link.media.alt || link.media.type}`}
-                      >
-                        <Grid className="w-16 shrink-0 grid-cols-1 gap-0">
-                          <MediaItem
-                            asset={{ ...link.media, state: link.mediaState }}
-                            disabled={!available}
-                            onSelect={() => setViewing(item)}
-                          />
-                        </Grid>
-                        <span className="min-w-0 flex-1 text-sm">
-                          {link.media.alt || link.media.type}
-                          {item.instructionId ? ' · Instruction' : ''}
-                          {link.mediaDeleted
-                            ? ' · deleted'
-                            : !available
-                              ? ` · ${link.mediaState.toLowerCase()}`
-                              : ''}
-                        </span>
-                        <Button
-                          variant="outline"
-                          disabled={!online || busy}
-                          onClick={async () => {
-                            try {
-                              await detach.mutateAsync(link.id)
-                              if (!link.mediaDeleted)
-                                setRemoved((previous) => [...previous, item])
-                            } catch {
-                              /* The persisted row stays visible on failure. */
-                            }
-                          }}
-                        >
-                          Detach
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          disabled={!online || busy}
-                          onClick={() => setPicking(item)}
-                        >
-                          Attach to this attempt
-                        </Button>
-                      </Row>
-                    )
-                  })}
-                </Stack>
-              ))}
-              {removed.map((item) => (
-                <Row key={item.attachment.id}>
-                  <span className="text-sm">
-                    Detached {item.attachment.media.alt || 'media'} ·{' '}
-                    {historyDate(item)}
-                  </span>
-                  <Button
-                    variant="outline"
-                    disabled={
-                      !online ||
-                      busy ||
-                      item.attachment.mediaState !== 'READY'
-                    }
-                    onClick={() => void restore(item).catch(() => {})}
-                  >
-                    Undo detach
-                  </Button>
-                </Row>
+              {!attempts.length && <p>No attempts yet.</p>}
+              {attempts.map((attempt) => (
+                <AttemptMedia
+                  key={attempt.sessionId}
+                  attempt={attempt}
+                  current={attempt.sessionId === currentSessionId}
+                  timezone={timezone}
+                />
               ))}
               {history.hasNextPage && (
                 <Button
                   variant="outline"
-                  disabled={history.isFetchingNextPage || !online}
+                  disabled={!online || history.isFetchingNextPage}
                   onClick={() => void history.fetchNextPage()}
                 >
-                  Load older media
+                  Load older attempts
                 </Button>
               )}
             </>
-          )}
-          {!history.error && viewing && (
-            <MediaViewer
-              items={[viewing.attachment.media]}
-              index={0}
-              onIndex={() => {}}
-              onClose={() => setViewing(null)}
-            />
-          )}
-          {!history.error && picking && (
-            <MediaPicker
-              title={`Attach to attempt · ${historyDate(picking)}`}
-              context={{
-                kind: 'Activity',
-                resultEntryId: picking.resultEntryId,
-              }}
-              onClose={() => setPicking(null)}
-              onSelect={async (asset) => {
-                await attach.mutateAsync({
-                  mediaId: asset.id,
-                  target: { kind: 'RESULT_ENTRY', id: picking.resultEntryId },
-                  purpose: 'JOURNAL',
-                })
-                setRemoved((items) =>
-                  items.filter(
-                    (item) =>
-                      item.resultEntryId !== picking.resultEntryId ||
-                      item.attachment.mediaId !== asset.id,
-                  ),
-                )
-              }}
-            />
           )}
         </section>
       )}

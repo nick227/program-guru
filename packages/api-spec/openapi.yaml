@@ -1458,6 +1458,51 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /activities/{activityId}/my-attempts:
+    get:
+      operationId: listActivityMyAttempts
+      summary: List my attempts for an Activity
+      tags:
+      - activities
+      description: 'Own ActivitySessions, newest creation time first with ID tie-breaking, including sessions without results and ResultEntries without attachments. Own history survives expired Program access, archive and moderation. Without any own session the Activity must be readable, otherwise 404. Returns target IDs and dates only, never instructional content or other participants. Reattach through the existing media attachment endpoint.'
+      parameters:
+      - in: path
+        name: activityId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - in: query
+        name: calendarItemId
+        description: Only attempts for this occurrence.
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActivityAttempt'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /programs:
     get:
       operationId: listMyPrograms
@@ -9272,6 +9317,62 @@ components:
         position:
           type: integer
       additionalProperties: false
+    ActivityAttempt:
+      type: object
+      required:
+      - sessionId
+      - activityRevisionId
+      - status
+      - createdAt
+      - startedAt
+      - endedAt
+      - calendarItemId
+      - occurrenceDate
+      - entries
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        activityRevisionId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        createdAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: [string, 'null']
+          format: date-time
+        endedAt:
+          type: [string, 'null']
+          format: date-time
+        calendarItemId:
+          type: [string, 'null']
+          format: uuid
+        occurrenceDate:
+          type: [string, 'null']
+          format: date
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityAttemptEntry'
+    ActivityAttemptEntry:
+      type: object
+      required:
+      - resultEntryId
+      - instructionId
+      - recordedAt
+      properties:
+        resultEntryId:
+          type: string
+          format: uuid
+        instructionId:
+          type: [string, 'null']
+          format: uuid
+        recordedAt:
+          type: string
+          format: date-time
     ActivityMediaHistoryItem:
       type: object
       description: One attachment on one of the viewer's own result entries.

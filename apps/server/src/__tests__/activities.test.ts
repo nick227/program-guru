@@ -181,3 +181,9 @@ describe('listActivityMyMedia', () => {
     await contractCase(app, 'listActivityMyMedia')
   })
 })
+
+describe('listActivityMyAttempts', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listActivityMyAttempts')
+  })
+})

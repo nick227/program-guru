@@ -645,6 +645,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/activities/{activityId}/my-attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my attempts for an Activity
+         * @description Own ActivitySessions, newest creation time first with ID tie-breaking, including sessions without results and ResultEntries without attachments. Own history survives expired Program access, archive and moderation. Without any own session the Activity must be readable, otherwise 404. Returns target IDs and dates only, never instructional content or other participants. Reattach through the existing media attachment endpoint.
+         */
+        get: operations["listActivityMyAttempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/programs": {
         parameters: {
             query?: never;
@@ -3569,6 +3589,32 @@ export interface components {
             purpose: components["schemas"]["MediaPurpose"];
             position?: number;
         };
+        ActivityAttempt: {
+            /** Format: uuid */
+            sessionId: string;
+            /** Format: uuid */
+            activityRevisionId: string;
+            status: components["schemas"]["SessionStatus"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt: string | null;
+            /** Format: date-time */
+            endedAt: string | null;
+            /** Format: uuid */
+            calendarItemId: string | null;
+            /** Format: date */
+            occurrenceDate: string | null;
+            entries: components["schemas"]["ActivityAttemptEntry"][];
+        };
+        ActivityAttemptEntry: {
+            /** Format: uuid */
+            resultEntryId: string;
+            /** Format: uuid */
+            instructionId: string | null;
+            /** Format: date-time */
+            recordedAt: string;
+        };
         /** @description One attachment on one of the viewer's own result entries. */
         ActivityMediaHistoryItem: {
             attachment: components["schemas"]["MediaAttachment"];
@@ -5018,6 +5064,40 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["ActivityMediaHistoryItem"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listActivityMyAttempts: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                /** @description Only attempts for this occurrence. */
+                calendarItemId?: string;
+            };
+            header?: never;
+            path: {
+                activityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ActivityAttempt"][];
                         meta: components["schemas"]["PaginatedMeta"];
                     };
                 };

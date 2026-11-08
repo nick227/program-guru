@@ -1,68 +1,46 @@
 import { describe, expect, it } from 'vitest'
-import {
-  groupActivityMedia,
-  historyDate,
-  type HistoryItem,
-} from './activityMediaHistory'
+import { attemptDate, type Attempt } from './activityMediaHistory'
 import { queryKeys } from '@project/sdk'
-const row = (id: string, sessionId: string): HistoryItem => ({
-  sessionId,
-  sessionStatus: 'FINISHED',
-  resultEntryId: `result-${sessionId}`,
+const attempt: Attempt = {
+  sessionId: 'session',
+  activityRevisionId: 'revision',
+  status: 'READY',
+  createdAt: '2026-11-07T01:00:00Z',
+  startedAt: null,
+  endedAt: null,
   calendarItemId: null,
   occurrenceDate: null,
-  instructionId: null,
-  recordedAt: '2026-11-07T01:00:00Z',
-  attachment: {
-    id,
-    mediaId: 'same-asset',
-    target: { kind: 'RESULT_ENTRY', id: `result-${sessionId}` },
-    purpose: 'JOURNAL',
-    position: 0,
-    mediaDeleted: false,
-    mediaState: 'READY',
-    media: {
-      id: 'same-asset',
-      alt: '',
-      type: 'PHOTO',
-      thumbnailUrl: null,
-      durationMs: null,
-      canSelect: true,
-    },
-  },
-})
-describe('Activity media history', () => {
-  it('merges page boundaries by session and deduplicates links, never assets', () => {
-    const first = row('link-1', 'session-1')
-    const groups = groupActivityMedia([
-      first,
-      row('link-2', 'session-2'),
-      first,
-      row('link-3', 'session-1'),
-    ])
+  entries: [],
+}
+describe('Activity attempt history', () => {
+  it('preserves date-only occurrences even if the session is recorded another day', () => {
     expect(
-      groups.map((group) => [
-        group.sessionId,
-        group.items.map((item) => item.attachment.id),
-      ]),
-    ).toEqual([
-      ['session-1', ['link-1', 'link-3']],
-      ['session-2', ['link-2']],
-    ])
+      attemptDate(
+        { ...attempt, occurrenceDate: '2026-11-05' },
+        'America/Chicago',
+      ),
+    ).toBe('2026-11-05')
   })
-  it('keeps occurrence dates literal and falls back for unscheduled sessions', () => {
+  it('uses local session start or creation date for unscheduled attempts, including empty sessions', () => {
+    expect(attemptDate(attempt, 'America/Chicago')).toBe('2026-11-06')
     expect(
-      historyDate({ ...row('1', '1'), occurrenceDate: '2026-11-06' }),
-    ).toBe('2026-11-06')
-    expect(historyDate(row('1', '1'))).toBe('2026-11-07')
+      attemptDate(
+        { ...attempt, startedAt: '2026-11-08T12:00:00Z' },
+        'America/Chicago',
+      ),
+    ).toBe('2026-11-08')
+    expect(attemptDate(attempt, 'Asia/Tokyo')).toBe('2026-11-07')
   })
-  it('isolates Activity and optional filters beneath the media invalidation key', () => {
-    const all = queryKeys.activityMyMedia('a')
-    expect(all[0]).toBe('media')
-    expect(all).not.toEqual(queryKeys.activityMyMedia('b'))
-    expect(all).not.toEqual(
-      queryKeys.activityMyMedia('a', { calendarItemId: 'item' }),
+  it('isolates Activity and occurrence filters beneath the media invalidation key', () => {
+    expect(queryKeys.activityMyAttempts('a').slice(0, 2)).toEqual(
+      queryKeys.activityAttempts,
     )
-    expect(all).not.toEqual(queryKeys.activityMyMedia('a', { type: 'VIDEO' }))
+    expect(queryKeys.activityMyAttempts('a')[0]).toBe('media')
+    expect(queryKeys.activityMyAttempts('a')).not.toEqual(
+      queryKeys.activityMyAttempts('b'),
+    )
+    expect(queryKeys.activityMyAttempts('a')).not.toEqual(
+      queryKeys.activityMyAttempts('a', 'item'),
+    )
   })
 })

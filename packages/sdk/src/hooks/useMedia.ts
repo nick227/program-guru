@@ -358,3 +358,20 @@ export function useActivityMyMedia(
     getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
   })
 }
+
+/** Attempt identities remain available even when their last attachment is removed. */
+export function useActivityMyAttempts(activityId: string, calendarItemId?: string, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.activityMyAttempts(activityId, calendarItemId)),
+    enabled: enabled && !!activityId,
+    initialPageParam: undefined as string | undefined,
+    retry: false,
+    queryFn: async ({ pageParam, signal }) => apiData(
+      await getApiClient().GET('/activities/{activityId}/my-attempts', {
+        signal,
+        params: { path: { activityId }, query: { calendarItemId, cursor: pageParam, limit: 24 } },
+      }),
+    ),
+    getNextPageParam: last => last.meta.nextCursor ?? undefined,
+  })
+}

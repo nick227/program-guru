@@ -1,3 +1,4 @@
+import { listAttempts } from '../domains/activities/history.service'
 import { requireUser, resolveViewer } from '../lib/auth'
 import * as activities from '../domains/activities/activity.service'
 
@@ -41,4 +42,8 @@ export async function publishActivity(request: any) {
 
 export async function archiveActivity(request: any) {
   return { data: await activities.archive(requireUser(request).id, request.params.activityId) }
+}
+
+export async function listActivityMyAttempts(request: any) {
+  return listAttempts(requireUser(request).id, request.params.activityId, request.query)
 }

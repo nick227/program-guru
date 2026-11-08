@@ -8,7 +8,7 @@ test('live API: 25 attempts, pagination, detach/restore, refresh and private aut
   const api = process.env.HISTORY_TEST_API
   if (!api || !/^http:\/\/(localhost|127\.0\.0\.1):/.test(api))
     throw new Error(
-      'HISTORY_TEST_API must name a local API running backend 5c3a3eb or newer.',
+      'HISTORY_TEST_API must name a local API running this branch’s attempt-history endpoint.',
     )
   const suffix = crypto.randomUUID().slice(0, 8)
   const password = `History-test-${suffix}!`
@@ -16,10 +16,9 @@ test('live API: 25 attempts, pagination, detach/restore, refresh and private aut
   const owner = await playwright.request.newContext({ baseURL: api })
   const stranger = await playwright.request.newContext({ baseURL: api })
   const data = async (response: import('@playwright/test').APIResponse) => {
-    expect(
-      response.ok(),
-      `${response.status()} ${await response.text()}`,
-    ).toBe(true)
+    expect(response.ok(), `${response.status()} ${await response.text()}`).toBe(
+      true,
+    )
     return (await response.json()).data
   }
   try {
@@ -90,12 +89,18 @@ test('live API: 25 attempts, pagination, detach/restore, refresh and private aut
           },
         }),
       )
+      await data(
+        await owner.post(`/sessions/${session.id}/actions`, {
+          data: { action: 'FINISH', expectedRevision: session.revision },
+        }),
+      )
       attempts.push({
         sessionId: session.id,
         entryId: entry.id,
         attachmentId: link.id,
       })
     }
+    expect(new Set(attempts.map((attempt) => attempt.sessionId)).size).toBe(25)
     const before = await data(
       await owner.get(`/calendar-items/${item.id}/occurrence`),
     )
@@ -103,25 +108,22 @@ test('live API: 25 attempts, pagination, detach/restore, refresh and private aut
     await page.goto(
       `/occurrences/${item.id}?returnTo=${encodeURIComponent('/?week=2026-11-02&day=2026-11-07')}`,
     )
-    await page
-      .getByRole('button', { name: 'Media from all attempts' })
-      .click()
+    await page.getByRole('button', { name: 'Media from all attempts' }).click()
     const history = page.getByRole('region', {
       name: 'Activity media history',
     })
-    await expect(
-      history.getByRole('button', { name: 'Detach', exact: true }),
-    ).toHaveCount(24)
-    await history.getByRole('button', { name: 'Load older media' }).click()
-    await expect(
-      history.getByRole('button', { name: 'Detach', exact: true }),
-    ).toHaveCount(25)
-    await history
-      .getByRole('button', { name: 'Detach', exact: true })
-      .last()
+    await expect(history.getByRole('heading', { level: 3 })).toHaveCount(24)
+    await history.getByRole('button', { name: 'Load older attempts' }).click()
+    await expect(history.getByRole('heading', { level: 3 })).toHaveCount(25)
+    const oldestRow = history.getByLabel(`Attempt ${attempts[0]!.sessionId}`, {
+      exact: true,
+    })
+    await oldestRow
+      .getByRole('button', { name: 'Manage media', exact: true })
       .click()
+    await oldestRow.getByRole('button', { name: 'Detach', exact: true }).click()
     await expect(
-      history.getByRole('button', { name: 'Undo detach' }),
+      oldestRow.getByRole('button', { name: 'Undo detach' }),
     ).toBeVisible()
     const oldest = attempts[0]!
     const afterDetach = await data(
@@ -130,18 +132,45 @@ test('live API: 25 attempts, pagination, detach/restore, refresh and private aut
     expect(afterDetach.map((row: any) => row.attachment.id)).not.toContain(
       oldest.attachmentId,
     )
-    await history.getByRole('button', { name: 'Undo detach' }).click()
-    await expect(
-      history.getByRole('button', { name: 'Undo detach' }),
-    ).toHaveCount(0)
     await page.reload()
-    await page
-      .getByRole('button', { name: 'Media from all attempts' })
+    await page.getByRole('button', { name: 'Media from all attempts' }).click()
+    await history.getByRole('button', { name: 'Load older attempts' }).click()
+    const originalAttempt = history.getByLabel(`Attempt ${oldest.sessionId}`, {
+      exact: true,
+    })
+    await originalAttempt
+      .getByRole('button', { name: 'Manage media', exact: true })
       .click()
-    await history.getByRole('button', { name: 'Load older media' }).click()
     await expect(
-      history.getByRole('button', { name: 'Detach', exact: true }),
-    ).toHaveCount(25)
+      originalAttempt.getByText('No media attached to this result.'),
+    ).toBeVisible()
+    const persisted = await data(
+      await owner.get(`/activities/${activity.id}/my-attempts?limit=100`),
+    )
+    expect(persisted).toHaveLength(25)
+    expect(
+      persisted.find((row: any) => row.sessionId === oldest.sessionId)
+        .entries[0].resultEntryId,
+    ).toBe(oldest.entryId)
+    await originalAttempt
+      .getByRole('button', { name: 'Attach to this attempt' })
+      .click()
+    const picker = page.getByRole('dialog')
+    await picker.getByRole('button', { name: 'Platform', exact: true }).click()
+    await picker
+      .getByRole('button', {
+        name: `${media.alt || media.type} · READY`,
+        exact: true,
+      })
+      .click()
+    await expect(picker).toHaveCount(0)
+    await expect(
+      originalAttempt.getByRole('button', { name: 'Detach', exact: true }),
+    ).toHaveCount(1)
+    const afterAttempts = await data(
+      await owner.get(`/activities/${activity.id}/my-attempts?limit=100`),
+    )
+    expect(afterAttempts).toEqual(persisted)
     const restored = await data(
       await owner.get(`/activities/${activity.id}/my-media?limit=100`),
     )
@@ -166,18 +195,16 @@ test('live API: 25 attempts, pagination, detach/restore, refresh and private aut
     expect(after.item).toEqual(before.item)
     expect(after.session).toEqual(before.session)
     expect(
-      await data(await stranger.get(`/activities/${activity.id}/my-media`)),
+      await data(await stranger.get(`/activities/${activity.id}/my-attempts`)),
     ).toEqual([])
     expect(
       (
-        await stranger.delete(
-          `/media-attachments/${restored[0].attachment.id}`,
-        )
+        await stranger.delete(`/media-attachments/${restored[0].attachment.id}`)
       ).status(),
     ).toBe(404)
     const anonymous = await playwright.request.newContext({ baseURL: api })
     expect(
-      (await anonymous.get(`/activities/${activity.id}/my-media`)).status(),
+      (await anonymous.get(`/activities/${activity.id}/my-attempts`)).status(),
     ).toBe(401)
     await anonymous.dispose()
   } finally {
