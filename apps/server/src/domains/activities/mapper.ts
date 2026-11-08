@@ -79,12 +79,27 @@ export function toInstruction(i: RevisionFull['instructions'][number]) {
 
 const VISUAL_PURPOSES = ['COVER', 'ILLUSTRATION', 'DEMONSTRATION'] as const
 
+type VisualCandidate = { purpose: string; position?: number; media: { state: string } }
+
+/**
+ * Identity image for an Activity revision (11-MEDIA identity media):
+ * the COVER first, then ILLUSTRATION, then DEMONSTRATION, each by position;
+ * otherwise any READY attachment (including instruction media).
+ */
+export function pickVisual<T extends VisualCandidate>(revisionAttachments: T[], allAttachments: T[]): T | undefined {
+  for (const purpose of VISUAL_PURPOSES) {
+    const match = revisionAttachments
+      .filter((a) => a.purpose === purpose && a.media.state === 'READY')
+      .sort((x, y) => (x.position ?? 0) - (y.position ?? 0))[0]
+    if (match) return match
+  }
+  return allAttachments.find((a) => a.media.state === 'READY')
+}
+
 export function summarizeRevision(rev: RevisionFull | null) {
   if (!rev) return { instructionCount: 0, mediaCount: 0, metricLabels: [] as string[], thumbnailUrl: null as string | null }
   const allAttachments = [...rev.attachments, ...rev.instructions.flatMap((i) => i.attachments)]
-  const visual =
-    rev.attachments.find((a) => (VISUAL_PURPOSES as readonly string[]).includes(a.purpose) && a.media.state === 'READY') ??
-    allAttachments.find((a) => a.media.state === 'READY')
+  const visual = pickVisual(rev.attachments, allAttachments)
   const metricLabels = [...new Set([...rev.metrics, ...rev.instructions.flatMap((i) => i.metrics)].map((m) => m.metric.label))]
   return {
     instructionCount: rev.instructions.length,
@@ -146,8 +161,6 @@ export function calendarVisual(rev: CalendarRevision | null) {
   if (!rev) return { thumbnailUrl: null as string | null, hasPrivateAttachment: false }
   const allAttachments = [...rev.attachments, ...rev.instructions.flatMap((i) => i.attachments)]
   const hasPrivateAttachment = allAttachments.some((a) => a.media.ownerId !== null)
-  const visual =
-    rev.attachments.find((a) => (VISUAL_PURPOSES as readonly string[]).includes(a.purpose) && a.media.state === 'READY') ??
-    allAttachments.find((a) => a.media.state === 'READY')
+  const visual = pickVisual(rev.attachments, allAttachments)
   return { thumbnailUrl: visual ? mediaUrl(visual.media.id, 'thumb') : null, hasPrivateAttachment }
 }
