@@ -15,7 +15,8 @@
     "db:status": "dotenv -e ../../.env -- prisma migrate status",
     "db:reset": "dotenv -e ../../.env -- prisma migrate reset",
     "lint": "eslint src prisma",
-    "assets:generate": "tsx scripts/generate-platform-assets.ts"
+    "assets:generate": "tsx scripts/generate-platform-assets.ts",
+    "assets:covers": "tsx scripts/fetch-program-covers.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0"

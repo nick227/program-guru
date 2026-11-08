@@ -6,15 +6,27 @@ import { createHash } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs'
 import { dirname, join, resolve } from 'path'
 
-export const MANIFEST_VERSION = 1
+export const MANIFEST_VERSION = 2
 
 type AssetFile = { file: string; mime: 'image/jpeg' | 'image/webp'; bytes: number; sha256: string; width: number; height: number }
+/** Where a curated (non-generated) asset came from; verified CC0 when fetched. */
+export type AssetSource = {
+  title: string
+  pageUrl: string
+  author: string
+  license: 'CC0-1.0'
+  licenseUrl: string
+  retrievedAt: string
+}
 export type PlatformManifest = {
   version: number
   license: string
   attribution: string
   renderedWith: string
+  /** Activity illustrations (original work), keyed by Activity slug. */
   assets: Record<string, { alt: string; original: AssetFile; thumb: AssetFile }>
+  /** Curated Program cover photographs, keyed by starter Program slug. */
+  programCovers?: Record<string, { alt: string; original: AssetFile; thumb: AssetFile; source: AssetSource }>
 }
 
 /** The monorepo root, found from this file whether it runs from source or from a bundle in dist/. */
@@ -50,6 +62,21 @@ export function platformIllustration(slug: string): PlatformIllustration {
   if (!a) throw new Error(`No platform illustration for "${slug}": run pnpm --filter @project/db assets:generate`)
   const file = (f: AssetFile): PlatformFile => ({ storageKey: keyFor(f.file), mime: f.mime, byteSize: f.bytes, width: f.width, height: f.height, sha256: f.sha256, source: join(ASSET_DIR, f.file) })
   return { alt: a.alt, license: m.license, attribution: m.attribution, original: file(a.original), thumb: file(a.thumb) }
+}
+
+/** A starter Program's curated cover, or null when none is curated for that slug. */
+export function platformProgramCover(slug: string): PlatformIllustration | null {
+  const m = loadManifest()
+  const c = m.programCovers?.[slug]
+  if (!c) return null
+  const file = (f: AssetFile): PlatformFile => ({ storageKey: keyFor(f.file), mime: f.mime, byteSize: f.bytes, width: f.width, height: f.height, sha256: f.sha256, source: join(ASSET_DIR, f.file) })
+  return {
+    alt: c.alt,
+    license: c.source.license,
+    attribution: `${c.source.author} (${c.source.license}), via Wikimedia Commons: ${c.source.pageUrl}`,
+    original: file(c.original),
+    thumb: file(c.thumb),
+  }
 }
 
 /** Where platform media goes: local disk in development and tests, the API's storage (R2) in production. */

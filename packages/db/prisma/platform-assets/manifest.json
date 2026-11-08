@@ -1,1527 +1,2150 @@
 {
-  "version": 1,
+  "version": 2,
   "license": "CC0-1.0",
-  "attribution": "Programs App platform illustration (original work, CC0 1.0 Public Domain Dedication)",
-  "renderedWith": "ffmpeg drawtext, DejaVu Sans Bold",
+  "attribution": "Program.Guru platform illustration (original work, CC0 1.0 Public Domain Dedication)",
+  "renderedWith": "SVG rendered by ffmpeg (librsvg)",
   "assets": {
     "squats": {
-      "alt": "Squats: Fitness activity",
+      "alt": "Illustration for Squats (Fitness)",
       "original": {
         "file": "illustrations/squats.jpg",
         "mime": "image/jpeg",
-        "bytes": 22023,
-        "sha256": "47f2eff524b63d9e4f1ad18e3e4dd65f24dea0f48ce382ff8688d31de0ef6684",
+        "bytes": 38630,
+        "sha256": "ef09945af7c3522d44c91f956a5c5550bdb47f40974c62a3bb14d6c1281cdb76",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/squats-thumb.webp",
         "mime": "image/webp",
-        "bytes": 2944,
-        "sha256": "cd33d355090f05b7cf91cca511e4125a912cd667874c837183df60d3e0172982",
+        "bytes": 4308,
+        "sha256": "6987bf0765bc51d504af305710b125c8c9575d452be351890cece1b99d127135",
         "width": 480,
         "height": 360
       }
     },
     "leg-raises": {
-      "alt": "Leg Raises: Fitness activity",
+      "alt": "Illustration for Leg Raises (Fitness)",
       "original": {
         "file": "illustrations/leg-raises.jpg",
         "mime": "image/jpeg",
-        "bytes": 25859,
-        "sha256": "bbfa4d40b8b12dca2c7957abc552685f770384c3caa38ab11500535b54e0b863",
+        "bytes": 36200,
+        "sha256": "45de89f75cf0866b41695432799c0483fdf67ca78c0279a340607d46a74f7c3e",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/leg-raises-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3608,
-        "sha256": "eb7188be9adbcfdae63483c144827078767a62cecb2a7c3889cb39da5109141a",
+        "bytes": 4224,
+        "sha256": "d134d2a76f3f9afe468df9e94e4eadd1609ea3e15f9b1a5fd670d7199b22dffd",
         "width": 480,
         "height": 360
       }
     },
     "push-ups": {
-      "alt": "Push-ups: Fitness activity",
+      "alt": "Illustration for Push-ups (Fitness)",
       "original": {
         "file": "illustrations/push-ups.jpg",
         "mime": "image/jpeg",
-        "bytes": 23064,
-        "sha256": "b6f6969900d7d3a851bc18fffd9c067ab782e1ff16b9a1b6b9381ef46f0e1915",
+        "bytes": 35106,
+        "sha256": "98a775a35d9e02a443e7a19120619105e16db5566c9f742d82968089dfe2d3e1",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/push-ups-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3182,
-        "sha256": "6c23e0c465621de0b4bce50570e13e28e7846a392d25037ed79c9398f2cdc1f9",
+        "bytes": 3958,
+        "sha256": "0977a410b5a46911c6f8a13e807c3b07e0cac76a5f0120be53247a973dc5a481",
         "width": 480,
         "height": 360
       }
     },
     "plank": {
-      "alt": "Plank: Fitness activity",
+      "alt": "Illustration for Plank (Fitness)",
       "original": {
         "file": "illustrations/plank.jpg",
         "mime": "image/jpeg",
-        "bytes": 19368,
-        "sha256": "682cdd419d310edc82fa5899b71be0726e1378637b80ab1c2ca50cef43e77588",
+        "bytes": 38848,
+        "sha256": "9347a9b565e580ecc847661776b48ae0bca4649b0b377de96fe61ce58bd5ecd7",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/plank-thumb.webp",
         "mime": "image/webp",
-        "bytes": 2526,
-        "sha256": "1d93d19b311d28c02f4579a0eb899ed2c9850d34173e389316bbf396b5300a20",
+        "bytes": 4462,
+        "sha256": "b07e61c7fb16546027a5ae1f634e1a36c64c0f1e70a74e453e3138addcee5332",
         "width": 480,
         "height": 360
       }
     },
     "side-plank": {
-      "alt": "Side Plank: Fitness activity",
+      "alt": "Illustration for Side Plank (Fitness)",
       "original": {
         "file": "illustrations/side-plank.jpg",
         "mime": "image/jpeg",
-        "bytes": 24729,
-        "sha256": "2c76d252621729a6c1a9b3ff7822968dcf5733aa5066c9753d668ddbf3305d92",
+        "bytes": 36616,
+        "sha256": "a8f8060a0374752435936b1f68fa018bf7ab45e121e1a3a40783a65c89bd795e",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/side-plank-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3426,
-        "sha256": "0c91180c543c153af1847e9a773e00e13589c836bbe05a1c70d78a01c2751c83",
+        "bytes": 4270,
+        "sha256": "6fb729adc2cdeae1cdc70978cfc820c58a8fe774439729c21b602ff4b9f73cca",
         "width": 480,
         "height": 360
       }
     },
     "bird-dog": {
-      "alt": "Bird Dog: Fitness activity",
+      "alt": "Illustration for Bird Dog (Fitness)",
       "original": {
         "file": "illustrations/bird-dog.jpg",
         "mime": "image/jpeg",
-        "bytes": 23075,
-        "sha256": "bc83070c30444258c78fcc0c451661524becbf37f93af8d7a876d0a459ebf4e1",
+        "bytes": 37947,
+        "sha256": "b77c7ef3d3a621540b3dca2e0864d84b9d370607dd695c7ef3b5d6f6838de050",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/bird-dog-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3166,
-        "sha256": "ab1f107ccfb6e920d8d504f1776828b5e8231ac335d319632de85c6be95278d7",
+        "bytes": 4290,
+        "sha256": "5bd7ee38ffb324d4bda5a6762dabaeb1a462e250fe1f87ed8d7c052b7db86b2d",
         "width": 480,
         "height": 360
       }
     },
     "dead-bug": {
-      "alt": "Dead Bug: Fitness activity",
+      "alt": "Illustration for Dead Bug (Fitness)",
       "original": {
         "file": "illustrations/dead-bug.jpg",
         "mime": "image/jpeg",
-        "bytes": 24183,
-        "sha256": "6b9903fd4f5554a3de3bec71a64795348ebee7b375548607d8ba0b819d71ae25",
+        "bytes": 40950,
+        "sha256": "dfc20b2016463a35f1b1343b1e321c81a20e02ccb3b5196b91c5a85c7b6d246f",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/dead-bug-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3430,
-        "sha256": "2f03e5f958bf603a40a3f1cd6399c08f0c7730da9ef15dc6bc78c5dc84f50fd8",
+        "bytes": 4392,
+        "sha256": "7fcb3bbb8e74195cefd7a02a61a66ae3c3a5c768c59c5dd094656e8bd5db97a4",
         "width": 480,
         "height": 360
       }
     },
     "glute-bridge": {
-      "alt": "Glute Bridge: Fitness activity",
+      "alt": "Illustration for Glute Bridge (Fitness)",
       "original": {
         "file": "illustrations/glute-bridge.jpg",
         "mime": "image/jpeg",
-        "bytes": 27546,
-        "sha256": "8d3f771e5d9629fba20e07f1b9357b3cdc69a236d92599632dd5a37e482e2af6",
+        "bytes": 34230,
+        "sha256": "57be1a9db79077cf1de1cf6c455e5fc77fe06b0eacac3ec987435a2dc1f6cf66",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/glute-bridge-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3858,
-        "sha256": "2681f2caceaabbfac77b77bc957ed21082088f938840567af6c26f50187ef23c",
+        "bytes": 3854,
+        "sha256": "6d9808e230b4c42016a7615de87e5654a36aa4422b4c18901e133c975b74019a",
         "width": 480,
         "height": 360
       }
     },
     "lunges": {
-      "alt": "Lunges: Fitness activity",
+      "alt": "Illustration for Lunges (Fitness)",
       "original": {
         "file": "illustrations/lunges.jpg",
         "mime": "image/jpeg",
-        "bytes": 20769,
-        "sha256": "11a2d828fcb9f5c3576491f1e1abd00a8f333897965e86da2aaf385b6be5af0c",
+        "bytes": 34246,
+        "sha256": "58538531dbc0fee7f875e9165f2fe1251cd72a2be7b7cc4f5910feae27c05e4e",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/lunges-thumb.webp",
         "mime": "image/webp",
-        "bytes": 2862,
-        "sha256": "a206ddd7777aa9fb69f2f3a5125ee519f16761a0884c5cdf47075de0dca0a47f",
+        "bytes": 3928,
+        "sha256": "2bc2f4bf66a3ac25f30b342a238fb183ee908c7a28ff56858080c40cc9554318",
         "width": 480,
         "height": 360
       }
     },
     "wall-sit": {
-      "alt": "Wall Sit: Fitness activity",
+      "alt": "Illustration for Wall Sit (Fitness)",
       "original": {
         "file": "illustrations/wall-sit.jpg",
         "mime": "image/jpeg",
-        "bytes": 21744,
-        "sha256": "3c50c865d44a1e6c4074b049035714dcbb34d444a5bc6c4f85236ed51de17d30",
+        "bytes": 38040,
+        "sha256": "0c2b91c5d793a2b3954f3f22880503945231b3f8e36cdf7b6345ad36754ecfa8",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/wall-sit-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3072,
-        "sha256": "66aaa6e25d3fd3029272cb5caeb8e2b2a0db2bdab030f0d5211f92ac476ac953",
+        "bytes": 4312,
+        "sha256": "003592729ed5dc33ac899a0e636992e9327755126bf8f4945125a5dfef118e0f",
         "width": 480,
         "height": 360
       }
     },
     "calf-raises": {
-      "alt": "Calf Raises: Fitness activity",
+      "alt": "Illustration for Calf Raises (Fitness)",
       "original": {
         "file": "illustrations/calf-raises.jpg",
         "mime": "image/jpeg",
-        "bytes": 26227,
-        "sha256": "ac93445284a7206e86d3acae12d20dbce510a516e4ddee3e0a5a0eb2ecf2592d",
+        "bytes": 35804,
+        "sha256": "ff9862b01831c13b38fd755c4838bc9900847e1b317ad2cb74ea840cb66e9cd3",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/calf-raises-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3716,
-        "sha256": "c3c414146f815818d8c42d384c7ac55e4a6401615cacab1a5d850c883c96730f",
+        "bytes": 4138,
+        "sha256": "c87024c93fac6c477a4cd4888d7d18b13ade51ea9a12a58b6e719bbb6ffd27d1",
         "width": 480,
         "height": 360
       }
     },
     "step-ups": {
-      "alt": "Step-ups: Fitness activity",
+      "alt": "Illustration for Step-ups (Fitness)",
       "original": {
         "file": "illustrations/step-ups.jpg",
         "mime": "image/jpeg",
-        "bytes": 23825,
-        "sha256": "778a584db5c959141f03d4f31904c54f640300959e8d2b16af18b82e556d6322",
+        "bytes": 48870,
+        "sha256": "d2a9f36b10e8ebc5ab77c0861520d491f47bf18b2c5771644d58ad2e608894d7",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/step-ups-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3304,
-        "sha256": "e4114094dbc9c512c5683dae99234ff200cef9bcab2418b4d78b0ec79bb1f6f0",
+        "bytes": 5962,
+        "sha256": "851f2d0079e2b3c033fc44cab3ed77587f26e34b097b3bc6379e3143e22fcead",
         "width": 480,
         "height": 360
       }
     },
     "chair-squats": {
-      "alt": "Chair Squats: Fitness activity",
+      "alt": "Illustration for Chair Squats (Fitness)",
       "original": {
         "file": "illustrations/chair-squats.jpg",
         "mime": "image/jpeg",
-        "bytes": 27764,
-        "sha256": "b92bb8e73f336298570acb1515225f46e10c9149d45640cbdcfb19e8106c3f39",
+        "bytes": 34816,
+        "sha256": "29daa3a27f51b755fc3ece7b63d9ca78633efb76c8a30e3bd77215faeedb5d52",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/chair-squats-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3912,
-        "sha256": "3bacb9536c81f776b1aea7fcbe4489e273bdfedd28ab18d8adcd8a47e6493062",
+        "bytes": 4088,
+        "sha256": "d21765b3a213e4a36aaa20ecee1ac8bb7a55968a987dd2fe4760920b1cefb2a6",
         "width": 480,
         "height": 360
       }
     },
     "resistance-band-row": {
-      "alt": "Resistance Band Row: Fitness activity",
+      "alt": "Illustration for Resistance Band Row (Fitness)",
       "original": {
         "file": "illustrations/resistance-band-row.jpg",
         "mime": "image/jpeg",
-        "bytes": 33733,
-        "sha256": "e6c453804a7cd36f1cc3297c1525694417ada9b26ad18e591ff3e3a7c739c3a5",
+        "bytes": 36112,
+        "sha256": "ed8e1d84ead18a3b5f5b0e722afe677457e0dfd4253c36b7694d2f2a32d458c9",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/resistance-band-row-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5030,
-        "sha256": "db464ae0f4ca5c4d75535d748af7f532dd8082189190056e275e1d4ecf0e4f3b",
+        "bytes": 4210,
+        "sha256": "383858a59cbf4368ef46ec96a200ffaa7b569351f9649251a00c15318a515f37",
         "width": 480,
         "height": 360
       }
     },
     "standing-row": {
-      "alt": "Standing Row: Fitness activity",
+      "alt": "Illustration for Standing Row (Fitness)",
       "original": {
         "file": "illustrations/standing-row.jpg",
         "mime": "image/jpeg",
-        "bytes": 28915,
-        "sha256": "10a03e06ddf94696d8d37c5a657912766f1a426b41ee51a7a4090f52c9b4468d",
+        "bytes": 33206,
+        "sha256": "56d9c7b8940d0d6abafade14e041d901fda3e48699a9db7649951609d3aa12e2",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/standing-row-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4162,
-        "sha256": "a186043d166409e8b7aaa8424bf85fe92ff2e868faa3549f6c1912c1f6a1eb23",
+        "bytes": 3782,
+        "sha256": "82cfe215bb5bd54cca421bfd836a46ef2772e77bf5852c0d20521f4355b3b0f7",
         "width": 480,
         "height": 360
       }
     },
     "brisk-walk": {
-      "alt": "Brisk Walk: Fitness activity",
+      "alt": "Illustration for Brisk Walk (Fitness)",
       "original": {
         "file": "illustrations/brisk-walk.jpg",
         "mime": "image/jpeg",
-        "bytes": 25635,
-        "sha256": "9c0941cea3a6546c592f34946088e355a1dd3c9c0990c35276cdde416d4ff980",
+        "bytes": 51344,
+        "sha256": "1ca36ccb94f3317f67e49c4f3bdb8a645ff32a6099ffaa08bfd1dc51d8ae740a",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/brisk-walk-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3560,
-        "sha256": "39b69af1d6105a473b3f0b48d4a543a958e266c143f10e5de45f98735446575a",
+        "bytes": 6194,
+        "sha256": "fd51b7149c752696230568de44023764c1eefa25ff9eadaf867080b05a54a407",
         "width": 480,
         "height": 360
       }
     },
     "easy-walk": {
-      "alt": "Easy Walk: Fitness activity",
+      "alt": "Illustration for Easy Walk (Fitness)",
       "original": {
         "file": "illustrations/easy-walk.jpg",
         "mime": "image/jpeg",
-        "bytes": 25031,
-        "sha256": "97da9b6bc0f4509b966c9196c3537e4d280dc9375c751a3b553becb2e0796caa",
+        "bytes": 48991,
+        "sha256": "24bd71edfaccd008f6158f74f81f0e4c1314c1e23c8a17450e558147fa9be628",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/easy-walk-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3502,
-        "sha256": "e679bfa9ba7cc40ce4002c97aaef902ed26f283b3a3d9ff27168bfa8297e096c",
+        "bytes": 5894,
+        "sha256": "fe8b49b146bcd6db5e41cd6e8a591a17104a03c2e2709cf865c395cb23eedb78",
         "width": 480,
         "height": 360
       }
     },
     "jog-intervals": {
-      "alt": "Jog Intervals: Fitness activity",
+      "alt": "Illustration for Jog Intervals (Fitness)",
       "original": {
         "file": "illustrations/jog-intervals.jpg",
         "mime": "image/jpeg",
-        "bytes": 27192,
-        "sha256": "8833f4ba40201269e8a6ea19f0d5ee16392bd6975755c9f92c1a4a6974979d6e",
+        "bytes": 47370,
+        "sha256": "c113397cc396e924277fe4c1482de5e2db960d7c9246c9d81cd522a0df9bbd65",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/jog-intervals-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3798,
-        "sha256": "bd0b04085b1b101477e8f27d8722ece36ca9d0ea493af2b52a9d0585c15b67e4",
+        "bytes": 5834,
+        "sha256": "1ce5ced3e8a6eec1882e4829a2edb4dcebc62e7df92b3ac7af5d9be22731065b",
         "width": 480,
         "height": 360
       }
     },
     "bike-ride": {
-      "alt": "Bike Ride: Fitness activity",
+      "alt": "Illustration for Bike Ride (Fitness)",
       "original": {
         "file": "illustrations/bike-ride.jpg",
         "mime": "image/jpeg",
-        "bytes": 24321,
-        "sha256": "0a8a5684a6625c898b26ac0e4ed4bcd16bd30a3ea67dddbd7e880e48ea8aa6f1",
+        "bytes": 50174,
+        "sha256": "d2a8a40a67d7aa8548330cc8553e08e59107b3d3a032043d0a384808982ff740",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/bike-ride-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3278,
-        "sha256": "4a7e71d039d4738af7beaad71c294c6b1ca3cf74c071455db2b8b12cb7c1d843",
+        "bytes": 5986,
+        "sha256": "7da443fb85c30086d093f3d73a72568826c7274610d1591b037a9e15f74724da",
         "width": 480,
         "height": 360
       }
     },
     "stair-walking": {
-      "alt": "Stair Walking: Fitness activity",
+      "alt": "Illustration for Stair Walking (Fitness)",
       "original": {
         "file": "illustrations/stair-walking.jpg",
         "mime": "image/jpeg",
-        "bytes": 28865,
-        "sha256": "198add66da622a88b0a245599633c980f29ef91a3570273b61e3541afb1473d8",
+        "bytes": 52049,
+        "sha256": "3257e9176e029142353af2c69b95ea4282df53047183ad7c6745cb343922d164",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/stair-walking-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4132,
-        "sha256": "bf355402a7f88e8db0d28714e99801249b42d24376a345642bbc0b147be9b9d7",
+        "bytes": 5992,
+        "sha256": "f73ba33a2dee58418dcec1a9c0ccac3765115a55513568e3ce5193901d2b844e",
         "width": 480,
         "height": 360
       }
     },
     "warm-up": {
-      "alt": "Warm-up: Fitness activity",
+      "alt": "Illustration for Warm-up (Fitness)",
       "original": {
         "file": "illustrations/warm-up.jpg",
         "mime": "image/jpeg",
-        "bytes": 22371,
-        "sha256": "c7d9333df682638842c03062ac1cf0368d13d26f7e4c77e5e7ad2c63eaacf901",
+        "bytes": 78104,
+        "sha256": "2ab774b3a6b9a3eec593f54c1cb1e3ba217f1ef0524d99d0b7ba6c8facbb5338",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/warm-up-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3188,
-        "sha256": "4c746481b3fb43beb8ab04d669d5b1ebd7fa3a8c94f823bcb56140ebaabe18f0",
+        "bytes": 8962,
+        "sha256": "9763ed18a91367453a977ca55f316e24f9a1cf889c52cd5d254b4a2f9b0fd7e6",
         "width": 480,
         "height": 360
       }
     },
     "cool-down": {
-      "alt": "Cool-down: Fitness activity",
+      "alt": "Illustration for Cool-down (Fitness)",
       "original": {
         "file": "illustrations/cool-down.jpg",
         "mime": "image/jpeg",
-        "bytes": 24692,
-        "sha256": "108db62a1c05a6264718006e72f708eaf08e8ee5f14b96e49675e5cbe73c04c8",
+        "bytes": 68302,
+        "sha256": "0dc4321b08158d40b861e65e3527f6d16e4693c1bf186f6c9d7bb30f7ecbdf50",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/cool-down-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3478,
-        "sha256": "94cc7ff4e1b1972ef6c6bb787a56d0d3bdf3203e2d4bc3a6180ce6392bd92d8c",
+        "bytes": 7750,
+        "sha256": "d1f80cf929c77562d455ba46cff8c4d31bf1f6a1d7071a881e7c2d3a157e7295",
         "width": 480,
         "height": 360
       }
     },
     "neck-mobility": {
-      "alt": "Neck Mobility: Fitness activity",
+      "alt": "Illustration for Neck Mobility (Fitness)",
       "original": {
         "file": "illustrations/neck-mobility.jpg",
         "mime": "image/jpeg",
-        "bytes": 28878,
-        "sha256": "14f3bbad11e4835ce1b9d2a746419d9876eaa171206e95a068b7adcc0a2d53f5",
+        "bytes": 75318,
+        "sha256": "73e54033343a934f7053955ce0daee82812eb3e67b1d192dc8f0412acd951044",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/neck-mobility-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4070,
-        "sha256": "5cd082702c20024c26c4386f29a09364f36a2b7488348f9745186568a8c48030",
+        "bytes": 8560,
+        "sha256": "eda6cd918250799645001afa2ab999aa2411cc7bdfe442a095897f9f2ef98ebc",
         "width": 480,
         "height": 360
       }
     },
     "shoulder-circles": {
-      "alt": "Shoulder Circles: Fitness activity",
+      "alt": "Illustration for Shoulder Circles (Fitness)",
       "original": {
         "file": "illustrations/shoulder-circles.jpg",
         "mime": "image/jpeg",
-        "bytes": 31559,
-        "sha256": "8dc02586639b53e942789019a807c5f70ab7956341387d2c4a6f81cd5bf78a1d",
+        "bytes": 36392,
+        "sha256": "8baaf39ecb0f178ebc96e3080d84c6083b9c208ef3f22fbbbe8530d027775403",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/shoulder-circles-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4444,
-        "sha256": "01386d31c6ba63f4488bb6de49ab5755ea91c06d975fbcbe1fa0611ba1c6cdce",
+        "bytes": 4286,
+        "sha256": "be147e5feb9cef01f1aa3a42bcc09c7ca0532dd67f7b2dcc0ceea76dc585936b",
         "width": 480,
         "height": 360
       }
     },
     "hip-mobility": {
-      "alt": "Hip Mobility: Fitness activity",
+      "alt": "Illustration for Hip Mobility (Fitness)",
       "original": {
         "file": "illustrations/hip-mobility.jpg",
         "mime": "image/jpeg",
-        "bytes": 26430,
-        "sha256": "92939ee4b327cb29f36a16e2676c23c0c10a99515235c463045409d5d99e3b08",
+        "bytes": 75263,
+        "sha256": "d76d3d069d953ee72db90af0f1d4b585128ae5e2da06412c5205cd0597a26a8c",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/hip-mobility-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3786,
-        "sha256": "3f52b396dfd12bdaf3018733836dccfc132d8125f197bf3dfd18d00b71a1141f",
+        "bytes": 8630,
+        "sha256": "f10fbf2455001aed5b52eb0b567fba15765ccb934fef5c514883b82bafdf6578",
         "width": 480,
         "height": 360
       }
     },
     "calf-stretch": {
-      "alt": "Calf Stretch: Fitness activity",
+      "alt": "Illustration for Calf Stretch (Fitness)",
       "original": {
         "file": "illustrations/calf-stretch.jpg",
         "mime": "image/jpeg",
-        "bytes": 26519,
-        "sha256": "351bc4605d83f91661e12a2a66864ebfd3ad0ad0aa8e7d56d5b22f08bbf62abd",
+        "bytes": 73452,
+        "sha256": "871fe1e7392ccd810cafee55bf2b03871a04993bb1338ff2e26136dfb7de14b0",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/calf-stretch-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3758,
-        "sha256": "0611c34b1e1273cd3a38d65c0355f98ac5ecd6084faee59eb9442a3fc91c35fe",
+        "bytes": 8382,
+        "sha256": "0403e77b044c2819ff59d2655f9c29ba199d0a3e322e12f311ff6c25e17fd3f9",
         "width": 480,
         "height": 360
       }
     },
     "hamstring-stretch": {
-      "alt": "Hamstring Stretch: Fitness activity",
+      "alt": "Illustration for Hamstring Stretch (Fitness)",
       "original": {
         "file": "illustrations/hamstring-stretch.jpg",
         "mime": "image/jpeg",
-        "bytes": 33321,
-        "sha256": "3edfc542bcf30ee7891a0aa6454e900283145558f541fcbcd761fb678281d63c",
+        "bytes": 78874,
+        "sha256": "7c323ce8350e8ef22df367a62663c1960835c4c1016a2297e7926feff8aade55",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/hamstring-stretch-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4962,
-        "sha256": "3a11d2490f1470a49d1a3d4fbeee4c159b970636460307ece342c9ba4bab225f",
+        "bytes": 9068,
+        "sha256": "28fd353c36c84eb7f7b1cd859e7884caf47ce258df81920cf3975e73b88b7d43",
         "width": 480,
         "height": 360
       }
     },
     "gentle-yoga": {
-      "alt": "Gentle Yoga: Fitness activity",
+      "alt": "Illustration for Gentle Yoga (Fitness)",
       "original": {
         "file": "illustrations/gentle-yoga.jpg",
         "mime": "image/jpeg",
-        "bytes": 27357,
-        "sha256": "46c73ca03095483a6dfa0c04eaaedfbcfa70283d79bf5aac446bb0040f2dd4cb",
+        "bytes": 75325,
+        "sha256": "94ec76be58d90f47fc2db5dcb336b508b4f1f409ab81f6f46e91648503dd02b6",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/gentle-yoga-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3916,
-        "sha256": "9a8ba817e503d1132e564451598f26b2ac6b2556f38368b4d19d927a3cf7eea7",
+        "bytes": 8544,
+        "sha256": "1eb454807a25ea803fa1b9f993730484419319c69a3dba3308ab8b6289455662",
         "width": 480,
         "height": 360
       }
     },
     "balance-practice": {
-      "alt": "Balance Practice: Fitness activity",
+      "alt": "Illustration for Balance Practice (Fitness)",
       "original": {
         "file": "illustrations/balance-practice.jpg",
         "mime": "image/jpeg",
-        "bytes": 31385,
-        "sha256": "b6576eb87dc5926a5249c83a723febe325a37ece42808f20879c0e05acf1154e",
+        "bytes": 79349,
+        "sha256": "8daf2194fc387d93a82d74c7def76ab560376f00b2a01e73295dbfe493efa80d",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/balance-practice-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4536,
-        "sha256": "e8c9e1416fe1c45f74606a5abc33160caba6a486f861a96dda169b4b56b3303f",
+        "bytes": 9096,
+        "sha256": "500a2a00261f443cd5fb6ad32d9b6a17c72a657d3010d0c81524aa6054864ab7",
         "width": 480,
         "height": 360
       }
     },
     "breathing-break": {
-      "alt": "Breathing Break: Fitness activity",
+      "alt": "Illustration for Breathing Break (Fitness)",
       "original": {
         "file": "illustrations/breathing-break.jpg",
         "mime": "image/jpeg",
-        "bytes": 31633,
-        "sha256": "796fa2d8adb9732af1648cbcc0c7c286c6f0e6f5e6e93603999d7e5e9afb0602",
+        "bytes": 68314,
+        "sha256": "c0d0fd35a62129dae7d71ba071ba239d1a9a3f53a148b88dd6fdd8ff17ca659f",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/breathing-break-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4626,
-        "sha256": "ad075fb92c8f53e3080c8e5cfa7010ca745905e4055d09fcefab12636809b9da",
+        "bytes": 7680,
+        "sha256": "31545072d410def06118073844d7b846f57a0f55802618d957eaffe8b020a0f5",
         "width": 480,
         "height": 360
       }
     },
     "vocabulary-review": {
-      "alt": "Vocabulary Review: Education activity",
+      "alt": "Illustration for Vocabulary Review (Education)",
       "original": {
         "file": "illustrations/vocabulary-review.jpg",
         "mime": "image/jpeg",
-        "bytes": 36698,
-        "sha256": "2ba5da78917b94645c7b349b98f85bf918306394158101e8b5b9c73fc8630616",
+        "bytes": 38071,
+        "sha256": "31a3788570d43490a4da69ac22ba8d95ae03cd64927c6280f2ced590550ab3bb",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/vocabulary-review-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5370,
-        "sha256": "9c8179463524e1474d928ba93e99a53ece532cbd1fc1fbaa426cc3d48c71bfaa",
+        "bytes": 3736,
+        "sha256": "4d03dcafee626c28e0a0163535f7680223fd10ec58cbe7d4d051591fc6f96ef3",
         "width": 480,
         "height": 360
       }
     },
     "flashcard-practice": {
-      "alt": "Flashcard Practice: Education activity",
+      "alt": "Illustration for Flashcard Practice (Education)",
       "original": {
         "file": "illustrations/flashcard-practice.jpg",
         "mime": "image/jpeg",
-        "bytes": 35109,
-        "sha256": "f2a7fd32f9d744a534e46836f62cfd3817f051c29abfb64bc66408598bc4c102",
+        "bytes": 40020,
+        "sha256": "02b65a09e0fd1285e2b6854578de9fa35d29902c1e4834cf3d2b07467bae7213",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/flashcard-practice-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5172,
-        "sha256": "beb6f0794c9c7e3f85c645364e488b064b04c9cc4e6c483a5f7caa1919e93243",
+        "bytes": 3924,
+        "sha256": "1d740da4a5dca78008cbe0a7fd4ae1a7ba9ba3df10b8d52a184429a4ffc310b1",
         "width": 480,
         "height": 360
       }
     },
     "read-a-chapter": {
-      "alt": "Read a Chapter: Education activity",
+      "alt": "Illustration for Read a Chapter (Education)",
       "original": {
         "file": "illustrations/read-a-chapter.jpg",
         "mime": "image/jpeg",
-        "bytes": 32089,
-        "sha256": "512e21615ccd41fc43f9ccb7eaf6d92130a7614a65d0e674c4a6cba754249b09",
+        "bytes": 38336,
+        "sha256": "89b1d56c7bdbd03a5d6348eedc27c42a6eb8c5fccf8630db8e3eda03f27554a2",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/read-a-chapter-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4652,
-        "sha256": "2f0a18af83ea4bce651a56fa6ca230fe6b0a508676b256bea8f23ae046dd52f1",
+        "bytes": 3916,
+        "sha256": "2f20d39e106257f153048795be9e931b477f80190868ffa69fc773696715949d",
         "width": 480,
         "height": 360
       }
     },
     "read-for-20-minutes": {
-      "alt": "Read for 20 Minutes: Education activity",
+      "alt": "Illustration for Read for 20 Minutes (Education)",
       "original": {
         "file": "illustrations/read-for-20-minutes.jpg",
         "mime": "image/jpeg",
-        "bytes": 33508,
-        "sha256": "39a32084301d25e65327a372eae10f4fba4fca03e6dfcada4e3ff465378d609d",
+        "bytes": 40410,
+        "sha256": "a3ec635f6d341de8aa1cb31e720ed9bfd9b5c0dd290e6f13fe25b5dcf253e1d6",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/read-for-20-minutes-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4986,
-        "sha256": "726059b4a53b0849fb286b2449813756a2eddf175cc174e8add42f6064627fd1",
+        "bytes": 3946,
+        "sha256": "87c3c9299a98c4c88895cb354dc9feeda96b002aa386e822f71c3dac77bf6124",
         "width": 480,
         "height": 360
       }
     },
     "practice-speaking": {
-      "alt": "Practice Speaking: Education activity",
+      "alt": "Illustration for Practice Speaking (Education)",
       "original": {
         "file": "illustrations/practice-speaking.jpg",
         "mime": "image/jpeg",
-        "bytes": 36025,
-        "sha256": "39975a5813e343244a98e7022bd2822a8eade619d7ff40df7b88c2fe4f5155c2",
+        "bytes": 37160,
+        "sha256": "f5e64e87543b55cb8d8b42a29f22beffe5119fe284ccf4973da4c3544f5ddb1f",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/practice-speaking-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5176,
-        "sha256": "fbf966d61ff3b6ecc17d9b0be862d5a2c7a5249fd6fc71e5be2a4ef896a80cb9",
+        "bytes": 3768,
+        "sha256": "60939fe7098f46cbbadc473fbacf4d35ea40df6973f717589d3896273249fbfa",
         "width": 480,
         "height": 360
       }
     },
     "listening-practice": {
-      "alt": "Listening Practice: Education activity",
+      "alt": "Illustration for Listening Practice (Education)",
       "original": {
         "file": "illustrations/listening-practice.jpg",
         "mime": "image/jpeg",
-        "bytes": 34195,
-        "sha256": "8634b1431d376394686c2db0cdcfc58fb3e9013aecda6e0daf10e1b8a2fc55c0",
+        "bytes": 39613,
+        "sha256": "41170bf253d73bb79be87913cd2576efaf1f09a4d5a2f2ff59919cfb472fcfe1",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/listening-practice-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5066,
-        "sha256": "dc341b74b5198469a3aaada96810afddcaee978be221e977d033187691795f1f",
+        "bytes": 4028,
+        "sha256": "b60e0da35461f84abc21f729479a51ca226db96eb1fd39380fff705348edd236",
         "width": 480,
         "height": 360
       }
     },
     "solve-practice-problems": {
-      "alt": "Solve Practice Problems: Education activity",
+      "alt": "Illustration for Solve Practice Problems (Education)",
       "original": {
         "file": "illustrations/solve-practice-problems.jpg",
         "mime": "image/jpeg",
-        "bytes": 37231,
-        "sha256": "7c6e5432761c135d418316982952fd94eed1cf37c56cef6f6a12fd759c2b5205",
+        "bytes": 39288,
+        "sha256": "fc8442a74066f36a0f00abd71ad21f96039e16a04e8f4713408140934980ea38",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/solve-practice-problems-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5614,
-        "sha256": "967eabcd7e49cc4f04c55f74d5594149f7bfd14b39894751d676bd2513ed0416",
+        "bytes": 4038,
+        "sha256": "17e8304121904ee92da9d546ed9972134f9fb4abd299e8259db8b522b0d59c58",
         "width": 480,
         "height": 360
       }
     },
     "review-notes": {
-      "alt": "Review Notes: Education activity",
+      "alt": "Illustration for Review Notes (Education)",
       "original": {
         "file": "illustrations/review-notes.jpg",
         "mime": "image/jpeg",
-        "bytes": 30662,
-        "sha256": "a6595ecc6dd965fa65e5ac9f698759088e2ab7a995622e2971104a40204adbb5",
+        "bytes": 39439,
+        "sha256": "6a7a0b1d0fce33908e4ef2ab017b059b5835e7fbb94744d75f4b8d6326ee03a8",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/review-notes-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4352,
-        "sha256": "1ad588652a33495cc604bd104e9b9adafe15aaf73b9f90123d2eee36a0817dd7",
+        "bytes": 3930,
+        "sha256": "2f78855c80b0a84331bd0e01e27425f55644f1ff19b1dbdbd544e13934af75bc",
         "width": 480,
         "height": 360
       }
     },
     "complete-a-lesson": {
-      "alt": "Complete a Lesson: Education activity",
+      "alt": "Illustration for Complete a Lesson (Education)",
       "original": {
         "file": "illustrations/complete-a-lesson.jpg",
         "mime": "image/jpeg",
-        "bytes": 35285,
-        "sha256": "367aa413f39be082dc8dda81e13cf43d347b1a0448dfffaccebafedad3e3a7f9",
+        "bytes": 37672,
+        "sha256": "2ba498aee99fce1be7bd66b3ab4e2d027d3b80bfa0693b5de591b1bb247db7c3",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/complete-a-lesson-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5186,
-        "sha256": "988112468da68e87604fa407d726d6e50b4b2adfb7178df82f3b47d3b5f96213",
+        "bytes": 3784,
+        "sha256": "b7e5aeff01b73afdb3df20014dae65444ec70334efe573e707018b5e9aa2934a",
         "width": 480,
         "height": 360
       }
     },
     "self-quiz": {
-      "alt": "Self-Quiz: Education activity",
+      "alt": "Illustration for Self-Quiz (Education)",
       "original": {
         "file": "illustrations/self-quiz.jpg",
         "mime": "image/jpeg",
-        "bytes": 25250,
-        "sha256": "95a2045648403192a1763b3263c50c2d86c941e2728b5615a7f98c1448bfe072",
+        "bytes": 38984,
+        "sha256": "5c07a4a169acc951bff441f67db8b496f303058949dc554c2221ea3aa4402fa6",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/self-quiz-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3584,
-        "sha256": "f3d3700a9c09d3fdf52055fa54831826f6c0fbc5c4260e37c1c7215464d70f9f",
+        "bytes": 3952,
+        "sha256": "899c909690c8ebfddcded70d417ee06135d232ad3fd18e95a8991cb93362b48e",
         "width": 480,
         "height": 360
       }
     },
     "research-a-topic": {
-      "alt": "Research a Topic: Education activity",
+      "alt": "Illustration for Research a Topic (Education)",
       "original": {
         "file": "illustrations/research-a-topic.jpg",
         "mime": "image/jpeg",
-        "bytes": 32505,
-        "sha256": "6c0a91b86207588f7d417d92ec3d9fd96e8ae89355f9a0de7c3b9c9efc8c3936",
+        "bytes": 38366,
+        "sha256": "91165e6a25e7b850251ecaca3601a0f2fc2c21320280a7f944175e2a5f672868",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/research-a-topic-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4734,
-        "sha256": "f597e1564e65e3da03ee654e87c39edc819054dd05414ab5355c1eaad371e9b0",
+        "bytes": 3758,
+        "sha256": "49ec3f102ca669605a9c2a3429bbed3b78112224a879619fdce7f9bc5a127e55",
         "width": 480,
         "height": 360
       }
     },
     "practice-an-instrument": {
-      "alt": "Practice an Instrument: Education activity",
+      "alt": "Illustration for Practice an Instrument (Education)",
       "original": {
         "file": "illustrations/practice-an-instrument.jpg",
         "mime": "image/jpeg",
-        "bytes": 34030,
-        "sha256": "c85853e3020437872c9e57e698c7cbac79e46a20301fef9111cdb5f916e8a02e",
+        "bytes": 34704,
+        "sha256": "b774d5358df77458ff4d6bed9e4c955a9ade89c140fda12007632e79d8b4a5f0",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/practice-an-instrument-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5182,
-        "sha256": "22e291c214e62e842e0bfb6719bfa5a7cb20d5ae4fdc2b80a2649d19f4166c27",
+        "bytes": 3458,
+        "sha256": "97b04f23109b5f636ac37885e17d0c9917c4309fca90ce87064da5b4e1af5aa8",
         "width": 480,
         "height": 360
       }
     },
     "review-mistakes": {
-      "alt": "Review Mistakes: Education activity",
+      "alt": "Illustration for Review Mistakes (Education)",
       "original": {
         "file": "illustrations/review-mistakes.jpg",
         "mime": "image/jpeg",
-        "bytes": 34710,
-        "sha256": "89c136f83d09d68cebcf3c09c3e1bf674284852763e5092d706b493bcb67024b",
+        "bytes": 39860,
+        "sha256": "7e739267cc746d7dca9e4392030baf33e2d1b7a8a15ce8135047f9904730786f",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/review-mistakes-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5096,
-        "sha256": "cda5875ffa2d67774effd4dfeca5b7ad14081578cc14d38b8012546c4cf23eba",
+        "bytes": 4028,
+        "sha256": "0dc2f342cc139041f86aaa7799d7031d6707077765a66cf0ff11f47f67717b8a",
         "width": 480,
         "height": 360
       }
     },
     "teach-back-a-concept": {
-      "alt": "Teach Back a Concept: Education activity",
+      "alt": "Illustration for Teach Back a Concept (Education)",
       "original": {
         "file": "illustrations/teach-back-a-concept.jpg",
         "mime": "image/jpeg",
-        "bytes": 34257,
-        "sha256": "7564cb497413b6282cfce1491866385d177eaf7e88b58729d66bb7f6446dca4f",
+        "bytes": 38727,
+        "sha256": "6b45eecaa5f0c552e1ca04c49a8a6e8ca4c57706ae46f5b375386cf52e32e8f4",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/teach-back-a-concept-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5192,
-        "sha256": "91f8b3df680d95ac21d2b938ab2226f4e33896ad52c505d183217a728f7ad315",
+        "bytes": 3788,
+        "sha256": "d1f4dc9ce3aa06b05fea10feb6cb0534129c78bad5f497409135bd43cc528c49",
         "width": 480,
         "height": 360
       }
     },
     "guided-meditation": {
-      "alt": "Guided Meditation: Wellness activity",
+      "alt": "Illustration for Guided Meditation (Wellness)",
       "original": {
         "file": "illustrations/guided-meditation.jpg",
         "mime": "image/jpeg",
-        "bytes": 30374,
-        "sha256": "283dfe3ea0c31b5c7f57df5fc7a692d8737d06cc11977cccb78588076377db2c",
+        "bytes": 66326,
+        "sha256": "868f0ade02699e10aa3b17dbdefcee9bbc4440c90ad5e5c23809e0037df01c92",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/guided-meditation-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4378,
-        "sha256": "2195555731d5c1586c7a51f94ecee814557a8f0d53f94920a14903412ce6b857",
+        "bytes": 7772,
+        "sha256": "883d2a6ba1a905aac9343861d217145a15871dadc6f14d6962201d2433944d8f",
         "width": 480,
         "height": 360
       }
     },
     "breathing-exercise": {
-      "alt": "Breathing Exercise: Wellness activity",
+      "alt": "Illustration for Breathing Exercise (Wellness)",
       "original": {
         "file": "illustrations/breathing-exercise.jpg",
         "mime": "image/jpeg",
-        "bytes": 31168,
-        "sha256": "9b03043ab5f054e5cb8e194bbdcfa30c2f7f97fa43a47ff19fc4378a3029b744",
+        "bytes": 66066,
+        "sha256": "9140ab5d23d842a7828f02db4c337d9ddf231926581257a631819710a5cf36ab",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/breathing-exercise-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4466,
-        "sha256": "e59791fb7de63cf2449d53dadde549e2353f49347270a056149f4078829694e9",
+        "bytes": 7684,
+        "sha256": "89d2d24956018116f96c2fbca7cfa6b00f7a5400efd276f6bd87133491536ac2",
         "width": 480,
         "height": 360
       }
     },
     "daily-reflection": {
-      "alt": "Daily Reflection: Wellness activity",
+      "alt": "Illustration for Daily Reflection (Wellness)",
       "original": {
         "file": "illustrations/daily-reflection.jpg",
         "mime": "image/jpeg",
-        "bytes": 27991,
-        "sha256": "e3c36a1365dd2e03eb8002aea462026854124e51372807461c27132978f00adc",
+        "bytes": 36363,
+        "sha256": "029147821553cfa0fc57b5cfaf3bdfd6f280c8fa14c299e98e00d8592e6c9fea",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/daily-reflection-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3974,
-        "sha256": "0f21b9e83cc6ed35d0e744875e62161c7ac07b6654724b0c95e1b5e88f1284d5",
+        "bytes": 3674,
+        "sha256": "5b4f39e1f2aee94d90ebe6d6a7cc406a72b351796139b5a2b41305adf85953fe",
         "width": 480,
         "height": 360
       }
     },
     "gratitude-journal": {
-      "alt": "Gratitude Journal: Wellness activity",
+      "alt": "Illustration for Gratitude Journal (Wellness)",
       "original": {
         "file": "illustrations/gratitude-journal.jpg",
         "mime": "image/jpeg",
-        "bytes": 28875,
-        "sha256": "1161590e2221ab205f395d594377ab99c895030bf102e8e24b3d52a407493ebc",
+        "bytes": 35591,
+        "sha256": "33291a7484a4b522d210e7c4cc47d4a034c141dcbf7795ea14d900d817cde3ae",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/gratitude-journal-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4112,
-        "sha256": "324b342988178b9720e48ca87d9e00c31631cb80af69ffd8f07cb1ae64d748d3",
+        "bytes": 3584,
+        "sha256": "b3619198f47c04844e23098fbd4cdfa0514a5129f6133d9d83f91b66972e7611",
         "width": 480,
         "height": 360
       }
     },
     "set-bedtime-reminder": {
-      "alt": "Set Bedtime Reminder: Wellness activity",
+      "alt": "Illustration for Set Bedtime Reminder (Wellness)",
       "original": {
         "file": "illustrations/set-bedtime-reminder.jpg",
         "mime": "image/jpeg",
-        "bytes": 31062,
-        "sha256": "324d9ba726d8709917863ea0fce10c3dc1c7d85ef500697dfbc63b925fac2b28",
+        "bytes": 29118,
+        "sha256": "8e6457806dc045716fa1a511caabb7cba2d1c96de8b10c83cec473c8a12b3656",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/set-bedtime-reminder-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4594,
-        "sha256": "371a6d61c6a985e0f398372a64f58a864ccfd68c07b1cfca8cfff2f4a8896916",
+        "bytes": 3166,
+        "sha256": "007beadec35b8664f71357b12e252f1dc13e8ab5c52228116700be9d88efb86a",
         "width": 480,
         "height": 360
       }
     },
     "evening-wind-down": {
-      "alt": "Evening Wind-down: Wellness activity",
+      "alt": "Illustration for Evening Wind-down (Wellness)",
       "original": {
         "file": "illustrations/evening-wind-down.jpg",
         "mime": "image/jpeg",
-        "bytes": 31217,
-        "sha256": "07b668b9b5f324477918502ac2cf1e2b4aaa507f4f860efc1c5a02fcc7283a23",
+        "bytes": 28299,
+        "sha256": "53ca215ea758ff94e61351dcf57a5b2df9f36e33e37f25e14a9d06c002a9e83a",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/evening-wind-down-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4438,
-        "sha256": "3e1f34518f279ccc61c439cfef932150ab332e46f5419dc8588a1854a4ae057c",
+        "bytes": 2920,
+        "sha256": "44a9ee583aba39cd216d772ef573811ad68b568e198277ef3d809be98a70638a",
         "width": 480,
         "height": 360
       }
     },
     "morning-routine": {
-      "alt": "Morning Routine: Wellness activity",
+      "alt": "Illustration for Morning Routine (Wellness)",
       "original": {
         "file": "illustrations/morning-routine.jpg",
         "mime": "image/jpeg",
-        "bytes": 27961,
-        "sha256": "9f900d94de360d3db2a1de854400f153b04f015baf7dcee2deda6129b2bdcb3d",
+        "bytes": 65511,
+        "sha256": "f89882124eac32d77ebf5afc887d29a58a0799afc93df59c7602224d48b4f15c",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/morning-routine-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3952,
-        "sha256": "bc1d1048b7d6b5755e1fe47effc2de2acd8b102f700d6551b8f3f37d769fca5a",
+        "bytes": 7628,
+        "sha256": "b87fdd8be815c96ce16e6554603790dcbfbb084834ebabd114dce5707e36a260",
         "width": 480,
         "height": 360
       }
     },
     "outdoor-break": {
-      "alt": "Outdoor Break: Wellness activity",
+      "alt": "Illustration for Outdoor Break (Wellness)",
       "original": {
         "file": "illustrations/outdoor-break.jpg",
         "mime": "image/jpeg",
-        "bytes": 26937,
-        "sha256": "6bb67c00761cce7034174171c2c0e5b8cdb71cc0a34ee777ca94f4eff274b686",
+        "bytes": 66435,
+        "sha256": "ae0a0e0b6ba266b452457f7b974d5064273328416638e9ad74b247bbb7bc184a",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/outdoor-break-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3798,
-        "sha256": "7446e8bc13f80d89fe2d2a1b1b5f3e77e6ac7f4225bf82faa451ecee2ec78a05",
+        "bytes": 7666,
+        "sha256": "5ef252a2af82a310c99fc01520e4b88e8d0e50696d649baa2c4da349cbf7633f",
         "width": 480,
         "height": 360
       }
     },
     "mindful-walk": {
-      "alt": "Mindful Walk: Wellness activity",
+      "alt": "Illustration for Mindful Walk (Wellness)",
       "original": {
         "file": "illustrations/mindful-walk.jpg",
         "mime": "image/jpeg",
-        "bytes": 24516,
-        "sha256": "84becf4987bdb5381f85b76d7156da1add4003d6481cae0e81bbd4edfe8966b3",
+        "bytes": 44527,
+        "sha256": "9da560aa6e1e6a3c401e6ada994fd89bbe0e5c186173a7326b86347a3dba9df6",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/mindful-walk-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3498,
-        "sha256": "39a3a9913e0f6891609ed8f01ba5cb9cda58f1f240dd47f5b3d26713a77686c1",
+        "bytes": 5438,
+        "sha256": "c5dc81673edc1fe85cfb6ced2c31e4d24ef0eb449dc0fc5ff1e420334c992332",
         "width": 480,
         "height": 360
       }
     },
     "stretch-break": {
-      "alt": "Stretch Break: Wellness activity",
+      "alt": "Illustration for Stretch Break (Wellness)",
       "original": {
         "file": "illustrations/stretch-break.jpg",
         "mime": "image/jpeg",
-        "bytes": 25904,
-        "sha256": "39fb2f8820420b1960922cde13886fc1216dbb4de8fdbfee28ad57bbf2d0eb8c",
+        "bytes": 67972,
+        "sha256": "a2886e17d658926423f1b62b15dabe2d6fb52b51f8a506f84068e35df8660dba",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/stretch-break-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3746,
-        "sha256": "4b6ed90befd6bf26e0fa21278c5dfd7f6d321604a8fcacaaad8f83596e2d037c",
+        "bytes": 8038,
+        "sha256": "d6ae3b8eed3ea9c3979f1ab7d462653175fc22f73b9db6bcbedf5ec05895a82b",
         "width": 480,
         "height": 360
       }
     },
     "screen-free-break": {
-      "alt": "Screen-free Break: Wellness activity",
+      "alt": "Illustration for Screen-free Break (Wellness)",
       "original": {
         "file": "illustrations/screen-free-break.jpg",
         "mime": "image/jpeg",
-        "bytes": 30107,
-        "sha256": "3169fd84aa5e307104b37960d1dcbfc26020750b72c5ae3730e0e9958236681e",
+        "bytes": 66986,
+        "sha256": "3e8ed869acd2513518f4f707c4a5323395668b723165effeac45acdc4c2f1eae",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/screen-free-break-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4334,
-        "sha256": "eece9855b25fa0745f4928c6655d97ce5861c8cae179be5a0bf6e900158f18d5",
+        "bytes": 7900,
+        "sha256": "877dbf6031a4bcb228d6a9c95c4b861f76aafd02659884b8d2ea46c1d5fef787",
         "width": 480,
         "height": 360
       }
     },
     "weekly-reflection": {
-      "alt": "Weekly Reflection: Wellness activity",
+      "alt": "Illustration for Weekly Reflection (Wellness)",
       "original": {
         "file": "illustrations/weekly-reflection.jpg",
         "mime": "image/jpeg",
-        "bytes": 30853,
-        "sha256": "7a6036aec7d16fa65f9f6eef56e392cd47aa7f8c6534cf1e7fe73b1868890a72",
+        "bytes": 34368,
+        "sha256": "f8f787bd5cfc22726596cd2074fe36644219db2ee11b4c392eee51707de55c98",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/weekly-reflection-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4446,
-        "sha256": "81ac3cc8c0231b4dc489d721a34a9d3cf065c9c13c0c51501021226a2cebb37f",
+        "bytes": 3532,
+        "sha256": "5e7d6af9e720beac14cb117b06d104ea877af513943a94f81333ed6f0a0bc2e8",
         "width": 480,
         "height": 360
       }
     },
     "savings-contribution": {
-      "alt": "Savings Contribution: Finance activity",
+      "alt": "Illustration for Savings Contribution (Finance)",
       "original": {
         "file": "illustrations/savings-contribution.jpg",
         "mime": "image/jpeg",
-        "bytes": 31255,
-        "sha256": "0750448b025ad8c18aa581eb71f801d6809ead369274a9549dfb6b266ab3c470",
+        "bytes": 40964,
+        "sha256": "b5c8c090f96f827c25e855b973afce8e3c08e737e35bda186740016deed76a4b",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/savings-contribution-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4596,
-        "sha256": "aed190c949f5704381b681ce4427422fff195ca0b776ef3a36f77182f36bf626",
+        "bytes": 4004,
+        "sha256": "35863fcff88fafaf83ee00c3f2a2826565ba6335f80485f23ecf64fe77a332e4",
         "width": 480,
         "height": 360
       }
     },
     "weekly-budget-review": {
-      "alt": "Weekly Budget Review: Finance activity",
+      "alt": "Illustration for Weekly Budget Review (Finance)",
       "original": {
         "file": "illustrations/weekly-budget-review.jpg",
         "mime": "image/jpeg",
-        "bytes": 34079,
-        "sha256": "cd960b1930de1f54327b986a8fa172ceb33d62b87a2ad79fc6bbd06857afb9ae",
+        "bytes": 43858,
+        "sha256": "c475b5926b0a8a682c5b9c305aa8e0e79db506df8a1c7564efb9a419f7af0a1d",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/weekly-budget-review-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5084,
-        "sha256": "56296b2a60fa1021c3fe083784d6e534c2ad425fef2a5d999caef3a29cfe1a80",
+        "bytes": 4154,
+        "sha256": "2b8686d1c9049a1b36b3f5433e66e123985f53659e7671484ec77d415ab2e4a8",
         "width": 480,
         "height": 360
       }
     },
     "categorize-expenses": {
-      "alt": "Categorize Expenses: Finance activity",
+      "alt": "Illustration for Categorize Expenses (Finance)",
       "original": {
         "file": "illustrations/categorize-expenses.jpg",
         "mime": "image/jpeg",
-        "bytes": 31279,
-        "sha256": "d26f7d477377ee5e41d82ae14e17ef6350f63c61dab54984e0dd110649605001",
+        "bytes": 41659,
+        "sha256": "b6f7f998b7ecf878bd36aed0fc6e2bec93ab23489aab8e49396f10fa8f1054ad",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/categorize-expenses-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4696,
-        "sha256": "6727ac9240b336dea29b8c17a84a921d89663a8e050d57eb2e306937f4dcc2e4",
+        "bytes": 3940,
+        "sha256": "a85aa74126bb1c94627d5292866c495e2e0fe935d3d974e6c0eb8967844ceca8",
         "width": 480,
         "height": 360
       }
     },
     "review-subscriptions": {
-      "alt": "Review Subscriptions: Finance activity",
+      "alt": "Illustration for Review Subscriptions (Finance)",
       "original": {
         "file": "illustrations/review-subscriptions.jpg",
         "mime": "image/jpeg",
-        "bytes": 32180,
-        "sha256": "003f96d478889d9e5dd97abe205917be5e4ee884019cb42ee5e8395a2eebb314",
+        "bytes": 40396,
+        "sha256": "4daa39add46535e56ff9531a6baa04d0b18413b0c067a879343c6517f48d0f04",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/review-subscriptions-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4770,
-        "sha256": "c36de1df0546d487029f133763198a398f76c240c6831149de5cc20157341acf",
+        "bytes": 3988,
+        "sha256": "a85287e3c33e02d151c9805ec7e7f0843bf7df53d6ccc57cd9d88befa6396385",
         "width": 480,
         "height": 360
       }
     },
     "check-monthly-bills": {
-      "alt": "Check Monthly Bills: Finance activity",
+      "alt": "Illustration for Check Monthly Bills (Finance)",
       "original": {
         "file": "illustrations/check-monthly-bills.jpg",
         "mime": "image/jpeg",
-        "bytes": 29470,
-        "sha256": "4f6a32ab3e7cef09d489eefc7a81565bb7c76625a67de4dff6821429700fe862",
+        "bytes": 42089,
+        "sha256": "6714393f685253210c01874c5bdeee465cbd773844de0481fb607345dbef2723",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/check-monthly-bills-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4198,
-        "sha256": "94dbdb02569484296e8b52a3b441cfb524fd3a66f847fdd7d4494052745ad8cb",
+        "bytes": 4100,
+        "sha256": "0e89ce567bd3acb6057f10e673c44672de429002111f5938b9a1abc316999569",
         "width": 480,
         "height": 360
       }
     },
     "update-savings-goal": {
-      "alt": "Update Savings Goal: Finance activity",
+      "alt": "Illustration for Update Savings Goal (Finance)",
       "original": {
         "file": "illustrations/update-savings-goal.jpg",
         "mime": "image/jpeg",
-        "bytes": 31476,
-        "sha256": "7c7f7d4d0dd5aa8b09c7da9b72af5d8a7012c7f4bdd7ec542ca812d56ea73245",
+        "bytes": 39383,
+        "sha256": "683961d3c303eac6c53675bc8d8595140f8ba0b9ead3a69a5bb7d91c824e1571",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/update-savings-goal-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4658,
-        "sha256": "1880d257b4a2c0934fef2ab12fee923f9c7fa305e76b004c8a498e624e39ea4d",
+        "bytes": 3732,
+        "sha256": "488175bd0d466ff4ea5bcafedfbc95adabb1e6bfa824fc559182a3d703e33462",
         "width": 480,
         "height": 360
       }
     },
     "review-spending-plan": {
-      "alt": "Review Spending Plan: Finance activity",
+      "alt": "Illustration for Review Spending Plan (Finance)",
       "original": {
         "file": "illustrations/review-spending-plan.jpg",
         "mime": "image/jpeg",
-        "bytes": 31747,
-        "sha256": "6ec6486f6428e5cd2021b2836c68acf387d4d4b51bf86f356efb651b7ae12e73",
+        "bytes": 42097,
+        "sha256": "7d62265700fb1d5f94e7f22e8fdee67ae7b77f0be9be966107187c69b6217214",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/review-spending-plan-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4716,
-        "sha256": "c0368a153b1352669364c96b25a3428e558e011017ac5f550c315e5501b4f77d",
+        "bytes": 4028,
+        "sha256": "f98527e0343f4ff959c4ae1eedc5d96d2bc234baf5b6216477080f412b8b2b59",
         "width": 480,
         "height": 360
       }
     },
     "learn-a-finance-concept": {
-      "alt": "Learn a Finance Concept: Finance activity",
+      "alt": "Illustration for Learn a Finance Concept (Finance)",
       "original": {
         "file": "illustrations/learn-a-finance-concept.jpg",
         "mime": "image/jpeg",
-        "bytes": 31912,
-        "sha256": "1cde926e256bfb2f854620a3f50d80847941eac7cc8f748699844f9d05289688",
+        "bytes": 41134,
+        "sha256": "e6ec116405b0458db9be31a461b89947761c4dba2223d69931d2fded239b4db0",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/learn-a-finance-concept-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4768,
-        "sha256": "500502d78f9ad775e1f73456f29d224213a64e46c453f55a2742bcbad9a79aae",
+        "bytes": 4066,
+        "sha256": "bec8fe8e5ade5d314f6764de789fc796fcee67a1f4f4c0ce0727e43e2d2873a3",
         "width": 480,
         "height": 360
       }
     },
     "set-a-spending-reminder": {
-      "alt": "Set a Spending Reminder: Finance activity",
+      "alt": "Illustration for Set a Spending Reminder (Finance)",
       "original": {
         "file": "illustrations/set-a-spending-reminder.jpg",
         "mime": "image/jpeg",
-        "bytes": 34664,
-        "sha256": "b74154f1bf597cd8ed66479a11bfb9b241d4eeadf81a336afadfd7a5055f9b6b",
+        "bytes": 40111,
+        "sha256": "cae611a5bc4ece56a8ffca5eadbfe736af2dc29b61ab6025639d99cd29a6fcc8",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/set-a-spending-reminder-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5158,
-        "sha256": "4da37289bd09b8a6c5714a47aac2f4806127ba338b81dfe6f4afc5f668775eab",
+        "bytes": 3810,
+        "sha256": "b5dc26f7ca81d43e2f912fcb178e071296322b2ffd732f6ec551e70e7a4352e8",
         "width": 480,
         "height": 360
       }
     },
     "organize-receipts": {
-      "alt": "Organize Receipts: Finance activity",
+      "alt": "Illustration for Organize Receipts (Finance)",
       "original": {
         "file": "illustrations/organize-receipts.jpg",
         "mime": "image/jpeg",
-        "bytes": 32109,
-        "sha256": "992f7f172c6f1b9a1f8cd6f84fef617a50293192cf0e2cf0da0ac5dd5372d884",
+        "bytes": 40868,
+        "sha256": "3e3b2226222525428d04719722e30a5dd31de911862596ef4fe3c5d791c7c1fa",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/organize-receipts-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4760,
-        "sha256": "bb50a1fe17edae3780eb825a0550570a004db14b66e308b2375aec0e6f3ab5e9",
+        "bytes": 3956,
+        "sha256": "0bdd26d1fd0947c1ea9c58cb5e109b78be1aaafac7a5811911d6858cc94717bb",
         "width": 480,
         "height": 360
       }
     },
     "plan-a-purchase": {
-      "alt": "Plan a Purchase: Finance activity",
+      "alt": "Illustration for Plan a Purchase (Finance)",
       "original": {
         "file": "illustrations/plan-a-purchase.jpg",
         "mime": "image/jpeg",
-        "bytes": 27571,
-        "sha256": "58367c7c556727f2543571de79cda91f87ad88562c92270efbff79973046c517",
+        "bytes": 42058,
+        "sha256": "9b85d41945e0ca22fa888e639331bd0a3417698f70ed6dbd6b04888f725e2ab0",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/plan-a-purchase-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3910,
-        "sha256": "8bf450999a0ba73bae0095220469027e74cfc838da13567bf7e65cdf2f31949b",
+        "bytes": 4130,
+        "sha256": "c24e8b585abdb3db1f9c8694a5ad54c0d9ecfe60b7e25371b888f2bdf749b506",
         "width": 480,
         "height": 360
       }
     },
     "review-financial-goals": {
-      "alt": "Review Financial Goals: Finance activity",
+      "alt": "Illustration for Review Financial Goals (Finance)",
       "original": {
         "file": "illustrations/review-financial-goals.jpg",
         "mime": "image/jpeg",
-        "bytes": 31922,
-        "sha256": "024ab25ae079afa16fd20cc307d52cfcaf39e887d6d32628a09f76766b9cd795",
+        "bytes": 39346,
+        "sha256": "0b4e61a9afc3a80445579e8a255b66329e140f3cd553181b2658d318abc71b7f",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/review-financial-goals-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4764,
-        "sha256": "6d030de2e8a50c8f27cbbca8472f7fea38334f2d9dcab61eda7c64ab5608800c",
+        "bytes": 3878,
+        "sha256": "82e7b8c5306a23336945f666e032928ce70766040309fd733675fb8de1ecb0c7",
         "width": 480,
         "height": 360
       }
     },
     "call-a-friend": {
-      "alt": "Call a Friend: Relationships activity",
+      "alt": "Illustration for Call a Friend (Relationships)",
       "original": {
         "file": "illustrations/call-a-friend.jpg",
         "mime": "image/jpeg",
-        "bytes": 27249,
-        "sha256": "e868fff76046eede7b2f57890309c6b3fdec0bfc575324ad8d3cee596f819ded",
+        "bytes": 30150,
+        "sha256": "a7ae40683b29bfe9f5eb456decd18f70bea410680906f049fa7843b8eff3b596",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/call-a-friend-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3962,
-        "sha256": "c4cd857b3412addff79bbdd1f60cfa68c8796421a512d48f786d5620934776f6",
+        "bytes": 3052,
+        "sha256": "49eab9e3a6d2cc31ebc731a21831702e15a7d2c3b43dee60991ca49b538e1cd2",
         "width": 480,
         "height": 360
       }
     },
     "plan-quality-time": {
-      "alt": "Plan Quality Time: Relationships activity",
+      "alt": "Illustration for Plan Quality Time (Relationships)",
       "original": {
         "file": "illustrations/plan-quality-time.jpg",
         "mime": "image/jpeg",
-        "bytes": 32530,
-        "sha256": "be646a56a01fce4a91e514e6db3a571a5a07f7a71853ac29441fced265e70ac3",
+        "bytes": 30681,
+        "sha256": "471720286e2c54e377ca6f2f9bb7b442e9e6261718717e5029fa496742ea7998",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/plan-quality-time-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4898,
-        "sha256": "a3f78d10c9bdad5456c3cc46e6022ea475779e1356024bb9d920f7d10f324a73",
+        "bytes": 2996,
+        "sha256": "cf10a5a4bb4276ca45661cfdf56b5232aa324bbff8f634c711812044063624c9",
         "width": 480,
         "height": 360
       }
     },
     "send-a-check-in-message": {
-      "alt": "Send a Check-in Message: Relationships activity",
+      "alt": "Illustration for Send a Check-in Message (Relationships)",
       "original": {
         "file": "illustrations/send-a-check-in-message.jpg",
         "mime": "image/jpeg",
-        "bytes": 37525,
-        "sha256": "10adeb69e28dd415bf67ce169e55f53b926ac69b895a254c541e426707b4fd29",
+        "bytes": 30441,
+        "sha256": "0f7d61e4976b8f9d139abefc7667ef0b4629baa6d7f3ab2e3fa2c3e0bd8daf84",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/send-a-check-in-message-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5848,
-        "sha256": "38785702b7a81efaabed8b4e675673486bf82f8b36adb762ce63fc01e81cf75d",
+        "bytes": 3138,
+        "sha256": "e57960c195c9a2e84af5339507cc08cfd713d02b1c77f22a278d8b40312c4a70",
         "width": 480,
         "height": 360
       }
     },
     "family-activity": {
-      "alt": "Family Activity: Relationships activity",
+      "alt": "Illustration for Family Activity (Relationships)",
       "original": {
         "file": "illustrations/family-activity.jpg",
         "mime": "image/jpeg",
-        "bytes": 30782,
-        "sha256": "27918fd4632b3c975539475d6888c99f219305ce52d249686f06b20ef3b2859c",
+        "bytes": 31086,
+        "sha256": "8e831953d38c1242f02ffac0a4c61d92d26d411b2880552dcdfee2167baafcda",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/family-activity-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4616,
-        "sha256": "fca8deeda4d049358e3695bcb5d7b09e8f21c79e2767504c1b838d6573f3c8a2",
+        "bytes": 3102,
+        "sha256": "44d3705245ccf4f37b9b17a6bf74bd511cdbd1bb9cef21b7081be520da9e817f",
         "width": 480,
         "height": 360
       }
     },
     "shared-meal": {
-      "alt": "Shared Meal: Relationships activity",
+      "alt": "Illustration for Shared Meal (Relationships)",
       "original": {
         "file": "illustrations/shared-meal.jpg",
         "mime": "image/jpeg",
-        "bytes": 28281,
-        "sha256": "b1396b9bf5794d72b16aa36d82194eca49a90f5eef6d3a462f8e05921d245fe9",
+        "bytes": 31158,
+        "sha256": "0c0ebb23a1a5ef41f48ca4b2acf8fd8ddffe98e68039c7dfdafc1d73bbe6a2d6",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/shared-meal-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4206,
-        "sha256": "284ee4c0425d82a9b9bde8e2fbc832a33a7dc4d20da0155f1636aba5ad25e06d",
+        "bytes": 3150,
+        "sha256": "b08622e3e9f2e070634d187392f35cb33dd9f5f04b35f868badb98f495fffc95",
         "width": 480,
         "height": 360
       }
     },
     "schedule-a-visit": {
-      "alt": "Schedule a Visit: Relationships activity",
+      "alt": "Illustration for Schedule a Visit (Relationships)",
       "original": {
         "file": "illustrations/schedule-a-visit.jpg",
         "mime": "image/jpeg",
-        "bytes": 32250,
-        "sha256": "bfdc8ef760fc500ca9382befd05478a2b4c6a1f6a8412c5c7d9bf30c5172ec81",
+        "bytes": 31709,
+        "sha256": "4027fc967a40be35fa6dca78c3920849972eb86cb50c8b6fb220c5df936eb6d6",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/schedule-a-visit-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4804,
-        "sha256": "ba064ac4973167be91fd298d212b06bd786c94f000f1f296618af8023bf44f93",
+        "bytes": 3148,
+        "sha256": "ea2b512d7f6207bcad11f5ef9bd738d8c183a2977d8c71590c13913421e7f59d",
         "width": 480,
         "height": 360
       }
     },
     "write-a-thank-you-note": {
-      "alt": "Write a Thank-you Note: Relationships activity",
+      "alt": "Illustration for Write a Thank-you Note (Relationships)",
       "original": {
         "file": "illustrations/write-a-thank-you-note.jpg",
         "mime": "image/jpeg",
-        "bytes": 35137,
-        "sha256": "27db58140a60d33f18d60cd821a845d6de9ae559b994acca6e48787dbd595be8",
+        "bytes": 38080,
+        "sha256": "88f67fda656d20f1fe4c38ecb4a0e1db5116c68fc2c8504bb04e310e46ddfffd",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/write-a-thank-you-note-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5406,
-        "sha256": "5ddfc15059bc275f9de52d4d9fe33ee9c9fa2627afe67c08d8131299037525f5",
+        "bytes": 3568,
+        "sha256": "12f1e227a81a763b205baf283440a42b243c6b358e6069165da7fd7513ad4621",
         "width": 480,
         "height": 360
       }
     },
     "listen-and-reflect": {
-      "alt": "Listen and Reflect: Relationships activity",
+      "alt": "Illustration for Listen and Reflect (Relationships)",
       "original": {
         "file": "illustrations/listen-and-reflect.jpg",
         "mime": "image/jpeg",
-        "bytes": 33683,
-        "sha256": "14093df376ecfe77825758e106a46e7383e3924d2621e3e8245a17f0fac238bc",
+        "bytes": 37723,
+        "sha256": "f89abde9c79ea8d9b58cf4e1395bbd9bc61254c5771b36c4601a2591a422dc85",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/listen-and-reflect-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5066,
-        "sha256": "b9741ec3ef9189a98b276000c714a31a0525c29abfc8f982fe76156390cf308b",
+        "bytes": 3596,
+        "sha256": "cc86e9fff7712fe1bd64dbb97f151757e81de2fc271a7af0f0bdc1fe7761a491",
         "width": 480,
         "height": 360
       }
     },
     "plan-a-group-outing": {
-      "alt": "Plan a Group Outing: Relationships activity",
+      "alt": "Illustration for Plan a Group Outing (Relationships)",
       "original": {
         "file": "illustrations/plan-a-group-outing.jpg",
         "mime": "image/jpeg",
-        "bytes": 32697,
-        "sha256": "be0747247f6162206ad331f312dafd0c3812098b0acb0b8b5c00c3fd6c21638b",
+        "bytes": 32837,
+        "sha256": "1fd1f319a9efbf2c282ee3596e8d77bfd30f5d3e7efb1e7f255dae7bbc9deed5",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/plan-a-group-outing-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4800,
-        "sha256": "9dbcb1625a34873533bc97917d7cd1b9c94dcdc8d2b3af7794b384dbf223c1a4",
+        "bytes": 3100,
+        "sha256": "0c550fa3f73d0f826d7cd493bb6bba2174fc6f03a632e6c67f42ded147989269",
         "width": 480,
         "height": 360
       }
     },
     "reconnect-with-someone": {
-      "alt": "Reconnect with Someone: Relationships activity",
+      "alt": "Illustration for Reconnect with Someone (Relationships)",
       "original": {
         "file": "illustrations/reconnect-with-someone.jpg",
         "mime": "image/jpeg",
-        "bytes": 36726,
-        "sha256": "d86ed534ce8fdebb70c90efc3ce55224e48be0089c1fc80f2dded51f4b2c6b22",
+        "bytes": 30755,
+        "sha256": "1364ca04ad11953e62b19f5b8314f13facc2854669bfe3e51798e99af787e466",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/reconnect-with-someone-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5710,
-        "sha256": "184ff5778aa0a039abeccffefffddadf786283c364609058d3076161c3c75cfd",
+        "bytes": 3082,
+        "sha256": "0276a146a4dd8463bc8bc6faaff703bebe0cc0f7efd5dd81e6bbdeb8849b7643",
         "width": 480,
         "height": 360
       }
     },
     "weekly-relationship-check-in": {
-      "alt": "Weekly Relationship Check-in: Relationships activity",
+      "alt": "Illustration for Weekly Relationship Check-in (Relationships)",
       "original": {
         "file": "illustrations/weekly-relationship-check-in.jpg",
         "mime": "image/jpeg",
-        "bytes": 38350,
-        "sha256": "5843bf4d93b52782d10479181c8d9c9536a70562d3b2695e34044cbd0055ec05",
+        "bytes": 30476,
+        "sha256": "557e0400a0fc35172ec669d6ffc49ac9ab6d12d8553c3cf21c4123d021bf8986",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/weekly-relationship-check-in-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5594,
-        "sha256": "d85e219f226b23fb179d1ae65e3455158d5b057a6a3f5302d705be8a95c04462",
+        "bytes": 3086,
+        "sha256": "1261b3c52bc05cb2f2c7566b21b2b98a9af38146d5c6386263c022f51513e4c6",
         "width": 480,
         "height": 360
       }
     },
     "celebrate-a-milestone": {
-      "alt": "Celebrate a Milestone: Relationships activity",
+      "alt": "Illustration for Celebrate a Milestone (Relationships)",
       "original": {
         "file": "illustrations/celebrate-a-milestone.jpg",
         "mime": "image/jpeg",
-        "bytes": 35022,
-        "sha256": "c3d832dbb10c6040efb2a0d868631f4057f3fcec8d5b06a3256ee7d093897b5c",
+        "bytes": 30431,
+        "sha256": "4832f2c0719f56d905af1d8688046d21956d7fe505eb43785ad62ef59763d86a",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/celebrate-a-milestone-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5346,
-        "sha256": "afdf2b929f2bddda181f4c955b0edd9363aaed67e33fa5d17949cb2f3f74b67d",
+        "bytes": 3042,
+        "sha256": "70e269e7022f257d84a0d1b33ef53cc11cf2d02f532738dfbde6a0a3d1a304d7",
         "width": 480,
         "height": 360
+      }
+    }
+  },
+  "programCovers": {
+    "starter-beginner-core-strength": {
+      "alt": "Two loaded dumbbells on a concrete floor",
+      "original": {
+        "file": "covers/starter-beginner-core-strength.jpg",
+        "mime": "image/jpeg",
+        "bytes": 361453,
+        "sha256": "eb6d2f496f9832894dcf1c4f6d9aa7f434d7f1e93cfaaa15e5e87c6f97ae99b9",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-beginner-core-strength-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 44498,
+        "sha256": "0ec88176208e46e43eb8dc2d1cfe672dba4db2a615411f5abf3b3ed6f9330371",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Kurzhanteln 2 x 15 kg 1v2.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Kurzhanteln_2_x_15_kg_1v2.jpg",
+        "author": "Singlespeedfahrer",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-hiit-aerobic-conditioning": {
+      "alt": "Running track beside a sports field under a clear sky",
+      "original": {
+        "file": "covers/starter-hiit-aerobic-conditioning.jpg",
+        "mime": "image/jpeg",
+        "bytes": 229892,
+        "sha256": "6355ab47ff393b6744e2ae3f727978d3765be7542d745bffae889cde809b567a",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-hiit-aerobic-conditioning-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 22392,
+        "sha256": "3ed5674e54d4c14128f7e5f4367432cfe6607274cfb13317afaaecb06c6dc7b8",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Peak to Peak Charter School soccer field and running track, Lafayette, Colorado, USA - 2025.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Peak_to_Peak_Charter_School_soccer_field_and_running_track,_Lafayette,_Colorado,_USA_-_2025.jpg",
+        "author": "Mikepascoe",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-full-body-calisthenics": {
+      "alt": "Outdoor pull-up bars in a calisthenics park",
+      "original": {
+        "file": "covers/starter-full-body-calisthenics.jpg",
+        "mime": "image/jpeg",
+        "bytes": 347535,
+        "sha256": "2c70b3b32c52e86eadf11e7e2ab925e3564cd6e96b50e2e084fec1ed755260ba",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-full-body-calisthenics-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 48314,
+        "sha256": "e055ff6f82a3b09eb7e63b0083b96ed8d7aef43833352deb25e2d18857a8ba36",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Calisthenics-Park Dovestraße Berlin 3v4.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Calisthenics-Park_Dovestra%C3%9Fe_Berlin_3v4.jpg",
+        "author": "Singlespeedfahrer",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-joint-mobility-flow": {
+      "alt": "Yoga pose on a mat at the edge of the sea",
+      "original": {
+        "file": "covers/starter-joint-mobility-flow.jpg",
+        "mime": "image/jpeg",
+        "bytes": 102908,
+        "sha256": "5d80a34ff89ea767d6fc5d3d1b858d9c70716b080cd5b899fe8e9b8c500fa8c4",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-joint-mobility-flow-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 19158,
+        "sha256": "05682e7e56777eaef0974322b260b3ce326b1cce24bfb94e63c7cb338aae3c96",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Oceanside yoga (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Oceanside_yoga_(Unsplash).jpg",
+        "author": "Matthew Kane",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-functional-daily-fitness": {
+      "alt": "Colourful dumbbells and kettlebells on a gym rack",
+      "original": {
+        "file": "covers/starter-functional-daily-fitness.jpg",
+        "mime": "image/jpeg",
+        "bytes": 116459,
+        "sha256": "69dd661503bc13e895bd5b9e1c3bbdd8cdc7cf5658f9424f1472a0f21b5978c3",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-functional-daily-fitness-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 16494,
+        "sha256": "1155c49d2eee3826be5c6a617c1d3d75db82e0a73cf03e4020ff0348f501027b",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Colorful barbells on a shelf.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Colorful_barbells_on_a_shelf.jpg",
+        "author": "Ser Amantio di Nicolao",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-daily-mindfulness-reflection": {
+      "alt": "Sunrise over a calm lake shore",
+      "original": {
+        "file": "covers/starter-daily-mindfulness-reflection.jpg",
+        "mime": "image/jpeg",
+        "bytes": 272573,
+        "sha256": "3ab5310cc833d22fff7974a23a2b7458a784b8daabc1d9c5bf77dc3115c83b80",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-daily-mindfulness-reflection-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 32394,
+        "sha256": "ce50c8e803ec0addd3e642d62297e855e665cc7e2fa881be09ddfc05437daa6d",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Lake Ontario Sunrise (43412010530).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Lake_Ontario_Sunrise_(43412010530).jpg",
+        "author": "Joe deSousa",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-deep-sleep-evening-reset": {
+      "alt": "Bedside lamp beside a made bed",
+      "original": {
+        "file": "covers/starter-deep-sleep-evening-reset.jpg",
+        "mime": "image/jpeg",
+        "bytes": 64939,
+        "sha256": "fc345fab67a08f5c22e353ea2955df9fee803a874b7c71d770925b3be06d65af",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-deep-sleep-evening-reset-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 9810,
+        "sha256": "f432be47f2aed38b688bf20633b7d29274cdcbda96d02b7c0ea2205fe94a0408",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Bedside (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Bedside_(Unsplash).jpg",
+        "author": "Rhema Kallianpur",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-stress-relief-breathwork": {
+      "alt": "Still lake reflecting a low winter sun",
+      "original": {
+        "file": "covers/starter-stress-relief-breathwork.jpg",
+        "mime": "image/jpeg",
+        "bytes": 49016,
+        "sha256": "bb0b99a8e2cf71e00334b3306a135064211142430b3d5b30c988f43253c05cd9",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-stress-relief-breathwork-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 7990,
+        "sha256": "429baed695cd9b10d4fd690ec9f4442c7f3385b7d7beb2dccb40844439cada1b",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Late Winter Sunrise on Lake Okanagan.JPG",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Late_Winter_Sunrise_on_Lake_Okanagan.JPG",
+        "author": "Extemporalist",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-mindful-walking-nature": {
+      "alt": "Stone steps through a sunlit forest",
+      "original": {
+        "file": "covers/starter-mindful-walking-nature.jpg",
+        "mime": "image/jpeg",
+        "bytes": 457450,
+        "sha256": "ae77b56fe3a02adbe6d318a6f4ed7bf354d6805441f5680c235cdbdb1db43658",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-mindful-walking-nature-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 65838,
+        "sha256": "aed8d29751ef14a89bc3657df63dfbc54c5b500aa19360ed191e535e2b114a18",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Forest Away Path.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Forest_Away_Path.jpg",
+        "author": "Seaq68",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-weekly-intentional-habits": {
+      "alt": "Leather pocket notebook and pen on a white desk",
+      "original": {
+        "file": "covers/starter-weekly-intentional-habits.jpg",
+        "mime": "image/jpeg",
+        "bytes": 60949,
+        "sha256": "4578a8a9fc4de29c38e4db7a8a457026c61c68ce83476210a7b479c1a026d86d",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-weekly-intentional-habits-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 7610,
+        "sha256": "b3295dab57c0f81f10a4e97a667f656296527ebd441c20b049430757ac23a757",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Leather notebook (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Leather_notebook_(Unsplash).jpg",
+        "author": "Kelly Jean",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-weekly-savings-budget": {
+      "alt": "Glass savings jar filled with coins and a banknote",
+      "original": {
+        "file": "covers/starter-weekly-savings-budget.jpg",
+        "mime": "image/jpeg",
+        "bytes": 156271,
+        "sha256": "815ff7d50d0d5847dda04298fb941e169314d45d43dd823236d4b24a8bb34f42",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-weekly-savings-budget-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 27486,
+        "sha256": "39525a5889f7fc1fd1529ae76eeddc448208f69bf7d2a9796e0ac6703dcb6c6c",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Piggy-bank-968302.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Piggy-bank-968302.jpg",
+        "author": "stevepb",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-emergency-fund-kickstart": {
+      "alt": "Pink piggy bank on a white background",
+      "original": {
+        "file": "covers/starter-emergency-fund-kickstart.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31324,
+        "sha256": "5fb6efc3ac6ed8ce2c8cb75fd7e2b4b3a0c9f54211dad0516d786c9dc522875e",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-emergency-fund-kickstart-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3964,
+        "sha256": "c3e715bc24cefa9db8137249a0e8b90364f4c4e051f0c575690ddfaa302b48ab",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Cute piggy bank (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Cute_piggy_bank_(Unsplash).jpg",
+        "author": "Fabian Blank",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-spending-audit-cleanup": {
+      "alt": "Coins collected in a small porcelain dish",
+      "original": {
+        "file": "covers/starter-spending-audit-cleanup.jpg",
+        "mime": "image/jpeg",
+        "bytes": 185044,
+        "sha256": "334df5774a0b326f05aa4ff3cd24fb18263c4454305765277f27fbf0addded5e",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-spending-audit-cleanup-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 27902,
+        "sha256": "afff652e428f52b6ef2397d693370c5ceaca4a263aac8e48f053b1ba5dc7c160",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Coins and beads.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Coins_and_beads.jpg",
+        "author": "Tyba198",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-personal-finance-fundamentals": {
+      "alt": "Pen resting on a closed notebook",
+      "original": {
+        "file": "covers/starter-personal-finance-fundamentals.jpg",
+        "mime": "image/jpeg",
+        "bytes": 172909,
+        "sha256": "b31a4cbfec178d60bafd0c43a526f6e15d150e3852bd220562f143690921f4b1",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-personal-finance-fundamentals-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 20386,
+        "sha256": "84156d4c2f91b47fa8419b03f69ddb6de448abc8c1da998be3a62b6b91bb5a1f",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Pen on a notebook (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Pen_on_a_notebook_(Unsplash).jpg",
+        "author": "Thomas Martinsen",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-daily-language-study": {
+      "alt": "Row of letter keys from A to H",
+      "original": {
+        "file": "covers/starter-daily-language-study.jpg",
+        "mime": "image/jpeg",
+        "bytes": 205332,
+        "sha256": "a88f1dcca03c05cb7c988559f8b359d537ac8120e41a31200c6228668cb985b3",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-daily-language-study-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 25044,
+        "sha256": "144240c1a171a8430abb36d698721567a5531f5191c4ffd65f7f1980ebddd707",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Typography (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Typography_(Unsplash).jpg",
+        "author": "Diomari Madulara",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-exam-prep-retention": {
+      "alt": "Historic library lined with bookshelves",
+      "original": {
+        "file": "covers/starter-exam-prep-retention.jpg",
+        "mime": "image/jpeg",
+        "bytes": 361483,
+        "sha256": "e80cc2deaf5e93eb4a245a37b2ec6cfc9b1d35a612c38fa5ca75ac0b7d8eba21",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-exam-prep-retention-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 54726,
+        "sha256": "c36ec4a8117ce2fccd63f49e6acdea66bc331344c1dd1ddf005580f44fdb6655",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Chantilly library study (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Chantilly_library_study_(Unsplash).jpg",
+        "author": "Gabriel Ghnassia",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-professional-skills-deep-work": {
+      "alt": "Laptop, notebook and sticky notes on a desk",
+      "original": {
+        "file": "covers/starter-professional-skills-deep-work.jpg",
+        "mime": "image/jpeg",
+        "bytes": 106294,
+        "sha256": "b47831c20d5aecafd24f137072bebb5cc58b9a06acef02ab953f52db1a477820",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-professional-skills-deep-work-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 18466,
+        "sha256": "10399f3df8ab4d415f9e2c111d41f43becac18bf3e2255716ca16356c027a037",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Desk-laptop-notebook-pen (23958719819).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Desk-laptop-notebook-pen_(23958719819).jpg",
+        "author": "www.Pixel.la Free Stock Photos",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-daily-musical-practice": {
+      "alt": "Keys of an upright piano in warm light",
+      "original": {
+        "file": "covers/starter-daily-musical-practice.jpg",
+        "mime": "image/jpeg",
+        "bytes": 239457,
+        "sha256": "a7063a0cf6cbf36b75e98a6ece5b4fcd086e9c889b5d0c22d04a09faee2f9a25",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-daily-musical-practice-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 22364,
+        "sha256": "6504d1fea8b95ce05eb5846cc63d5d5c4618979834249181b7ed290626bca24a",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Kimball piano (2014-04-12 10.09.54 @pxhere 541901).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Kimball_piano_(2014-04-12_10.09.54_@pxhere_541901).jpg",
+        "author": "Unknown author",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-active-reading-habit": {
+      "alt": "Shelves of colourful library books",
+      "original": {
+        "file": "covers/starter-active-reading-habit.jpg",
+        "mime": "image/jpeg",
+        "bytes": 90527,
+        "sha256": "4253feed17c85296d5af97b70f597b8bd370d9d3c790812e8f55e34df6f49c73",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-active-reading-habit-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 17486,
+        "sha256": "53b8ac04eaca8499f48c9caa911e245db190f5af878d88368b5571dc5751e452",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Library collection (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Library_collection_(Unsplash).jpg",
+        "author": "Jamie Taylor",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-staying-in-touch": {
+      "alt": "Close-up of a rotary telephone dial",
+      "original": {
+        "file": "covers/starter-staying-in-touch.jpg",
+        "mime": "image/jpeg",
+        "bytes": 82453,
+        "sha256": "756e7eab38a6abb14ffc34de10464367131c0ec1e8068d911c775002edbd473f",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-staying-in-touch-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 9214,
+        "sha256": "571c666764f2f09b846fefaf94f9971018e8853ea543de91626d1fc758baf3d3",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Macro rotary phone (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Macro_rotary_phone_(Unsplash).jpg",
+        "author": "Daria Nepriakhina",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-family-connection-rituals": {
+      "alt": "Picnic basket on a checked tablecloth outdoors",
+      "original": {
+        "file": "covers/starter-family-connection-rituals.jpg",
+        "mime": "image/jpeg",
+        "bytes": 146691,
+        "sha256": "07e03661f652f67b6b9a7b0ef5a4cce8a5b6dbee0c6f64743a06a71f54e01533",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-family-connection-rituals-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 30930,
+        "sha256": "56eacfea7cbf2418453ccf8a0046de72e4fee54bc7692a6e658d6e00c76a918b",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Picnic basket (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Picnic_basket_(Unsplash).jpg",
+        "author": "Bonnie Kittle",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-intentional-quality-time": {
+      "alt": "Board game pieces and dice on a table",
+      "original": {
+        "file": "covers/starter-intentional-quality-time.jpg",
+        "mime": "image/jpeg",
+        "bytes": 160218,
+        "sha256": "11edb2179f61cf07ba15b817eab7957dfaed8069831d424610540c405f92219a",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-intentional-quality-time-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 31828,
+        "sha256": "dc4ef2543bcef264df8b9f963a4bbca31ef8ea2ad9c8f87a42fdc6f9e864a6f9",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Board game pieces.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Board_game_pieces.jpg",
+        "author": "Mshuang2",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
+      }
+    },
+    "starter-gratitude-communication": {
+      "alt": "Wildflowers against a clear morning sky",
+      "original": {
+        "file": "covers/starter-gratitude-communication.jpg",
+        "mime": "image/jpeg",
+        "bytes": 294155,
+        "sha256": "cc83e497826a58a43947f57fc7abf9d3bc5a493cd82016d55e7a72998bbb3465",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-gratitude-communication-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 46734,
+        "sha256": "e78359f244120c1f76d495f038b825237a1907cf9dd95f569f3f4755a650ecd3",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Good morning Flowers (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Good_morning_Flowers_(Unsplash).jpg",
+        "author": "Mehmet Kürşat Değer",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-08"
       }
     }
   }

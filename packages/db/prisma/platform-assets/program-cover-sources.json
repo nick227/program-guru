@@ -1,0 +1,28 @@
+{
+  "about": "Curated Program cover photographs. Every file must be CC0 on Wikimedia Commons at fetch time (checked by scripts/fetch-program-covers.ts). Chosen for subject fit, landscape framing, no identifiable faces and no brand marks.",
+  "covers": {
+    "starter-beginner-core-strength": { "file": "File:Kurzhanteln 2 x 15 kg 1v2.jpg", "alt": "Two loaded dumbbells on a concrete floor" },
+    "starter-hiit-aerobic-conditioning": { "file": "File:Peak to Peak Charter School soccer field and running track, Lafayette, Colorado, USA - 2025.jpg", "alt": "Running track beside a sports field under a clear sky" },
+    "starter-full-body-calisthenics": { "file": "File:Calisthenics-Park Dovestraße Berlin 3v4.jpg", "alt": "Outdoor pull-up bars in a calisthenics park" },
+    "starter-joint-mobility-flow": { "file": "File:Oceanside yoga (Unsplash).jpg", "alt": "Yoga pose on a mat at the edge of the sea" },
+    "starter-functional-daily-fitness": { "file": "File:Colorful barbells on a shelf.jpg", "alt": "Colourful dumbbells and kettlebells on a gym rack" },
+    "starter-daily-mindfulness-reflection": { "file": "File:Lake Ontario Sunrise (43412010530).jpg", "alt": "Sunrise over a calm lake shore" },
+    "starter-deep-sleep-evening-reset": { "file": "File:Bedside (Unsplash).jpg", "alt": "Bedside lamp beside a made bed" },
+    "starter-stress-relief-breathwork": { "file": "File:Late Winter Sunrise on Lake Okanagan.JPG", "alt": "Still lake reflecting a low winter sun" },
+    "starter-mindful-walking-nature": { "file": "File:Forest Away Path.jpg", "alt": "Stone steps through a sunlit forest" },
+    "starter-weekly-intentional-habits": { "file": "File:Leather notebook (Unsplash).jpg", "alt": "Leather pocket notebook and pen on a white desk" },
+    "starter-weekly-savings-budget": { "file": "File:Piggy-bank-968302.jpg", "alt": "Glass savings jar filled with coins and a banknote" },
+    "starter-emergency-fund-kickstart": { "file": "File:Cute piggy bank (Unsplash).jpg", "alt": "Pink piggy bank on a white background" },
+    "starter-spending-audit-cleanup": { "file": "File:Coins and beads.jpg", "alt": "Coins collected in a small porcelain dish" },
+    "starter-personal-finance-fundamentals": { "file": "File:Pen on a notebook (Unsplash).jpg", "alt": "Pen resting on a closed notebook" },
+    "starter-daily-language-study": { "file": "File:Typography (Unsplash).jpg", "alt": "Row of letter keys from A to H" },
+    "starter-exam-prep-retention": { "file": "File:Chantilly library study (Unsplash).jpg", "alt": "Historic library lined with bookshelves" },
+    "starter-professional-skills-deep-work": { "file": "File:Desk-laptop-notebook-pen (23958719819).jpg", "alt": "Laptop, notebook and sticky notes on a desk" },
+    "starter-daily-musical-practice": { "file": "File:Kimball piano (2014-04-12 10.09.54 @pxhere 541901).jpg", "alt": "Keys of an upright piano in warm light" },
+    "starter-active-reading-habit": { "file": "File:Library collection (Unsplash).jpg", "alt": "Shelves of colourful library books" },
+    "starter-staying-in-touch": { "file": "File:Macro rotary phone (Unsplash).jpg", "alt": "Close-up of a rotary telephone dial" },
+    "starter-family-connection-rituals": { "file": "File:Picnic basket (Unsplash).jpg", "alt": "Picnic basket on a checked tablecloth outdoors" },
+    "starter-intentional-quality-time": { "file": "File:Board game pieces.jpg", "alt": "Board game pieces and dice on a table" },
+    "starter-gratitude-communication": { "file": "File:Good morning Flowers (Unsplash).jpg", "alt": "Wildflowers against a clear morning sky" }
+  }
+}
