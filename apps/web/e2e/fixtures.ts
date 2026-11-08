@@ -144,7 +144,7 @@ export async function mockApi(
       return route.fulfill({
         status: 204,
         headers: {
-          'access-control-allow-origin': 'http://localhost:5173',
+          'access-control-allow-origin': req.headers().origin ?? 'http://localhost:5173',
           'access-control-allow-credentials': 'true',
           'access-control-allow-methods': '*',
           'access-control-allow-headers': '*',
@@ -371,6 +371,7 @@ export async function mockApi(
         communityMedia: [],
         communityStats: null,
       } satisfies S['ActivityOccurrence'])
+    if (method === 'GET' && /^\/sessions\/[^/]+$/.test(path)) return send({ session, entries: [] })
     if (path === '/sessions') {
       session = {
         id: uid(50),

@@ -8,6 +8,7 @@ import {
 } from 'react-router-dom'
 import {
   useCreateSession,
+  useAttachSessionMedia,
   useOccurrence,
   useSaveResults,
   useSessionAction,
@@ -71,6 +72,7 @@ function OccurrenceContent({
   const action = useSessionAction(o.item.id)
   const save = useSaveResults(o.item.id)
   const undo = useUndoCompletion()
+  const attach = useAttachSessionMedia()
   const [dirty, setDirty] = useState<Record<string, string | number | boolean>>(
     {},
   )
@@ -197,13 +199,14 @@ function OccurrenceContent({
                 : 'Ready'}
         </p>
       </Stack>
-      <OccurrenceInstructions
-        instructions={o.instructions}
-        locked={o.item.locked}
-      />
+
       <Panel>
         <Stack>
           <h2>Today&apos;s Results</h2>
+          <OccurrenceInstructions
+            instructions={o.instructions}
+            locked={o.item.locked}
+          />
           {o.resultInputs.length ? (
             o.resultInputs.map((m) => (
               <MetricInput
@@ -358,7 +361,27 @@ function OccurrenceContent({
         </Grid>
       </Panel>
       <OccurrenceMedia
-        occurrenceId={o.item.id}
+        sessionId={o.session?.id}
+        onAttach={async (asset) => {
+          if (!online) throw new Error('Connect to attach media.')
+          if (working.current)
+            throw new Error('Wait for the current save to finish.')
+          working.current = true
+          setBusy(true)
+          try {
+            const current =
+              o.session && o.session.status !== 'ABANDONED'
+                ? o.session
+                : await getSession()
+            await attach.mutateAsync({
+              mediaId: asset.id,
+              sessionId: current.id,
+            })
+          } finally {
+            working.current = false
+            setBusy(false)
+          }
+        }}
         myMedia={o.myMedia}
         sharedMedia={o.sharedMedia}
         communityMedia={o.communityMedia}

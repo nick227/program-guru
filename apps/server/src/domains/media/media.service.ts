@@ -4,7 +4,8 @@ import type { Readable } from 'stream'
 import { db, Prisma, type MediaAsset } from '@project/db'
 import { badRequest, conflict, notFound } from '../../lib/errors'
 import { enqueue } from '../../lib/outbox'
-import { offsetArgs, toOffsetPage, type PageQuery } from '../../lib/paging'
+import { afterCursor, offsetArgs, pageArgs, pageOrder, toOffsetPage, toPage, type PageQuery } from '../../lib/paging'
+import { fromDbDate } from '../../lib/time'
 import { isStorageMiss, storage } from '../../infrastructure/storage'
 import { canReadRevision } from '../activities/access'
 import { canSeeProgram, hasActiveGrant, isProgramOwner } from '../programs/access'
@@ -405,6 +406,52 @@ export async function listAttachments(userId: string, query: PageQuery & { targe
   const { limit, skip, take } = offsetArgs(query)
   const rows = await db.mediaAttachment.findMany({ where: target, include: { media: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }], skip, take })
   return toOffsetPage(rows, limit, skip, toAttachment)
+}
+
+/**
+ * Activity media history (11 §5): attachments on the viewer's own result entries for one Activity,
+ * across every session and occurrence. A view over ResultEntry + MediaAttachment; never another
+ * participant's results. Own history outlives lapse/archive/moderation; otherwise the Activity must
+ * be readable, so the endpoint does not reveal private Activities.
+ */
+export async function listActivityHistory(
+  userId: string,
+  activityId: string,
+  query: PageQuery & { calendarItemId?: string; type?: MediaAsset['type'] },
+) {
+  const activity = await db.activity.findUnique({ where: { id: activityId } })
+  if (!activity) throw notFound('Activity')
+  const own = { userId, activityRevision: { activityId } }
+  const hasHistory = !!(await db.activitySession.findFirst({ where: own, select: { id: true } }))
+  if (!hasHistory) {
+    const latest = activity.latestPublishedRevisionId ? await db.activityRevision.findUnique({ where: { id: activity.latestPublishedRevisionId } }) : null
+    const readable = activity.creatorId === userId || (!!latest && (await canReadRevision(userId, activity, latest)))
+    if (!readable) throw notFound('Activity')
+  }
+  const { limit, take } = pageArgs(query)
+  const rows = await db.mediaAttachment.findMany({
+    where: {
+      resultEntry: { session: { ...own, ...(query.calendarItemId ? { calendarItemId: query.calendarItemId } : {}) } },
+      ...(query.type ? { media: { type: query.type } } : {}),
+      ...afterCursor(query.cursor),
+    },
+    orderBy: pageOrder,
+    take,
+    include: { media: true, resultEntry: { include: { session: { include: { calendarItem: { select: { localDate: true } } } } } } },
+  })
+  return toPage(rows, limit, (a) => {
+    const entry = a.resultEntry!
+    return {
+      attachment: toAttachment(a),
+      resultEntryId: entry.id,
+      sessionId: entry.sessionId,
+      sessionStatus: entry.session.status,
+      calendarItemId: entry.session.calendarItemId,
+      occurrenceDate: entry.session.calendarItem ? fromDbDate(entry.session.calendarItem.localDate) : null,
+      instructionId: entry.instructionId,
+      recordedAt: entry.recordedAt.toISOString(),
+    }
+  })
 }
 
 export async function detach(userId: string, attachmentId: string) {

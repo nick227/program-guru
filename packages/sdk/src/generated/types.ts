@@ -625,6 +625,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/activities/{activityId}/my-media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my media history for an Activity
+         * @description Every attachment on the viewer's own result entries for this Activity, across all sessions and occurrences, newest first. Never includes other participants. Own history remains listable after a lapse, archive or moderation; with no session the Activity must be readable, otherwise 404. Detach with `DELETE /media-attachments/{attachmentId}`.
+         */
+        get: operations["listActivityMyMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/programs": {
         parameters: {
             query?: never;
@@ -3549,6 +3569,23 @@ export interface components {
             purpose: components["schemas"]["MediaPurpose"];
             position?: number;
         };
+        /** @description One attachment on one of the viewer's own result entries. */
+        ActivityMediaHistoryItem: {
+            attachment: components["schemas"]["MediaAttachment"];
+            /** Format: uuid */
+            resultEntryId: string;
+            /** Format: uuid */
+            sessionId: string;
+            sessionStatus: components["schemas"]["SessionStatus"];
+            /** Format: uuid */
+            calendarItemId: string | null;
+            /** Format: date */
+            occurrenceDate: string | null;
+            /** Format: uuid */
+            instructionId: string | null;
+            /** Format: date-time */
+            recordedAt: string;
+        };
         MediaAttachment: {
             mediaState: components["schemas"]["MediaState"];
             mediaDeleted: boolean;
@@ -4952,6 +4989,41 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listActivityMyMedia: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                /** @description Only media from sessions of this occurrence. */
+                calendarItemId?: string;
+                type?: components["schemas"]["MediaType"];
+            };
+            header?: never;
+            path: {
+                activityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ActivityMediaHistoryItem"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
     };

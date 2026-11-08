@@ -96,3 +96,7 @@ export async function moderateMediaPublication(request: any) {
 export async function listMediaAttachments(request: any) {
   return media.listAttachments(uid(request), request.query)
 }
+
+export async function listActivityMyMedia(request: any) {
+  return media.listActivityHistory(uid(request), request.params.activityId, request.query)
+}
