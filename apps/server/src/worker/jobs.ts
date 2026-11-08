@@ -140,18 +140,24 @@ const MIN_SAMPLE = 5
  */
 export async function programStats(now = new Date()) {
   const programs = await db.program.findMany({ where: { status: 'PUBLISHED' }, select: { id: true } })
-  const today = toDbDate(now.toISOString().slice(0, 10))
   const thirtyAgo = new Date(now.getTime() - 30 * 86_400_000)
   for (const { id } of programs) {
     const enrollmentCount = await db.programEnrollment.count({ where: { programId: id } })
-    // Due = past items on or after each participant's join date (pre-join dates never count, 09 §4.11).
-    const [counts] = await db.$queryRaw<{ due: bigint; done: bigint | null }[]>`
-      SELECT COUNT(*) AS due, SUM(ci.status = 'DONE') AS done
-      FROM CalendarItem ci JOIN ProgramEnrollment e ON e.id = ci.enrollmentId
-      WHERE e.programId = ${id} AND ci.status NOT IN ('CANCELLED', 'NOT_PARTICIPATING') AND ci.localDate < ${today}
-        AND (e.participationStartDate IS NULL OR ci.localDate >= e.participationStartDate)`
-    const due = Number(counts?.due ?? 0)
-    const done = Number(counts?.done ?? 0)
+    // Due = items before each participant's own local today (item dates are local, never UTC), on or
+    // after their join date (pre-join dates never count, 09 §4.11). Grouped by enrollment timezone.
+    let due = 0
+    let done = 0
+    const zones = await db.programEnrollment.findMany({ where: { programId: id }, distinct: ['timezone'], select: { timezone: true } })
+    for (const { timezone } of zones) {
+      const [counts] = await db.$queryRaw<{ due: bigint; done: bigint | null }[]>`
+        SELECT COUNT(*) AS due, SUM(ci.status = 'DONE') AS done
+        FROM CalendarItem ci JOIN ProgramEnrollment e ON e.id = ci.enrollmentId
+        WHERE e.programId = ${id} AND e.timezone = ${timezone} AND ci.status NOT IN ('CANCELLED', 'NOT_PARTICIPATING')
+          AND ci.localDate < ${toDbDate(todayIn(timezone, now))}
+          AND (e.participationStartDate IS NULL OR ci.localDate >= e.participationStartDate)`
+      due += Number(counts?.due ?? 0)
+      done += Number(counts?.done ?? 0)
+    }
     const mature = await db.programEnrollment.findMany({ where: { programId: id, createdAt: { lte: thirtyAgo } }, select: { id: true } })
     const retained = mature.length
       ? await db.programEnrollment.count({ where: { id: { in: mature.map((m) => m.id) }, calendarItems: { some: { status: 'DONE', updatedAt: { gte: thirtyAgo } } } } })
