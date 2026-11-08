@@ -24,7 +24,9 @@ export function productionConfigProblems(role: ProcessRole, env: NodeJS.ProcessE
   // Local storage is never shared between the API and worker services (ALLOW_LOCAL_STORAGE is for rehearsals only).
   if (env.ALLOW_LOCAL_STORAGE !== 'true') {
     need('STORAGE_PROVIDER', env.STORAGE_PROVIDER === 'r2', 'must be r2')
-    for (const name of ['R2_BUCKET', 'R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY']) need(name)
+    // R2_ACCOUNT_ID builds the R2 endpoint; another S3-compatible store supplies S3_ENDPOINT instead.
+    for (const name of ['R2_BUCKET', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', ...(env.S3_ENDPOINT ? [] : ['R2_ACCOUNT_ID'])]) need(name)
+    if (env.S3_ENDPOINT) need('S3_ENDPOINT', isUrl(env.S3_ENDPOINT, true), 'must be an https URL')
   }
   if (role === 'bootstrap') return problems
 

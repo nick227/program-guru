@@ -32,6 +32,13 @@ describe('production configuration gate', () => {
     expect(productionConfigProblems('worker', { ...complete, CLIENT_IP_HEADER: undefined })).toEqual([])
   })
 
+  it('accepts an S3-compatible endpoint instead of an R2 account', () => {
+    const s3 = { ...complete, R2_ACCOUNT_ID: undefined, S3_ENDPOINT: 'https://storage.example.com' }
+    expect(productionConfigProblems('api', s3)).toEqual([])
+    expect(productionConfigProblems('api', { ...s3, S3_ENDPOINT: 'http://storage.example.com' })).toEqual(['S3_ENDPOINT must be an https URL'])
+    expect(productionConfigProblems('api', { ...complete, R2_ACCOUNT_ID: undefined })).toEqual(['R2_ACCOUNT_ID is required'])
+  })
+
   it('never applies outside production', () => {
     expect(productionConfigProblems('api', { NODE_ENV: 'development' })).toEqual([])
   })

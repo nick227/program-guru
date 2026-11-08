@@ -132,17 +132,25 @@ class LocalStorage implements StorageProvider {
   }
 }
 
+/**
+ * S3-compatible object storage: Cloudflare R2 by default, or any S3 endpoint (for example a Railway
+ * Bucket) via S3_ENDPOINT / S3_REGION / S3_FORCE_PATH_STYLE. STORAGE_DIRECT_UPLOAD=false routes browser
+ * uploads through the API's signed upload route instead of presigned PUTs, so the bucket needs no CORS.
+ */
 class R2Storage implements StorageProvider {
   readonly kind = 'r2' as const
   private s3: S3Client
+  private direct = process.env.STORAGE_DIRECT_UPLOAD !== 'false'
   constructor(private bucket: string) {
     this.s3 = new S3Client({
-      region: 'auto',
-      endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      region: process.env.S3_REGION || 'auto',
+      endpoint: process.env.S3_ENDPOINT || `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
       credentials: { accessKeyId: process.env.R2_ACCESS_KEY_ID!, secretAccessKey: process.env.R2_SECRET_ACCESS_KEY! },
     })
   }
-  presignPut(key: string, mime: string, expiresSec: number) {
+  async presignPut(key: string, mime: string, expiresSec: number) {
+    if (!this.direct) return null
     return getSignedUrl(this.s3, new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: mime }), { expiresIn: expiresSec })
   }
   presignGet(key: string, expiresSec: number) {

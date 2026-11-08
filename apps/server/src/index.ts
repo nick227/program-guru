@@ -4,7 +4,8 @@ import { assertProductionConfig } from './lib/config'
 async function main() {
   assertProductionConfig('api')
   const app = await buildApp({ logger: true, docs: process.env.NODE_ENV !== 'production' })
-  await app.listen({ port: Number(process.env.PORT ?? 3001), host: '0.0.0.0' })
+  // '::' is dual-stack: IPv4 as before, plus IPv6 for Railway's private network (web → API proxy).
+  await app.listen({ port: Number(process.env.PORT ?? 3001), host: '::' })
 }
 
 main().catch((err) => {
