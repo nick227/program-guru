@@ -40,6 +40,30 @@ export const queryKeys = {
     ['media', 'url', id, publicationId] as const,
   myMedia: (q: string) => ['media', 'mine', { q }] as const,
   platformMedia: (q: string) => ['media', 'platform', { q }] as const,
+  mediaPublication: (id: string) => ['media', 'publication', id] as const,
+  mediaComments: (id: string) =>
+    ['media', 'publication', id, 'comments'] as const,
   notifications: ['notifications'] as const,
   unreadCount: ['notifications', 'unread'] as const,
+  followRequests: ['users', 'me', 'follow-requests'] as const,
+  accessRequests: (programId: string) =>
+    ['programs', programId, 'access-requests'] as const,
+  earnings: ['billing', 'earnings'] as const,
+  payoutAccount: ['billing', 'payout-account'] as const,
+  myActivities: (q = '') => ['activities', 'mine', { q }] as const,
+  achievements: ['achievements'] as const,
+  myAchievements: ['achievements', 'me'] as const,
+  userAchievements: (handle: string) =>
+    ['users', handle, 'achievements'] as const,
+  enrollments: ['enrollments'] as const,
+  enrollment: (id: string) => ['enrollments', id] as const,
+  groups: ['groups'] as const,
+  group: (id: string) => ['groups', id] as const,
+  groupInvitations: (id: string) => ['groups', id, 'invitations'] as const,
+  groupInvitation: (token: string) => ['group-invitations', token] as const,
+  myGroupInvitations: ['users', 'me', 'group-invitations'] as const,
+  groupCompletions: (id: string, occurrenceKey = '') =>
+    ['groups', id, 'completions', occurrenceKey] as const,
+  groupMedia: (id: string, occurrenceKey = '') =>
+    ['groups', id, 'media', occurrenceKey] as const,
 }

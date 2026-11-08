@@ -67,8 +67,7 @@ export const thumbFor = (m: Pick<MediaAsset, 'id' | 'state' | 'type'>, context: 
 /** For media listed only to its owner. */
 export const ownerThumb = (m: Pick<MediaAsset, 'id' | 'state' | 'type' | 'ownerId'>) => thumbFor(m, m.ownerId ? { viewerId: m.ownerId } : {})
 
-async function toAsset(viewerId: string | null, m: MediaAsset) {
-  const attachmentCount = await db.mediaAttachment.count({ where: { mediaId: m.id } })
+function toAssetDto(viewerId: string | null, m: MediaAsset, attachmentCount: number) {
   return {
     id: m.id,
     type: m.type,
@@ -86,6 +85,23 @@ async function toAsset(viewerId: string | null, m: MediaAsset) {
     isOwner: !!viewerId && m.ownerId === viewerId,
     createdAt: m.createdAt.toISOString(),
   }
+}
+
+async function toAsset(viewerId: string | null, m: MediaAsset) {
+  const attachmentCount = await db.mediaAttachment.count({ where: { mediaId: m.id } })
+  return toAssetDto(viewerId, m, attachmentCount)
+}
+
+/** One groupBy for the page instead of N attachment.count queries. */
+async function toAssets(viewerId: string | null, rows: MediaAsset[]) {
+  if (!rows.length) return []
+  const counts = await db.mediaAttachment.groupBy({
+    by: ['mediaId'],
+    where: { mediaId: { in: rows.map((m) => m.id) } },
+    _count: { _all: true },
+  })
+  const byId = new Map(counts.map((c) => [c.mediaId, c._count._all]))
+  return rows.map((m) => toAssetDto(viewerId, m, byId.get(m.id) ?? 0))
 }
 
 async function ownAsset(userId: string, mediaId: string) {
@@ -216,7 +232,7 @@ export async function listMine(userId: string, query: PageQuery & { q?: string; 
     take,
   })
   const page = toOffsetPage(rows, limit, skip, (m) => m)
-  return { data: await Promise.all(page.data.map((m) => toAsset(userId, m))), meta: page.meta }
+  return { data: await toAssets(userId, page.data), meta: page.meta }
 }
 
 export async function listPlatform(query: PageQuery & { q?: string; type?: 'PHOTO' | 'VIDEO' | 'AUDIO'; categoryId?: string; activityId?: string }) {
@@ -242,7 +258,7 @@ export async function listPlatform(query: PageQuery & { q?: string; type?: 'PHOT
   }
   const rows = await db.mediaAsset.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip, take })
   const page = toOffsetPage(rows, limit, skip, (m) => m)
-  return { data: await Promise.all(page.data.map((m) => toAsset(null, m))), meta: page.meta }
+  return { data: await toAssets(null, page.data), meta: page.meta }
 }
 
 export async function get(userId: string, mediaId: string) {

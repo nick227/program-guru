@@ -287,6 +287,35 @@ Denial rules still win: blocks, moderation hides, revoked grants, and lapsed sub
 - Revising published instructional content follows Activity revision / Program version acceptance rules already specified; channel membership does not force participants onto new versions.
 - Featured order and channel organization are creator-controlled presentation metadata, not ownership or entitlement.
 
+### Creator Studio screen responsibilities
+
+Entry: Own Profile → Manage → **Creator Studio** (`/studio`), also from the account menu. Calendar remains home; Studio is not a primary nav tab (`13-PROFILES-AND-EXPERIENCE.md`).
+
+| Studio section | Responsibility | Reuses |
+|---|---|---|
+| **Library** | Unified inventory of owned Programs, Activities, Media; Posts when the Posts API exists | `07`, `08`, `11` list contracts |
+| **Publishing** | Draft/publish/archive (and revoke media publication); deep-link to Program Workspace / Activity authoring for edits | `07`, `08`, `11` publish/archive |
+| **Channel** | Branding: display name, bio, avatar, cover, profile visibility; featured/sections when Featured API exists | `06`, `13` |
+| **Audience** | Distinct Follow / Program participant / channel subscriber; follow requests and Program access approvals now; rosters when list APIs exist | `12`, `07` |
+| **Dashboard** | Earnings aggregates, Program enrollment/completion signals, payout status | `getCreatorEarnings`, Program preview stats, ADR 0001 |
+| **Organization** | Featured order, collections/series when those contracts exist; until then public catalog = recent published Programs | `02` §10 |
+| **Subscriber view** | Public channel already on `/:handle`; subscriber-only shelf after Channel Entitlement | `13`, `02` §10 |
+
+### Capability slices (smallest useful vs deferred)
+
+| Capability | Smallest useful P1+ | Deferred |
+|---|---|---|
+| Unified Content Library | One Studio inventory: Programs + Activities + Media (+ Posts when API exists) | Bulk ops, advanced search facets |
+| Publishing lifecycle | `DRAFT` → `PUBLISHED` → `ARCHIVED`; media revoke as unpublish; return-to-draft/`scheduled` only after contracts | Promotions, A/B releases |
+| Channel customization | Profile cover/avatar/bio + recent public Programs as catalog | Full layout builder, themes |
+| Collections / series | `Collection` + ordered refs (new contract) | Nested series, collaborative editing |
+| Subscriber channel feed | Channel entitlement + subscriber-inclusive items | Algorithmic ranking |
+| Audience management | Distinct relationships; follow + access approval queues; rosters when list APIs exist | CRM, messaging |
+| Scheduling / announcements | `publishAt` on Post/Program release (new contract) | Campaign calendar |
+| Creator dashboard | Earnings summary + Program enrollment/completion + approval counts | Funnels, cohort retention UI |
+| Reuse / version pinning | Existing ProgramVersion + ActivityRevision acceptance | Cross-creator remix marketplace |
+| Audience + monetization controls | Program access/prices today; subscriber-inclusion flag with channel plan | Revenue splits, coupons, tiers |
+
 ### Delivery phases (implementation order when assigned)
 
 | Phase | Scope |
@@ -297,6 +326,8 @@ Denial rules still win: blocks, moderation hides, revoked grants, and lapsed sub
 | **D — Business tools** | Payouts reuse, earnings, subscriber analytics, monetization settings. |
 
 Reuse Stripe Connect (destination charges, webhook-only fulfillment, `MARKETPLACE_ENABLED` discipline) rather than replacing it.
+
+**API-backed Studio subset (shippable before channel contracts):** Library (Programs/Activities/Media), Program/Activity/Media publish-archive actions against existing ops, Channel branding via `updateMyProfile`, Audience follow-request and Program access-request queues, Dashboard via `getCreatorEarnings` / payout account / Program preview stats. Posts, collections, channel membership, featured persistence, content scheduling, and audience rosters remain blocked on backend contracts listed in `02-DOMAIN.md` §10.
 
 ### Acceptance tests (P1+; in addition to §6)
 
@@ -310,3 +341,11 @@ Reuse Stripe Connect (destination charges, webhook-only fulfillment, `MARKETPLAC
 8. Channel billing instruments are distinct from `BillingSubscription.programId` / `ProgramAccessGrant`; Program checkout and channel checkout can coexist for the same creator and buyer.
 9. Rights, report, and moderation actions can revoke distribution or entitlement without destroying the owner's private library assets (`11-MEDIA.md`, `12-SOCIAL.md`).
 10. Analytics show truthful subscriber count and earnings aggregates without exposing other users' private results.
+
+#### API-backed Studio subset (runnable before channel contracts)
+
+11. Owner opens Creator Studio Library and sees owned Programs, Activities, and Media from server lists; Posts show as unavailable until the Posts API exists.
+12. Owner archives a published Program from Studio (or workspace) and it leaves public discovery while personal participant history remains.
+13. Owner updates channel branding (display name, bio, avatar or cover) via profile update; the public profile reflects the change.
+14. Owner approves or declines a pending follow request and a Program access request from Studio Audience.
+15. Dashboard shows payout/earnings aggregates and Program enrollment or completion figures without fabricating subscriber-channel metrics.

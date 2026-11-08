@@ -4,7 +4,7 @@ import { badRequest, conflict, notFound, versionConflict } from '../../lib/error
 import { withIdempotency } from '../../lib/idempotency'
 import { addDays, diffDays, fromDbDate, localToUtc, todayIn, toDbDate, type LocalDate } from '../../lib/time'
 import { canUseActivity, isOwner as isActivityOwner } from '../activities/access'
-import { loadRevisions, summarizeRevision } from '../activities/mapper'
+import { calendarVisual, loadCalendarRevisions } from '../activities/mapper'
 import { activeGrantWhere } from '../programs/access'
 import { mediaUrl } from '../media/urls'
 import { HORIZON_DAYS, materializeEnrollment } from './materialize'
@@ -25,12 +25,17 @@ type ItemRow = Prisma.CalendarItemGetPayload<{ include: typeof itemInclude }>
 
 /** Projects items for display: titles, thumbnails, conflicts, lock state, group signals. */
 export async function toCalendarItems(userId: string, items: ItemRow[]) {
-  const revs = await loadRevisions(items.map((i) => i.activityRevisionId))
+  const revs = await loadCalendarRevisions(items.map((i) => i.activityRevisionId))
   // Locked: Program content requires an entitlement the user no longer has (subscription lapsed).
-  const programIds = [...new Set(items.map((i) => i.enrollment?.program).filter((p) => p && p.creatorId !== userId && (p.policy?.accessMode ?? 'OPEN') !== 'OPEN').map((p) => p!.id))]
+  const lockedProgramIds = new Set(
+    items
+      .map((i) => i.enrollment?.program)
+      .filter((p): p is NonNullable<typeof p> => !!p && p.creatorId !== userId && (p.policy?.accessMode ?? 'OPEN') !== 'OPEN')
+      .map((p) => p.id),
+  )
   const granted = new Set(
-    programIds.length
-      ? (await db.programAccessGrant.findMany({ where: { userId, programId: { in: programIds }, ...activeGrantWhere() }, select: { programId: true } })).map((g) => g.programId)
+    lockedProgramIds.size
+      ? (await db.programAccessGrant.findMany({ where: { userId, programId: { in: [...lockedProgramIds] }, ...activeGrantWhere() }, select: { programId: true } })).map((g) => g.programId)
       : [],
   )
   const keys = [...new Set(items.map((i) => i.groupOccurrenceKey).filter(Boolean))] as string[]
@@ -42,22 +47,34 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
   const members = groupIds.length
     ? await db.groupMember.findMany({ where: { groupId: { in: groupIds }, status: 'ACTIVE', userId: { not: userId } }, include: { user: { include: { profile: true } } }, take: 50 })
     : []
+  const membersByGroup = new Map<string, typeof members>()
+  for (const m of members) {
+    const list = membersByGroup.get(m.groupId)
+    if (list) list.push(m)
+    else membersByGroup.set(m.groupId, [m])
+  }
   // Timed items sharing a local date and time are flagged on both tiles (03 §5).
   const slots = new Map<string, number>()
-  for (const i of items) if (i.localTime && i.status !== 'CANCELLED') slots.set(`${fromDbDate(i.localDate)} ${i.localTime}`, (slots.get(`${fromDbDate(i.localDate)} ${i.localTime}`) ?? 0) + 1)
+  for (const i of items) {
+    if (!i.localTime || i.status === 'CANCELLED') continue
+    const slot = `${fromDbDate(i.localDate)} ${i.localTime}`
+    slots.set(slot, (slots.get(slot) ?? 0) + 1)
+  }
 
   return items.map((i) => {
     const rev = revs.get(i.activityRevisionId) ?? null
     const program = i.enrollment?.program ?? null
-    const locked = !!program && programIds.includes(program.id) && !granted.has(program.id)
-    const allAttachments = rev ? [...rev.attachments, ...rev.instructions.flatMap((inst) => inst.attachments)] : []
-    const hasPrivateAttachment = allAttachments.some((a) => a.media.ownerId !== null)
-    const avatars = i.enrollment?.groupId
-      ? members.filter((m) => m.groupId === i.enrollment!.groupId).slice(0, 4).map((m) => mediaUrl(m.user.profile?.avatarMediaId) ?? '').filter(Boolean)
-      : []
+    const locked = !!program && lockedProgramIds.has(program.id) && !granted.has(program.id)
+    const { thumbnailUrl, hasPrivateAttachment } = calendarVisual(rev)
+    const date = fromDbDate(i.localDate)
+    const groupMembers = i.enrollment?.groupId ? membersByGroup.get(i.enrollment.groupId) ?? [] : []
+    const avatars = groupMembers
+      .slice(0, 4)
+      .map((m) => mediaUrl(m.user.profile?.avatarMediaId) ?? '')
+      .filter(Boolean)
     return {
       id: i.id,
-      localDate: fromDbDate(i.localDate),
+      localDate: date,
       localTime: i.localTime,
       status: i.status,
       title: rev?.titleSnapshot ?? 'Activity',
@@ -67,9 +84,9 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
       enrollmentId: i.enrollmentId,
       programDayIndex: i.programDayIndex,
       recurrenceId: i.recurrenceId,
-      conflict: !!i.localTime && (slots.get(`${fromDbDate(i.localDate)} ${i.localTime}`) ?? 0) > 1,
+      conflict: !!i.localTime && (slots.get(`${date} ${i.localTime}`) ?? 0) > 1,
       locked,
-      thumbnailUrl: locked && hasPrivateAttachment ? null : summarizeRevision(rev).thumbnailUrl,
+      thumbnailUrl: locked && hasPrivateAttachment ? null : thumbnailUrl,
       participantAvatars: avatars,
       unreadCount: i.groupOccurrenceKey ? unreadByKey.get(i.groupOccurrenceKey) ?? 0 : 0,
       updatedAt: i.updatedAt.toISOString(),

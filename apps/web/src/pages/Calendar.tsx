@@ -1,16 +1,20 @@
+import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   useCalendar,
   useCurrentUser,
   useUndoCompletion,
+  useUpdatePreferences,
 } from '@project/sdk'
 import { toast } from 'sonner'
 import { Page, Stack, Row, Panel } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { CalendarSurface } from '@/components/CalendarSurface'
 import { AccountMenu } from '@/components/AccountMenu'
+import { UpcomingRemindersPanel } from '@/components/UpcomingRemindersPanel'
 import { linkButton } from '@/components/Navigation'
 import {
   addDays,
@@ -20,6 +24,7 @@ import {
   today,
   weekOf,
 } from '@/lib/dates'
+import { markDailyEmailPromptSeen } from '@/lib/notifications'
 import { useOnline } from '@/lib/useOnline'
 
 export function CalendarPage() {
@@ -27,7 +32,12 @@ export function CalendarPage() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const online = useOnline()
+  const updatePrefs = useUpdatePreferences()
+  const userId = me.data!.data.id
   const timezone = me.data!.data.preferences.timezone
+  const defaultReminderTime =
+    me.data!.data.preferences.notifications?.dailyReminderTime ?? '08:00'
+  const [reminderTime, setReminderTime] = useState(defaultReminderTime)
   const current = today(timezone)
   const start = isLocalDate(params.get('week'))
     ? weekOf(params.get('week')!)
@@ -44,6 +54,12 @@ export function CalendarPage() {
   const undo = useUndoCompletion()
   const origin = calendarUrl(selected, start)
   const selectDay = (day: string) => setParams({ week: start, day })
+  const clearReminderPrompt = () => {
+    markDailyEmailPromptSeen(userId)
+    const next = new URLSearchParams(params)
+    next.delete('promptReminder')
+    setParams(next, { replace: true })
+  }
   return (
     <Page className="max-w-7xl">
       <Stack className="gap-6">
@@ -109,6 +125,56 @@ export function CalendarPage() {
           {timezone.replaceAll('_', ' ')}
           {calendar.isFetching && !calendar.isPending ? ' · Refreshing…' : ''}
         </p>
+        {params.get('promptReminder') === '1' && (
+          <Panel aria-label="Daily reminder prompt" className="border-accent">
+            <Stack className="gap-3">
+              <div>
+                <h2 className="text-base">
+                  Want a daily email reminder on days you have Activities?
+                </h2>
+                <p className="mt-1 text-xs text-muted">
+                  Optional · sent at most once per day in{' '}
+                  {timezone.replaceAll('_', ' ')}.
+                </p>
+              </div>
+              <Row className="items-end gap-2">
+                <label className="space-y-1 text-xs">
+                  <span>Reminder time</span>
+                  <Input
+                    type="time"
+                    aria-label="Prompt reminder time"
+                    value={reminderTime}
+                    onChange={(e) => setReminderTime(e.target.value)}
+                  />
+                </label>
+                <Button
+                  disabled={!online}
+                  loading={updatePrefs.isPending}
+                  onClick={async () => {
+                    try {
+                      await updatePrefs.mutateAsync({
+                        notifications: {
+                          dailyEmail: true,
+                          dailyReminderTime: reminderTime.slice(0, 5),
+                        },
+                      })
+                      toast.success('Daily email reminders enabled')
+                      clearReminderPrompt()
+                    } catch {
+                      /* shown below */
+                    }
+                  }}
+                >
+                  Enable daily email
+                </Button>
+                <Button variant="ghost" onClick={clearReminderPrompt}>
+                  Not now
+                </Button>
+              </Row>
+              <ErrorMessage error={updatePrefs.error} />
+            </Stack>
+          </Panel>
+        )}
         {params.get('completed') && (
           <Panel>
             <Row className="justify-between">
@@ -163,6 +229,8 @@ export function CalendarPage() {
                   .filter(Boolean)
                   .join(' · '),
                 done: item.status === 'DONE',
+                notParticipating: item.status === 'NOT_PARTICIPATING',
+                status: item.status,
                 locked: item.locked,
                 conflict: item.conflict,
                 thumbnailUrl: item.thumbnailUrl,
@@ -171,6 +239,9 @@ export function CalendarPage() {
                 href: `/occurrences/${item.id}?returnTo=${encodeURIComponent(calendarUrl(item.localDate, start))}`,
               }))}
             />
+            {calendar.data && calendar.data.length > 0 && (
+              <UpcomingRemindersPanel compact />
+            )}
             {calendar.data?.length === 0 && (
               <Panel className="text-center">
                 <Stack className="items-center py-6">

@@ -27,15 +27,17 @@ export function useDiscoverPrograms(q = '') {
     getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
   })
 }
-export function useMyPrograms() {
+export function useMyPrograms(status?: S['ProgramStatus']) {
   return useInfiniteQuery({
-    queryKey: useViewerKey(keys.mine),
+    queryKey: useViewerKey([...keys.mine, status ?? 'all']),
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) =>
       apiData(
         await getApiClient().GET('/programs', {
           signal,
-          params: { query: { cursor: pageParam, limit: 20 } },
+          params: {
+            query: { cursor: pageParam, limit: 20, status },
+          },
         }),
       ),
     getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
@@ -53,6 +55,27 @@ export function useActivities(q = '', focusId = '') {
             query: {
               q: q || undefined,
               focusId: focusId || undefined,
+              cursor: pageParam,
+              limit: 20,
+            },
+          },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+export function useMyActivities(q = '') {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.myActivities(q)),
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/activities', {
+          signal,
+          params: {
+            query: {
+              source: 'MINE',
+              q: q || undefined,
               cursor: pageParam,
               limit: 20,
             },
@@ -173,8 +196,82 @@ export function usePublishProgram(programId: string) {
           body,
         }),
       ).data,
-    [keys.programs, keys.discover],
+    [keys.programs, keys.discover, keys.mine],
     `draft:${programId}`,
+  )
+}
+export function useArchiveProgram() {
+  return useApiMutation(
+    async (programId: string) =>
+      apiData(
+        await getApiClient().POST('/programs/{programId}/archive', {
+          params: { path: { programId } },
+        }),
+      ).data,
+    [keys.programs, keys.discover, keys.mine],
+  )
+}
+export function usePublishActivity(activityId: string) {
+  return useApiMutation(
+    async (body: S['PublishActivityInput']) =>
+      apiData(
+        await getApiClient().POST('/activities/{activityId}/publish', {
+          params: { path: { activityId } },
+          body,
+        }),
+      ).data,
+    [keys.programs, keys.myActivities()],
+  )
+}
+export function useArchiveActivity() {
+  return useApiMutation(
+    async (activityId: string) =>
+      apiData(
+        await getApiClient().POST('/activities/{activityId}/archive', {
+          params: { path: { activityId } },
+        }),
+      ).data,
+    [keys.programs, keys.myActivities()],
+  )
+}
+export function useProgramAccessRequests(programId: string) {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.accessRequests(programId)),
+    enabled: !!programId,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/programs/{programId}/access-requests', {
+          signal,
+          params: {
+            path: { programId },
+            query: { cursor: pageParam, limit: 20 },
+          },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+export function useApproveProgramAccessRequest(programId: string) {
+  return useApiMutation(
+    async (requestId: string) =>
+      apiData(
+        await getApiClient().POST('/access-requests/{requestId}/approve', {
+          params: { path: { requestId } },
+        }),
+      ).data,
+    [keys.accessRequests(programId)],
+  )
+}
+export function useDeclineProgramAccessRequest(programId: string) {
+  return useApiMutation(
+    async (requestId: string) =>
+      apiData(
+        await getApiClient().POST('/access-requests/{requestId}/decline', {
+          params: { path: { requestId } },
+        }),
+      ).data,
+    [keys.accessRequests(programId)],
   )
 }
 export function usePreviewEnrollment(programId: string) {
@@ -198,7 +295,66 @@ export function useJoinProgram(programId: string) {
           body,
         }),
       ).data,
-    [keys.programs, keys.calendar, keys.discover],
+    [keys.programs, keys.calendar, keys.discover, keys.enrollments, keys.groups],
+  )
+}
+export function useMyEnrollments() {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.enrollments),
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/enrollments', {
+          signal,
+          params: { query: { cursor: pageParam, limit: 20 } },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+export function useEnrollment(enrollmentId: string) {
+  return useQuery({
+    queryKey: useViewerKey(keys.enrollment(enrollmentId)),
+    enabled: !!enrollmentId,
+    queryFn: async ({ signal }) =>
+      apiData(
+        await getApiClient().GET('/enrollments/{enrollmentId}', {
+          signal,
+          params: { path: { enrollmentId } },
+        }),
+      ).data,
+  })
+}
+export function useAcceptEnrollmentUpdate(enrollmentId: string) {
+  return useApiMutation(
+    async () =>
+      apiData(
+        await getApiClient().POST('/enrollments/{enrollmentId}/accept-update', {
+          params: { path: { enrollmentId } },
+        }),
+      ).data,
+    [
+      keys.enrollments,
+      keys.programs,
+      keys.calendar,
+      keys.occurrences,
+      keys.notifications,
+      keys.unreadCount,
+    ],
+  )
+}
+export function useDismissEnrollmentUpdate(enrollmentId: string) {
+  return useApiMutation(
+    async () =>
+      apiData(
+        await getApiClient().POST(
+          '/enrollments/{enrollmentId}/dismiss-update',
+          {
+            params: { path: { enrollmentId } },
+          },
+        ),
+      ).data,
+    [keys.enrollments, keys.programs, keys.notifications, keys.unreadCount],
   )
 }
 export function useActivity(activityId: string) {

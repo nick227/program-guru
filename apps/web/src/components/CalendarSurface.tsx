@@ -10,6 +10,8 @@ export type SurfaceItem = {
   title: string
   detail?: string
   done?: boolean
+  notParticipating?: boolean
+  status?: 'PLANNED' | 'SKIPPED' | 'CANCELLED' | 'DONE' | 'NOT_PARTICIPATING'
   href?: string
   locked?: boolean
   conflict?: boolean
@@ -113,11 +115,18 @@ export function CalendarSurface({
                       <span className="mt-1 block text-xs text-muted">
                         {item.locked
                           ? 'Access required'
-                          : item.done
+                          : item.done || item.status === 'DONE'
                             ? 'Completed'
-                            : item.conflict
-                              ? 'Overlaps another Activity'
-                              : 'Planned'}
+                            : item.notParticipating ||
+                                item.status === 'NOT_PARTICIPATING'
+                              ? 'Not participating'
+                              : item.status === 'SKIPPED'
+                                ? 'Skipped'
+                                : item.status === 'CANCELLED'
+                                  ? 'Cancelled'
+                                  : item.conflict
+                                    ? 'Overlaps another Activity'
+                                    : 'Planned'}
                       </span>
                       {!!item.avatarUrls?.length && (
                         <AvatarStack
