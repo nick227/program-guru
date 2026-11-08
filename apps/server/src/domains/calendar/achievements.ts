@@ -19,8 +19,10 @@ export async function completionCount(tx: Tx, userId: string) {
 async function programProgress(tx: Tx, enrollmentId: string) {
   const e = await tx.programEnrollment.findUnique({ where: { id: enrollmentId }, include: { version: true } })
   if (!e) return null
+  // Adherence excludes every date before the participant joined, whatever its status (09 §4.11).
+  const joined = e.participationStartDate
   const items = await tx.calendarItem.findMany({
-    where: { enrollmentId, status: { not: 'CANCELLED' } },
+    where: { enrollmentId, status: { notIn: ['CANCELLED', 'NOT_PARTICIPATING'] }, ...(joined ? { localDate: { gte: joined } } : {}) },
     select: { status: true, programDayIndex: true },
   })
   const finite = e.version.durationDays !== null

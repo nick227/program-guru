@@ -6,6 +6,7 @@ import { storage } from '../infrastructure/storage'
 import { addDays, fromDbDate, todayIn, toDbDate } from '../lib/time'
 import { HORIZON_DAYS, materializeEnrollment } from '../domains/calendar/materialize'
 import { materializeRecurrence } from '../domains/calendar/recurrence'
+import { expireInvitations } from '../domains/groups/group.service'
 import { unsubscribeToken } from '../domains/social/notification.service'
 import { appUrl } from './handlers'
 import { notify } from './notify'
@@ -143,10 +144,14 @@ export async function programStats(now = new Date()) {
   const thirtyAgo = new Date(now.getTime() - 30 * 86_400_000)
   for (const { id } of programs) {
     const enrollmentCount = await db.programEnrollment.count({ where: { programId: id } })
-    const [due, done] = await Promise.all([
-      db.calendarItem.count({ where: { enrollment: { programId: id }, status: { not: 'CANCELLED' }, localDate: { lt: today } } }),
-      db.calendarItem.count({ where: { enrollment: { programId: id }, status: 'DONE', localDate: { lt: today } } }),
-    ])
+    // Due = past items on or after each participant's join date (pre-join dates never count, 09 §4.11).
+    const [counts] = await db.$queryRaw<{ due: bigint; done: bigint | null }[]>`
+      SELECT COUNT(*) AS due, SUM(ci.status = 'DONE') AS done
+      FROM CalendarItem ci JOIN ProgramEnrollment e ON e.id = ci.enrollmentId
+      WHERE e.programId = ${id} AND ci.status NOT IN ('CANCELLED', 'NOT_PARTICIPATING') AND ci.localDate < ${today}
+        AND (e.participationStartDate IS NULL OR ci.localDate >= e.participationStartDate)`
+    const due = Number(counts?.due ?? 0)
+    const done = Number(counts?.done ?? 0)
     const mature = await db.programEnrollment.findMany({ where: { programId: id, createdAt: { lte: thirtyAgo } }, select: { id: true } })
     const retained = mature.length
       ? await db.programEnrollment.count({ where: { id: { in: mature.map((m) => m.id) }, calendarItems: { some: { status: 'DONE', updatedAt: { gte: thirtyAgo } } } } })
@@ -176,6 +181,7 @@ export async function cleanup(now = new Date()) {
   await db.session.deleteMany({ where: { expiresAt: { lt: now } } })
   await db.idempotencyKey.deleteMany({ where: { expiresAt: { lt: now } } })
   await db.authToken.deleteMany({ where: { expiresAt: { lt: new Date(now.getTime() - 7 * 86_400_000) } } })
+  const expiredInvitations = await expireInvitations(now)
   const abandoned = await db.mediaAsset.findMany({ where: { state: 'UPLOADING', uploadExpiresAt: { lt: new Date(now.getTime() - 3600_000) } } })
   for (const m of abandoned) {
     await storage().remove(m.originalStorageKey).catch(() => {})
@@ -186,5 +192,5 @@ export async function cleanup(now = new Date()) {
     for (const key of [m.originalStorageKey, ...m.variants.map((v) => v.storageKey)]) await storage().remove(key).catch(() => {})
     await db.mediaVariant.deleteMany({ where: { mediaId: m.id } })
   }
-  return { abandoned: abandoned.length, purged: purge.length }
+  return { abandoned: abandoned.length, purged: purge.length, expiredInvitations }
 }

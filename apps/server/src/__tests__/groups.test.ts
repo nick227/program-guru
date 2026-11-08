@@ -37,7 +37,7 @@ async function finish(userId: string, itemId: string) {
 
 describe('two friends follow the same Program (01 §6 required test 3)', () => {
   it('invite by handle, independent calendars, permitted progress, reactions; private results stay private', async () => {
-    const { programId, versionId } = await challenge()
+    const { versionId } = await challenge()
     const group = await req('POST', '/groups', { programVersionId: versionId, name: 'Morning crew', mode: 'SYNC' })
     expect(group.statusCode).toBe(201)
     await validateResponse('createGroup', 201, group.json())
@@ -49,16 +49,14 @@ describe('two friends follow the same Program (01 §6 required test 3)', () => {
     const token = inv.json().data.joinUrl.split('/join/')[1]
     const preview = await app.inject({ method: 'GET', url: `/group-invitations/${token}` })
     await validateResponse('getGroupInvitation', 200, preview.json())
-    expect((await req('POST', `/group-invitations/${token}/accept`, undefined, '00000000-0000-4000-8000-000000000003')).statusCode).toBe(404) // not the invitee
-    const accepted = await req('POST', `/group-invitations/${token}/accept`, undefined, testOtherUserId)
+    expect((await req('POST', `/group-invitations/${token}/accept`, { enrollment: { timezone: 'America/Chicago', idempotencyKey: key() } }, '00000000-0000-4000-8000-000000000003')).statusCode).toBe(404) // not the invitee
+    // SYNC: Bob must start with the group; a mismatch fails without joining.
+    const wrongDay = await req('POST', `/group-invitations/${token}/accept`, { enrollment: { startLocalDate: '2026-11-10', timezone: 'America/Chicago', idempotencyKey: key() } }, testOtherUserId)
+    expect(wrongDay.statusCode).toBe(400)
+    const accepted = await req('POST', `/group-invitations/${token}/accept`, { enrollment: { timezone: 'America/Chicago', idempotencyKey: key() } }, testOtherUserId)
     expect(accepted.statusCode).toBe(200)
     expect(accepted.json().data.memberCount).toBe(2)
-
-    // SYNC: Bob must start with the group.
-    const wrongDay = await req('POST', `/programs/${programId}/enrollments`, { programVersionId: versionId, startLocalDate: '2026-11-10', timezone: 'America/Chicago', groupId, idempotencyKey: key() }, testOtherUserId)
-    expect(wrongDay.statusCode).toBe(400)
-    const joined = await req('POST', `/programs/${programId}/enrollments`, { programVersionId: versionId, startLocalDate: '2026-11-09', timezone: 'America/Chicago', groupId, idempotencyKey: key() }, testOtherUserId)
-    expect(joined.statusCode).toBe(201)
+    expect(accepted.json().data.myEnrollment).toMatchObject({ startLocalDate: '2026-11-09', startDateDiffers: false })
 
     const aliceDay = await dayOne(testUserId)
     const bobDay = await dayOne(testOtherUserId)
@@ -110,12 +108,11 @@ describe('two friends follow the same Program (01 §6 required test 3)', () => {
   })
 
   it('turning sharing off hides completions; leaving unlinks the calendar', async () => {
-    const { programId, versionId } = await challenge()
+    const { versionId } = await challenge()
     const groupId = (await req('POST', '/groups', { programVersionId: versionId, mode: 'ASYNC' })).json().data.id
     const link = (await req('POST', `/groups/${groupId}/invitations`, { kind: 'LINK' })).json().data
     const token = link.joinUrl.split('/join/')[1]
-    await req('POST', `/group-invitations/${token}/accept`, undefined, testOtherUserId)
-    await req('POST', `/programs/${programId}/enrollments`, { programVersionId: versionId, startLocalDate: '2026-11-12', timezone: 'America/Chicago', groupId, idempotencyKey: key() }, testOtherUserId)
+    expect((await req('POST', `/group-invitations/${token}/accept`, { enrollment: { startLocalDate: '2026-11-12', timezone: 'America/Chicago', idempotencyKey: key() } }, testOtherUserId)).statusCode).toBe(200)
     // ASYNC: different start dates still map to the same occurrence key by Program Day.
     const aliceFirst = await db.calendarItem.findFirstOrThrow({ where: { ownerId: testUserId, programDayIndex: 0, activityId: cat.squats.activity.id } })
     const bobFirst = await db.calendarItem.findFirstOrThrow({ where: { ownerId: testOtherUserId, programDayIndex: 0, activityId: cat.squats.activity.id } })
@@ -135,20 +132,19 @@ describe('two friends follow the same Program (01 §6 required test 3)', () => {
     const groupId = (await req('POST', '/groups', { programVersionId: versionId, mode: 'ASYNC' })).json().data.id
     expect((await req('GET', `/programs/${programId}`, undefined, testOtherUserId)).statusCode).toBe(404)
     const token = (await req('POST', `/groups/${groupId}/invitations`, { kind: 'USER', handle: 'bob' })).json().data.joinUrl.split('/join/')[1]
-    await req('POST', `/group-invitations/${token}/accept`, undefined, testOtherUserId)
+    const joined = await req('POST', `/group-invitations/${token}/accept`, { enrollment: { startLocalDate: '2026-11-09', timezone: 'America/Chicago', idempotencyKey: key() } }, testOtherUserId)
+    expect(joined.statusCode).toBe(200)
     expect((await req('GET', `/programs/${programId}`, undefined, testOtherUserId)).statusCode).toBe(200)
-    const joined = await req('POST', `/programs/${programId}/enrollments`, { programVersionId: versionId, startLocalDate: '2026-11-09', timezone: 'America/Chicago', groupId, idempotencyKey: key() }, testOtherUserId)
-    expect(joined.statusCode).toBe(201)
+    expect(joined.json().data.myEnrollment).not.toBeNull()
   })
 })
 
 describe('group media comments', () => {
   it('members comment on group-shared media; public media has no comments', async () => {
-    const { programId, versionId } = await challenge()
+    const { versionId } = await challenge()
     const groupId = (await req('POST', '/groups', { programVersionId: versionId, mode: 'SYNC' })).json().data.id
     const token = (await req('POST', `/groups/${groupId}/invitations`, { kind: 'USER', handle: 'bob' })).json().data.joinUrl.split('/join/')[1]
-    await req('POST', `/group-invitations/${token}/accept`, undefined, testOtherUserId)
-    await req('POST', `/programs/${programId}/enrollments`, { programVersionId: versionId, startLocalDate: '2026-11-09', timezone: 'America/Chicago', groupId, idempotencyKey: key() }, testOtherUserId)
+    await req('POST', `/group-invitations/${token}/accept`, { enrollment: { timezone: 'America/Chicago', idempotencyKey: key() } }, testOtherUserId)
     const item = await db.calendarItem.findFirstOrThrow({ where: { ownerId: testUserId, programDayIndex: 0 } })
     const media = await db.mediaAsset.create({ data: { ownerId: testUserId, type: 'PHOTO', originalStorageKey: `u/${testUserId}/x`, mime: 'image/png', byteSize: 10, state: 'READY' } })
     const pub = await req('POST', '/media-publications', { mediaId: media.id, audience: 'GROUP', groupId, occurrenceKey: item.groupOccurrenceKey })
@@ -267,5 +263,29 @@ describe('removeCompletionReaction', () => {
 describe('listGroupMedia', () => {
   it('matches the contract', async () => {
     await contractCase(app, 'listGroupMedia')
+  })
+})
+
+describe('listMyGroupInvitations', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listMyGroupInvitations')
+  })
+})
+
+describe('acceptMyGroupInvitation', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'acceptMyGroupInvitation')
+  })
+})
+
+describe('declineMyGroupInvitation', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'declineMyGroupInvitation')
+  })
+})
+
+describe('declineGroupInvitation', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'declineGroupInvitation')
   })
 })

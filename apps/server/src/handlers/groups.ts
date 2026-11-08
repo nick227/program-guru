@@ -37,7 +37,21 @@ export async function getGroupInvitation(request: any) {
   return { data: await groups.previewInvitation(viewer?.id ?? null, request.params.token) }
 }
 export async function acceptGroupInvitation(request: any) {
-  return { data: await groups.accept(uid(request), request.params.token) }
+  return { data: await groups.accept(uid(request), request.params.token, request.body ?? undefined) }
+}
+export async function declineGroupInvitation(request: any) {
+  await groups.decline(uid(request), request.params.token)
+  return { data: { ok: true } }
+}
+export async function listMyGroupInvitations(request: any) {
+  return groups.listReceived(uid(request), request.query)
+}
+export async function acceptMyGroupInvitation(request: any) {
+  return { data: await groups.acceptMine(uid(request), request.params.invitationId, request.body ?? undefined) }
+}
+export async function declineMyGroupInvitation(request: any) {
+  await groups.declineMine(uid(request), request.params.invitationId)
+  return { data: { ok: true } }
 }
 export async function listGroupCompletions(request: any) {
   return groups.listCompletions(uid(request), request.params.groupId, request.query)

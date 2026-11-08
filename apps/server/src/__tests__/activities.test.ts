@@ -175,3 +175,9 @@ describe('getActivityMyStats', () => {
     await contractCase(app, 'getActivityMyStats')
   })
 })
+
+describe('listActivityMyMedia', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listActivityMyMedia')
+  })
+})
