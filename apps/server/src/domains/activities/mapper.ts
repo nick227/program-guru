@@ -118,3 +118,34 @@ export async function loadRevisions(ids: string[]) {
   const rows = await db.activityRevision.findMany({ where: { id: { in: unique } }, include: revisionInclude })
   return new Map(rows.map((r) => [r.id, r]))
 }
+
+/** Calendar tiles only need a title and whether a private visual exists — not full instructions/metrics. */
+const mediaVisualSelect = { id: true, state: true, ownerId: true } satisfies Prisma.MediaAssetSelect
+export const calendarRevisionInclude = {
+  attachments: { orderBy: { position: 'asc' as const }, include: { media: { select: mediaVisualSelect } } },
+  instructions: {
+    select: {
+      attachments: { orderBy: { position: 'asc' as const }, include: { media: { select: mediaVisualSelect } } },
+    },
+  },
+} satisfies Prisma.ActivityRevisionInclude
+
+export type CalendarRevision = Prisma.ActivityRevisionGetPayload<{ include: typeof calendarRevisionInclude }>
+
+export async function loadCalendarRevisions(ids: string[]) {
+  const unique = [...new Set(ids.filter(Boolean))]
+  if (!unique.length) return new Map<string, CalendarRevision>()
+  const rows = await db.activityRevision.findMany({ where: { id: { in: unique } }, include: calendarRevisionInclude })
+  return new Map(rows.map((r) => [r.id, r]))
+}
+
+/** Thumbnail + private-attachment flag for calendar tiles (same rules as summarizeRevision). */
+export function calendarVisual(rev: CalendarRevision | null) {
+  if (!rev) return { thumbnailUrl: null as string | null, hasPrivateAttachment: false }
+  const allAttachments = [...rev.attachments, ...rev.instructions.flatMap((i) => i.attachments)]
+  const hasPrivateAttachment = allAttachments.some((a) => a.media.ownerId !== null)
+  const visual =
+    rev.attachments.find((a) => (VISUAL_PURPOSES as readonly string[]).includes(a.purpose) && a.media.state === 'READY') ??
+    allAttachments.find((a) => a.media.state === 'READY')
+  return { thumbnailUrl: visual ? mediaUrl(visual.media.id, 'thumb') : null, hasPrivateAttachment }
+}

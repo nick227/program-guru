@@ -49,56 +49,114 @@ export async function timedReminders(now = new Date()) {
   return sent
 }
 
+const DAILY_SUMMARY_BATCH = 200
+
 /**
  * Daily summary at each user's chosen local time: in-app by default, email only if opted in.
  * Only on days with planned items. ReminderDispatch is claimed before sending (12 §6).
+ * Scoped by timezone + planned items so idle users are never loaded into memory.
  */
 export async function dailySummaries(now = new Date()) {
-  const users = await db.userPreference.findMany({
+  const zones = await db.userPreference.findMany({
     where: { OR: [{ inAppRemindersEnabled: true }, { dailyEmailEnabled: true }], user: { status: 'ACTIVE' } },
-    include: { user: true },
+    distinct: ['timezone'],
+    select: { timezone: true },
   })
   let sent = 0
-  for (const prefs of users) {
-    if (localTime(prefs.timezone, now) < prefs.dailyReminderTime) continue
-    const today = todayIn(prefs.timezone, now)
-    const items = await db.calendarItem.findMany({
-      where: { ownerId: prefs.userId, status: 'PLANNED', localDate: toDbDate(today), OR: [{ enrollmentId: null }, { enrollment: { status: 'ACTIVE' } }] },
-      include: { revision: true },
-      orderBy: [{ localTime: { sort: 'asc', nulls: 'last' } }],
+  for (const { timezone } of zones) {
+    const nowLocal = localTime(timezone, now)
+    const today = todayIn(timezone, now)
+    const todayDate = toDbDate(today)
+    const candidates = await db.userPreference.findMany({
+      where: {
+        timezone,
+        dailyReminderTime: { lte: nowLocal },
+        OR: [{ inAppRemindersEnabled: true }, { dailyEmailEnabled: true }],
+        user: {
+          status: 'ACTIVE',
+          calendarItems: {
+            some: {
+              status: 'PLANNED',
+              localDate: todayDate,
+              OR: [{ enrollmentId: null }, { enrollment: { status: 'ACTIVE' } }],
+            },
+          },
+        },
+      },
+      include: { user: true },
+      orderBy: { userId: 'asc' },
+      take: DAILY_SUMMARY_BATCH,
     })
-    if (!items.length) continue
-    const count = items.length
-    const title = `${count} ${count === 1 ? 'activity' : 'activities'} today`
-    const channels = [...(prefs.inAppRemindersEnabled ? (['IN_APP'] as const) : []), ...(prefs.dailyEmailEnabled ? (['EMAIL'] as const) : [])]
-    for (const channel of channels) {
-      try {
-        await db.reminderDispatch.create({ data: { userId: prefs.userId, localDate: toDbDate(today), channel } })
-      } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') continue // already sent today
-        throw err
+    if (!candidates.length) continue
+
+    const dispatched = await db.reminderDispatch.findMany({
+      where: { userId: { in: candidates.map((c) => c.userId) }, localDate: todayDate },
+      select: { userId: true, channel: true },
+    })
+    const have = new Map<string, Set<string>>()
+    for (const d of dispatched) {
+      const set = have.get(d.userId) ?? new Set<string>()
+      set.add(d.channel)
+      have.set(d.userId, set)
+    }
+    const pending = candidates.filter((p) => {
+      const done = have.get(p.userId) ?? new Set()
+      return (p.inAppRemindersEnabled && !done.has('IN_APP')) || (p.dailyEmailEnabled && !done.has('EMAIL'))
+    })
+    if (!pending.length) continue
+
+    const items = await db.calendarItem.findMany({
+      where: {
+        ownerId: { in: pending.map((p) => p.userId) },
+        status: 'PLANNED',
+        localDate: todayDate,
+        OR: [{ enrollmentId: null }, { enrollment: { status: 'ACTIVE' } }],
+      },
+      include: { revision: true },
+      orderBy: [{ ownerId: 'asc' }, { localTime: { sort: 'asc', nulls: 'last' } }],
+    })
+    const itemsByOwner = new Map<string, typeof items>()
+    for (const item of items) {
+      const list = itemsByOwner.get(item.ownerId)
+      if (list) list.push(item)
+      else itemsByOwner.set(item.ownerId, [item])
+    }
+
+    for (const prefs of pending) {
+      const dayItems = itemsByOwner.get(prefs.userId) ?? []
+      if (!dayItems.length) continue
+      const count = dayItems.length
+      const title = `${count} ${count === 1 ? 'activity' : 'activities'} today`
+      const channels = [...(prefs.inAppRemindersEnabled ? (['IN_APP'] as const) : []), ...(prefs.dailyEmailEnabled ? (['EMAIL'] as const) : [])]
+      for (const channel of channels) {
+        try {
+          await db.reminderDispatch.create({ data: { userId: prefs.userId, localDate: todayDate, channel } })
+        } catch (err) {
+          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') continue // already sent today
+          throw err
+        }
+        if (channel === 'IN_APP') {
+          await notify({ recipientId: prefs.userId, type: 'DAILY_SUMMARY', title, deepLink: `/?day=${today}`, entityKind: 'CALENDAR_DAY', entityId: prefs.userId, dedupeKey: `daily:${prefs.userId}:${today}` })
+        } else {
+          const unsubscribe = appUrl(`/unsubscribe?token=${encodeURIComponent(unsubscribeToken(prefs.userId))}`)
+          // Activity titles only: never results, amounts, notes, or health details (12 §6).
+          const { text, html } = layout({
+            heading: title,
+            lines: dayItems.slice(0, 10).map((i) => (i.localTime ? `${i.localTime} · ${i.revision.titleSnapshot}` : i.revision.titleSnapshot)),
+            action: { label: 'Open your calendar', url: appUrl(`/?day=${today}`) },
+            footer: `You chose a daily reminder at ${prefs.dailyReminderTime}. Unsubscribe: ${unsubscribe}`,
+          })
+          await email().send({
+            to: prefs.user.email,
+            subject: title,
+            text,
+            html,
+            headers: { 'List-Unsubscribe': `<${unsubscribe}>` },
+            idempotencyKey: `daily:${prefs.userId}:${today}`,
+          })
+        }
+        sent++
       }
-      if (channel === 'IN_APP') {
-        await notify({ recipientId: prefs.userId, type: 'DAILY_SUMMARY', title, deepLink: `/?day=${today}`, entityKind: 'CALENDAR_DAY', entityId: prefs.userId, dedupeKey: `daily:${prefs.userId}:${today}` })
-      } else {
-        const unsubscribe = appUrl(`/unsubscribe?token=${encodeURIComponent(unsubscribeToken(prefs.userId))}`)
-        // Activity titles only: never results, amounts, notes, or health details (12 §6).
-        const { text, html } = layout({
-          heading: title,
-          lines: items.slice(0, 10).map((i) => (i.localTime ? `${i.localTime} · ${i.revision.titleSnapshot}` : i.revision.titleSnapshot)),
-          action: { label: 'Open your calendar', url: appUrl(`/?day=${today}`) },
-          footer: `You chose a daily reminder at ${prefs.dailyReminderTime}. Unsubscribe: ${unsubscribe}`,
-        })
-        await email().send({
-          to: prefs.user.email,
-          subject: title,
-          text,
-          html,
-          headers: { 'List-Unsubscribe': `<${unsubscribe}>` },
-          idempotencyKey: `daily:${prefs.userId}:${today}`,
-        })
-      }
-      sent++
     }
   }
   return sent
@@ -107,8 +165,13 @@ export async function dailySummaries(now = new Date()) {
 /** Keeps every live enrollment and recurrence generated 12 weeks ahead (05 §9). */
 export async function extendHorizons(now = new Date()) {
   let created = 0
+  // UTC pad covers every IANA zone (±14h) so the WHERE never drops a row that still needs work.
+  const horizonPad = toDbDate(addDays(todayIn('UTC', now), HORIZON_DAYS + 1))
   const enrollments = await db.programEnrollment.findMany({
-    where: { status: { in: ['ACTIVE', 'PAUSED'] } },
+    where: {
+      status: { in: ['ACTIVE', 'PAUSED'] },
+      OR: [{ generatedThroughDate: null }, { generatedThroughDate: { lt: horizonPad } }],
+    },
     include: { version: { include: { items: true } } },
   })
   for (const e of enrollments) {
@@ -120,7 +183,12 @@ export async function extendHorizons(now = new Date()) {
     const from = generated ? addDays(generated, 1) : start
     created += await db.$transaction((tx) => materializeEnrollment(tx, e, e.version, e.version.items, { from, through }), { timeout: 30_000 })
   }
-  const recurrences = await db.calendarRecurrence.findMany({ where: { status: 'ACTIVE' } })
+  const recurrences = await db.calendarRecurrence.findMany({
+    where: {
+      status: 'ACTIVE',
+      OR: [{ generatedThroughDate: null }, { generatedThroughDate: { lt: horizonPad } }],
+    },
+  })
   for (const r of recurrences) {
     const through = addDays(todayIn(r.timezone, now), HORIZON_DAYS)
     const generated = r.generatedThroughDate ? fromDbDate(r.generatedThroughDate) : null
@@ -132,45 +200,116 @@ export async function extendHorizons(now = new Date()) {
 }
 
 const MIN_SAMPLE = 5
+const STAT_UPSERT_CHUNK = 100
+
+type StatRow = {
+  programId: string
+  enrollmentCount: number
+  completionRate: number | null
+  retention30d: number | null
+  rankScore: number
+}
+
+async function upsertProgramStats(rows: StatRow[], now: Date) {
+  for (let i = 0; i < rows.length; i += STAT_UPSERT_CHUNK) {
+    const chunk = rows.slice(i, i + STAT_UPSERT_CHUNK)
+    if (!chunk.length) continue
+    const values = chunk.map(
+      (r) =>
+        Prisma.sql`(${r.programId}, ${r.enrollmentCount}, ${r.completionRate}, ${r.retention30d}, ${r.rankScore}, ${now})`,
+    )
+    await db.$executeRaw`
+      INSERT INTO \`ProgramStat\` (\`programId\`, \`enrollmentCount\`, \`completionRate\`, \`retention30d\`, \`rankScore\`, \`computedAt\`)
+      VALUES ${Prisma.join(values)}
+      ON DUPLICATE KEY UPDATE
+        \`enrollmentCount\` = VALUES(\`enrollmentCount\`),
+        \`completionRate\` = VALUES(\`completionRate\`),
+        \`retention30d\` = VALUES(\`retention30d\`),
+        \`rankScore\` = VALUES(\`rankScore\`),
+        \`computedAt\` = VALUES(\`computedAt\`)`
+  }
+}
 
 /**
  * Program quality signals (decision 19): completion rate over items already due, and 30-day
  * retention (enrollments at least 30 days old with a completion in the last 30 days). rankScore
  * blends them with a damped popularity term; small samples count for nothing (12 §10).
+ * Aggregated across programs (one pass per distinct enrollment timezone for due/done).
  */
 export async function programStats(now = new Date()) {
   const programs = await db.program.findMany({ where: { status: 'PUBLISHED' }, select: { id: true } })
   const thirtyAgo = new Date(now.getTime() - 30 * 86_400_000)
-  for (const { id } of programs) {
-    const enrollmentCount = await db.programEnrollment.count({ where: { programId: id } })
-    // Due = items before each participant's own local today (item dates are local, never UTC), on or
-    // after their join date (pre-join dates never count, 09 §4.11). Grouped by enrollment timezone.
-    let due = 0
-    let done = 0
-    const zones = await db.programEnrollment.findMany({ where: { programId: id }, distinct: ['timezone'], select: { timezone: true } })
-    for (const { timezone } of zones) {
-      const [counts] = await db.$queryRaw<{ due: bigint; done: bigint | null }[]>`
-        SELECT COUNT(*) AS due, SUM(ci.status = 'DONE') AS done
-        FROM CalendarItem ci JOIN ProgramEnrollment e ON e.id = ci.enrollmentId
-        WHERE e.programId = ${id} AND e.timezone = ${timezone} AND ci.status NOT IN ('CANCELLED', 'NOT_PARTICIPATING')
-          AND ci.localDate < ${toDbDate(todayIn(timezone, now))}
-          AND (e.participationStartDate IS NULL OR ci.localDate >= e.participationStartDate)`
-      due += Number(counts?.due ?? 0)
-      done += Number(counts?.done ?? 0)
+  const enrollmentCount = new Map<string, number>()
+  const dueByProgram = new Map<string, number>()
+  const doneByProgram = new Map<string, number>()
+  const matureByProgram = new Map<string, number>()
+  const retainedByProgram = new Map<string, number>()
+
+  const enrollmentRows = await db.$queryRaw<{ programId: string; c: bigint }[]>`
+    SELECT e.programId AS programId, COUNT(*) AS c
+    FROM ProgramEnrollment e
+    INNER JOIN Program p ON p.id = e.programId
+    WHERE p.status = 'PUBLISHED'
+    GROUP BY e.programId`
+  for (const r of enrollmentRows) enrollmentCount.set(r.programId, Number(r.c))
+
+  const zones = await db.$queryRaw<{ timezone: string }[]>`
+    SELECT DISTINCT e.timezone AS timezone
+    FROM ProgramEnrollment e
+    INNER JOIN Program p ON p.id = e.programId
+    WHERE p.status = 'PUBLISHED'`
+  // Due = items before each participant's own local today (item dates are local, never UTC), on or
+  // after their join date (pre-join dates never count, 09 §4.11). Grouped by enrollment timezone.
+  for (const { timezone } of zones) {
+    const rows = await db.$queryRaw<{ programId: string; due: bigint; done: bigint | null }[]>`
+      SELECT e.programId AS programId, COUNT(*) AS due, SUM(ci.status = 'DONE') AS done
+      FROM CalendarItem ci
+      INNER JOIN ProgramEnrollment e ON e.id = ci.enrollmentId
+      INNER JOIN Program p ON p.id = e.programId
+      WHERE p.status = 'PUBLISHED' AND e.timezone = ${timezone}
+        AND ci.status NOT IN ('CANCELLED', 'NOT_PARTICIPATING')
+        AND ci.localDate < ${toDbDate(todayIn(timezone, now))}
+        AND (e.participationStartDate IS NULL OR ci.localDate >= e.participationStartDate)
+      GROUP BY e.programId`
+    for (const r of rows) {
+      dueByProgram.set(r.programId, (dueByProgram.get(r.programId) ?? 0) + Number(r.due))
+      doneByProgram.set(r.programId, (doneByProgram.get(r.programId) ?? 0) + Number(r.done ?? 0))
     }
-    const mature = await db.programEnrollment.findMany({ where: { programId: id, createdAt: { lte: thirtyAgo } }, select: { id: true } })
-    const retained = mature.length
-      ? await db.programEnrollment.count({ where: { id: { in: mature.map((m) => m.id) }, calendarItems: { some: { status: 'DONE', updatedAt: { gte: thirtyAgo } } } } })
-      : 0
-    const completionRate = due >= MIN_SAMPLE ? done / due : null
-    const retention30d = mature.length >= MIN_SAMPLE ? retained / mature.length : null
-    const rankScore = enrollmentCount >= MIN_SAMPLE ? (completionRate ?? 0) * 50 + (retention30d ?? 0) * 40 + Math.log10(1 + enrollmentCount) * 10 : 0
-    await db.programStat.upsert({
-      where: { programId: id },
-      create: { programId: id, enrollmentCount, completionRate, retention30d, rankScore, computedAt: now },
-      update: { enrollmentCount, completionRate, retention30d, rankScore, computedAt: now },
-    })
   }
+
+  const matureRows = await db.$queryRaw<{ programId: string; c: bigint }[]>`
+    SELECT e.programId AS programId, COUNT(*) AS c
+    FROM ProgramEnrollment e
+    INNER JOIN Program p ON p.id = e.programId
+    WHERE p.status = 'PUBLISHED' AND e.createdAt <= ${thirtyAgo}
+    GROUP BY e.programId`
+  for (const r of matureRows) matureByProgram.set(r.programId, Number(r.c))
+
+  const retainedRows = await db.$queryRaw<{ programId: string; c: bigint }[]>`
+    SELECT e.programId AS programId, COUNT(*) AS c
+    FROM ProgramEnrollment e
+    INNER JOIN Program p ON p.id = e.programId
+    WHERE p.status = 'PUBLISHED' AND e.createdAt <= ${thirtyAgo}
+      AND EXISTS (
+        SELECT 1 FROM CalendarItem ci
+        WHERE ci.enrollmentId = e.id AND ci.status = 'DONE' AND ci.updatedAt >= ${thirtyAgo}
+      )
+    GROUP BY e.programId`
+  for (const r of retainedRows) retainedByProgram.set(r.programId, Number(r.c))
+
+  const rows: StatRow[] = programs.map(({ id }) => {
+    const enrollments = enrollmentCount.get(id) ?? 0
+    const due = dueByProgram.get(id) ?? 0
+    const done = doneByProgram.get(id) ?? 0
+    const mature = matureByProgram.get(id) ?? 0
+    const retained = retainedByProgram.get(id) ?? 0
+    const completionRate = due >= MIN_SAMPLE ? done / due : null
+    const retention30d = mature >= MIN_SAMPLE ? retained / mature : null
+    const rankScore = enrollments >= MIN_SAMPLE ? (completionRate ?? 0) * 50 + (retention30d ?? 0) * 40 + Math.log10(1 + enrollments) * 10 : 0
+    return { programId: id, enrollmentCount: enrollments, completionRate, retention30d, rankScore }
+  })
+  await upsertProgramStats(rows, now)
+
   // Public media rank (11 §5): popularity damped by age, a boost for quality review; never popularity alone.
   await db.$executeRaw`
     UPDATE MediaPublication
