@@ -131,6 +131,14 @@ export async function occurrence(userId: string, itemId: string) {
       include: { reactions: true },
     })
     const unread = await db.notification.count({ where: { recipientId: userId, readAt: null, groupOccurrenceKey: item.groupOccurrenceKey } })
+    // Each member's own item for this occurrence: dated before they joined means Not Participating (10 §3).
+    const memberItems = await db.calendarItem.findMany({
+      where: { groupOccurrenceKey: item.groupOccurrenceKey, ownerId: { in: members.map((m) => m.userId) }, enrollment: { groupId } },
+      select: { ownerId: true, status: true, localDate: true, enrollment: { select: { participationStartDate: true } } },
+    })
+    const preJoin = new Set(
+      memberItems.filter((i) => i.status === 'NOT_PARTICIPATING' || (i.enrollment?.participationStartDate && i.localDate < i.enrollment.participationStartDate)).map((i) => i.ownerId),
+    )
     const statuses = members.map((m) => {
       const share = shares.find((s) => s.userId === m.userId)
       const counts = new Map<string, { count: number; mine: boolean }>()
@@ -141,7 +149,8 @@ export async function occurrence(userId: string, itemId: string) {
       return {
         user: toUserSummary(m.user.profile!),
         // Members who turned sharing off read as UNKNOWN, never as "not done".
-        status: share ? ('DONE' as const) : m.sharedCompletionEnabled ? ('PENDING' as const) : ('UNKNOWN' as const),
+        status: share ? ('DONE' as const) : preJoin.has(m.userId) ? ('NOT_PARTICIPATING' as const) : m.sharedCompletionEnabled ? ('PENDING' as const) : ('UNKNOWN' as const),
+        counted: !preJoin.has(m.userId),
         completionShareId: share?.id ?? null,
         reactions: [...counts].map(([emoji, c]) => ({ emoji, count: c.count, reactedByMe: c.mine })),
       }
@@ -149,9 +158,10 @@ export async function occurrence(userId: string, itemId: string) {
     collaborators = {
       groupId,
       occurrenceKey: item.groupOccurrenceKey,
-      members: statuses,
-      finishedCount: statuses.filter((s) => s.status === 'DONE').length,
-      totalCount: statuses.length,
+      members: statuses.map(({ counted: _counted, ...s }) => s),
+      // Pre-join dates are excluded from the group's finished-of-total (10 §3).
+      finishedCount: statuses.filter((s) => s.counted && s.status === 'DONE').length,
+      totalCount: statuses.filter((s) => s.counted).length,
       unreadCount: unread,
     }
   }

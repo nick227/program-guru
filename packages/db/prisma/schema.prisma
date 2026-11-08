@@ -714,20 +714,23 @@ model ProgramPrice {
 }
 
 model ProgramEnrollment {
-  id                   String           @id @default(uuid()) @db.Char(36)
-  userId               String           @db.Char(36)
-  programId            String           @db.Char(36)
-  programVersionId     String           @db.Char(36)
-  pendingVersionId     String?          @db.Char(36)
-  groupId              String?          @db.Char(36)
-  startLocalDate       DateTime         @db.Date
-  timezone             String           @db.VarChar(64)
-  status               EnrollmentStatus @default(ACTIVE)
+  id                     String           @id @default(uuid()) @db.Char(36)
+  userId                 String           @db.Char(36)
+  programId              String           @db.Char(36)
+  programVersionId       String           @db.Char(36)
+  pendingVersionId       String?          @db.Char(36)
+  groupId                String?          @db.Char(36)
+  startLocalDate         DateTime         @db.Date
+  // The participant's local date when they enrolled; earlier items are NOT_PARTICIPATING and excluded
+  // from adherence. Null for enrollments created before this rule (no pre-join dates).
+  participationStartDate DateTime?        @db.Date
+  timezone               String           @db.VarChar(64)
+  status                 EnrollmentStatus @default(ACTIVE)
   // `userId:programId` unless LEFT or COMPLETED: one live enrollment per Program
-  activeKey            String?          @unique @db.VarChar(80)
-  generatedThroughDate DateTime?        @db.Date
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  activeKey              String?          @unique @db.VarChar(80)
+  generatedThroughDate   DateTime?        @db.Date
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
   user           User              @relation(fields: [userId], references: [id])
   program        Program           @relation(fields: [programId], references: [id])
@@ -906,6 +909,8 @@ enum CalendarItemStatus {
   SKIPPED
   CANCELLED
   DONE
+  // Dated before the participant joined (10 §3): shown as Not Participating, never Missed
+  NOT_PARTICIPATING
 }
 
 enum ActivitySessionStatus {

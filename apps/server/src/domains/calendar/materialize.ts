@@ -6,7 +6,7 @@ import { addDays, fromDbDate, localToUtc, toDbDate, type LocalDate } from '../..
 export const HORIZON_DAYS = 84 // 12 weeks (05 §9)
 
 type Tx = Prisma.TransactionClient
-type Enrollment = { id: string; userId: string; startLocalDate: Date; timezone: string; groupId: string | null }
+type Enrollment = { id: string; userId: string; startLocalDate: Date; timezone: string; groupId: string | null; participationStartDate?: Date | null }
 type Version = { id: string; durationDays: number | null; cycleDays: number | null }
 type Item = { id: string; activityId: string; activityRevisionId: string; relativeDay: number; localTime: string | null; targetOverrides: Prisma.JsonValue }
 
@@ -26,6 +26,8 @@ export async function materializeEnrollment(
   window: { from?: LocalDate; through: LocalDate },
 ) {
   const start = fromDbDate(e.startLocalDate)
+  // Dates before the participant joined keep the original schedule but read Not Participating (09 §4.11).
+  const joined = e.participationStartDate ? fromDbDate(e.participationStartDate) : null
   const finite = version.durationDays !== null
   const cycle = finite ? version.durationDays! : version.cycleDays ?? 7
   const rows: Prisma.CalendarItemCreateManyInput[] = []
@@ -48,6 +50,7 @@ export async function materializeEnrollment(
         localTime: item.localTime,
         scheduledAtUtc: item.localTime ? localToUtc(localDate, item.localTime, e.timezone) : null,
         targetOverrides: (item.targetOverrides ?? undefined) as Prisma.InputJsonValue | undefined,
+        ...(joined && localDate < joined ? { status: 'NOT_PARTICIPATING' as const } : {}),
       })
     }
     if (finite) break

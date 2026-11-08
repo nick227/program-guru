@@ -108,7 +108,7 @@ A user's Calendar can contain **several Programs and standalone activities**. Pr
 - Program: `DRAFT`, `PUBLISHED`, `ARCHIVED`; published Versions immutable.
 - Activity: `DRAFT`, `PUBLISHED`, `ARCHIVED` with versioned instructional content.
 - Enrollment: `PENDING_ACCESS`, `ACTIVE`, `PAUSED`, `LEFT`, `COMPLETED` (separate from version and billing).
-- Calendar Item: `PLANNED`, `CANCELLED`, `SKIPPED`, `DONE` (derived from chosen completion/session policy).
+- Calendar Item: `PLANNED`, `CANCELLED`, `SKIPPED`, `DONE` (derived from chosen completion/session policy), `NOT_PARTICIPATING` (dated before the participant joined; `10-COLLABORATION.md` §3).
 - Session: `READY`, `ACTIVE`, `PAUSED`, `FINISHED`, `ABANDONED`.
 - Media: `UPLOADING`, `PROCESSING`, `READY`, `FAILED`, `BLOCKED`; audience handled separately.
 - Follow request: `PENDING`, `APPROVED`, `DECLINED`, `CANCELLED`.

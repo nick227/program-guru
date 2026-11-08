@@ -77,6 +77,12 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
   })
 }
 
+/** 09 §4.11: what an open (not done, not cancelled) item on `localDate` reads as. */
+export function openStatus(enrollment: { participationStartDate: Date | null } | null | undefined, localDate: string) {
+  const joined = enrollment?.participationStartDate
+  return joined && localDate < fromDbDate(joined) ? ('NOT_PARTICIPATING' as const) : ('PLANNED' as const)
+}
+
 export async function ownItem(tx: Tx, userId: string, itemId: string) {
   const item = await tx.calendarItem.findUnique({ where: { id: itemId }, include: itemInclude })
   if (!item || item.ownerId !== userId) throw notFound('Calendar item')
@@ -222,6 +228,7 @@ export async function update(
   input: { localDate?: string; localTime?: string | null; status?: CalendarItem['status']; targetOverrides?: Record<string, unknown> | null; scope?: 'THIS_ONE' | 'THIS_AND_FUTURE'; expectedUpdatedAt: string },
 ) {
   if (input.status === 'DONE') throw badRequest('Finish the activity to complete it', { status: 'DONE is set by finishing a session' })
+  if (input.status === 'NOT_PARTICIPATING') throw badRequest('Not participating is set by the server', { status: 'is set by the server' })
   const tz = await userTimezone(userId)
   await db.$transaction(async (tx) => {
     const item = await ownItem(tx, userId, itemId)
@@ -255,13 +262,16 @@ export async function update(
     const localDate = input.localDate ?? fromDbDate(item.localDate)
     const localTime = input.localTime === undefined ? item.localTime : input.localTime
     const moved = input.localDate !== undefined || input.localTime !== undefined
+    // Restoring or moving an open item re-derives PLANNED vs NOT_PARTICIPATING from its new date.
+    const open = item.status === 'PLANNED' || item.status === 'NOT_PARTICIPATING'
+    const status = input.status === 'PLANNED' || (input.status === undefined && open && moved) ? openStatus(item.enrollment, localDate) : input.status
     await tx.calendarItem.update({
       where: { id: item.id },
       data: {
         localDate: toDbDate(localDate),
         localTime,
         scheduledAtUtc: localTime ? localToUtc(localDate, localTime, tz) : null,
-        status: input.status,
+        status,
         targetOverrides: input.targetOverrides === undefined ? undefined : ((input.targetOverrides ?? undefined) as Prisma.InputJsonValue | undefined),
         ...(moved
           ? { isUserAdjusted: true, movedFromDate: item.movedFromDate ?? item.localDate, reminderSentAt: null }
@@ -315,6 +325,7 @@ export async function moveToOpenSlot(userId: string, itemId: string) {
         localDate: toDbDate(target.date),
         localTime: target.time,
         scheduledAtUtc: target.time ? localToUtc(target.date, target.time, tz) : null,
+        ...(item.status === 'PLANNED' || item.status === 'NOT_PARTICIPATING' ? { status: openStatus(item.enrollment, target.date) } : {}),
         isUserAdjusted: true,
         movedFromDate: item.movedFromDate ?? item.localDate,
         reminderSentAt: null,
@@ -329,7 +340,8 @@ export async function undoCompletion(userId: string, itemId: string) {
   await db.$transaction(async (tx) => {
     const item = await ownItem(tx, userId, itemId)
     if (item.status !== 'DONE') throw conflict('This activity is not marked done')
-    await tx.calendarItem.update({ where: { id: item.id }, data: { status: 'PLANNED' } })
+    // A catch-up on a pre-join date returns to Not Participating, not Missed (09 §4.11).
+    await tx.calendarItem.update({ where: { id: item.id }, data: { status: openStatus(item.enrollment, fromDbDate(item.localDate)) } })
     await tx.completionShare.updateMany({ where: { calendarItemId: item.id, revokedAt: null }, data: { revokedAt: new Date() } })
     await tx.outboxEvent.create({ data: { type: 'CompletionUndone', payload: { userId, calendarItemId: item.id } } })
     await evaluate(tx, userId, { enrollmentId: item.enrollmentId, sourceCalendarItemId: null })
