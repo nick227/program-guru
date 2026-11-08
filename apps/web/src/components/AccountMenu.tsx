@@ -176,7 +176,7 @@ export function AccountMenu() {
         }}
       >
         <summary
-          className="relative flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-full border bg-surface py-1 pl-1 pr-3"
+          className="relative flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-full border bg-surface py-1 pl-1 pr-2 sm:pr-3"
           aria-label="Account"
         >
           <Avatar
@@ -184,7 +184,7 @@ export function AccountMenu() {
             name={profile.displayName}
             size="sm"
           />
-          <span className="max-w-[8rem] truncate text-sm">
+          <span className="max-w-12 truncate text-sm sm:max-w-[8rem]">
             {profile.displayName}
           </span>
           <UnreadDot count={count} dotOnly />

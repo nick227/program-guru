@@ -175,11 +175,10 @@ Decisions: A1–A5 approved, with the occurrence structure and the compact Works
 | Canonical profile/group links | Done | `lib/urls` builders everywhere |
 | Server identity image: COVER → ILLUSTRATION → DEMONSTRATION | Done | `activities/mapper.ts › pickVisual` |
 | `resolveHero` + `EntityHero` (token-drawn fallback, no broken images) | Done; on storefront and profile cards | `lib/hero.ts`, `components/EntityHero.tsx` |
-| `ChangeImage` + `useProgramCover` / `useActivityCover` (no capture in identity picker) | Built; **not mounted** | `components/ChangeImage.tsx`, `lib/useEntityCover.ts` |
+| `ChangeImage` + `useProgramCover` / `useActivityCover` | Done; Workspace header (compact cover), Workspace Activity editor, both Add Activity flows | `components/ChangeImage.tsx`, `lib/useEntityCover.ts` |
 | Activity illustrations (80, text-free, CC0 original) | Done; manifest v2 | `packages/db/scripts/generate-platform-assets.ts` |
-| Program covers (23, CC0 Commons, licence re-checked at fetch, sources in manifest) | Assets done; **seed link pending** | `packages/db/scripts/fetch-program-covers.ts`, `platformProgramCover()` |
+| Program covers (23, CC0 Commons, licence re-checked at fetch, sources in manifest) | Done; seeded as `media:cover:<slug>` | `fetch-program-covers.ts`, `seed.ts › upsertPlatformPhoto` |
 | Discover `sort=POPULAR` for Activities (usage-ranked) | Done | `social.service.ts` |
 | Shared discovery source + deterministic top-5 ranking | Done | `sdk/hooks/useDiscovery.ts` |
-| `SuggestionRail` / `DiscoveryCard` / card models | Built; **not mounted** | `components/SuggestionRail.tsx`, `lib/discoveryCards.ts` |
-| Nested browser routes, Activity mode, replacing "Browse suggestions", rails on create pages, Workspace cover | **Blocked** on in-flight edits to `ProgramCreate`, `ProgramWorkspace`, `Activity`, `App`, `ProgramLibraryDialog` | — |
-| Seed: `coverMediaId` from `platformProgramCover(slug)` | **Blocked** on in-flight `seed.ts` | — |
+| Top-5 rails on Add Program, Add Activity (Calendar) and Add Activities (Program) | Done | `components/SuggestionRail.tsx`, `lib/discoveryCards.ts` |
+| Full-screen library browser, Program and Activity modes, nested `…/browse` routes over the mounted page | Done; replaces `ProgramLibraryDialog` and the "Browse suggestions" dropdown | `components/LibraryBrowser.tsx`, `App.tsx` |

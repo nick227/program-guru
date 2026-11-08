@@ -28,7 +28,7 @@ import { AvatarStack } from '@/components/AvatarStack'
 import { UnreadDot } from '@/components/UnreadDot'
 import { OccurrenceInstructions } from '@/components/OccurrenceInstructions'
 import { OccurrenceMedia } from '@/components/OccurrenceMedia'
-import { SessionCapture } from '@/components/SessionCapture'
+import { SessionUpload } from '@/components/SessionUpload'
 import { calendarUrl, dateLabel, safeReturn } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
@@ -468,7 +468,7 @@ function OccurrenceContent({
                 </Button>
               </>
             )}
-            <SessionCapture attach={attachToSession} disabled={disabled} />
+            <SessionUpload attach={attachToSession} disabled={disabled} />
           </Row>
           {busy && <p role="status">Saving…</p>}
           {session?.status === 'FINISHED' && (

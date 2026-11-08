@@ -17,7 +17,7 @@ export function LoginPage() {
   const [params] = useSearchParams()
   return (
     <Page>
-      <Stage>
+      <Stage className="max-w-xl">
         <p className="font-display text-muted">Programs</p>
         <h1>Sign in to your week</h1>
         <Panel>

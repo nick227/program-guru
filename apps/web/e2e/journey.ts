@@ -21,16 +21,20 @@ export async function journey(
   await page.getByRole('button', { name: /Workout/ }).click()
   const title = `Browser strength ${Date.now()}`
   await page.getByLabel('Program name').fill(title)
-  await page.getByRole('button', { name: 'Create Program', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Continue to customize', exact: true })
+    .click()
   await expect(
     page.getByRole('heading', { name: 'Activities', exact: true }),
   ).toBeVisible()
-  await page.getByRole('link', { name: 'Add Activity', exact: true }).click()
-  await page.getByText('Browse suggestions to customize').click()
-  await page.getByLabel('Search Activities').fill('Squats')
-  // Title is the accessible-name prefix; avoid matching "Chair Squats".
-  await page.getByRole('button', { name: /^Squats/ }).click()
-  await page.getByRole('button', { name: 'Use 1 selected Activity' }).click()
+  await page.getByRole('link', { name: 'New Activity', exact: true }).click()
+  await page.getByRole('button', { name: 'Browse Activity Library' }).click()
+  const library = page.getByRole('dialog', { name: 'Activity Library' })
+  await library.getByLabel('Search Activities').fill('Squats')
+  // Exact name: avoid matching "Chair Squats".
+  await library
+    .getByRole('button', { name: 'Add to Program: Squats', exact: true })
+    .click()
   await expect(
     page.getByRole('heading', { name: 'Activities', exact: true }),
   ).toBeVisible()
@@ -51,7 +55,8 @@ export async function journey(
   await page
     .getByRole('button', { name: 'Publish Program', exact: true })
     .click()
-  await expect(page).toHaveURL(/\/programs\/[^/?]+$/)
+  // Canonical Program URL: /@creator/slug (friendly URLs) or /programs/:id.
+  await expect(page).toHaveURL(/\/(programs\/[^/?]+|@[^/?]+\/[^/?]+)$/)
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
   const publishedPath = new URL(page.url()).pathname
   await page.goto('/')
@@ -67,12 +72,14 @@ export async function journey(
   await page.getByRole('button', { name: 'Preview my calendar' }).click()
   await page.getByRole('button', { name: 'Confirm & add to Calendar' }).click()
   await expect(page).toHaveURL(/day=2026-11-09/)
-  await page.reload()
+  // Day view lists every item (month cells cap at four; live accounts accumulate runs).
+  await page.goto('/?view=day&day=2026-11-09')
   // Scope to this run's Program title — live DB accumulates prior enrollments.
-  const mine = page.getByRole('link', {
-    name: new RegExp(`^Squats.*${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
-  })
-  await mine.filter({ hasText: 'Planned' }).first().click()
+  // Tile links are named "<Activity>, <Program>, <status> — open activity".
+  const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const tile = (status: string) =>
+    page.getByRole('link', { name: new RegExp(`^Squats, ${escaped}, ${status}`) }).first()
+  await tile('Pending').click()
   await expect(
     page.getByRole('heading', { name: "Today's Results" }),
   ).toBeVisible()
@@ -93,10 +100,10 @@ export async function journey(
     page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
   await expect(page).toHaveURL(/completed=/)
-  await expect(mine.filter({ hasText: 'Completed' }).first()).toBeVisible()
+  await expect(tile('Completed')).toBeVisible()
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
-  await expect(mine.filter({ hasText: 'Planned' }).first()).toBeVisible()
+  await expect(tile('Pending')).toBeVisible()
   await page.reload()
-  await expect(mine.filter({ hasText: 'Planned' }).first()).toBeVisible()
+  await expect(tile('Pending')).toBeVisible()
   return { title, publishedPath }
 }

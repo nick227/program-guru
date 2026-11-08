@@ -18,6 +18,10 @@
   max-width: var(--page-wide-max);
 }
 
+.page--calendar {
+  max-width: var(--page-wide-max);
+}
+
 .stage {
   display: flex;
   width: 100%;

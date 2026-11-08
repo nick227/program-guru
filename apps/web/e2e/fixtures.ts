@@ -55,6 +55,10 @@ export async function mockApi(
     conflict?: boolean
     meFailure?: boolean
     finishFailure?: boolean
+    calendarItem?: boolean
+    calendarDate?: string
+    recurring?: boolean
+    groupItem?: boolean
   } = {},
 ) {
   let user: 'author' | 'participant' | null = null,
@@ -67,7 +71,8 @@ export async function mockApi(
     groupCreated = false,
     createdGroupName: string | null = null,
     done = false,
-    start = '2026-11-09'
+    start = options.calendarDate ?? '2026-11-09',
+    cancelled = false
   let activeActivityId = activityId
   let activeActivityTitle = 'Squats'
   let activeActivityRevisionId = uid(21)
@@ -135,18 +140,22 @@ export async function mockApi(
     id: itemId,
     localDate: start,
     localTime: null,
-    status: done ? 'DONE' : 'PLANNED',
+    status: cancelled ? 'CANCELLED' : done ? 'DONE' : 'PLANNED',
     title: activeActivityTitle,
     activityId: activeActivityId,
     activityRevisionId: activeActivityRevisionId,
     programTitle: title,
     enrollmentId: uid(40),
     programDayIndex: 0,
-    recurrenceId: null,
+    recurrenceId: options.recurring ? uid(41) : null,
     conflict: false,
     locked: false,
-    thumbnailUrl: null,
-    participantAvatars: [],
+    thumbnailUrl: options.calendarItem
+      ? 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
+      : null,
+    participantAvatars: options.groupItem
+      ? ['data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=']
+      : [],
     unreadCount: 0,
     updatedAt: '2026-11-07T12:00:00Z',
   })
@@ -194,7 +203,12 @@ export async function mockApi(
           'access-control-allow-headers': '*',
         },
       })
-    const body = req.postDataJSON() ?? {}
+    let body: any = {}
+    try {
+      body = req.postDataJSON() ?? {}
+    } catch {
+      body = {}
+    }
     requests.push({ path, method, body })
     const send = (data: unknown, status = 200, list = false) =>
       route.fulfill({
@@ -301,6 +315,16 @@ export async function mockApi(
           icon: null,
         },
       ])
+    if (path === '/discover' && url.searchParams.get('kind') === 'ACTIVITY') {
+      const q = (url.searchParams.get('q') ?? '').toLowerCase()
+      return send(
+        activity.title.toLowerCase().includes(q)
+          ? [{ kind: 'ACTIVITY', program: null, activity, creator: null }]
+          : [],
+        200,
+        true,
+      )
+    }
     if (path === '/discover')
       return send(
         [
@@ -337,7 +361,7 @@ export async function mockApi(
     }
     if (path === '/activities') return send([activity], 200, true)
     if (path === `/activities/${activityId}/copy` && method === 'POST') {
-      activeActivityId = activityId
+      activeActivityId = uid(26)
       activeActivityRevisionId = uid(21)
       activeActivityTitle = activity.title
       activeActivitySummary = activity.summary
@@ -378,6 +402,47 @@ export async function mockApi(
     }
     if (path === '/media/mine' && method === 'GET')
       return send([], 200, true)
+    if (path === '/media/uploads' && method === 'POST')
+      return send({
+        uploadId: 'upload-one',
+        mediaId: 'media:user:uploaded',
+        method: 'PUT',
+        uploadUrl: 'http://localhost:3001/media/upload-content',
+        expiresAt: '2099-01-01T00:00:00Z',
+        headers: { 'content-type': 'application/octet-stream' },
+        maxBytes: 10_000_000,
+      })
+    if (path === '/media/upload-content')
+      return route.fulfill({
+        status: 200,
+        headers: {
+          'access-control-allow-origin': '*',
+        },
+      })
+    if (path.startsWith('/media/uploads/') && path.endsWith('/complete') && method === 'POST')
+      return send({
+        id: 'media:user:uploaded',
+        type: 'PHOTO',
+        state: 'READY',
+        originalUrl: '/uploaded.jpg',
+        variants: [],
+        alt: null,
+        aspectRatio: 1.5,
+        isOwner: true,
+        createdAt: '2026-11-08T00:00:00Z',
+      })
+    if (path === '/media/media:user:uploaded' && method === 'GET')
+      return send({
+        id: 'media:user:uploaded',
+        type: 'PHOTO',
+        state: 'READY',
+        originalUrl: '/uploaded.jpg',
+        variants: [],
+        alt: null,
+        aspectRatio: 1.5,
+        isOwner: true,
+        createdAt: '2026-11-08T00:00:00Z',
+      })
     if (path === '/media-attachments' && method === 'GET')
       return send([], 200, true)
     if (path === '/media-attachments' && method === 'POST')
@@ -613,14 +678,24 @@ export async function mockApi(
         canPurchase: false,
         myEnrollmentId: joined ? uid(40) : null,
       })
-    if (path === '/calendar/items')
+    if (path === '/calendar/items' && method === 'POST')
       return send(
-        joined &&
+        { item: item(), recurrence: null, createdCount: 1 },
+        201,
+      )
+    if (path === '/calendar/items' && method === 'GET')
+      return send(
+        (joined || options.calendarItem) &&
+          !cancelled &&
           start >= url.searchParams.get('start')! &&
           start <= url.searchParams.get('end')!
           ? [item()]
           : [],
       )
+    if (path === `/calendar-items/${itemId}` && method === 'DELETE') {
+      cancelled = true
+      return send(item())
+    }
     if (path.endsWith('/occurrence'))
       return send({
         item: item(),

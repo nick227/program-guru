@@ -8551,6 +8551,17 @@ components:
           type:
           - string
           - 'null'
+        groupName:
+          type: [string, 'null']
+        sharedCompletionCount:
+          type: [integer, 'null']
+          description: Number of non-revoked completion shares for this group occurrence.
+        sessionStatus:
+          type: [string, 'null']
+          enum: [ACTIVE, PAUSED, FINISHED, null]
+        activeSeconds:
+          type: [integer, 'null']
+          description: Measured session duration at fetch time, never an estimated target duration.
         participantAvatars:
           type: array
           items:

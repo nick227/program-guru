@@ -38,6 +38,8 @@ export const queryKeys = {
     activityId: string,
     filters: { calendarItemId?: string; type?: string } = {},
   ) => ['media', 'activity-history', activityId, filters] as const,
+  activityPublicMedia: (activityId: string, programId?: string) =>
+    ['activities', activityId, 'public-media', { programId }] as const,
   mediaAttachments: (context?: MediaContext) =>
     ['media', 'attachments', context ? mediaTarget(context) : null] as const,
   session: (id: string) => ['sessions', id] as const,

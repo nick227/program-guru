@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { mockApi, programId, itemId } from './fixtures'
+import { mockApi, programId, itemId, activityId } from './fixtures'
 import { journey, login } from './journey'
 test('author publishes; another user joins, records, finishes and undoes', async ({
   page,
@@ -46,19 +46,53 @@ test('Add Program filters by type and copies a selected starting point', async (
   await login(page, 'author@test.local', 'password')
   await page.goto('/programs/new')
 
+  await page.getByRole('button', { name: /Workout/ }).click()
+  await expect(page).toHaveURL(/\/programs\/new\?type=/)
+  // Top-five suggestions for the chosen type.
+  await expect(
+    page
+      .getByRole('region', { name: 'Suggested' })
+      .getByRole('button', { name: 'Use as starting point: Beginner Strength' }),
+  ).toBeVisible()
+
+  // The full library is its own route above the still-mounted form.
+  await page.getByLabel('Program name').fill('Draft name kept')
   const discoveryRequest = page.waitForRequest((request) => {
     const url = new URL(request.url())
-    return url.pathname === '/discover' && url.searchParams.has('programTypeId')
+    return (
+      url.pathname === '/discover' &&
+      url.searchParams.get('programTypeId') ===
+        '00000000-0000-4000-8000-000000000002' &&
+      url.searchParams.get('limit') === '20'
+    )
   })
-  await page.getByRole('button', { name: /Workout/ }).click()
-  expect(
-    new URL((await discoveryRequest).url()).searchParams.get('programTypeId'),
-  ).toBe('00000000-0000-4000-8000-000000000002')
+  await page.getByRole('button', { name: 'Browse Program Library' }).click()
+  await discoveryRequest
+  await expect(page).toHaveURL(/\/programs\/new\/browse\?type=/)
+  const library = page.getByRole('dialog', { name: 'Workout Library' })
+  await expect(library).toBeVisible()
+  const searchRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url())
+    return url.pathname === '/discover' && url.searchParams.get('q') === 'Beginner'
+  })
+  await library.getByLabel('Search Programs').fill('Beginner')
+  await searchRequest
+  await expect(page).toHaveURL(/bq=Beginner/)
+  await library.getByRole('button', { name: 'Back' }).click()
+  await expect(library).toBeHidden()
+  await expect(page.getByLabel('Program name')).toHaveValue('Draft name kept')
 
-  await page.getByRole('button', { name: /Beginner Strength/ }).click()
-  await expect(page.getByLabel('Program name')).toHaveValue('Beginner Strength')
+  await page.getByRole('button', { name: 'Browse Program Library' }).click()
   await page
-    .getByRole('button', { name: 'Use this starting point', exact: true })
+    .getByRole('dialog', { name: 'Workout Library' })
+    .getByRole('button', { name: 'Use as starting point: Beginner Strength' })
+    .click()
+  await expect(page.getByRole('dialog', { name: 'Workout Library' })).toBeHidden()
+  await expect(page).toHaveURL(/\/programs\/new\?type=/)
+  await expect(page.getByLabel('Program name')).toHaveValue('Beginner Strength')
+  await expect(page.getByText('Starting point:')).toContainText('Beginner Strength')
+  await page
+    .getByRole('button', { name: 'Continue to customize', exact: true })
     .click()
   await expect(
     page.getByRole('heading', { name: 'Activities', exact: true }),
@@ -78,7 +112,9 @@ test('Add Program filters by type and copies a selected starting point', async (
     ),
   ).toBeDefined()
 
-  await page.getByRole('button', { name: 'Add to Calendar' }).click()
+  await page
+    .getByRole('button', { name: /Start Program|Add to Calendar/ })
+    .click()
   await expect(
     page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
@@ -97,6 +133,39 @@ test('Add Program filters by type and copies a selected starting point', async (
   expect(personalJoinIndex).toBeGreaterThan(
     privatePublish ? requests.indexOf(privatePublish) : -1,
   )
+})
+
+test('Add Program continues with a blank structure without choosing a starting point', async ({
+  page,
+}) => {
+  const { requests } = await mockApi(page)
+  await login(page, 'author@test.local', 'password')
+  await page.goto('/programs/new')
+  await page.getByRole('button', { name: /Workout/ }).click()
+  await page.getByLabel('Program name').fill('My own practice')
+  await page
+    .getByRole('button', { name: 'Continue to customize', exact: true })
+    .click()
+
+  await expect(
+    page.getByRole('heading', { name: 'Activities', exact: true }),
+  ).toBeVisible()
+  expect(
+    requests.find(
+      (request) => request.path === '/programs' && request.method === 'POST',
+    )?.body,
+  ).toMatchObject({
+    programTypeId: '00000000-0000-4000-8000-000000000002',
+    focusId: null,
+  })
+  expect(
+    requests.find(
+      (request) =>
+        request.path.endsWith('/draft') &&
+        request.body.title === 'My own practice',
+    ),
+  ).toBeDefined()
+  expect(requests.some((request) => request.path.endsWith('/copy'))).toBe(false)
 })
 
 test('draft conflicts preserve the local title and require explicit resolution', async ({
@@ -225,15 +294,26 @@ test('calendar day selection works from the keyboard', async ({ page }) => {
     .getByRole('button', { name: 'Tue 10', exact: true })
   await tuesday.focus()
   await page.keyboard.press('Enter')
-  await expect(tuesday).toHaveAttribute('aria-pressed', 'true')
+  // Choosing a date opens that day.
+  await expect(page).toHaveURL(/view=day/)
   await expect(page).toHaveURL(/day=2026-11-10/)
+  await expect(
+    page.getByRole('heading', { name: 'Tuesday, November 10, 2026' }),
+  ).toBeVisible()
   for (const width of [320, 768]) {
     await page.setViewportSize({ width, height: 900 })
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true)
+    const dimensions = await page.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      offenders: Array.from(document.querySelectorAll('body *'))
+        .map((element) => ({
+          tag: element.tagName,
+          className: typeof element.className === 'string' ? element.className : '',
+          right: Math.round(element.getBoundingClientRect().right),
+        }))
+        .filter((element) => element.right > innerWidth + 1)
+        .slice(0, 5),
+    }))
+    expect(dimensions.documentWidth, `overflow at ${width}px: ${JSON.stringify(dimensions)}`).toBeLessThanOrEqual(width)
   }
 })
 
@@ -242,27 +322,178 @@ test('calendar defaults to month, switches views, and stays within a mobile view
 }) => {
   await mockApi(page)
   await login(page, 'participant@test.local', 'password')
-  await page.goto('/?view=month&day=2026-11-09')
-  await expect(page.getByRole('button', { name: 'Month', exact: true })).toHaveAttribute(
-    'aria-pressed',
+  await page.goto('/?day=2026-11-09')
+  await expect(page.getByRole('radio', { name: 'Month', exact: true })).toHaveAttribute(
+    'aria-checked',
     'true',
   )
-  await page.getByRole('button', { name: 'Year', exact: true }).click()
+  await page.getByRole('radio', { name: 'Year', exact: true }).click()
   await expect(page.getByRole('heading', { name: '2026', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Week', exact: true }).click()
+  await page.getByRole('radio', { name: 'Week', exact: true }).click()
+  await page.locator('.calendar-filter__trigger').click()
+  await page.getByRole('button', { name: 'Fitness', exact: true }).click()
+  await expect(
+    page.getByRole('button', { name: 'Fitness', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await page.locator('.calendar-filter__trigger').click()
   await expect(page).toHaveURL(/view=week/)
-  await page.getByRole('button', { name: 'Month', exact: true }).click()
+  await page.getByRole('radio', { name: 'Month', exact: true }).click()
   await page.setViewportSize({ width: 360, height: 780 })
   const day = page
     .getByLabel('Select a day')
     .getByRole('button', { name: 'Tue 10', exact: true })
   await day.click()
-  await expect(day).toHaveAttribute('aria-pressed', 'true')
+  await expect(page).toHaveURL(/view=day&day=2026-11-10|day=2026-11-10&view=day/)
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true)
+})
+
+test('calendar highlights today and lets a participant quick-finish an Activity', async ({
+  page,
+}) => {
+  const date = await page.evaluate(() => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date())
+    const value = (type: string) => parts.find((part) => part.type === type)!.value
+    return `${value('year')}-${value('month')}-${value('day')}`
+  })
+  const { requests } = await mockApi(page, {
+    calendarItem: true,
+    calendarDate: date,
+    groupItem: true,
+  })
+  await login(page, 'participant@test.local', 'password')
+  await page.goto(`/?view=month&day=${date}`)
+
+  const isMobile = await page.evaluate(() => innerWidth < 640)
+  const itemRegion = isMobile
+    ? page.locator('.calendar-selected-day--mobile-only')
+    : page.locator('.calendar-month-cell--today')
+  if (isMobile) {
+    await expect(
+      page.locator('.calendar-month-picker button[aria-current="date"]'),
+    ).toBeVisible()
+    await expect(
+      itemRegion.getByRole('heading', { name: 'Today' }),
+    ).toBeVisible()
+  } else {
+    await expect(itemRegion).toBeVisible()
+    await expect(itemRegion.locator('button[aria-current="date"]')).toBeVisible()
+  }
+  await expect(
+    itemRegion.locator('.calendar-tile__thumbnail'),
+  ).toBeVisible()
+  await expect(itemRegion.getByLabel('Group participant')).toBeVisible()
+  if (!isMobile)
+    await expect(page.locator('.calendar-selected-day--mobile-only')).toBeHidden()
+
+  await itemRegion.getByRole('button', { name: 'Mark Squats complete' }).click()
+  await expect(
+    page.getByText('Activity marked complete', { exact: true }),
+  ).toBeVisible()
+  expect(
+    requests.find((request) => request.path === '/sessions' && request.method === 'POST')
+      ?.body,
+  ).toMatchObject({
+    calendarItemId: itemId,
+    idempotencyKey: expect.any(String),
+  })
+  expect(
+    requests.find(
+      (request) => request.path.endsWith('/actions'),
+    )?.body,
+  ).toMatchObject({ action: 'FINISH', expectedRevision: 0 })
+
+  await page.getByRole('radio', { name: 'Week', exact: true }).click()
+  const todayColumn = page.locator('.calendar-column--today')
+  await expect(todayColumn).toBeVisible()
+  await expect(todayColumn.locator('.calendar-tile__status')).toHaveText('Completed')
+})
+
+test('calendar and header span the viewport with aligned gutters', async ({ page }) => {
+  await mockApi(page)
+  await login(page, 'participant@test.local', 'password')
+  await page.goto('/')
+
+  for (const width of [1280, 1920]) {
+    await page.setViewportSize({ width, height: 1080 })
+    const rail = await page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>('header > div')
+      const page = document.querySelector<HTMLElement>('main.page--calendar')
+      const board = page?.querySelector<HTMLElement>('.calendar-month-grid')
+      if (!header || !page || !board) throw new Error('Full-width calendar or header is missing')
+      return {
+        headerLeft: header.getBoundingClientRect().left,
+        headerWidth: header.getBoundingClientRect().width,
+        pageLeft: page.getBoundingClientRect().left,
+        pageWidth: page.getBoundingClientRect().width,
+        headerGutter: getComputedStyle(header).paddingLeft,
+        pageGutter: getComputedStyle(page).paddingLeft,
+        boardWidth: board.getBoundingClientRect().width,
+        viewportWidth: window.innerWidth,
+      }
+    })
+
+    expect(rail.headerLeft).toBe(0)
+    expect(rail.pageLeft).toBe(0)
+    expect(rail.pageWidth).toBe(rail.viewportWidth)
+    expect(rail.headerWidth).toBe(rail.viewportWidth)
+    expect(rail.headerGutter).toBe('24px')
+    expect(rail.pageGutter).toBe(rail.headerGutter)
+    expect(rail.boardWidth).toBe(rail.pageWidth - 48)
+  }
+})
+
+test('mobile calendar exposes selected-day items and confirms recurring removal scope', async ({
+  page,
+}) => {
+  const date = await page.evaluate(() => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date())
+    const value = (type: string) => parts.find((part) => part.type === type)!.value
+    return `${value('year')}-${value('month')}-${value('day')}`
+  })
+  const { requests } = await mockApi(page, {
+    calendarItem: true,
+    calendarDate: date,
+    recurring: true,
+  })
+  await login(page, 'participant@test.local', 'password')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/?view=month&day=${date}`)
+
+  const agenda = page.locator('.calendar-selected-day--mobile-only')
+  await expect(agenda).toBeVisible()
+  await expect(agenda.getByRole('heading', { name: 'Today' })).toBeVisible()
+  await agenda.getByRole('button', { name: 'More actions for Squats' }).click()
+  await agenda.getByRole('button', { name: 'Remove from Calendar' }).click()
+  const removalRequest = page.waitForRequest(
+    (request) =>
+      request.method() === 'DELETE' &&
+      new URL(request.url()).searchParams.get('scope') === 'THIS_AND_FUTURE',
+  )
+  await agenda.getByRole('button', { name: 'This and future activities' }).click()
+  await removalRequest
+  await expect(
+    page.getByText('Activity removed from Calendar', { exact: true }),
+  ).toBeVisible()
+  expect(
+    requests.find(
+      (request) => request.path === `/calendar-items/${itemId}` && request.method === 'DELETE',
+    ),
+  ).toBeDefined()
+  await expect(page.locator('.calendar-tile')).toHaveCount(0)
 })
 
 test('Program Activity creation keeps description and optional instructions in context', async ({
@@ -273,13 +504,13 @@ test('Program Activity creation keeps description and optional instructions in c
   await page.goto(`/programs/${programId}/workspace?panel=activities`)
   await page.getByLabel('Activity title').fill('Evening walk')
   await page.getByLabel('Description').fill('Walk around the neighborhood.')
-  await page.getByLabel('Category').selectOption({ label: 'Fitness' })
   await page
     .getByLabel('Instructions (optional)')
     .fill('Choose a comfortable pace.')
-  await page.getByRole('button', { name: 'Continue to media' }).click()
+  await page.getByRole('button', { name: 'Create Activity', exact: true }).click()
+  // Identity image follows creation; capture is not offered here.
   await expect(
-    page.getByRole('button', { name: 'Add Activity to Program' }),
+    page.getByRole('group', { name: 'Activity image' }).getByRole('button', { name: 'Change image' }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Add Activity to Program' }).click()
   await expect(page.getByRole('heading', { name: 'Schedule & placement' })).toBeVisible()
@@ -294,4 +525,101 @@ test('Program Activity creation keeps description and optional instructions in c
     requests.find((request) => request.path.endsWith('/draft/instructions'))?.body
       .instructions,
   ).toEqual([{ body: 'Choose a comfortable pace.' }])
+})
+
+test('Calendar Activity creation starts blank and adds the new Activity on the selected date', async ({
+  page,
+}) => {
+  const { requests } = await mockApi(page)
+  await login(page, 'participant@test.local', 'password')
+  await page.goto('/add-activity?day=2026-11-12')
+
+  await expect(
+    page.getByRole('heading', { name: 'Add Activity', level: 1 }),
+  ).toBeVisible()
+  await page.getByLabel('Activity title').fill('Evening sketch')
+  await page
+    .getByLabel('Description (optional)')
+    .fill('Draw one thing from the day.')
+  await page.getByLabel('Category').selectOption({ label: 'Fitness' })
+  await page
+    .getByLabel('Instructions (optional)')
+    .fill('Keep the session informal.')
+  await page
+    .getByRole('button', { name: 'Create Activity' })
+    .click()
+  await expect(page.getByRole('button', { name: 'Change image' })).toBeVisible()
+  await page
+    .getByRole('button', { name: /Start Program|Add to Calendar/ })
+    .click()
+
+  await expect(page).toHaveURL(/\/\?week=.*day=2026-11-12/)
+  await expect(
+    page.getByRole('heading', { name: 'Calendar', exact: true }),
+  ).toBeVisible()
+  expect(
+    requests.find(
+      (request) => request.path === '/activities' && request.method === 'POST',
+    )?.body,
+  ).toMatchObject({
+    title: 'Evening sketch',
+    summary: 'Draw one thing from the day.',
+    categoryId: '00000000-0000-4000-8000-000000000003',
+  })
+  expect(
+    requests.find(
+      (request) =>
+        request.path === '/calendar/items' && request.method === 'POST',
+    )?.body,
+  ).toMatchObject({
+    activityId: '00000000-0000-4000-8000-000000000022',
+    localDate: '2026-11-12',
+  })
+})
+
+test('Calendar Activity suggestions prefill an editable copy instead of replacing creation', async ({
+  page,
+}) => {
+  const { requests } = await mockApi(page)
+  await login(page, 'participant@test.local', 'password')
+  await page.goto('/add-activity?day=2026-11-12')
+  await page
+    .getByRole('region', { name: 'Suggestions' })
+    .getByRole('button', { name: 'Use as starting point: Squats', exact: true })
+    .click()
+
+  await expect(page.getByLabel('Activity title')).toHaveValue('Squats')
+  await page.getByLabel('Activity title').fill('Evening squat practice')
+  await page
+    .getByRole('button', { name: 'Create a private copy' })
+    .click()
+  await page
+    .getByRole('button', { name: /Start Program|Add to Calendar/ })
+    .click()
+
+  await expect(page).toHaveURL(/\/\?week=.*day=2026-11-12/)
+  expect(
+    requests.find(
+      (request) =>
+        request.path === `/activities/${activityId}/copy` &&
+        request.method === 'POST',
+    ),
+  ).toBeDefined()
+  expect(
+    requests.find(
+      (request) =>
+        request.path ===
+          '/activities/00000000-0000-4000-8000-000000000026/draft' &&
+        request.method === 'PATCH',
+    )?.body,
+  ).toMatchObject({ title: 'Evening squat practice' })
+  expect(
+    requests.find(
+      (request) =>
+        request.path === '/calendar/items' && request.method === 'POST',
+    )?.body,
+  ).toMatchObject({
+    activityId: '00000000-0000-4000-8000-000000000026',
+    localDate: '2026-11-12',
+  })
 })

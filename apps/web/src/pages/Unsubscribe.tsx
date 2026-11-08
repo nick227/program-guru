@@ -28,7 +28,7 @@ export function UnsubscribePage() {
 
   return (
     <Page>
-      <Stage>
+      <Stage className="max-w-2xl">
         <Back to="/">Calendar</Back>
         <h1>Email Preferences</h1>
         <Panel>

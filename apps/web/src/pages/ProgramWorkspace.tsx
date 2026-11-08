@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ApiError,
-  useActivities,
+  useActivitySuggestions,
   useAddProgramPlacement,
   useAddProgramActivities,
   useAttachMedia,
-  useCategories,
   useCopyActivity,
   useCurrentUser,
   useMyEnrollments,
@@ -22,8 +21,10 @@ import {
   useUpdateProgramPlacement,
   usePublishCheck,
   usePublishProgram,
+  useMediaUpload,
   type components,
 } from '@project/sdk'
+import { Upload, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page, Stage, Stack, Row, Grid, Panel } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
@@ -31,8 +32,19 @@ import { Input } from '@/components/ui/Input'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back, linkButton } from '@/components/Navigation'
 import { CalendarSurface } from '@/components/CalendarSurface'
-import { MediaPicker } from '@/components/MediaPicker'
 import { MediaAttachments } from '@/components/MediaAttachments'
+import { ActivityBasicsFields } from '@/components/ActivityBasicsFields'
+import { ProgramHeader } from '@/components/ProgramHeader'
+import { ChangeImage } from '@/components/ChangeImage'
+import { useCategorySlugOf } from '@/components/EntityHero'
+import {
+  useLibraryBrowser,
+  type LibraryBrowserContext,
+} from '@/components/LibraryBrowser'
+import { SuggestionRail } from '@/components/SuggestionRail'
+import { activityCard } from '@/lib/discoveryCards'
+import { activityHero, programHero } from '@/lib/hero'
+import { useActivityCover, useProgramCover } from '@/lib/useEntityCover'
 import { Select } from '@/components/ui/Select'
 import { useAutosave } from '@/lib/useAutosave'
 import { useOnline } from '@/lib/useOnline'
@@ -40,6 +52,7 @@ import { useDocumentTitle } from '@/lib/title'
 import { buildProgramUrl } from '@/lib/urls'
 import { calendarUrl, today } from '@/lib/dates'
 type Workspace = components['schemas']['ProgramWorkspace']
+
 export function ProgramWorkspacePage() {
   const { id = '' } = useParams()
   const workspace = useProgramWorkspace(id)
@@ -71,11 +84,12 @@ export function ProgramWorkspacePage() {
         <Back to={panel ? base : '/library'}>
           {panel ? 'Workspace' : 'My Programs'}
         </Back>
+        <TitleEditor key={ws.id} ws={ws} />
         <ErrorMessage error={workspace.error} />
         {panel === 'activities' ? (
           <ActivityPicker ws={ws} close={base} />
         ) : panel === 'edit' ? (
-          <TitleEditor key={ws.id} ws={ws} heading />
+          <ProgramCover ws={ws} />
         ) : panel === 'calendar' ? (
           <ScheduleEditor ws={ws} />
         ) : panel === 'publish' ? (
@@ -83,17 +97,6 @@ export function ProgramWorkspacePage() {
         ) : (
           <>
             <Stack className="gap-2">
-              <Row className="items-start justify-between">
-                <div className="min-w-0 flex-1">
-                  <h1 className="sr-only">{ws.title}</h1>
-                  <TitleEditor key={ws.id} ws={ws} />
-                </div>
-                <span className="text-xs text-muted">
-                  {ws.hasUnpublishedChanges || ws.status === 'DRAFT'
-                    ? 'Draft'
-                    : 'Published'}
-                </span>
-              </Row>
               <p className="text-muted">
                 {ws.type.label}
                 {ws.focus ? ` · ${ws.focus.label}` : ''} ·{' '}
@@ -103,6 +106,8 @@ export function ProgramWorkspacePage() {
                 {ws.frequencyLabel} · {ws.programDays ?? 0} program days
               </p>
             </Stack>
+            {ws.description && <p className="whitespace-pre-wrap text-muted">{ws.description}</p>}
+            <ProgramCover ws={ws} />
             <Panel>
               <Row className="justify-between">
                 <h2>Activities</h2>
@@ -129,7 +134,7 @@ export function ProgramWorkspacePage() {
                       to={`${base}?panel=activities`}
                       className={linkButton}
                     >
-                      Add Activity
+                      New Activity
                     </Link>
                   </Stack>
                 )}
@@ -137,7 +142,7 @@ export function ProgramWorkspacePage() {
             </Panel>
             <ScheduleEditor ws={ws} />
             {ws.visibility === 'PRIVATE' && ws.status !== 'ARCHIVED' && (
-              <AddToCalendar
+              <StartProgram
                 ws={ws}
                 refresh={() => void workspace.refetch()}
               />
@@ -151,11 +156,79 @@ export function ProgramWorkspacePage() {
           </>
         )}
       </Stage>
+      <WorkspaceBrowserOutlet ws={ws} />
     </Page>
   )
 }
 
-function AddToCalendar({
+/** Program image attachment below the Program details. */
+function ProgramCover({ ws }: { ws: Workspace }) {
+  const categorySlugOf = useCategorySlugOf()
+  const cover = useProgramCover(ws)
+  return (
+    <ChangeImage
+      label="Program cover"
+      compact
+      canEdit={ws.status !== 'ARCHIVED'}
+      cover={cover}
+      hero={programHero(ws, categorySlugOf)}
+    />
+  )
+}
+
+/**
+ * Copy-or-reference, then add: own Activities are referenced, anything else
+ * becomes a private copy first (08 §6). Shared by the rail and the browser.
+ */
+function useAddExistingActivity(ws: Workspace) {
+  const me = useCurrentUser()
+  const copy = useCopyActivity()
+  const add = useAddProgramActivities(ws.id)
+  return {
+    pending: copy.isPending || add.isPending,
+    error: copy.error || add.error,
+    run: async (activity: components['schemas']['ActivitySummary']) => {
+      const ownerId = activity.creator?.id
+      const id =
+        ownerId && ownerId === me.data?.data.id
+          ? activity.id
+          : (
+              await copy.mutateAsync({
+                activityId: activity.id,
+                ...(activity.revisionId
+                  ? { sourceRevisionId: activity.revisionId }
+                  : {}),
+              })
+            ).id
+      await add.mutateAsync({ activityIds: [id], expectedRevision: ws.draftRevision })
+    },
+  }
+}
+
+function WorkspaceBrowserOutlet({ ws }: { ws: Workspace }) {
+  const addExisting = useAddExistingActivity(ws)
+  const navigate = useNavigate()
+  const context: LibraryBrowserContext = {
+    kind: 'activities',
+    categoryId: ws.type.categoryId || undefined,
+    exclude: ws.activities.map((a) => a.activityId),
+    actionLabel: 'Add to Program',
+    onPick: (activity) => {
+      void addExisting
+        .run(activity)
+        .then(() => {
+          toast.success('Activity added')
+          navigate(`/programs/${ws.id}/workspace`)
+        })
+        .catch((error: unknown) =>
+          toast.error(error instanceof Error ? error.message : 'Could not add the Activity'),
+        )
+    },
+  }
+  return <Outlet context={context} />
+}
+
+function StartProgram({
   ws,
   refresh,
 }: {
@@ -186,7 +259,7 @@ function AddToCalendar({
       ) ?? false
   const busy = publish.isPending || join.isPending
 
-  async function addToCalendar() {
+  async function startProgram() {
     if (!online || busy || !startDate || alreadyOnCalendar) return
 
     try {
@@ -214,7 +287,7 @@ function AddToCalendar({
           timezone,
         ),
       })
-      toast.success('Program added to Calendar')
+      toast.success('Program started')
       navigate(calendarUrl(startDate))
     } catch (error) {
       refresh()
@@ -222,7 +295,7 @@ function AddToCalendar({
         toast.error(
           error instanceof Error
             ? error.message
-            : 'The Program could not be added to your Calendar.',
+            : 'The Program could not be started.',
         )
       }
     }
@@ -232,16 +305,11 @@ function AddToCalendar({
     <Panel className="border-accent/30">
       <Stack className="gap-3">
         <div>
-          <p className="page-kicker">03 · Put your Program on the Calendar</p>
-          <h2>Add to Calendar</h2>
-          <p className="mt-1 text-sm text-muted">
-            Save a private snapshot of this Program and schedule it for
-            yourself. The original source stays unchanged.
-          </p>
+          <h2>Start Program</h2>
         </div>
         {ws.activityCount === 0 && (
           <p className="text-sm text-attention">
-            Add at least one Activity before scheduling this Program.
+            Add at least one Activity before starting this Program.
           </p>
         )}
         {alreadyOnCalendar ? (
@@ -277,9 +345,9 @@ function AddToCalendar({
                   enrollments.isPending
                 }
                 loading={busy}
-                onClick={() => void addToCalendar()}
+                onClick={() => void startProgram()}
               >
-                Add to Calendar
+                Start Program
               </Button>
             </Row>
           </>
@@ -325,7 +393,6 @@ function WorkspaceActivity({
   const online = useOnline()
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
-  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   useEffect(() => {
     if (!detail.data) return
@@ -431,16 +498,17 @@ function WorkspaceActivity({
             >
               Save Activity
             </Button>
-            {context && (
+            {context && detail.data && (
               <>
-                <h3 className="font-semibold">Activity media</h3>
-                <Button
-                  variant="outline"
-                  disabled={!online || attachMedia.isPending}
-                  onClick={() => setMediaPickerOpen(true)}
-                >
-                  Add media
-                </Button>
+                <ActivityImage
+                  activity={detail.data}
+                  revisionId={context.revisionId}
+                />
+                <h3 className="font-semibold">Demonstration media</h3>
+                <AddDemonstrationMedia
+                  revisionId={context.revisionId}
+                  disabled={!online}
+                />
                 <MediaAttachments context={context} />
               </>
             )}
@@ -448,67 +516,157 @@ function WorkspaceActivity({
         </details>
       ) : (
         <p className="mt-3 border-t pt-3 text-xs text-muted">
-          Copy this Activity from suggestions to customize its details.
+          Copy this Activity to customize its details.
         </p>
-      )}
-      {mediaPickerOpen && context && (
-        <MediaPicker
-          context={context}
-          title="Add Activity media"
-          onClose={() => setMediaPickerOpen(false)}
-          onSelect={async (asset) => {
-            await attachMedia.mutateAsync({
-              mediaId: asset.id,
-              target: { kind: 'ACTIVITY_REVISION', id: context.revisionId },
-              purpose: 'DEMONSTRATION',
-            })
-          }}
-        />
       )}
     </article>
   )
 }
+
+function AddDemonstrationMedia({
+  revisionId,
+  disabled,
+}: {
+  revisionId: string
+  disabled?: boolean
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const upload = useMediaUpload()
+  const attachMedia = useAttachMedia()
+  const [attaching, setAttaching] = useState(false)
+  const [waitingId, setWaitingId] = useState<string | null>(null)
+  const [error, setError] = useState<unknown>(null)
+
+  useEffect(() => {
+    if (!waitingId || upload.stage !== 'ready' || attaching || error) return
+    const id = waitingId
+    setAttaching(true)
+    attachMedia
+      .mutateAsync({
+        mediaId: id,
+        target: { kind: 'ACTIVITY_REVISION', id: revisionId },
+        purpose: 'DEMONSTRATION',
+      })
+      .then(() => {
+        setWaitingId(null)
+        toast.success('Demonstration media attached')
+      })
+      .catch(setError)
+      .finally(() => setAttaching(false))
+  }, [waitingId, upload.stage, attaching, error, attachMedia, revisionId])
+
+  const working =
+    attaching ||
+    upload.busy ||
+    attachMedia.isPending ||
+    (!!waitingId && upload.stage === 'processing')
+
+  return (
+    <div className="space-y-1">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        disabled={disabled || working}
+        onChange={async (event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+          if (!file) return
+          setError(null)
+          setAttaching(true)
+          try {
+            const asset = await upload.upload(file)
+            if (asset) {
+              if (asset.state === 'READY') {
+                await attachMedia.mutateAsync({
+                  mediaId: asset.id,
+                  target: { kind: 'ACTIVITY_REVISION', id: revisionId },
+                  purpose: 'DEMONSTRATION',
+                })
+                toast.success('Demonstration media attached')
+              } else {
+                setWaitingId(asset.id)
+              }
+            }
+          } catch (err) {
+            setError(err)
+          } finally {
+            setAttaching(false)
+          }
+        }}
+      />
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={disabled || working}
+        onClick={() => fileInputRef.current?.click()}
+        className="gap-1.5"
+      >
+        {working ? (
+          <Loader2 size={14} className="animate-spin" aria-hidden />
+        ) : (
+          <Upload size={14} aria-hidden />
+        )}
+        <span>{working ? 'Uploading…' : 'Add demonstration media'}</span>
+      </Button>
+      <ErrorMessage error={error || upload.error || attachMedia.error} />
+    </div>
+  )
+}
+
+function ActivityImage({
+  activity,
+  revisionId,
+}: {
+  activity: components['schemas']['ActivityDetail']
+  revisionId: string
+}) {
+  const categorySlugOf = useCategorySlugOf()
+  const cover = useActivityCover(revisionId)
+  return (
+    <ChangeImage
+      label="Activity image"
+      canEdit
+      cover={cover}
+      hero={activityHero(activity, categorySlugOf)}
+    />
+  )
+}
+
 function ActivityPicker({ ws, close }: { ws: Workspace; close: string }) {
-  const [q, setQ] = useState('')
-  const [selected, setSelected] = useState<
-    components['schemas']['ActivitySummary'][]
-  >([])
-  const [prepared, setPrepared] = useState<Record<string, string>>({})
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
-  const [categoryId, setCategoryId] = useState('')
   const [instruction, setInstruction] = useState('')
   const [instructionSaved, setInstructionSaved] = useState(false)
   const [newActivity, setNewActivity] = useState<
     components['schemas']['ActivityDetail'] | null
   >(null)
-  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
-  const [attachedCount, setAttachedCount] = useState(0)
-  const activities = useActivities(q, ws.focus?.id ?? '')
-  const categories = useCategories()
-  const me = useCurrentUser()
+  const [addingId, setAddingId] = useState<string | null>(null)
   const add = useAddProgramActivities(ws.id)
-  const copy = useCopyActivity()
+  const addExisting = useAddExistingActivity(ws)
   const create = useCreateActivity()
   const putInstructions = usePutActivityInstructions()
-  const attachMedia = useAttachMedia()
   const navigate = useNavigate()
   const online = useOnline()
-  const rows = activities.data?.pages.flatMap((p) => p.data) ?? []
-  const selectedRows = selected
-  const context =
-    newActivity?.revisionId
-      ? {
-          kind: 'Activity' as const,
-          revisionId: newActivity.revisionId,
-        }
-      : undefined
+  const browser = useLibraryBrowser()
+  const categorySlugOf = useCategorySlugOf()
+  const cover = useActivityCover(newActivity?.revisionId ?? null)
+  const liveActivity = useActivity(newActivity?.id ?? '')
+  const programCategoryId = ws.type.categoryId || ws.focus?.categoryId || ''
+  const suggestions = useActivitySuggestions({
+    categoryId: programCategoryId,
+    focusId: ws.focus?.id,
+    exclude: ws.activities.map((a) => a.activityId),
+  })
 
   async function createActivity() {
     try {
       const created = await create.mutateAsync({
         title: title.trim(),
-        categoryId,
+        categoryId: programCategoryId,
         focusIds: ws.focus ? [ws.focus.id] : [],
         summary: summary.trim() || null,
       })
@@ -543,305 +701,129 @@ function ActivityPicker({ ws, close }: { ws: Workspace; close: string }) {
     }
   }
 
-  async function addSelected() {
-    try {
-      const activityIds: string[] = []
-      for (const activity of selectedRows) {
-        let id = prepared[activity.id] ?? ''
-        if (!id) {
-          const ownerId = activity.creator?.id
-          id =
-            ownerId && ownerId === me.data?.data.id
-              ? activity.id
-              : (
-                  await copy.mutateAsync({
-                    activityId: activity.id,
-                    ...(activity.revisionId
-                      ? { sourceRevisionId: activity.revisionId }
-                      : {}),
-                  })
-                ).id
-          setPrepared((previous) => ({ ...previous, [activity.id]: id }))
-        }
-        activityIds.push(id)
-      }
-      await add.mutateAsync({
-        activityIds,
-        expectedRevision: ws.draftRevision,
-      })
-      toast.success('Activities added')
-      navigate(close)
-    } catch {
-      /* Preserve prepared copies and selections for retry. */
-    }
-  }
-
   return (
-    <>
-      <Stack>
-        <h1>Add Activities</h1>
-        <Panel>
-          <Stack>
-            <div>
-              <h2>Create a new Activity</h2>
-              <p className="text-sm text-muted">
-                Start with your own title and description. Add relevant media;
-                instructions are optional.
-              </p>
-            </div>
-            {newActivity ? (
-              <>
-                <div>
-                  <h3 className="font-semibold">{newActivity.title}</h3>
-                  <p className="text-sm text-muted">
-                    {newActivity.summary || 'No description'}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    {newActivity.instructionCount} instructions ·{' '}
-                    {newActivity.mediaCount + attachedCount}{' '}
-                    media
-                  </p>
-                </div>
-                {!instructionSaved && instruction.trim() && (
-                  <Button
-                    variant="outline"
-                    disabled={putInstructions.isPending || !online}
-                    loading={putInstructions.isPending}
-                    onClick={() => void saveInstruction()}
-                  >
-                    Retry saving instructions
-                  </Button>
-                )}
-                {context ? (
-                  <Button
-                    variant="outline"
-                    disabled={!online || attachMedia.isPending}
-                    onClick={() => setMediaPickerOpen(true)}
-                  >
-                    Add media
-                  </Button>
-                ) : (
-                  <p className="text-sm text-attention">
-                    This Activity draft has no editable media revision.
-                  </p>
-                )}
-                <Button
-                  disabled={
-                    !online ||
-                    !instructionSaved ||
-                    add.isPending ||
-                    create.isPending
-                  }
-                  loading={add.isPending}
-                  onClick={async () => {
-                    try {
-                      await add.mutateAsync({
-                        activityIds: [newActivity.id],
-                        expectedRevision: ws.draftRevision,
-                      })
-                      toast.success('Activity added')
-                      navigate(close)
-                    } catch {
-                      /* Keep the created Activity available for retry. */
-                    }
-                  }}
-                >
-                  Add Activity to Program
-                </Button>
-              </>
-            ) : (
-              <>
-                <ErrorMessage
-                  error={categories.error || create.error || putInstructions.error}
-                  retry={
-                    categories.error
-                      ? () => void categories.refetch()
-                      : undefined
-                  }
-                />
-                <label className="space-y-2">
-                  Activity title
-                  <Input
-                    maxLength={140}
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                  />
-                </label>
-                <label className="space-y-2">
-                  Description
-                  <textarea
-                    className="textarea min-h-24"
-                    maxLength={500}
-                    value={summary}
-                    onChange={(event) => setSummary(event.target.value)}
-                  />
-                </label>
-                {categories.isPending ? (
-                  <Loading />
-                ) : (
-                  <label className="space-y-2">
-                    Category
-                    <Select
-                      value={categoryId}
-                      onChange={(event) => setCategoryId(event.target.value)}
-                    >
-                      <option value="">Choose a category</option>
-                      {categories.data?.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                )}
-                <label className="space-y-2">
-                  Instructions (optional)
-                  <textarea
-                    className="textarea min-h-24"
-                    maxLength={2000}
-                    value={instruction}
-                    onChange={(event) => setInstruction(event.target.value)}
-                  />
-                </label>
-                <Button
-                  disabled={
-                    !title.trim() ||
-                    !categoryId ||
-                    !online ||
-                    create.isPending ||
-                    categories.isPending
-                  }
-                  loading={create.isPending || putInstructions.isPending}
-                  onClick={() => void createActivity()}
-                >
-                  Continue to media
-                </Button>
-              </>
-            )}
-          </Stack>
-        </Panel>
-
-        <ErrorMessage
-          error={
-        putInstructions.error ||
-        attachMedia.error ||
-        add.error ||
-        copy.error
-          }
-        />
-        <details className="rounded-lg border bg-surface p-4">
-          <summary className="cursor-pointer font-semibold">
-            Browse suggestions to customize
-          </summary>
-          <Stack className="mt-4">
+    <Stack>
+      <h1>Add Activities</h1>
+      <Panel>
+        <Stack>
+          <div>
+            <h2>Create a new Activity</h2>
             <p className="text-sm text-muted">
-              Suggestions are starting points. Public and platform Activities
-              are copied to your library before being added.
+              Start with your own title and description. Instructions are
+              optional.
             </p>
-            <label className="space-y-2">
-              Search Activities
-              <Input value={q} onChange={(e) => setQ(e.target.value)} />
-            </label>
-            <ErrorMessage
-              error={activities.error || add.error || copy.error}
-              retry={() => void activities.refetch()}
-            />
-            {activities.isPending ? (
-              <Loading />
-            ) : (
-              <Stack className="gap-2">
-                {(q ? rows : rows.slice(0, 4)).map((activity) => {
-                  const included = ws.activities.some(
-                    (item) => item.activityId === activity.id,
-                  )
-                  return (
-                    <button
-                      type="button"
-                      key={activity.id}
-                      disabled={included || add.isPending || copy.isPending}
-                      aria-pressed={
-                        selected.some((item) => item.id === activity.id) ||
-                        included
-                      }
-                      onClick={() =>
-                        setSelected((ids) =>
-                          ids.some((item) => item.id === activity.id)
-                            ? ids.filter((item) => item.id !== activity.id)
-                            : [...ids, activity],
-                        )
-                      }
-                      className={`min-h-16 rounded-lg border bg-surface p-4 text-left disabled:opacity-60 ${selected.some((item) => item.id === activity.id) ? 'border-accent ring-1 ring-accent' : ''}`}
-                    >
-                      <Row className="justify-between">
-                        <strong>{activity.title}</strong>
-                        <span className="text-xs text-muted">
-                          {included
-                            ? 'Already in Program'
-                            : selected.some((item) => item.id === activity.id)
-                              ? prepared[activity.id]
-                                ? 'Copy ready'
-                                : 'Selected'
-                              : 'Prefiller'}
-                        </span>
-                      </Row>
-                      <p className="mt-1 text-xs text-muted">
-                        {activity.summary || 'No description'}
-                      </p>
-                    </button>
-                  )
-                })}
-              </Stack>
-            )}
-            {!activities.isPending && !rows.length && (
-              <p>No Activities found.</p>
-            )}
-            {activities.hasNextPage && (
+          </div>
+          {newActivity ? (
+            <>
+              <div>
+                <h3 className="font-semibold">{newActivity.title}</h3>
+                <p className="text-sm text-muted">
+                  {newActivity.summary || 'No description'}
+                </p>
+              </div>
+              {!instructionSaved && instruction.trim() && (
+                <Button
+                  variant="outline"
+                  disabled={putInstructions.isPending || !online}
+                  loading={putInstructions.isPending}
+                  onClick={() => void saveInstruction()}
+                >
+                  Retry saving instructions
+                </Button>
+              )}
+              {newActivity.revisionId ? (
+                <ChangeImage
+                  label="Activity image"
+                  canEdit
+                  cover={cover}
+                  hero={activityHero(liveActivity.data ?? newActivity, categorySlugOf)}
+                />
+              ) : (
+                <p className="text-sm text-attention">
+                  This Activity draft has no editable image.
+                </p>
+              )}
+              <ErrorMessage error={add.error} />
               <Button
-                variant="outline"
-                onClick={() => void activities.fetchNextPage()}
+                disabled={!online || !instructionSaved || add.isPending}
+                loading={add.isPending}
+                onClick={async () => {
+                  try {
+                    await add.mutateAsync({
+                      activityIds: [newActivity.id],
+                      expectedRevision: ws.draftRevision,
+                    })
+                    toast.success('Activity added')
+                    navigate(close)
+                  } catch {
+                    /* Keep the created Activity available for retry. */
+                  }
+                }}
               >
-                Load more
+                Add Activity to Program
               </Button>
-            )}
-            <Button
-              disabled={
-                !selected.length ||
-                !online ||
-                add.isPending ||
-                copy.isPending
-              }
-              loading={add.isPending || copy.isPending}
-              onClick={() => void addSelected()}
-            >
-              Use {selected.length || ''} selected {selected.length === 1 ? 'Activity' : 'Activities'}
-            </Button>
-          </Stack>
-        </details>
-      </Stack>
-      {mediaPickerOpen && context && (
-        <MediaPicker
-          context={context}
-          title="Add Activity media"
-          onClose={() => setMediaPickerOpen(false)}
-          onSelect={async (asset) => {
-            await attachMedia.mutateAsync({
-              mediaId: asset.id,
-              target: { kind: 'ACTIVITY_REVISION', id: context.revisionId },
-              purpose: 'DEMONSTRATION',
-            })
-            setAttachedCount((count) => count + 1)
-          }}
-        />
-      )}
-    </>
+            </>
+          ) : (
+            <>
+              <ErrorMessage error={create.error || putInstructions.error} />
+              <ActivityBasicsFields
+                title={title}
+                summary={summary}
+                instruction={instruction}
+                onTitleChange={setTitle}
+                onSummaryChange={setSummary}
+                onInstructionChange={setInstruction}
+              />
+              <Button
+                disabled={!title.trim() || !online || create.isPending}
+                loading={create.isPending || putInstructions.isPending}
+                onClick={() => void createActivity()}
+              >
+                Create Activity
+              </Button>
+            </>
+          )}
+        </Stack>
+      </Panel>
+      <ErrorMessage error={addExisting.error} />
+      <SuggestionRail
+        title="Suggested Activities"
+        actionLabel="Add to Program"
+        items={suggestions.items.map((activity) =>
+          activityCard(activity, categorySlugOf),
+        )}
+        loading={suggestions.isPending}
+        error={suggestions.error}
+        retry={() => void suggestions.refetch()}
+        selectedId={addingId}
+        disabled={!online || addExisting.pending}
+        onPick={async (id) => {
+          const activity = suggestions.items.find((a) => a.id === id)
+          if (!activity) return
+          setAddingId(id)
+          try {
+            await addExisting.run(activity)
+            toast.success('Activity added')
+            navigate(close)
+          } catch {
+            /* The error stays visible above the rail; retry by picking again. */
+          } finally {
+            setAddingId(null)
+          }
+        }}
+        footer={
+          <Button variant="outline" className="self-start" onClick={browser.open}>
+            Browse Activity Library
+          </Button>
+        }
+      />
+    </Stack>
   )
 }
 function TitleEditor({
   ws,
-  heading = false,
 }: {
   ws: Workspace
-  heading?: boolean
 }) {
   const update = useUpdateProgram(ws.id)
   const online = useOnline()
@@ -856,17 +838,10 @@ function TitleEditor({
     draft.error instanceof ApiError && draft.error.code === 'VERSION_CONFLICT'
   return (
     <Stack className="gap-2">
-      {heading && <h1>Program name</h1>}
-      <label className="space-y-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Program name
-        </span>
-        <Input
-          maxLength={140}
-          value={draft.value}
-          onChange={(e) => draft.setValue(e.target.value)}
-        />
-      </label>
+      <ProgramHeader
+        title={draft.value}
+        onTitleChange={draft.setValue}
+      />
       <p role="status" className="text-xs text-muted">
         {draft.pending
           ? 'Saving…'
@@ -953,7 +928,7 @@ function ScheduleEditor({ ws }: { ws: Workspace }) {
       <div>
         <h2>Schedule &amp; placement</h2>
         <p className="text-sm text-muted">
-          The schedule is generated from your duration and frequency. Select a
+          The schedule is generated from your duration and activity placements. Select a
           day to move, remove, or add an Activity.
         </p>
       </div>
@@ -976,32 +951,6 @@ function ScheduleEditor({ ws }: { ws: Workspace }) {
                 {days === null
                   ? 'Ongoing'
                   : `${days / 7} ${days === 7 ? 'week' : 'weeks'}`}
-              </Button>
-            ))}
-          </Row>
-          <h3>Frequency</h3>
-          <Row>
-            {(
-              [
-                { kind: 'DAILY', label: 'Daily' },
-                { kind: 'WEEKDAYS', label: 'Weekdays' },
-                { kind: 'N_PER_WEEK', n: 3, label: '3 days/week' },
-              ] as const
-            ).map(({ label, ...frequency }) => (
-              <Button
-                key={label}
-                variant={
-                  ws.frequency?.kind === frequency.kind ? 'default' : 'outline'
-                }
-                disabled={!online || update.isPending}
-                onClick={() =>
-                  update.mutate({
-                    frequency,
-                    expectedRevision: ws.draftRevision,
-                  })
-                }
-              >
-                {label}
               </Button>
             ))}
           </Row>

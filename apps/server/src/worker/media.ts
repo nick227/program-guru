@@ -7,7 +7,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { pipeline } from 'stream/promises'
 import { promisify } from 'util'
-import { db, type MediaVariantKind } from '@project/db'
+import { db, type MediaVariantKind, type MediaAttachmentIntent, type MediaAsset, type Prisma } from '@project/db'
 import { storage } from '../infrastructure/storage'
 
 const run = promisify(execFile)

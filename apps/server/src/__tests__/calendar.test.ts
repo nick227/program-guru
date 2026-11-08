@@ -20,6 +20,15 @@ const addOnce = (localDate: string, localTime: string | null = null, activityId 
   req('POST', '/calendar/items', { activityId, localDate, localTime, idempotencyKey: key() })
 
 describe('standalone and recurring entries (P1)', () => {
+  it('projects running sessions without completing the occurrence', async () => {
+    const added = (await addOnce('2026-11-10')).json().data.item
+    const session = (await req('POST', '/sessions', { calendarItemId: added.id, idempotencyKey: key() })).json().data
+    await req('POST', `/sessions/${session.id}/actions`, { action: 'START', expectedRevision: session.revision })
+    const listed = await req('GET', '/calendar/items?start=2026-11-10&end=2026-11-10')
+    await validateResponse('listCalendarItems', 200, listed.json())
+    expect(listed.json().data[0]).toMatchObject({ status: 'PLANNED', sessionStatus: 'ACTIVE', activeSeconds: expect.any(Number), groupName: null, sharedCompletionCount: null })
+  })
+
   it('adds a one-off activity and lists the week', async () => {
     const res = await addOnce('2026-11-10', '07:00')
     expect(res.statusCode).toBe(201)

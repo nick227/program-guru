@@ -31,6 +31,7 @@ import { useResolveProgramTarget } from '@/lib/useResolveSlug'
 import { buildGroupUrl, buildProfileUrl, buildProgramUrl, buildWorkspaceUrl } from '@/lib/urls'
 import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
 import { programHero } from '@/lib/hero'
+import { RelatedMediaRiver, type RiverItem } from '@/components/RelatedMediaRiver'
 
 export function ProgramPage() {
   const paramsFromRouter = useParams()
@@ -193,6 +194,34 @@ export function ProgramPage() {
             )}
           </Stack>
         </Panel>
+        {p.safeActivityOutline.some((a) => a.mediaPreviewUrl) || p.coverUrl ? (
+          <Panel>
+            <RelatedMediaRiver
+              title="Related Program Media"
+              description="Visuals and activity demonstrations in this Program"
+              items={[
+                ...(p.coverUrl
+                  ? [
+                      {
+                        id: `${p.id}-cover`,
+                        thumbnailUrl: p.coverUrl,
+                        title: `${p.title} (Cover)`,
+                        type: 'PHOTO' as const,
+                      },
+                    ]
+                  : []),
+                ...p.safeActivityOutline
+                  .filter((a) => Boolean(a.mediaPreviewUrl))
+                  .map((a, i) => ({
+                    id: `${p.id}-act-${i}`,
+                    thumbnailUrl: a.mediaPreviewUrl,
+                    title: a.title,
+                    type: 'PHOTO' as const,
+                  })),
+              ]}
+            />
+          </Panel>
+        ) : null}
         {((p.enrollmentCount ?? 0) > 0 || p.completionRate != null) && (
           <p className="text-xs text-muted">
             {p.enrollmentCount ?? 0} participants

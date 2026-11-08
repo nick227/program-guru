@@ -18,6 +18,10 @@ Capture is valuable to the creator and to the user's private progress log; do no
 | `MediaAttachment` | id, mediaId, programId?, activityRevisionId?, instructionId?, resultEntryId?, userProfileId?, purpose, position, createdAt | **Exactly one target**; rights check; doesn't grant visibility alone |
 | `MediaPublication` | id, mediaId, publishedById, audience PUBLIC/GROUP, groupId?, occurrenceKey?, activityId?, instructionKey?, programId?, status PENDING/APPROVED/REJECTED/REVOKED, publishedAt?, license?, caption?, likeCount, viewCount, commentCount, rankScore, qualityReviewedAt?, reviewedById?, reviewedAt?, reviewNote? | Explicit audience + moderation, attribution. GROUP publications need no moderation review and are APPROVED on creation. A PUBLIC publication targeting an Activity is a **contribution** and enters moderation as PENDING |
 
+### Identity media
+
+A Program's identity image is `Program.coverMediaId`; an Activity's is its revision's `COVER` attachment. Every surface resolves the image the same way: the selected identity image, then other eligible entity media (Activity `ILLUSTRATION`, then `DEMONSTRATION`), then a category fallback drawn from design tokens, then a neutral fallback. Fallbacks are presentation only and are never stored or added to a library. Choosing an identity image uses the library only (no capture); session capture attaches to the attempt. Seeded Activities use original, text-free CC0 illustrations; seeded Programs use curated CC0 photographs whose source, author and licence are recorded in `packages/db/prisma/platform-assets/manifest.json`.
+
 ### MediaAttachment referential integrity
 
 Use explicit nullable FKs for exactly one target, plus DB CHECK; avoid `targetType + targetId` with unverified references.

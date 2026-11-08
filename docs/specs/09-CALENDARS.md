@@ -47,7 +47,7 @@ State transitions use CAS/`expectedRevision` and server times for accurate durat
 1. Enrollment pins ProgramVersion and start local date/timezone.
 2. Automatic placement: `localDate = startLocalDate + relativeDay` for each ProgramScheduleItem within the 12-week horizon, with no further decisions. Ongoing Programs repeat `cycleDays`. Times only when the template specifies them.
 3. Each Calendar Item points to source schedule item, Activity revision and enrollment, has deterministic `idempotencyKey` (`enrollmentId:scheduleItemId:cycleIndex`), and records `programDayIndex` for display and group alignment.
-4. Calendar renders combined items sorted by date/time and stable position; standalone items have null source/enrollment.
+4. Calendar renders combined items sorted by date/time and stable position; standalone items have null source/enrollment. Use a wide monthly workspace and roomy weekly columns; Activity tiles remain readable and emphasize today's date independently of selection. Tiles show permitted group avatars and an available media preview. Users can quick-finish a PLANNED item as an explicit manual completion, or soft-cancel it from the tile; repeating items require an explicit `THIS_ONE` or `THIS_AND_FUTURE` scope.
 5. User move changes just that Calendar Item; user duplicate creates another personal occurrence; remove marks CANCELLED (or soft-delete with audit), not source.
 6. When a user leaves enrollment, offer `Keep history; remove future scheduled items` vs `Keep future items as standalone` with explicit confirmation. Never erase past completed results.
 7. For indefinite recurrence, the worker generates the next horizon daily; because cancelled rows remain, cancellation prevents regeneration.

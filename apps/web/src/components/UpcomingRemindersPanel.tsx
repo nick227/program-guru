@@ -38,7 +38,7 @@ export function UpcomingRemindersPanel({
       <Stack className="gap-3">
         <Row className="justify-between">
           <div>
-            <h2>Activity Reminders</h2>
+            <h2>Reminders</h2>
             <p className="mt-1 text-xs text-muted">
               {timezone.replaceAll('_', ' ')} ·{' '}
               {notifPrefs.inAppReminders
@@ -50,9 +50,6 @@ export function UpcomingRemindersPanel({
                 : 'Daily email off'}
             </p>
           </div>
-          <Link to="/settings#reminders" className={linkButton}>
-            Preferences
-          </Link>
         </Row>
 
         <ErrorMessage

@@ -1,19 +1,27 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   useCopyProgram,
   useCreateProgram,
   useCurrentUser,
-  useDiscoverPrograms,
+  useProgramSuggestions,
   useProgramTypes,
   useRenameProgram,
   type components,
 } from '@project/sdk'
-import { Page, Stage, Stack, Row, Grid, Panel } from '@/components/ui/Layout'
+import { Page, Stage, Stack, Row, Grid } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { ProgramHeader } from '@/components/ProgramHeader'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back } from '@/components/Navigation'
+import {
+  useLibraryBrowser,
+  type LibraryBrowserContext,
+} from '@/components/LibraryBrowser'
+import { SuggestionRail } from '@/components/SuggestionRail'
+import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
+import { programCard } from '@/lib/discoveryCards'
+import { programHero } from '@/lib/hero'
 import { safeReturn } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
@@ -24,7 +32,7 @@ type ProgramWorkspace = components['schemas']['ProgramWorkspace']
 
 export function ProgramCreatePage() {
   useDocumentTitle('Add a Program')
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
   const backTo = safeReturn(params.get('returnTo'), '/')
   const navigate = useNavigate()
   const online = useOnline()
@@ -33,26 +41,42 @@ export function ProgramCreatePage() {
   const create = useCreateProgram()
   const copy = useCopyProgram()
   const rename = useRenameProgram()
-  const [typeId, setTypeId] = useState('')
+  // The chosen type lives in the URL so Back, refresh and the nested browser keep it.
+  const typeId = params.get('type') ?? ''
+  const setTypeId = (next: string) =>
+    setParams(
+      (previous) => {
+        const query = new URLSearchParams(previous)
+        if (next) query.set('type', next)
+        else query.delete('type')
+        return query
+      },
+      { replace: !next },
+    )
+  const browser = useLibraryBrowser()
+  const categorySlugOf = useCategorySlugOf()
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [startingPoint, setStartingPoint] = useState<Program | null>(null)
   const [createdDraft, setCreatedDraft] = useState<ProgramWorkspace | null>(null)
-  const [showMore, setShowMore] = useState(false)
-  const [searchTitle, setSearchTitle] = useState('')
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSearchTitle(title.trim()), 250)
-    return () => window.clearTimeout(timer)
-  }, [title])
-
-  const programs = useDiscoverPrograms(searchTitle, typeId)
   const type = types.data?.find((item) => item.id === typeId)
-  const suggestions =
-    programs.data?.pages.flatMap((page) =>
-      page.data.flatMap((item) => (item.program ? [item.program] : [])),
-    ) ?? []
+  const suggestions = useProgramSuggestions({
+    programTypeId: typeId,
+    enabled: !!typeId,
+  })
   const busy = create.isPending || copy.isPending || rename.isPending
-  const error = types.error || programs.error || create.error || copy.error || rename.error
+  function chooseStartingPoint(program: Program) {
+    setStartingPoint(program)
+    setTitle(program.title)
+    if (program.type.id !== typeId) setTypeId(program.type.id)
+  }
+  const browserContext: LibraryBrowserContext = {
+    kind: 'programs',
+    programTypeId: typeId,
+    actionLabel: 'Use as starting point',
+    onPick: chooseStartingPoint,
+  }
+  const error = types.error || create.error || copy.error || rename.error
 
   async function continueToWorkspace() {
     if (!type || !title.trim() || !online || busy) return
@@ -75,6 +99,7 @@ export function ProgramCreatePage() {
       const renamed = await rename.mutateAsync({
         programId: workspace.id,
         title: title.trim(),
+        description: description.trim() || undefined,
         expectedRevision: workspace.draftRevision,
       })
 
@@ -86,47 +111,29 @@ export function ProgramCreatePage() {
 
   return (
     <Page>
-      <Stage className="max-w-3xl">
+      <Stage className="w-full">
         <Back to={backTo}>Calendar</Back>
-        <header className="add-program-heading">
-          <div className="add-program-heading__copy">
-            <p className="page-kicker">Your next Program</p>
-            <h1 className="page-title">Add a Program</h1>
-          </div>
-          <p className="add-program-step" aria-live="polite">
-            <span>{typeId ? '02' : '01'}</span> / 03
-          </p>
-        </header>
-        <div
-          className="add-program-progress"
-          role="progressbar"
-          aria-label="Add a Program"
-          aria-valuemin={1}
-          aria-valuemax={3}
-          aria-valuenow={typeId ? 2 : 1}
-        >
-          <span className={typeId ? 'add-program-progress__fill is-wide' : 'add-program-progress__fill'} />
-        </div>
+        <ProgramHeader
+          title={title}
+          onTitleChange={typeId ? setTitle : undefined}
+          step={typeId ? 2 : 1}
+          autoFocus={!!typeId}
+          disabled={busy}
+          onConfirm={() => void continueToWorkspace()}
+        />
 
         <ErrorMessage
           error={error}
-          retry={
-            types.error
-              ? () => void types.refetch()
-              : programs.error
-                ? () => void programs.refetch()
-                : undefined
-          }
+          retry={types.error ? () => void types.refetch() : undefined}
         />
 
         {!typeId ? (
           <Stack className="gap-5">
             <div>
-              <p className="page-kicker">01 · Classify your plan</p>
               <h2 className="add-program-question">What kind of Program?</h2>
               <p className="mt-2 text-muted">
-                Pick a type to see useful starting points. You can customize
-                everything next.
+                Choose a type, then name a new Program or start from an
+                existing one.
               </p>
             </div>
             {types.isPending ? (
@@ -141,8 +148,8 @@ export function ProgramCreatePage() {
                     onClick={() => {
                       setTypeId(item.id)
                       setTitle('')
+                      setDescription('')
                       setStartingPoint(null)
-                      setShowMore(false)
                     }}
                   >
                     <span className="add-program-type__index">
@@ -160,16 +167,14 @@ export function ProgramCreatePage() {
         ) : (
           <Stack className="gap-5">
             <Row className="justify-between">
-              <div>
-                <p className="page-kicker">02 · Name or start from a template</p>
-                <h2 className="add-program-question">What is your Program?</h2>
-              </div>
+              <span className="add-program-title__type">{type?.label}</span>
               <Button
                 variant="ghost"
                 disabled={busy || !!createdDraft}
                 onClick={() => {
                   setTypeId('')
                   setTitle('')
+                  setDescription('')
                   setStartingPoint(null)
                   setCreatedDraft(null)
                 }}
@@ -178,121 +183,19 @@ export function ProgramCreatePage() {
               </Button>
             </Row>
 
-            <div className="add-program-title">
-              <span className="add-program-title__type">{type?.label}</span>
-              <label className="space-y-2">
-                <span className="text-sm font-semibold">Program name</span>
-                <Input
-                  autoFocus
-                  maxLength={140}
-                  value={title}
-                  placeholder="Give it a name you can change later"
-                  onChange={(event) => {
-                    setTitle(event.target.value)
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && title.trim()) {
-                      event.preventDefault()
-                      void continueToWorkspace()
-                    }
-                  }}
-                />
-              </label>
-            </div>
+            <label className="field">
+              <span className="label">Program description (optional)</span>
+              <textarea
+                className="textarea min-h-28"
+                maxLength={5000}
+                value={description}
+                placeholder="What is this Program about?"
+                disabled={busy}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </label>
 
-            <div className="add-program-suggestions">
-              <Row className="items-end justify-between">
-                <div>
-                  <p className="page-kicker">
-                    {title.trim() ? 'Matching starting points' : 'A few places to start'}
-                  </p>
-                  <h3 className="text-lg font-semibold">
-                    Starting points <span className="font-normal text-muted">· {type?.label}</span>
-                  </h3>
-                </div>
-                {programs.isFetching && !programs.isPending && (
-                  <span className="text-xs text-muted">Updating…</span>
-                )}
-              </Row>
-              {programs.isPending ? (
-                <Loading />
-              ) : suggestions.length ? (
-                <>
-                  <Grid className="grid-cols-1 gap-2 sm:grid-cols-2">
-                    {suggestions.slice(0, showMore ? undefined : 4).map((program, index) => {
-                      const selected = startingPoint?.id === program.id
-                      return (
-                        <button
-                          key={program.id}
-                          type="button"
-                          disabled={!!createdDraft}
-                          aria-pressed={selected}
-                          className={`add-program-suggestion${selected ? ' is-selected' : ''}`}
-                          onClick={() => {
-                            if (createdDraft) return
-                            setStartingPoint(program)
-                            setTitle(program.title)
-                          }}
-                        >
-                          <span className="add-program-suggestion__index">
-                            {String(index + 1).padStart(2, '0')}
-                          </span>
-                          <span className="add-program-suggestion__body">
-                            <strong>{program.title}</strong>
-                            <span>
-                              {program.focus?.label ? `${program.focus.label} · ` : ''}
-                              {program.frequencyLabel || 'Flexible schedule'}
-                              {program.durationDays
-                                ? ` · ${Math.ceil(program.durationDays / 7)} wk`
-                                : ''}
-                            </span>
-                          </span>
-                          <span className="add-program-suggestion__check" aria-hidden>
-                            {selected ? '✓' : '+'}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </Grid>
-                  {programs.hasNextPage && (
-                    <Button
-                      variant="link"
-                      loading={programs.isFetchingNextPage}
-                      onClick={async () => {
-                        if (!showMore) setShowMore(true)
-                        await programs.fetchNextPage()
-                      }}
-                    >
-                      More starting points
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <Panel className="panel--quiet">
-                  <p className="text-sm text-muted">
-                    No matching starting points. Continue with a blank Program,
-                    or try a shorter title.
-                  </p>
-                </Panel>
-              )}
-              {startingPoint && (
-                <Button
-                  variant="link"
-                  className="self-start"
-                  disabled={!!createdDraft}
-                  onClick={() => setStartingPoint(null)}
-                >
-                  Start with a blank structure instead
-                </Button>
-              )}
-            </div>
-
-            <div className="add-program-footer">
-              <p className="text-sm text-muted">
-                {startingPoint
-                  ? 'You’ll get your own editable copy. The original stays unchanged.'
-                  : 'Start with an empty structure. Add Activities and a schedule next.'}
-              </p>
+            <div className="add-program mb-64">
               <Button
                 size="lg"
                 disabled={!title.trim() || !online || busy}
@@ -301,14 +204,62 @@ export function ProgramCreatePage() {
               >
                 {!me.data
                   ? 'Sign in to continue'
-                  : startingPoint
-                    ? 'Use this starting point'
-                    : 'Create Program'}
+                  : 'Continue to customize'}
               </Button>
             </div>
+
+            <SuggestionRail
+              title="Suggested"
+              actionLabel="Use as starting point"
+              items={suggestions.items.map((program) =>
+                programCard(program, categorySlugOf),
+              )}
+              loading={suggestions.isPending}
+              error={suggestions.error}
+              retry={() => void suggestions.refetch()}
+              selectedId={startingPoint?.id}
+              disabled={!!createdDraft}
+              onPick={(id) => {
+                const program = suggestions.items.find((p) => p.id === id)
+                if (program) chooseStartingPoint(program)
+              }}
+              footer={
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="self-start"
+                  disabled={!!createdDraft}
+                  aria-label="Browse Program Library"
+                  onClick={browser.open}
+                >
+                  Browse
+                </Button>
+              }
+            />
+            {startingPoint && (
+              <Row className="justify-between gap-3 rounded-lg border border-border p-3">
+                <Row className="min-w-0 flex-1 flex-nowrap gap-3">
+                  <EntityHero
+                    hero={programHero(startingPoint, categorySlugOf)}
+                    size="thumb"
+                  />
+                  <p className="min-w-0 truncate text-sm">
+                    Starting point: <strong>{startingPoint.title}</strong>
+                  </p>
+                </Row>
+                <Button
+                  variant="link"
+                  disabled={!!createdDraft}
+                  onClick={() => setStartingPoint(null)}
+                >
+                  Remove
+                </Button>
+              </Row>
+            )}
           </Stack>
         )}
       </Stage>
+      <Outlet context={browserContext} />
     </Page>
   )
 }

@@ -40,15 +40,10 @@ export function EntityHero({
       data-hero-category={hero.category}
       data-hero-fallback={showImage ? undefined : 'true'}
       className={cn(
-        'relative isolate flex shrink-0 items-center justify-center overflow-hidden',
+        'relative isolate flex shrink-0 items-center justify-center overflow-visible',
         SIZES[size],
         className,
       )}
-      style={
-        {
-          background: `linear-gradient(135deg, hsl(${tone} / 0.9), hsl(${tone} / 0.55))`,
-        } as CSSProperties
-      }
     >
       <CategoryIcon
         category={hero.category}

@@ -32,7 +32,7 @@ const browserTimezone = () => {
 function AuthShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Page>
-      <Stage>
+      <Stage className="max-w-xl">
         <p className="font-display text-muted">Programs</p>
         <h1>{title}</h1>
         {children}

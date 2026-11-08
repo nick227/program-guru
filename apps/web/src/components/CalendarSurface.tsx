@@ -1,26 +1,10 @@
-import { Link } from 'react-router-dom'
-import { Check, ChevronRight } from 'lucide-react'
-import { AvatarStack } from '@/components/AvatarStack'
-import { UnreadDot } from '@/components/UnreadDot'
+import React from 'react'
+import { ActivityTile, type ActivityTileDensity, type ActivityTileItem } from '@/components/ActivityTile'
 import { cn } from '@/lib/utils'
 
-export type SurfaceItem = {
-  id: string
-  day: string
-  title: string
-  detail?: string
-  done?: boolean
-  notParticipating?: boolean
-  status?: 'PLANNED' | 'SKIPPED' | 'CANCELLED' | 'DONE' | 'NOT_PARTICIPATING'
-  href?: string
-  locked?: boolean
-  conflict?: boolean
-  thumbnailUrl?: string | null
-  avatarUrls?: string[]
-  unreadCount?: number
-}
+export type SurfaceItem = ActivityTileItem
 
-type CalendarDay = {
+export type CalendarDay = {
   id: string
   label: string
   number: string
@@ -28,101 +12,87 @@ type CalendarDay = {
   inCurrentMonth?: boolean
 }
 
-function itemStatus(item: SurfaceItem): string {
-  if (item.locked) return 'Access required'
-  if (item.done || item.status === 'DONE') return 'Completed'
-  if (item.notParticipating || item.status === 'NOT_PARTICIPATING') {
-    return 'Not participating'
-  }
-  if (item.status === 'SKIPPED') return 'Skipped'
-  if (item.status === 'CANCELLED') return 'Cancelled'
-  if (item.conflict) return 'Overlaps another Activity'
-  return 'Planned'
-}
-
-function ActivityCard({ item }: { item: SurfaceItem }) {
-  const status = itemStatus(item)
-  const content = (
-    <>
-      <span className="calendar-item__thumb" aria-hidden>
-        {item.thumbnailUrl ? (
-          <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          item.title.slice(0, 1)
-        )}
-      </span>
-      <span className="calendar-item__title-row min-w-0">
-        <span className="calendar-item__title">{item.title}</span>
-        <span className="calendar-item__icon">
-          {item.done || item.status === 'DONE' ? (
-            <Check size={16} aria-label="Completed" className="calendar-item__icon--done" />
-          ) : item.href ? (
-            <ChevronRight size={14} aria-hidden />
-          ) : null}
-          <UnreadDot count={item.unreadCount ?? 0} />
-        </span>
-      </span>
-      <span className="calendar-item__details">
-        {item.detail || 'Personal activity'}
-        <span
-          className={cn(
-            'calendar-item__status',
-            (item.done || item.status === 'DONE') && 'calendar-item__status--done',
-            item.conflict && 'calendar-item__status--attention',
-            item.locked && 'calendar-item__status--danger',
-          )}
-        >
-          {status}
-        </span>
-        {!!item.avatarUrls?.length && (
-          <AvatarStack
-            people={item.avatarUrls.map((url, i) => ({
-              id: `${item.id}-${i}`,
-              name: 'Collaborator',
-              avatarUrl: url,
-            }))}
-            className="mt-2"
-            max={3}
-          />
-        )}
-      </span>
-    </>
-  )
-
-  const className = 'calendar-item'
-  const label = [item.title, item.detail, status].filter(Boolean).join(' · ')
-  return item.href ? (
-    <Link key={item.id} to={item.href} className={className} aria-label={label}>
-      {content}
-    </Link>
-  ) : (
-    <div key={item.id} className={className}>
-      {content}
-    </div>
-  )
-}
-
 function DayItems({
   day,
   items,
-  compact = false,
+  density = 'card',
+  onComplete,
+  onRemove,
+  completing,
+  removing,
+  showEmpty = true,
+  onExpand,
 }: {
   day: CalendarDay
   items: SurfaceItem[]
-  compact?: boolean
+  density?: ActivityTileDensity
+  onComplete?: (itemId: string) => void
+  onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
+  completing?: boolean
+  removing?: boolean
+  showEmpty?: boolean
+  onExpand?: () => void
 }) {
   const rows = items.filter((item) => item.day === day.id)
+
+  if (!rows.length) {
+    if (density !== 'month' && showEmpty) {
+      return (
+        <div className="calendar-empty-day">
+          <p>No activities planned</p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  const renderTile = (item: SurfaceItem) => (
+    <ActivityTile
+      key={item.id}
+      item={item}
+      density={density}
+      onComplete={onComplete}
+      onRemove={onRemove}
+      completing={completing}
+      removing={removing}
+    />
+  )
+
+  if (density === 'day') {
+    // Local wall-clock times are already in the calendar's timezone. Do not
+    // convert them through the browser timezone or infer a session duration.
+    const slots = new Map<string, SurfaceItem[]>()
+    for (const item of rows) {
+      const time = item.localTime?.slice(0, 5) || ''
+      const slot = slots.get(time) ?? []
+      slot.push(item)
+      slots.set(time, slot)
+    }
+    const times = [...slots.keys()].sort((a, b) => {
+      if (!a) return 1
+      if (!b) return -1
+      return a.localeCompare(b)
+    })
+    return (
+      <ol className="calendar-agenda" aria-label="Activities by start time">
+        {times.map((time) => (
+          <li key={time || 'untimed'} className="calendar-agenda__slot">
+            <h3 className="calendar-agenda__time">
+              {time ? <time dateTime={`${day.id}T${time}`}>{time}</time> : 'Any time'}
+            </h3>
+            <div className="calendar-agenda__items">
+              {slots.get(time)!.map(renderTile)}
+            </div>
+          </li>
+        ))}
+      </ol>
+    )
+  }
+
   return (
     <div className="calendar-day-items">
-      {rows.slice(0, compact ? 2 : undefined).map((item) => (
-        <ActivityCard key={item.id} item={item} />
-      ))}
-      {compact && rows.length > 2 && (
-        <p className="calendar-more">+{rows.length - 2} more</p>
-      )}
-      {!rows.length && !compact && (
-        <p className="calendar-empty">No Activities planned</p>
-      )}
+      {(density === 'month' ? rows.slice(0, 4) : rows).map(renderTile)}
+      {density === 'month' && rows.length > 4 && <button type="button" className="calendar-month-more" onClick={onExpand}>+{rows.length - 4} more</button>}
     </div>
   )
 }
@@ -133,27 +103,44 @@ export function CalendarSurface({
   onSelect,
   items,
   view = 'week',
+  onComplete,
+  onRemove,
+  completing = false,
+  removing = false,
 }: {
   days: CalendarDay[]
   selected: string
   onSelect: (day: string) => void
   items: SurfaceItem[]
   view?: 'day' | 'week' | 'month'
+  onComplete?: (itemId: string) => void
+  onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
+  completing?: boolean
+  removing?: boolean
 }) {
   const selectedDay = days.find((day) => day.id === selected) ?? days[0]
   if (!selectedDay) return null
 
+  // --- MONTH VIEW ---
   if (view === 'month') {
     return (
       <div className="calendar">
-        <div className="calendar-month-weekdays" aria-hidden>
+        {/* Weekday column headers */}
+        <div className="calendar-month-weekdays hidden xl:grid" aria-hidden>
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-            <span key={day}>{day}</span>
+            <span key={day} className="py-1">
+              {day}
+            </span>
           ))}
         </div>
-        <div className="calendar-month-picker sm:hidden" aria-label="Select a day">
+
+        {/* Mobile quick day strip */}
+        <div className="calendar-month-picker xl:hidden" aria-label="Select a day">
           {days.map((day) => {
-            const count = items.filter((item) => item.day === day.id).length
+            const dayItems = items.filter((item) => item.day === day.id)
+            const count = dayItems.length
+            const isCompleted = count > 0 && dayItems.every((it) => it.done || it.status === 'DONE')
+
             return (
               <button
                 key={day.id}
@@ -171,117 +158,220 @@ export function CalendarSurface({
                 )}
               >
                 <span>{day.number}</span>
-                {count > 0 && <span className="calendar-month-count">{count}</span>}
+                {count > 0 && (
+                  <span
+                    className={cn(
+                      'calendar-month-count',
+                      isCompleted && 'text-success font-bold',
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
               </button>
             )
           })}
         </div>
-        <div className="calendar-month-grid" aria-label="Monthly calendar">
+
+        {/* Desktop/Tablet Month Grid */}
+        <div className="calendar-month-grid hidden xl:grid" aria-label="Monthly calendar">
           {days.map((day) => {
-            const count = items.filter((item) => item.day === day.id).length
+            const dayItems = items.filter((item) => item.day === day.id)
+            const count = dayItems.length
+            const isSelected = selected === day.id
+
             return (
               <section
                 key={day.id}
                 className={cn(
-                  'calendar-month-cell',
-                  !day.inCurrentMonth && 'calendar-month-cell--outside',
-                  selected === day.id && 'calendar-month-cell--selected',
+                  'calendar-month-cell border border-border px-2',
+                  !day.inCurrentMonth && 'calendar-month-cell--outside opacity-40',
+                  isSelected && 'calendar-month-cell--selected',
+                  day.today && 'calendar-month-cell--today',
                 )}
               >
-                <button
-                  type="button"
-                  disabled={!day.inCurrentMonth}
-                  aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
-                  aria-pressed={selected === day.id}
-                  aria-current={day.today ? 'date' : undefined}
-                  onClick={() => onSelect(day.id)}
-                  className={cn(
-                    'calendar-month-date',
-                    day.today && 'calendar-month-date--today',
-                  )}
-                >
-                  <span>{day.number}</span>
-                  {count > 0 && <span className="calendar-month-count">{count}</span>}
-                </button>
-                <DayItems day={day} items={items} compact />
+                <div className="flex items-center justify-end mb-1.5">
+                  <button
+                    type="button"
+                    disabled={!day.inCurrentMonth}
+                    aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
+                    aria-pressed={isSelected}
+                    aria-current={day.today ? 'date' : undefined}
+                    onClick={() => onSelect(day.id)}
+                    className={cn(
+                      'inline-flex min-h-8 min-w-10 items-center gap-1.5 flex justify-center font-mono text-lg font-semibold transition-colors',
+                      day.today && 'font-bold',
+                      !day.today && isSelected && 'bg-surface-raised font-bold text-foreground',
+                      !day.today && !isSelected && 'text-muted group-hover:text-foreground',
+                    )}
+                  >
+                    <span>{day.number}</span>
+                  </button>
+
+                </div>
+
+                <DayItems
+                  day={day}
+                  items={items}
+                  density="month"
+                  onExpand={() => onSelect(day.id)}
+                  onComplete={onComplete}
+                  onRemove={onRemove}
+                  completing={completing}
+                  removing={removing}
+                  showEmpty={false}
+                />
               </section>
             )
           })}
         </div>
-        <section className="calendar-selected-day">
-          <h2>
-            {selectedDay.label} {selectedDay.number}
-          </h2>
-          <DayItems day={selectedDay} items={items} />
+
+        {/* Selected Day Agenda Drawer / Section beneath the month grid */}
+        <section className="calendar-selected-day calendar-selected-day--mobile-only mt-6 pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-display text-lg font-bold">
+              {selectedDay.today ? 'Today' : `${selectedDay.label} ${selectedDay.number}`}
+            </h3>
+            <span className="text-xs text-muted">
+              {items.filter((item) => item.day === selectedDay.id).length}{' '}
+              {items.filter((item) => item.day === selectedDay.id).length === 1
+                ? 'activity'
+                : 'activities'}{' '}
+              scheduled
+            </span>
+          </div>
+          <DayItems
+            day={selectedDay}
+            items={items}
+            density="day"
+            onComplete={onComplete}
+            onRemove={onRemove}
+            completing={completing}
+            removing={removing}
+          />
         </section>
       </div>
     )
   }
 
+  // --- DAY VIEW ---
   if (view === 'day') {
     return (
       <section className="calendar-selected-day">
-        <h2>{selectedDay.label}</h2>
-        <DayItems day={selectedDay} items={items} />
+        <DayItems
+          day={selectedDay}
+          items={items}
+          density="day"
+          onComplete={onComplete}
+          onRemove={onRemove}
+          completing={completing}
+          removing={removing}
+        />
       </section>
     )
   }
 
+  // --- WEEK VIEW ---
   return (
     <div className="calendar">
+      {/* Modern Week Strip with date headers */}
       <div className="calendar-weekstrip" aria-label="Select a day">
         {days.map((day) => {
-          const count = items.filter((item) => item.day === day.id).length
+          const dayItems = items.filter((item) => item.day === day.id)
+          const count = dayItems.length
+          const isSelected = selected === day.id
+          const completedCount = dayItems.filter((it) => it.done || it.status === 'DONE').length
+
           return (
             <button
               key={day.id}
               type="button"
               aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
-              aria-pressed={selected === day.id}
+              aria-pressed={isSelected}
               aria-current={day.today ? 'date' : undefined}
               onClick={() => onSelect(day.id)}
               className={cn(
-                'calendar-day',
-                selected === day.id && 'calendar-day--selected',
+                'calendar-day p-2 transition-all duration-fast',
+                isSelected && 'calendar-day--selected',
                 day.today && 'calendar-day--today',
               )}
             >
-              <span className="calendar-day__label" aria-hidden>
-                {day.label}
+              <span className="calendar-day__label text-xs uppercase" aria-hidden>
+                {day.today ? 'Today' : day.label}
               </span>
-              <span className="calendar-day__number" aria-hidden>
+              <span className="calendar-day__number font-mono text-xl font-bold my-0.5" aria-hidden>
                 {day.number}
               </span>
+
               {count > 0 && (
-                <span className="calendar-day__count" aria-hidden>
-                  {count}
+                <span
+                  className={cn(
+                    'mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                    isSelected
+                      ? 'bg-surface-muted text-foreground'
+                      : completedCount === count
+                        ? 'bg-success/20 text-success'
+                        : 'bg-surface-muted text-muted',
+                  )}
+                  aria-hidden
+                >
+                  {completedCount}/{count}
                 </span>
               )}
             </button>
           )
         })}
       </div>
-      <div className="calendar-board">
-        {days.map((day) => (
-          <section
-            key={day.id}
-            aria-label={day.label}
-            className={cn(
-              'calendar-column',
-              selected !== day.id && 'calendar-column--hidden-mobile',
-            )}
-          >
-            <button
-              type="button"
-              aria-pressed={selected === day.id}
-              onClick={() => onSelect(day.id)}
-              className="calendar-column__heading"
+
+      {/* 7-Day Board Grid */}
+      <div className="calendar-board mt-4">
+        {days.map((day) => {
+          const dayItems = items.filter((item) => item.day === day.id)
+          const count = dayItems.length
+          const isSelected = selected === day.id
+
+          return (
+            <section
+              key={day.id}
+              aria-label={day.label}
+              className={cn(
+                'calendar-column flex flex-col gap-3',
+                !isSelected && 'calendar-column--hidden-mobile',
+                day.today && 'calendar-column--today',
+              )}
             >
-              {day.label} {day.number}
-            </button>
-            <DayItems day={day} items={items} />
-          </section>
-        ))}
+              <button
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => onSelect(day.id)}
+                className={cn(
+                  'calendar-column__heading flex items-center justify-between p-2 rounded-lg transition-colors',
+                  isSelected ? 'bg-surface-raised font-bold' : 'hover:bg-surface-muted',
+                  day.today && 'calendar-column__heading--today',
+                )}
+              >
+                <span className="font-display text-sm font-semibold">
+                  {day.today ? `Today · ${day.label} ${day.number}` : `${day.label} ${day.number}`}
+                </span>
+                {count > 0 && (
+                  <span className="font-mono text-xs text-muted">
+                    {count}
+                  </span>
+                )}
+              </button>
+
+              <DayItems
+                day={day}
+                items={items}
+                density="week"
+                onComplete={onComplete}
+                onRemove={onRemove}
+                completing={completing}
+                removing={removing}
+              />
+            </section>
+          )
+        })}
       </div>
     </div>
   )

@@ -614,7 +614,7 @@ test('occurrence rows follow the locked order with media after session controls'
   expect([...order].sort((a, b) => a - b)).toEqual(order)
 })
 
-test('session capture attaches to the current attempt privately without starting it', async ({
+test('session upload attaches to the current attempt privately without starting it', async ({
   page,
 }) => {
   await mockApi(page)
@@ -622,15 +622,15 @@ test('session capture attaches to the current attempt privately without starting
   await login(page, 'participant@test.local', 'password')
   await page.goto(`/occurrences/${itemId}`)
   const session = page.getByRole('heading', { name: 'Session', exact: true }).locator('xpath=ancestor::section[1]')
-  await expect(session.getByRole('button', { name: 'Capture media' })).toBeEnabled()
-  await session.locator('input[type="file"][capture]').setInputFiles({
+  await expect(session.getByRole('button', { name: 'Upload media' })).toBeEnabled()
+  await session.locator('input[type="file"]').setInputFiles({
     name: 'capture.png',
     mimeType: 'image/png',
     buffer: Buffer.from('fixture-capture'),
   })
-  await expect(session.getByText('Processing capture…')).toBeVisible()
+  await expect(session.getByText('Processing media…')).toBeVisible()
   media.ready()
-  await expect(session.getByText('Capture added to this attempt.')).toBeVisible()
+  await expect(session.getByText('Media attached to this attempt.')).toBeVisible()
   const attachCalls = media.calls.filter(
     (call) => call.path === '/media-attachments' && call.method === 'POST',
   )

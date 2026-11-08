@@ -19,7 +19,7 @@ export async function userTimezone(userId: string) {
 }
 
 const itemInclude = {
-  enrollment: { include: { program: { include: { policy: true } }, version: true } },
+  enrollment: { include: { program: { include: { policy: true } }, version: true, group: true } },
 } satisfies Prisma.CalendarItemInclude
 type ItemRow = Prisma.CalendarItemGetPayload<{ include: typeof itemInclude }>
 
@@ -53,6 +53,14 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
     if (list) list.push(m)
     else membersByGroup.set(m.groupId, [m])
   }
+  const sessions = await db.activitySession.findMany({
+    where: { userId, calendarItemId: { in: items.map((i) => i.id) }, status: { in: ['ACTIVE', 'PAUSED', 'FINISHED'] } },
+    orderBy: { createdAt: 'desc' },
+  })
+  const shares = keys.length ? await db.completionShare.findMany({
+    where: { occurrenceKey: { in: keys }, groupId: { in: groupIds }, revokedAt: null },
+    select: { groupId: true, occurrenceKey: true, userId: true },
+  }) : []
   // Timed items sharing a local date and time are flagged on both tiles (03 §5).
   const slots = new Map<string, number>()
   for (const i of items) {
@@ -72,7 +80,12 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
       .slice(0, 4)
       .map((m) => mediaUrl(m.user.profile?.avatarMediaId) ?? '')
       .filter(Boolean)
+    const session = sessions.find((s) => s.calendarItemId === i.id)
     return {
+      sessionStatus: session?.status ?? null,
+      activeSeconds: session ? session.activeSeconds + (session.status === 'ACTIVE' && session.lastResumedAt ? Math.max(0, Math.floor((Date.now() - session.lastResumedAt.getTime()) / 1000)) : 0) : null,
+      groupName: i.enrollment?.group ? i.enrollment.group.name ?? `${i.enrollment.version.title} group` : null,
+      sharedCompletionCount: i.enrollment?.groupId ? shares.filter((s) => s.groupId === i.enrollment!.groupId && s.occurrenceKey === i.groupOccurrenceKey).length : null,
       id: i.id,
       localDate: date,
       localTime: i.localTime,

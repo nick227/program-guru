@@ -44,7 +44,7 @@ describe('listMetricDefinitions', () => {
 })
 
 describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
-  it('deterministically and idempotently seeds 81 activities, 5 starter programs, 7 achievements, and rights-cleared media', async () => {
+  it('deterministically and idempotently seeds 81 activities, starter programs, 7 achievements, and rights-cleared media', async () => {
     const first = await seedDatabase(db)
     expect(first).toMatchObject({
       categories: 6,
@@ -54,16 +54,19 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
       tools: 6,
       achievements: 7,
       activities: 81,
-      starterPrograms: 5,
+      starterPrograms: 23,
     })
-    expect(first.platformMediaFiles).toBe(160) // 80 illustrations × (original + thumbnail)
+    expect(first.platformMediaFiles).toBe(206) // (80 illustrations + 23 Program covers) × (original + thumbnail)
     // Running a second time is a no-op: same row counts, and no file is uploaded again.
     const second = await seedDatabase(db)
     expect(second).toEqual({ ...first, platformMediaUploaded: 0 })
     expect(await db.activity.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(81)
-    expect(await db.program.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(5)
+    expect(await db.program.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(23)
     expect(await db.achievementDefinition.count()).toBe(7)
     expect(await db.mediaAsset.count({ where: { ownerId: null, license: null } })).toBe(0)
+    // Every starter Program shows its own curated CC0 cover, not a copied Activity image.
+    const programs = await db.program.findMany({ where: { creatorId: null }, include: { coverMedia: true } })
+    expect(programs.every((p) => p.coverMedia?.license === 'CC0-1.0' && p.coverMedia.attribution?.includes('commons.wikimedia.org'))).toBe(true)
   }, 30000)
 })
 

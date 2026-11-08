@@ -3344,6 +3344,13 @@ export interface components {
             conflict: boolean;
             locked: boolean;
             thumbnailUrl: string | null;
+            groupName?: string | null;
+            /** @description Number of non-revoked completion shares for this group occurrence. */
+            sharedCompletionCount?: number | null;
+            /** @enum {string|null} */
+            sessionStatus?: "ACTIVE" | "PAUSED" | "FINISHED" | null;
+            /** @description Measured session duration at fetch time, never an estimated target duration. */
+            activeSeconds?: number | null;
             participantAvatars: string[];
             unreadCount: number;
             /** Format: date-time */

@@ -110,6 +110,58 @@ export function useUndoCompletion() {
     [keys.calendar, keys.occurrences, ['achievements'], keys.programs, keys.activityAttempts],
   )
 }
+export function useQuickCompleteCalendarItem() {
+  return useApiMutation(
+    async ({
+      itemId,
+      idempotencyKey,
+    }: {
+      itemId: string
+      idempotencyKey: string
+    }) => {
+      const session = apiData(
+        await getApiClient().POST('/sessions', {
+          body: { calendarItemId: itemId, idempotencyKey },
+        }),
+      ).data
+      // A previous FINISH may have succeeded even if its response was lost.
+      // Read the occurrence before retrying a terminal session.
+      if (session.status === 'FINISHED') {
+        const occurrence = apiData(await getApiClient().GET('/calendar-items/{itemId}/occurrence', {
+          params: { path: { itemId } },
+        })).data
+        if (occurrence.item.status !== 'DONE') throw new Error('Completion was not confirmed. Open the Activity to continue.')
+        return { session, item: occurrence.item, achievementsEarned: [] }
+      }
+      const result = apiData(
+        await getApiClient().POST('/sessions/{sessionId}/actions', {
+          params: { path: { sessionId: session.id } },
+          body: { action: 'FINISH', expectedRevision: session.revision },
+        }),
+      ).data
+      if (result.session.status !== 'FINISHED' || result.item?.status !== 'DONE') throw new Error('Completion was not confirmed. Open the Activity to continue.')
+      return result
+    },
+    [keys.calendar, keys.occurrences, ['achievements'], keys.programs, keys.activityAttempts],
+  )
+}
+export function useCancelCalendarItem() {
+  return useApiMutation(
+    async ({
+      itemId,
+      scope,
+    }: {
+      itemId: string
+      scope: S['RecurrenceScope']
+    }) =>
+      apiData(
+        await getApiClient().DELETE('/calendar-items/{itemId}', {
+          params: { path: { itemId }, query: { scope } },
+        }),
+      ).data,
+    [keys.calendar, keys.occurrences, keys.programs],
+  )
+}
 export function useAddCalendarItem() {
   return useApiMutation(
     async (body: S['AddCalendarItemInput']) =>

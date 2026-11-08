@@ -386,3 +386,28 @@ export function useActivityMyAttempts(activityId: string, calendarItemId?: strin
     getNextPageParam: last => last.meta.nextCursor ?? undefined,
   })
 }
+
+/** Public approved media publications for an Activity. */
+export function useActivityPublicMedia(
+  activityId: string,
+  programId?: string,
+  enabled = true,
+) {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.activityPublicMedia(activityId, programId)),
+    enabled: enabled && !!activityId,
+    initialPageParam: undefined as string | undefined,
+    retry: false,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/activities/{activityId}/public-media', {
+          signal,
+          params: {
+            path: { activityId },
+            query: { programId, cursor: pageParam, limit: 24 },
+          },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}

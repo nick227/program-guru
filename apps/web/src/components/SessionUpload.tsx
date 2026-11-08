@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera } from 'lucide-react'
+import { Upload, Loader2, Check } from 'lucide-react'
 import { useMediaUpload } from '@project/sdk'
 import { Button } from './ui/Button'
 import { ErrorMessage } from './ui/Feedback'
 
 /**
- * Compact camera action beside Session Controls (03-UX §6 row 4).
- * Captures with the device camera, uploads privately, and attaches the
- * READY asset to the current attempt. It never starts the session timer
- * and never touches the Activity's identity image.
+ * Streamlined upload action beside Session Controls.
+ * Selects a photo or video to upload privately and attaches
+ * the READY asset to the current attempt. Replaces the legacy
+ * device camera capture.
  */
-export function SessionCapture({
+export function SessionUpload({
   attach,
   disabled,
 }: {
@@ -41,15 +41,15 @@ export function SessionCapture({
   const working =
     upload.busy || attaching || (!!waitingId && upload.stage === 'processing')
   const status = upload.busy
-    ? 'Uploading capture…'
+    ? 'Uploading…'
     : waitingId && upload.stage === 'processing'
-      ? 'Processing capture…'
+      ? 'Processing media…'
       : attaching
-        ? 'Adding to this attempt…'
+        ? 'Attaching to this attempt…'
         : upload.stage === 'failed' && waitingId
-          ? 'Couldn’t process this capture.'
+          ? 'Couldn’t process this file.'
           : attached
-            ? 'Capture added to this attempt.'
+            ? 'Media attached to this attempt.'
             : null
 
   return (
@@ -58,7 +58,6 @@ export function SessionCapture({
         ref={input}
         type="file"
         accept="image/*,video/*"
-        capture="environment"
         className="sr-only"
         tabIndex={-1}
         aria-hidden
@@ -73,14 +72,21 @@ export function SessionCapture({
         }}
       />
       <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Capture media"
-        title="Capture a photo or video for this attempt"
+        variant="outline"
+        aria-label="Upload media"
+        title="Upload a photo or video for this attempt"
         disabled={disabled || working}
         onClick={() => input.current?.click()}
+        className="gap-1.5"
       >
-        <Camera size={18} aria-hidden />
+        {working ? (
+          <Loader2 size={16} className="animate-spin" aria-hidden />
+        ) : attached ? (
+          <Check size={16} className="text-accent" aria-hidden />
+        ) : (
+          <Upload size={16} aria-hidden />
+        )}
+        <span>{working ? 'Uploading…' : 'Upload media'}</span>
       </Button>
       {status && (
         <p role="status" className="basis-full text-xs text-muted">
@@ -102,3 +108,5 @@ export function SessionCapture({
     </>
   )
 }
+
+

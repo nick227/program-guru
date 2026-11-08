@@ -6,7 +6,7 @@
 // so moderation and archive decisions stand.
 import { createHash } from 'crypto'
 import { db, type PrismaClient } from '../src/client'
-import { localSink, platformIllustration, publishPlatformFiles, type PlatformMediaSink } from './platform-media'
+import { localSink, platformIllustration, platformProgramCover, publishPlatformFiles, type PlatformIllustration, type PlatformMediaSink } from './platform-media'
 
 const SEEDED_AT = new Date('2026-01-01T00:00:00.000Z')
 
@@ -1512,9 +1512,13 @@ type StarterProgramSeed = {
   generationMode: 'ALL_EACH_DAY' | 'ROTATE'
   activitySlugs: string[]
   placements: { relativeDay: number; activitySlug: string; position: number; localTime: string }[]
+  enrollmentCount?: number
+  rankScore?: number
+  completionRate?: number
 }
 
 export const STARTER_PROGRAMS: StarterProgramSeed[] = [
+  // ── Workout (5 programs) ──────────────────────────────────────────────────
   {
     slug: 'starter-beginner-core-strength',
     title: 'Beginner Core & Strength',
@@ -1526,6 +1530,9 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
     frequency: { kind: 'N_PER_WEEK', n: 3 },
     generationMode: 'ALL_EACH_DAY',
     activitySlugs: ['warm-up', 'squats', 'push-ups', 'plank', 'glute-bridge', 'cool-down'],
+    enrollmentCount: 2840,
+    rankScore: 98,
+    completionRate: 0.84,
     placements: [1, 3, 5, 8, 10, 12, 15, 17, 19, 22, 24, 26].flatMap((day) => [
       { relativeDay: day, activitySlug: 'warm-up', position: 0, localTime: '07:30' },
       { relativeDay: day, activitySlug: 'squats', position: 1, localTime: '07:35' },
@@ -1535,6 +1542,96 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
       { relativeDay: day, activitySlug: 'cool-down', position: 5, localTime: '08:10' },
     ]),
   },
+  {
+    slug: 'starter-hiit-aerobic-conditioning',
+    title: 'HIIT Cardio & Stamina',
+    description: 'High-intensity cardio intervals, stair climbing, and tempo pacing to elevate metabolic conditioning.',
+    categorySlug: 'fitness',
+    programTypeSlug: 'workout',
+    focusSlug: 'cardio',
+    durationDays: 21,
+    frequency: { kind: 'N_PER_WEEK', n: 3 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['jog-intervals', 'stair-walking', 'brisk-walk', 'cool-down'],
+    enrollmentCount: 1890,
+    rankScore: 91,
+    completionRate: 0.78,
+    placements: [1, 3, 5, 8, 10, 12, 15, 17, 19].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'brisk-walk', position: 0, localTime: '07:00' },
+      { relativeDay: day, activitySlug: 'jog-intervals', position: 1, localTime: '07:15' },
+      { relativeDay: day, activitySlug: 'stair-walking', position: 2, localTime: '07:30' },
+      { relativeDay: day, activitySlug: 'cool-down', position: 3, localTime: '07:45' },
+    ]),
+  },
+  {
+    slug: 'starter-full-body-calisthenics',
+    title: 'Full-Body Calisthenics Progression',
+    description: 'Master fundamental bodyweight movement patterns: push-ups, lunges, squats, and deep trunk stabilization.',
+    categorySlug: 'fitness',
+    programTypeSlug: 'workout',
+    focusSlug: 'endurance',
+    durationDays: 28,
+    frequency: { kind: 'N_PER_WEEK', n: 4 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['push-ups', 'lunges', 'squats', 'side-plank', 'dead-bug', 'cool-down'],
+    enrollmentCount: 1450,
+    rankScore: 87,
+    completionRate: 0.81,
+    placements: [1, 2, 4, 5, 8, 9, 11, 12, 15, 16, 18, 19, 22, 23, 25, 26].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'push-ups', position: 0, localTime: '08:00' },
+      { relativeDay: day, activitySlug: 'lunges', position: 1, localTime: '08:10' },
+      { relativeDay: day, activitySlug: 'squats', position: 2, localTime: '08:20' },
+      { relativeDay: day, activitySlug: 'side-plank', position: 3, localTime: '08:30' },
+      { relativeDay: day, activitySlug: 'dead-bug', position: 4, localTime: '08:35' },
+      { relativeDay: day, activitySlug: 'cool-down', position: 5, localTime: '08:40' },
+    ]),
+  },
+  {
+    slug: 'starter-joint-mobility-flow',
+    title: 'Joint Mobility & Dynamic Recovery',
+    description: 'Unhurried, restorative joint rotations, hip openers, and hamstring length for desk workers and active athletes.',
+    categorySlug: 'fitness',
+    programTypeSlug: 'workout',
+    focusSlug: 'flexibility',
+    durationDays: 21,
+    frequency: { kind: 'N_PER_WEEK', n: 4 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['neck-mobility', 'shoulder-circles', 'hip-mobility', 'hamstring-stretch', 'calf-stretch'],
+    enrollmentCount: 960,
+    rankScore: 82,
+    completionRate: 0.92,
+    placements: [1, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 21].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'neck-mobility', position: 0, localTime: '08:30' },
+      { relativeDay: day, activitySlug: 'shoulder-circles', position: 1, localTime: '08:35' },
+      { relativeDay: day, activitySlug: 'hip-mobility', position: 2, localTime: '08:40' },
+      { relativeDay: day, activitySlug: 'hamstring-stretch', position: 3, localTime: '08:45' },
+      { relativeDay: day, activitySlug: 'calf-stretch', position: 4, localTime: '08:50' },
+    ]),
+  },
+  {
+    slug: 'starter-functional-daily-fitness',
+    title: 'Functional Daily Fitness',
+    description: 'Accessible daily movement combining wall sits, step-ups, balance practice, and posture alignment.',
+    categorySlug: 'fitness',
+    programTypeSlug: 'workout',
+    focusSlug: 'general-fitness',
+    durationDays: 28,
+    frequency: { kind: 'N_PER_WEEK', n: 3 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['step-ups', 'wall-sit', 'chair-squats', 'standing-row', 'balance-practice'],
+    enrollmentCount: 620,
+    rankScore: 79,
+    completionRate: 0.86,
+    placements: [1, 3, 5, 8, 10, 12, 15, 17, 19, 22, 24, 26].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'step-ups', position: 0, localTime: '09:00' },
+      { relativeDay: day, activitySlug: 'wall-sit', position: 1, localTime: '09:10' },
+      { relativeDay: day, activitySlug: 'chair-squats', position: 2, localTime: '09:15' },
+      { relativeDay: day, activitySlug: 'standing-row', position: 3, localTime: '09:20' },
+      { relativeDay: day, activitySlug: 'balance-practice', position: 4, localTime: '09:25' },
+    ]),
+  },
+
+  // ── Wellness Routine (5 programs) ──────────────────────────────────────────
   {
     slug: 'starter-daily-mindfulness-reflection',
     title: 'Daily Mindfulness & Reflection',
@@ -1546,6 +1643,9 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
     frequency: { kind: 'DAILY' },
     generationMode: 'ALL_EACH_DAY',
     activitySlugs: ['morning-routine', 'guided-meditation', 'gratitude-journal'],
+    enrollmentCount: 3200,
+    rankScore: 99,
+    completionRate: 0.89,
     placements: Array.from({ length: 14 }, (_, i) => i + 1).flatMap((day) => [
       { relativeDay: day, activitySlug: 'morning-routine', position: 0, localTime: '08:00' },
       { relativeDay: day, activitySlug: 'guided-meditation', position: 1, localTime: '12:30' },
@@ -1553,22 +1653,87 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
     ]),
   },
   {
-    slug: 'starter-daily-language-study',
-    title: 'Daily Language & Study Habit',
-    description: 'A 3-week structured study routine pairing active recall flashcards, reading, and speaking practice.',
-    categorySlug: 'education',
-    programTypeSlug: 'study-program',
-    focusSlug: 'languages',
+    slug: 'starter-deep-sleep-evening-reset',
+    title: 'Deep Sleep & Evening Wind-Down',
+    description: 'Structured bedtime routines to dim screens, soothe nighttime racing thoughts, and sleep deeply.',
+    categorySlug: 'wellness',
+    programTypeSlug: 'wellness-routine',
+    focusSlug: 'rest',
     durationDays: 21,
-    frequency: { kind: 'N_PER_WEEK', n: 5 },
+    frequency: { kind: 'DAILY' },
     generationMode: 'ALL_EACH_DAY',
-    activitySlugs: ['vocabulary-review', 'read-for-20-minutes', 'practice-speaking'],
-    placements: [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19].flatMap((day) => [
-      { relativeDay: day, activitySlug: 'vocabulary-review', position: 0, localTime: '18:00' },
-      { relativeDay: day, activitySlug: 'read-for-20-minutes', position: 1, localTime: '18:15' },
-      { relativeDay: day, activitySlug: 'practice-speaking', position: 2, localTime: '18:40' },
+    activitySlugs: ['screen-free-break', 'evening-wind-down', 'set-bedtime-reminder'],
+    enrollmentCount: 2100,
+    rankScore: 94,
+    completionRate: 0.85,
+    placements: Array.from({ length: 21 }, (_, i) => i + 1).flatMap((day) => [
+      { relativeDay: day, activitySlug: 'screen-free-break', position: 0, localTime: '20:30' },
+      { relativeDay: day, activitySlug: 'evening-wind-down', position: 1, localTime: '21:00' },
+      { relativeDay: day, activitySlug: 'set-bedtime-reminder', position: 2, localTime: '21:30' },
     ]),
   },
+  {
+    slug: 'starter-stress-relief-breathwork',
+    title: 'Midday Stress Relief & Breathwork',
+    description: 'Reset midday tension with 5-minute box breathing, gentle posture breaks, and fresh air resets.',
+    categorySlug: 'wellness',
+    programTypeSlug: 'wellness-routine',
+    focusSlug: 'relaxation',
+    durationDays: 28,
+    frequency: { kind: 'N_PER_WEEK', n: 5 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['breathing-exercise', 'stretch-break', 'outdoor-break'],
+    enrollmentCount: 1680,
+    rankScore: 89,
+    completionRate: 0.90,
+    placements: [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 22, 23, 24, 25, 26].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'breathing-exercise', position: 0, localTime: '11:30' },
+      { relativeDay: day, activitySlug: 'stretch-break', position: 1, localTime: '13:00' },
+      { relativeDay: day, activitySlug: 'outdoor-break', position: 2, localTime: '15:30' },
+    ]),
+  },
+  {
+    slug: 'starter-mindful-walking-nature',
+    title: 'Mindful Walking & Sensory Reset',
+    description: 'Leave the screen behind for short, sensory walks focusing on footfalls, breath, and natural light.',
+    categorySlug: 'wellness',
+    programTypeSlug: 'wellness-routine',
+    focusSlug: 'mindfulness',
+    durationDays: 21,
+    frequency: { kind: 'N_PER_WEEK', n: 4 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['mindful-walk', 'outdoor-break', 'breathing-break'],
+    enrollmentCount: 1120,
+    rankScore: 83,
+    completionRate: 0.88,
+    placements: [1, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 21].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'outdoor-break', position: 0, localTime: '12:00' },
+      { relativeDay: day, activitySlug: 'mindful-walk', position: 1, localTime: '12:15' },
+      { relativeDay: day, activitySlug: 'breathing-break', position: 2, localTime: '12:45' },
+    ]),
+  },
+  {
+    slug: 'starter-weekly-intentional-habits',
+    title: 'Weekly Intentional Habit Rhythm',
+    description: 'Start each day with clear intention and wrap up each week with mindful reflection on your energy.',
+    categorySlug: 'wellness',
+    programTypeSlug: 'wellness-routine',
+    focusSlug: 'daily-reflection',
+    durationDays: 28,
+    frequency: { kind: 'N_PER_WEEK', n: 4 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['morning-routine', 'daily-reflection', 'weekly-reflection'],
+    enrollmentCount: 740,
+    rankScore: 76,
+    completionRate: 0.91,
+    placements: [1, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 21, 22, 24, 26, 28].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'morning-routine', position: 0, localTime: '07:45' },
+      { relativeDay: day, activitySlug: 'daily-reflection', position: 1, localTime: '20:00' },
+      ...(day % 7 === 0 ? [{ relativeDay: day, activitySlug: 'weekly-reflection', position: 2, localTime: '20:30' }] : []),
+    ]),
+  },
+
+  // ── Savings Plan (4 programs) ─────────────────────────────────────────────
   {
     slug: 'starter-weekly-savings-budget',
     title: 'Weekly Savings & Budget Routine',
@@ -1580,6 +1745,9 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
     frequency: { kind: 'N_PER_WEEK', n: 2 },
     generationMode: 'ROTATE',
     activitySlugs: ['savings-contribution', 'weekly-budget-review', 'categorize-expenses', 'review-subscriptions'],
+    enrollmentCount: 2450,
+    rankScore: 96,
+    completionRate: 0.82,
     placements: [1, 4, 8, 11, 15, 18, 22, 25].map((day, idx) => ({
       relativeDay: day,
       activitySlug: ['savings-contribution', 'weekly-budget-review', 'categorize-expenses', 'review-subscriptions'][idx % 4]!,
@@ -1587,6 +1755,174 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
       localTime: '19:00',
     })),
   },
+  {
+    slug: 'starter-emergency-fund-kickstart',
+    title: 'Emergency Fund Kickstart',
+    description: 'Focused weekly transfers and milestone tracking to lock in your first month of living expenses.',
+    categorySlug: 'finance',
+    programTypeSlug: 'savings-plan',
+    focusSlug: 'emergency-fund',
+    durationDays: 42,
+    frequency: { kind: 'N_PER_WEEK', n: 2 },
+    generationMode: 'ROTATE',
+    activitySlugs: ['savings-contribution', 'update-savings-goal', 'plan-a-purchase'],
+    enrollmentCount: 1780,
+    rankScore: 92,
+    completionRate: 0.84,
+    placements: [1, 4, 8, 11, 15, 18, 22, 25, 29, 32, 36, 39].map((day, idx) => ({
+      relativeDay: day,
+      activitySlug: ['savings-contribution', 'update-savings-goal', 'plan-a-purchase'][idx % 3]!,
+      position: 0,
+      localTime: '18:30',
+    })),
+  },
+  {
+    slug: 'starter-spending-audit-cleanup',
+    title: 'Discretionary Spending Audit',
+    description: 'Scrutinize recurring subscriptions, curb impulse buys with 24-hour pauses, and reclaim leaks.',
+    categorySlug: 'finance',
+    programTypeSlug: 'savings-plan',
+    focusSlug: 'spending-review',
+    durationDays: 21,
+    frequency: { kind: 'N_PER_WEEK', n: 2 },
+    generationMode: 'ROTATE',
+    activitySlugs: ['review-subscriptions', 'categorize-expenses', 'set-a-spending-reminder'],
+    enrollmentCount: 1340,
+    rankScore: 85,
+    completionRate: 0.89,
+    placements: [1, 4, 8, 11, 15, 18].map((day, idx) => ({
+      relativeDay: day,
+      activitySlug: ['review-subscriptions', 'categorize-expenses', 'set-a-spending-reminder'][idx % 3]!,
+      position: 0,
+      localTime: '19:30',
+    })),
+  },
+  {
+    slug: 'starter-personal-finance-fundamentals',
+    title: 'Personal Finance Fundamentals',
+    description: 'Master core money principles: bill calendars, spending caps, and long-term goal setting.',
+    categorySlug: 'finance',
+    programTypeSlug: 'savings-plan',
+    focusSlug: 'fundamentals',
+    durationDays: 28,
+    frequency: { kind: 'N_PER_WEEK', n: 2 },
+    generationMode: 'ROTATE',
+    activitySlugs: ['learn-a-finance-concept', 'check-monthly-bills', 'review-spending-plan', 'review-financial-goals'],
+    enrollmentCount: 890,
+    rankScore: 80,
+    completionRate: 0.87,
+    placements: [2, 5, 9, 12, 16, 19, 23, 26].map((day, idx) => ({
+      relativeDay: day,
+      activitySlug: ['learn-a-finance-concept', 'check-monthly-bills', 'review-spending-plan', 'review-financial-goals'][idx % 4]!,
+      position: 0,
+      localTime: '18:00',
+    })),
+  },
+
+  // ── Study Program (5 programs) ────────────────────────────────────────────
+  {
+    slug: 'starter-daily-language-study',
+    title: 'Daily Language & Study Habit',
+    description: 'A 3-week structured study routine pairing active recall flashcards, reading, and speaking practice.',
+    categorySlug: 'education',
+    programTypeSlug: 'study-program',
+    focusSlug: 'languages',
+    durationDays: 21,
+    frequency: { kind: 'N_PER_WEEK', n: 5 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['vocabulary-review', 'read-for-20-minutes', 'practice-speaking'],
+    enrollmentCount: 2980,
+    rankScore: 97,
+    completionRate: 0.86,
+    placements: [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'vocabulary-review', position: 0, localTime: '18:00' },
+      { relativeDay: day, activitySlug: 'read-for-20-minutes', position: 1, localTime: '18:15' },
+      { relativeDay: day, activitySlug: 'practice-speaking', position: 2, localTime: '18:40' },
+    ]),
+  },
+  {
+    slug: 'starter-exam-prep-retention',
+    title: 'Spaced Repetition & Exam Sprint',
+    description: 'High-yield test prep: daily flashcard decks, timed practice problem sets, and mistake error logs.',
+    categorySlug: 'education',
+    programTypeSlug: 'study-program',
+    focusSlug: 'exam-prep',
+    durationDays: 28,
+    frequency: { kind: 'N_PER_WEEK', n: 5 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['flashcard-practice', 'solve-practice-problems', 'self-quiz', 'review-mistakes'],
+    enrollmentCount: 1950,
+    rankScore: 93,
+    completionRate: 0.83,
+    placements: [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 22, 23, 24, 25, 26].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'flashcard-practice', position: 0, localTime: '16:00' },
+      { relativeDay: day, activitySlug: 'solve-practice-problems', position: 1, localTime: '16:20' },
+      { relativeDay: day, activitySlug: 'self-quiz', position: 2, localTime: '17:00' },
+      { relativeDay: day, activitySlug: 'review-mistakes', position: 3, localTime: '17:20' },
+    ]),
+  },
+  {
+    slug: 'starter-professional-skills-deep-work',
+    title: 'Deep Work & Professional Mastery',
+    description: 'Dedicated blocks to complete modular course lessons, conduct deep topic research, and teach back key ideas.',
+    categorySlug: 'education',
+    programTypeSlug: 'study-program',
+    focusSlug: 'professional-skills',
+    durationDays: 28,
+    frequency: { kind: 'N_PER_WEEK', n: 4 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['complete-a-lesson', 'research-a-topic', 'review-notes', 'teach-back-a-concept'],
+    enrollmentCount: 1420,
+    rankScore: 88,
+    completionRate: 0.89,
+    placements: [1, 2, 4, 5, 8, 9, 11, 12, 15, 16, 18, 19, 22, 23, 25, 26].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'complete-a-lesson', position: 0, localTime: '09:00' },
+      { relativeDay: day, activitySlug: 'research-a-topic', position: 1, localTime: '09:30' },
+      { relativeDay: day, activitySlug: 'review-notes', position: 2, localTime: '10:00' },
+      { relativeDay: day, activitySlug: 'teach-back-a-concept', position: 3, localTime: '10:15' },
+    ]),
+  },
+  {
+    slug: 'starter-daily-musical-practice',
+    title: 'Daily Musical Practice & Repertoire',
+    description: 'Structured musical discipline pairing scales, tricky phrase loops, and active audio listening.',
+    categorySlug: 'education',
+    programTypeSlug: 'study-program',
+    focusSlug: 'music',
+    durationDays: 28,
+    frequency: { kind: 'N_PER_WEEK', n: 5 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['practice-an-instrument', 'listening-practice'],
+    enrollmentCount: 850,
+    rankScore: 81,
+    completionRate: 0.88,
+    placements: [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 22, 23, 24, 25, 26].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'practice-an-instrument', position: 0, localTime: '17:00' },
+      { relativeDay: day, activitySlug: 'listening-practice', position: 1, localTime: '17:30' },
+    ]),
+  },
+  {
+    slug: 'starter-active-reading-habit',
+    title: 'Active Reading & Note Taking',
+    description: 'Develop a focused daily reading habit with chapter previews, timed immersion, and distilled notes.',
+    categorySlug: 'education',
+    programTypeSlug: 'study-program',
+    focusSlug: 'languages',
+    durationDays: 21,
+    frequency: { kind: 'N_PER_WEEK', n: 6 },
+    generationMode: 'ALL_EACH_DAY',
+    activitySlugs: ['read-a-chapter', 'read-for-20-minutes', 'review-notes'],
+    enrollmentCount: 680,
+    rankScore: 77,
+    completionRate: 0.93,
+    placements: [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20].flatMap((day) => [
+      { relativeDay: day, activitySlug: 'read-a-chapter', position: 0, localTime: '20:00' },
+      { relativeDay: day, activitySlug: 'read-for-20-minutes', position: 1, localTime: '20:30' },
+      { relativeDay: day, activitySlug: 'review-notes', position: 2, localTime: '20:55' },
+    ]),
+  },
+
+  // ── Relationship Plan (4 programs) ────────────────────────────────────────
   {
     slug: 'starter-staying-in-touch',
     title: 'Staying in Touch',
@@ -1598,11 +1934,77 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
     frequency: { kind: 'N_PER_WEEK', n: 2 },
     generationMode: 'ROTATE',
     activitySlugs: ['send-a-check-in-message', 'call-a-friend', 'plan-quality-time', 'write-a-thank-you-note'],
+    enrollmentCount: 2120,
+    rankScore: 95,
+    completionRate: 0.87,
     placements: [2, 6, 9, 13, 16, 20, 23, 27].map((day, idx) => ({
       relativeDay: day,
       activitySlug: ['send-a-check-in-message', 'call-a-friend', 'plan-quality-time', 'write-a-thank-you-note'][idx % 4]!,
       position: 0,
       localTime: '17:30',
+    })),
+  },
+  {
+    slug: 'starter-family-connection-rituals',
+    title: 'Family Connection Rituals',
+    description: 'Nurture close family relationships through shared screen-free meals, weekend activities, and visits.',
+    categorySlug: 'relationships',
+    programTypeSlug: 'relationship-plan',
+    focusSlug: 'family',
+    durationDays: 28,
+    frequency: { kind: 'N_PER_WEEK', n: 3 },
+    generationMode: 'ROTATE',
+    activitySlugs: ['family-activity', 'shared-meal', 'schedule-a-visit'],
+    enrollmentCount: 1610,
+    rankScore: 90,
+    completionRate: 0.89,
+    placements: [1, 4, 6, 8, 11, 13, 15, 18, 20, 22, 25, 27].map((day, idx) => ({
+      relativeDay: day,
+      activitySlug: ['family-activity', 'shared-meal', 'schedule-a-visit'][idx % 3]!,
+      position: 0,
+      localTime: '18:30',
+    })),
+  },
+  {
+    slug: 'starter-intentional-quality-time',
+    title: 'Intentional Quality Time',
+    description: 'Dedicated, phone-free dates and activities to deepen bonds with the people who matter most.',
+    categorySlug: 'relationships',
+    programTypeSlug: 'relationship-plan',
+    focusSlug: 'quality-time',
+    durationDays: 28,
+    frequency: { kind: 'N_PER_WEEK', n: 2 },
+    generationMode: 'ROTATE',
+    activitySlugs: ['plan-quality-time', 'shared-meal', 'family-activity'],
+    enrollmentCount: 1250,
+    rankScore: 86,
+    completionRate: 0.85,
+    placements: [2, 5, 9, 12, 16, 19, 23, 26].map((day, idx) => ({
+      relativeDay: day,
+      activitySlug: ['plan-quality-time', 'shared-meal', 'family-activity'][idx % 3]!,
+      position: 0,
+      localTime: '19:00',
+    })),
+  },
+  {
+    slug: 'starter-gratitude-communication',
+    title: 'Gratitude & Thoughtful Outreach',
+    description: 'Express authentic appreciation through handwritten thank-you notes and uplifting personal check-ins.',
+    categorySlug: 'relationships',
+    programTypeSlug: 'relationship-plan',
+    focusSlug: 'communication',
+    durationDays: 21,
+    frequency: { kind: 'N_PER_WEEK', n: 3 },
+    generationMode: 'ROTATE',
+    activitySlugs: ['write-a-thank-you-note', 'send-a-check-in-message', 'call-a-friend'],
+    enrollmentCount: 910,
+    rankScore: 82,
+    completionRate: 0.94,
+    placements: [1, 3, 5, 8, 10, 12, 15, 17, 19].map((day, idx) => ({
+      relativeDay: day,
+      activitySlug: ['write-a-thank-you-note', 'send-a-check-in-message', 'call-a-friend'][idx % 3]!,
+      position: 0,
+      localTime: '17:00',
     })),
   },
 ]
@@ -1612,10 +2014,54 @@ function changed(row: Record<string, unknown>, next: Record<string, unknown>) {
   return Object.entries(next).some(([k, v]) => row[k] !== v)
 }
 
+/** One READY platform photo (original + THUMB variant) under a deterministic id; safe to re-run. */
+async function upsertPlatformPhoto(prisma: PrismaClient, key: string, photo: PlatformIllustration) {
+  const id = deterministicUuid(key)
+  const content = {
+    originalStorageKey: photo.original.storageKey,
+    mime: photo.original.mime,
+    byteSize: BigInt(photo.original.byteSize),
+    width: photo.original.width,
+    height: photo.original.height,
+    alt: photo.alt,
+    license: photo.license,
+    attribution: photo.attribution,
+    sourceUrl: null,
+    state: 'READY' as const,
+  }
+  await prisma.mediaAsset.upsert({
+    where: { id },
+    create: { id, ownerId: null, type: 'PHOTO', uploadedAt: SEEDED_AT, ...content },
+    update: content,
+  })
+  const thumb = {
+    storageKey: photo.thumb.storageKey,
+    mime: photo.thumb.mime,
+    byteSize: BigInt(photo.thumb.byteSize),
+    width: photo.thumb.width,
+    height: photo.thumb.height,
+  }
+  await prisma.mediaVariant.upsert({
+    where: { mediaId_kind: { mediaId: id, kind: 'THUMB' } },
+    create: { id: deterministicUuid(`media-variant:thumb:${key}`), mediaId: id, kind: 'THUMB', ...thumb },
+    update: thumb,
+  })
+  return id
+}
+
 export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: PlatformMediaSink } = {}) {
   // 0. Platform illustration files first: rows only ever reference objects storage can serve.
   const illustrations = new Map(SEEDED_ACTIVITIES.filter((a) => !a.textOnly).map((a) => [a.slug, platformIllustration(a.slug)]))
-  const published = await publishPlatformFiles(opts.sink ?? localSink(), [...illustrations.values()].flatMap((i) => [i.original, i.thumb]))
+  const covers = new Map(
+    STARTER_PROGRAMS.flatMap((sp) => {
+      const cover = platformProgramCover(sp.slug)
+      return cover ? [[sp.slug, cover] as const] : []
+    }),
+  )
+  const published = await publishPlatformFiles(
+    opts.sink ?? localSink(),
+    [...illustrations.values(), ...covers.values()].flatMap((i) => [i.original, i.thumb]),
+  )
 
   // 1. Categories
   const categoryBySlug = new Map<string, string>()
@@ -1948,13 +2394,17 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
     const categoryId = categoryBySlug.get(sp.categorySlug)!
     const programTypeId = programTypeBySlug.get(sp.programTypeSlug)!
     const focusId = focusByKey.get(sp.focusSlug)!
-    const firstActivityMediaId = deterministicUuid(`media:photo:${sp.activitySlugs[0]!}`)
+    // Curated CC0 cover when one exists; otherwise the first Activity's illustration.
+    const curated = covers.get(sp.slug)
+    const coverMediaId = curated
+      ? await upsertPlatformPhoto(prisma, `media:cover:${sp.slug}`, curated)
+      : deterministicUuid(`media:photo:${sp.activitySlugs[0]!}`)
     const programDayCount = new Set(sp.placements.map((p) => p.relativeDay)).size
     const placementCount = sp.placements.length
 
     // Content only, and only when it changed: never re-publish an archived or moderated starter Program.
     const canonicalSlug = sp.slug.replace(/^starter-/, '')
-    const programContent = { categoryId, programTypeId, focusId, title: sp.title, description: sp.description, coverMediaId: firstActivityMediaId, slug: canonicalSlug }
+    const programContent = { categoryId, programTypeId, focusId, title: sp.title, description: sp.description, coverMediaId, slug: canonicalSlug }
     const existingProgram = await prisma.program.findUnique({ where: { id: programId } })
     if (!existingProgram) {
       await prisma.program.create({ data: { id: programId, creatorId: null, ...programContent, status: 'PUBLISHED', visibility: 'PUBLIC', draftRevision: 1 } })
@@ -1985,8 +2435,17 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
 
     await prisma.programStat.upsert({
       where: { programId },
-      create: { programId, enrollmentCount: 0, completionRate: 0, rankScore: 10 },
-      update: {},
+      create: {
+        programId,
+        enrollmentCount: sp.enrollmentCount ?? 0,
+        completionRate: sp.completionRate ?? 0,
+        rankScore: sp.rankScore ?? 10,
+      },
+      update: {
+        enrollmentCount: sp.enrollmentCount ?? 0,
+        completionRate: sp.completionRate ?? 0,
+        rankScore: sp.rankScore ?? 10,
+      },
     })
 
     await prisma.programVersion.upsert({

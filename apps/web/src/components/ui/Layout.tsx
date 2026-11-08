@@ -5,7 +5,7 @@ export const Page = ({
   className,
   ...props
 }: ComponentPropsWithoutRef<'main'>) => (
-  <main id="main" className={cn('page', className)} {...props} />
+  <main id="main" className={cn('page page--wide', className)} {...props} />
 )
 
 export const Stage = ({

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   createBrowserRouter,
   RouterProvider,
@@ -34,13 +34,20 @@ import { StudioPage } from '@/pages/Studio'
 import { Page, Stage } from '@/components/ui/Layout'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { AccountMenu } from '@/components/AccountMenu'
+import { LibraryBrowserRoute } from '@/components/LibraryBrowser'
 import { useCurrentUser } from '@project/sdk'
 
 function Root() {
   const online = useOnline()
   const location = useLocation()
   const me = useCurrentUser()
+  const previousPath = useRef(location.pathname)
   useEffect(() => {
+    const before = previousPath.current
+    previousPath.current = location.pathname
+    // Opening or closing a nested library browser keeps the page beneath in place.
+    const browse = (path: string) => path.endsWith('/browse')
+    if (browse(location.pathname) || browse(before)) return
     window.scrollTo(0, 0)
     const main = document.querySelector<HTMLElement>('main')
     main?.setAttribute('tabindex', '-1')
@@ -64,16 +71,16 @@ function Root() {
         </p>
       )}
       <header className="sticky top-0 z-20 border-b bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="flex min-h-16 mx-auto items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6 page--wide">
           <Link
             to="/"
-            className="flex items-center gap-2 font-display text-lg font-semibold tracking-tight"
+            className="flex items-center gap-2 font-display text-base font-semibold tracking-tight sm:text-lg"
           >
             <span
               aria-hidden
               className="h-2.5 w-2.5 rounded-full bg-accent"
             />
-            Programs
+            Program.Guru
           </Link>
           {me.data ? (
             <AccountMenu />
@@ -151,7 +158,11 @@ const router = createBrowserRouter([
       { path: '/verify-email', element: <VerifyEmailPage /> },
       { path: '/forgot-password', element: <ForgotPasswordPage /> },
       { path: '/reset-password', element: <ResetPasswordPage /> },
-      { path: '/discover', element: <ProgramCreatePage /> },
+      {
+        path: '/discover',
+        element: <ProgramCreatePage />,
+        children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
+      },
       // Friendly creator-scoped routes use a handle segment prefixed with @.
       { path: '/:handle/:slug', element: <ProgramAliasRoute /> },
       { path: '/programs/:id', element: <ProgramPage /> },
@@ -166,13 +177,22 @@ const router = createBrowserRouter([
         children: [
           { path: '/', element: <CalendarPage /> },
           { path: '/library', element: <LibraryPage /> },
-          { path: '/programs/new', element: <ProgramCreatePage /> },
+          {
+            path: '/programs/new',
+            element: <ProgramCreatePage />,
+            children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
+          },
           {
             path: '/programs/:id/workspace',
             element: <ProgramWorkspacePage />,
+            children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
           },
           { path: '/occurrences/:id', element: <OccurrencePage /> },
-          { path: '/add-activity', element: <AddActivityPage /> },
+          {
+            path: '/add-activity',
+            element: <AddActivityPage />,
+            children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
+          },
           { path: '/media', element: <MediaStudioPage /> },
           { path: '/media/:id', element: <MediaPublicationPage /> },
           { path: '/notifications', element: <NotificationsPage /> },

@@ -941,6 +941,8 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
   await expect(
     page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
+  // Personal items stay on their date (mobile month view shows only the selected day).
+  await page.goto('/?view=day&day=2026-11-07')
   await expect(
     page.getByRole('link', { name: /Morning Squats/ }).first(),
   ).toBeVisible()
@@ -1002,7 +1004,8 @@ test('activity reminders deduplicate occurrences, respect timezone, persist pref
   const { requests } = await setupNotificationsMock(page)
   await login(page, 'participant@test.local', 'password')
 
-  // Upcoming reminders panel on Calendar shows Morning Squats once (deduplicated)
+  // Upcoming reminders live with Notifications, not beneath the Calendar (03-UX §2).
+  await page.goto('/notifications')
   const reminderPanel = page.getByRole('region', {
     name: 'Activity reminders',
   })

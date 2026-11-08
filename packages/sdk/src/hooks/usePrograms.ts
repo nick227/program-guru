@@ -6,10 +6,50 @@ import { queryKeys as keys } from '../queryKeys'
 import type { components } from '../generated/types'
 type S = components['schemas']
 
-export function useDiscoverPrograms(q = '', programTypeId = '') {
+export type DiscoverProgramsOptions = {
+  q?: string
+  programTypeId?: string
+  focusId?: string
+  sort?: S['DiscoverSort']
+  accessMode?: S['AccessMode']
+  enabled?: boolean
+}
+
+export function useDiscoverPrograms(
+  qOrOpts: string | DiscoverProgramsOptions = '',
+  programTypeId = '',
+  enabled = true,
+) {
+  const opts: DiscoverProgramsOptions =
+    typeof qOrOpts === 'object'
+      ? qOrOpts
+      : {
+          q: qOrOpts,
+          programTypeId,
+          enabled,
+        }
+
+  const queryQ = opts.q || undefined
+  const queryTypeId = opts.programTypeId || undefined
+  const queryFocusId = opts.focusId || undefined
+  const querySort = opts.sort || undefined
+  const queryAccessMode = opts.accessMode || undefined
+  const queryEnabled = opts.enabled ?? (!!opts.programTypeId || !!opts.q)
+
   return useInfiniteQuery({
-    queryKey: useViewerKey(keys.discovery(q, programTypeId)),
-    enabled: !!programTypeId,
+    queryKey: useViewerKey([
+      'discover',
+      'list',
+      {
+        kind: 'PROGRAM',
+        q: queryQ,
+        programTypeId: queryTypeId,
+        focusId: queryFocusId,
+        sort: querySort,
+        accessMode: queryAccessMode,
+      },
+    ]),
+    enabled: queryEnabled,
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) =>
       apiData(
@@ -18,8 +58,11 @@ export function useDiscoverPrograms(q = '', programTypeId = '') {
           params: {
             query: {
               kind: 'PROGRAM',
-              q: q || undefined,
-              programTypeId: programTypeId || undefined,
+              q: queryQ,
+              programTypeId: queryTypeId,
+              focusId: queryFocusId,
+              sort: querySort,
+              accessMode: queryAccessMode,
               cursor: pageParam,
               limit: 20,
             },
@@ -271,16 +314,18 @@ export function useRenameProgram() {
     async ({
       programId,
       title,
+      description,
       expectedRevision,
     }: {
       programId: string
       title: string
+      description?: string
       expectedRevision: number
     }) =>
       apiData(
         await getApiClient().PATCH('/programs/{programId}/draft', {
           params: { path: { programId } },
-          body: { title, expectedRevision },
+          body: { title, description, expectedRevision },
         }),
       ).data,
     [keys.programs, keys.mine],
@@ -293,17 +338,25 @@ export function useCreateActivity() {
     [['activities'], keys.programs],
   )
 }
-export function useUpdateActivityDraft(activityId: string) {
+export function useUpdateActivityDraft(activityId?: string) {
   return useApiMutation(
-    async (body: S['UpdateActivityDraftInput']) =>
-      apiData(
+    async ({
+      activityId: requestedActivityId,
+      ...body
+    }: S['UpdateActivityDraftInput'] & { activityId?: string }) => {
+      const targetActivityId = requestedActivityId ?? activityId
+      if (!targetActivityId) {
+        throw new Error('An Activity is required to update its draft.')
+      }
+      return apiData(
         await getApiClient().PATCH('/activities/{activityId}/draft', {
-          params: { path: { activityId } },
+          params: { path: { activityId: targetActivityId } },
           body,
         }),
-      ).data,
+      ).data
+    },
     [['activities'], keys.programs],
-    `activity-draft:${activityId}`,
+    activityId ? `activity-draft:${activityId}` : undefined,
   )
 }
 export function usePutActivityInstructions() {
@@ -538,6 +591,7 @@ export function useDismissEnrollmentUpdate(enrollmentId: string) {
 export function useActivity(activityId: string) {
   return useQuery({
     queryKey: useViewerKey(['activities', activityId]),
+    enabled: !!activityId,
     queryFn: async ({ signal }) =>
       apiData(
         await getApiClient().GET('/activities/{activityId}', {
