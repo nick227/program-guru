@@ -143,11 +143,22 @@ Hosted smoke test (HTTPS, public internet):
 - Eleven sign-ins with forged `X-Real-IP` headers hit 429 on the 11th, so forged values cannot create new identities.
 - At the same moment, a second client on another network (from a Railway container, `152.55.180.144`) had its own untouched limit while ours was exhausted (`136.62.60.81`). Railway's edge overwrites `X-Real-IP` with the real client address.
 
+**Email verification relaxed for UAT** (`982105a`). `server` runs with
+`REQUIRE_EMAIL_VERIFICATION=false`: unverified accounts can publish Programs and Activities.
+Verification itself is intact (tokens issued, endpoints live, nobody marked verified), password reset is
+unchanged, and email group invitations still require a verified address. Remove the variable to restore
+enforcement; absent means required.
+
+Verified on the hosted site in a real browser: register through the UI lands in the app with
+`emailVerificationRequired: false`, and the account stays unverified. The full journey also passes:
+discovery → author creates and publishes a Program → participant joins → Finish/Undo, with both accounts
+unverified.
+
 ## 6. Remaining blockers for hosted UAT
 
 1. **Worker and email.** Without the worker:
    - uploads stay PROCESSING;
-   - verification and password-reset emails are never sent, so new accounts stay unverified and cannot publish;
+   - verification and password-reset emails are never sent (publishing no longer needs verification in UAT, but password reset needs email);
    - in-app notifications, reminders and daily summaries are not produced.
 
    To finish: verify a sending domain in Resend, set `RESEND_API_KEY` and `EMAIL_FROM` on a worker service (same build as `server`, start `pnpm --filter server start:worker`, `RAILPACK_DEPLOY_APT_PACKAGES=ffmpeg`, the same storage and secret variables, no public domain), then add it to `.railway/railway.ts` and apply. The production gate deliberately refuses captured (unsent) email.
