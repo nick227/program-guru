@@ -19,8 +19,13 @@ import { OccurrencePage } from '@/pages/Occurrence'
 import { ActivityPage, AddActivityPage } from '@/pages/Activity'
 import { ProfilePage } from '@/pages/Profile'
 import { MediaStudioPage } from '@/pages/MediaStudio'
+import { MediaPublicationPage } from '@/pages/MediaPublication'
 import { NotificationsPage } from '@/pages/Notifications'
 import { SettingsPage } from '@/pages/Settings'
+import { AchievementsPage } from '@/pages/Achievements'
+import { GroupInvitationJoinPage, GroupPage } from '@/pages/Group'
+import { UnsubscribePage } from '@/pages/Unsubscribe'
+import { StudioPage } from '@/pages/Studio'
 import { Page, Stage } from '@/components/ui/Layout'
 import { ErrorMessage } from '@/components/ui/Feedback'
 
@@ -79,6 +84,10 @@ const router = createBrowserRouter([
       { path: '/discover', element: <DiscoverPage /> },
       { path: '/programs/:id', element: <ProgramPage /> },
       { path: '/activities/:id', element: <ActivityPage /> },
+      { path: '/join/:token', element: <GroupInvitationJoinPage /> },
+      { path: '/unsubscribe', element: <UnsubscribePage /> },
+      { path: '/email/unsubscribe', element: <UnsubscribePage /> },
+      { path: '/u/:handle', element: <ProfilePage /> },
       {
         element: <AuthGuard />,
         children: [
@@ -92,8 +101,18 @@ const router = createBrowserRouter([
           { path: '/occurrences/:id', element: <OccurrencePage /> },
           { path: '/add-activity', element: <AddActivityPage /> },
           { path: '/media', element: <MediaStudioPage /> },
+          { path: '/media/:id', element: <MediaPublicationPage /> },
           { path: '/notifications', element: <NotificationsPage /> },
+          { path: '/achievements', element: <AchievementsPage /> },
+          { path: '/groups/:id', element: <GroupPage /> },
+          {
+            path: '/groups/:id/invitations/:invitationId',
+            element: <GroupPage />,
+          },
           { path: '/settings', element: <SettingsPage /> },
+          { path: '/settings/follow-requests', element: <SettingsPage /> },
+          { path: '/settings/billing', element: <SettingsPage /> },
+          { path: '/studio', element: <StudioPage /> },
         ],
       },
       // After static app routes so handles never shadow /media, /settings, etc.

@@ -190,6 +190,22 @@ Most permissive **valid** grant wins among owner/editor, active channel entitlem
 
 Creators may mix free public Posts, channel-subscriber media, and Programs under OPEN / APPROVAL / PAID, with optional subscriber-inclusion on eligible items. Media continues to flow through `MediaAsset` → `MediaAttachment` → `MediaPublication`. Attaching never grants audience; publication and audience access do. Instructions remain owned by Activity revisions; the unified workspace edits them through Activity authoring, not a parallel Instruction CMS.
 
+### Backend contracts still required (coordinate before inventing UI persistence)
+
+| Contract | Needed for |
+|---|---|
+| Posts + PostReference CRUD | Channel posts; Library Posts tab; announcements |
+| Collection / series + ordered refs | Content organization beyond Program |
+| ChannelPlan / ChannelMembership / ChannelEntitlement | Creator subscription; subscriber-only shelf |
+| ContentAudience + SubscriberInclusion on eligible items | Mixed free / subscriber / Program-priced catalog |
+| ChannelFeaturedItem / ChannelOrganization | Persisted featured order and curated sections |
+| Content `publishAt` / schedule | Scheduled publishing |
+| `listFollowers` / `listFollowing` | Audience rosters (counts exist today) |
+| Creator-facing enrollment / Program-subscriber lists | Participant vs paying Program subscriber management |
+| Unpublish-to-draft (if archive is insufficient) | Full DRAFT ↔ PUBLISHED ↔ UNPUBLISHED lifecycle |
+
+Until these land, Creator Studio must call existing Program/Activity/Media/profile/billing/follow-request operations only.
+
 ### Implementation constraint
 
-When this epic is built: extend OpenAPI/Prisma in dedicated migrations; keep `MARKETPLACE_ENABLED` (or a sibling flag) gating paid channel checkout; webhook-only entitlement mutation; USD only unless product later amends multi-currency. Do not implement those changes under the documentation-only task that introduced this section.
+When this epic is built: extend OpenAPI/Prisma in dedicated migrations; keep `MARKETPLACE_ENABLED` (or a sibling flag) gating paid channel checkout; webhook-only entitlement mutation; USD only unless product later amends multi-currency. Frontend must not invent local persistence for the contracts above.

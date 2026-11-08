@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import {
+  Link,
   useBeforeUnload,
   useBlocker,
   useNavigate,
@@ -7,9 +8,11 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import {
+  useAddCompletionReaction,
   useCreateSession,
   useAttachSessionMedia,
   useOccurrence,
+  useRemoveCompletionReaction,
   useSaveResults,
   useSessionAction,
   useUndoCompletion,
@@ -19,9 +22,10 @@ import { toast } from 'sonner'
 import { Page, Stage, Panel, Stack, Row, Grid } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back } from '@/components/Navigation'
+import { Back, linkButton } from '@/components/Navigation'
 import { MetricInput } from '@/components/MetricInput'
 import { AvatarStack } from '@/components/AvatarStack'
+import { UnreadDot } from '@/components/UnreadDot'
 import { OccurrenceInstructions } from '@/components/OccurrenceInstructions'
 import { OccurrenceMedia } from '@/components/OccurrenceMedia'
 import { calendarUrl, dateLabel, safeReturn } from '@/lib/dates'
@@ -73,6 +77,8 @@ function OccurrenceContent({
   const save = useSaveResults(o.item.id)
   const undo = useUndoCompletion()
   const attach = useAttachSessionMedia()
+  const addReaction = useAddCompletionReaction()
+  const removeReaction = useRemoveCompletionReaction()
   const [dirty, setDirty] = useState<Record<string, string | number | boolean>>(
     {},
   )
@@ -196,7 +202,9 @@ function OccurrenceContent({
               ? 'In progress'
               : status === 'PAUSED'
                 ? 'Paused'
-                : 'Ready'}
+                : o.item.status === 'NOT_PARTICIPATING'
+                  ? 'Not participating'
+                  : 'Ready'}
         </p>
       </Stack>
 
@@ -239,11 +247,22 @@ function OccurrenceContent({
         <Panel>
           <Stack>
             <Row className="justify-between">
-              <h2>Collaborators</h2>
-              <p className="text-xs text-muted">
-                {o.collaborators.finishedCount}/{o.collaborators.totalCount}{' '}
-                finished
-              </p>
+              <Row className="gap-2">
+                <h2>Collaborators</h2>
+                <UnreadDot count={o.collaborators.unreadCount} inline />
+              </Row>
+              <Row className="gap-2">
+                <p className="text-xs text-muted">
+                  {o.collaborators.finishedCount}/{o.collaborators.totalCount}{' '}
+                  finished
+                </p>
+                <Link
+                  to={`/groups/${o.collaborators.groupId}`}
+                  className={linkButton}
+                >
+                  Open Group
+                </Link>
+              </Row>
             </Row>
             <AvatarStack
               people={o.collaborators.members.map((m) => ({
@@ -255,14 +274,60 @@ function OccurrenceContent({
             />
             <Stack className="gap-2">
               {o.collaborators.members.map((member) => (
-                <p key={member.user.id} className="text-sm text-muted">
-                  {member.user.displayName} ·{' '}
-                  {member.status === 'DONE'
-                    ? 'Completed'
-                    : member.status === 'UNKNOWN'
-                      ? 'Private'
-                      : 'Planned'}
-                </p>
+                <div
+                  key={member.user.id}
+                  className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted"
+                >
+                  <span>
+                    {member.user.displayName} ·{' '}
+                    {member.status === 'DONE'
+                      ? 'Completed'
+                      : member.status === 'NOT_PARTICIPATING'
+                        ? 'Not participating'
+                        : member.status === 'UNKNOWN'
+                          ? 'Private'
+                          : 'Planned'}
+                  </span>
+                  {member.completionShareId && (
+                    <Row className="gap-1">
+                      {(['👏', '🔥'] as const).map((emoji) => {
+                        const existing = member.reactions.find(
+                          (r) => r.emoji === emoji,
+                        )
+                        const active = existing?.reactedByMe ?? false
+                        const count = existing?.count ?? 0
+                        return (
+                          <button
+                            key={emoji}
+                            type="button"
+                            disabled={disabled}
+                            aria-pressed={active}
+                            aria-label={`React ${emoji} to ${member.user.displayName}`}
+                            onClick={() =>
+                              active
+                                ? removeReaction.mutate({
+                                    shareId: member.completionShareId!,
+                                    emoji,
+                                  })
+                                : addReaction.mutate({
+                                    shareId: member.completionShareId!,
+                                    emoji,
+                                    idempotencyKey: crypto.randomUUID(),
+                                  })
+                            }
+                            className={`min-h-11 rounded-full border px-2.5 py-1 text-xs ${
+                              active
+                                ? 'border-accent bg-accent/15 text-accent'
+                                : 'bg-surface text-muted hover:bg-surface-muted'
+                            }`}
+                          >
+                            {emoji} {count > 0 ? count : ''}
+                          </button>
+                        )
+                      })}
+                    </Row>
+                  )}
+                </div>
               ))}
             </Stack>
           </Stack>

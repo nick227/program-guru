@@ -23,7 +23,7 @@ pnpm --filter web exec playwright install chromium
 pnpm --filter web test:e2e
 ```
 
-The default Playwright projects run at 1280px and 360px using mocked HTTP responses with the real SDK/hooks/router/UI. Screenshots and failure traces are ignored in `test-results/`.
+The default Playwright projects run at 1280px and 360px using mocked HTTP responses with the real SDK/hooks/router/UI. Screenshots and failure traces are ignored in `test-results/`. Mocked e2e defaults to port `5174` and does not reuse an existing Vite server (set `E2E_REUSE=1` only when you intentionally share one).
 
 For real API verification, provide `E2E_AUTHOR_EMAIL`, `E2E_AUTHOR_PASSWORD`, `E2E_PARTICIPANT_EMAIL`, and `E2E_PARTICIPANT_PASSWORD` as environment variables; both accounts must be verified. Seed a public Program and Workout → Strength → Squats with Reps first, then:
 
