@@ -333,3 +333,28 @@ export function useAttachSessionMedia() {
     'attach-session-media',
   )
 }
+
+/** Private Activity history, including older attempts and occurrences. */
+export function useActivityMyMedia(
+  activityId: string,
+  filters: { calendarItemId?: string; type?: S['MediaType'] } = {},
+  enabled = true,
+) {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.activityMyMedia(activityId, filters)),
+    enabled: enabled && !!activityId,
+    initialPageParam: undefined as string | undefined,
+    retry: false,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/activities/{activityId}/my-media', {
+          signal,
+          params: {
+            path: { activityId },
+            query: { ...filters, cursor: pageParam, limit: 24 },
+          },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
