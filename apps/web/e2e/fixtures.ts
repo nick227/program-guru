@@ -67,6 +67,15 @@ export async function mockApi(
     createdGroupName: string | null = null,
     done = false,
     start = '2026-11-09'
+  let activeActivityId = activityId
+  let activeActivityTitle = 'Squats'
+  let activeActivityRevisionId = uid(21)
+  let activityRevision = 1
+  let copied = false
+  let activeActivitySummary = activity.summary
+  let activityInstructions: S['Instruction'][] = []
+  let placementExists = true
+  let placementDay = 0
   let session: S['ActivitySession'] | null = null
   let recorded: number | null = null
   let conflict = options.conflict
@@ -99,18 +108,18 @@ export async function mockApi(
     generationMode: 'ALL_EACH_DAY',
     description: null,
     activityCount: added ? 1 : 0,
-    instructionCount: added ? 1 : 0,
+    instructionCount: added ? activityInstructions.length : 0,
     activities: added
       ? [
           {
-            activityId,
-            revisionId: uid(21),
-            title: 'Squats',
-            instructionCount: 1,
+            activityId: activeActivityId,
+            revisionId: activeActivityRevisionId,
+            title: activeActivityTitle,
+            instructionCount: activityInstructions.length,
             mediaCount: 0,
             metrics: ['Reps'],
             placementCount: 12,
-            canEdit: false,
+            canEdit: copied,
           },
         ]
       : [],
@@ -124,9 +133,9 @@ export async function mockApi(
     localDate: start,
     localTime: null,
     status: done ? 'DONE' : 'PLANNED',
-    title: 'Squats',
-    activityId,
-    activityRevisionId: uid(21),
+    title: activeActivityTitle,
+    activityId: activeActivityId,
+    activityRevisionId: activeActivityRevisionId,
     programTitle: title,
     enrollmentId: uid(40),
     programDayIndex: 0,
@@ -137,6 +146,35 @@ export async function mockApi(
     participantAvatars: [],
     unreadCount: 0,
     updatedAt: '2026-11-07T12:00:00Z',
+  })
+  const activityDetail = (): S['ActivityDetail'] => ({
+    ...activity,
+    id: activeActivityId,
+    revisionId: activeActivityRevisionId,
+    title: activeActivityTitle,
+    summary: activeActivitySummary,
+    instructionCount: activityInstructions.length,
+    isCopy: copied,
+    isPlatform: !copied,
+    instructions: activityInstructions,
+    media: [],
+    metrics: [],
+    tools: [],
+    sourceActivity: copied ? activity : null,
+    draftRevision: activityRevision,
+    canEdit: copied,
+    canCopy: true,
+  })
+  const placement = (): S['ProgramPlacement'] => ({
+    id: uid(15),
+    activityId: activeActivityId,
+    revisionId: activeActivityRevisionId,
+    title: activeActivityTitle,
+    relativeDay: placementDay,
+    localTime: null,
+    position: 0,
+    targetOverrides: null,
+    isManual: false,
   })
   await page.route('http://localhost:3001/**', async (route) => {
     const req = route.request(),
@@ -251,6 +289,15 @@ export async function mockApi(
       })
     if (path === '/catalog/program-types') return send([type])
     if (path === '/catalog/focuses') return send([focus])
+    if (path === '/catalog/categories')
+      return send([
+        {
+          id: uid(3),
+          slug: 'fitness',
+          label: 'Fitness',
+          icon: null,
+        },
+      ])
     if (path === '/discover')
       return send(
         [
@@ -274,19 +321,64 @@ export async function mockApi(
         200,
         true,
       )
+    if (path === '/activities' && method === 'POST') {
+      activeActivityId = uid(22)
+      activeActivityRevisionId = uid(23)
+      activeActivityTitle = String(body.title)
+      activeActivitySummary =
+        typeof body.summary === 'string' ? body.summary : null
+      activityInstructions = []
+      activityRevision = 1
+      copied = true
+      return send(activityDetail(), 201)
+    }
     if (path === '/activities') return send([activity], 200, true)
-    if (path === `/activities/${activityId}`)
-      return send({
-        ...activity,
-        instructions: [instruction],
-        media: [],
-        metrics: [],
-        tools: [],
-        sourceActivity: null,
-        draftRevision: 1,
-        canEdit: false,
-        canCopy: true,
-      })
+    if (path === `/activities/${activityId}/copy` && method === 'POST') {
+      activeActivityId = activityId
+      activeActivityRevisionId = uid(21)
+      activeActivityTitle = activity.title
+      activeActivitySummary = activity.summary
+      activityInstructions = [instruction]
+      activityRevision = 1
+      copied = true
+      return send(activityDetail(), 201)
+    }
+    if (path === `/activities/${activeActivityId}` && method === 'GET')
+      return send(activityDetail())
+    if (
+      path === `/activities/${activeActivityId}/draft/instructions` &&
+      method === 'PUT'
+    ) {
+      activityInstructions = (
+        (body.instructions as { title?: string | null; body?: string | null }[]) ??
+        []
+      ).map((entry, index) => ({
+        ...instruction,
+        id: uid(24 + index),
+        instructionKey: uid(25 + index),
+        position: index,
+        title: entry.title ?? null,
+        body: entry.body ?? null,
+      }))
+      activityRevision++
+      return send(activityDetail())
+    }
+    if (
+      path === `/activities/${activeActivityId}/draft` &&
+      method === 'PATCH'
+    ) {
+      if (typeof body.title === 'string') activeActivityTitle = body.title
+      if (typeof body.summary === 'string' || body.summary === null)
+        activeActivitySummary = body.summary
+      activityRevision++
+      return send(activityDetail())
+    }
+    if (path === '/media/mine' && method === 'GET')
+      return send([], 200, true)
+    if (path === '/media-attachments' && method === 'GET')
+      return send([], 200, true)
+    if (path === '/media-attachments' && method === 'POST')
+      return send({ id: uid(90) }, 201)
     if (path === '/programs' && method === 'POST') return send(workspace(), 201)
     if (path === '/programs') return send([summary()], 200, true)
     if (path === '/groups' && method === 'GET')
@@ -396,20 +488,24 @@ export async function mockApi(
       revision++
       return send(workspace())
     }
-    if (path.endsWith('/draft/placements'))
-      return send([
-        {
-          id: uid(15),
-          activityId,
-          revisionId: uid(21),
-          title: 'Squats',
-          relativeDay: 0,
-          localTime: null,
-          position: 0,
-          targetOverrides: null,
-          isManual: false,
-        },
-      ])
+    if (path.endsWith('/draft/placements') && method === 'GET')
+      return send(placementExists ? [placement()] : [])
+    if (path.endsWith('/draft/placements') && method === 'POST') {
+      placementExists = true
+      placementDay = Number(body.relativeDay ?? 0)
+      revision++
+      return send(placement(), 201)
+    }
+    if (path.includes('/draft/placements/') && method === 'PATCH') {
+      placementDay = Number(body.relativeDay ?? placementDay)
+      revision++
+      return send(placement())
+    }
+    if (path.includes('/draft/placements/') && method === 'DELETE') {
+      placementExists = false
+      revision++
+      return send({ ok: true })
+    }
     if (path.endsWith('/publish-check'))
       return send({
         canPublish: added,

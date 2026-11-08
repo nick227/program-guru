@@ -17,5 +17,4 @@ export function Back({
     </Link>
   )
 }
-export const linkButton =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border bg-surface px-4 font-medium transition-colors hover:bg-surface-muted'
+export const linkButton = 'btn btn--outline'

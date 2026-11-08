@@ -1,0 +1,98 @@
+@layer components {
+.btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  min-height: var(--control-min);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-4);
+  background: transparent;
+  color: hsl(var(--color-text));
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.btn--primary {
+  background: hsl(var(--color-accent));
+  color: hsl(var(--color-accent-fg));
+}
+
+.btn--primary:hover {
+  background: hsl(var(--color-accent) / 0.9);
+}
+
+.btn--outline {
+  border-color: hsl(var(--color-border));
+  background: hsl(var(--color-surface));
+}
+
+.btn--outline:hover {
+  border-color: hsl(var(--color-accent) / 0.5);
+  background: hsl(var(--color-surface-muted));
+}
+
+.btn--ghost:hover {
+  background: hsl(var(--color-surface-muted));
+}
+
+.btn--danger {
+  background: hsl(var(--color-danger));
+  color: hsl(0 0% 100%);
+}
+
+.btn--danger:hover {
+  background: hsl(var(--color-danger) / 0.9);
+}
+
+.btn--link {
+  min-height: auto;
+  padding: 0;
+  color: hsl(var(--color-accent));
+  font-weight: 500;
+  text-underline-offset: 0.2em;
+}
+
+.btn--link:hover {
+  text-decoration: underline;
+}
+
+.btn--sm {
+  min-height: var(--control-min);
+  padding-inline: var(--space-3);
+  font-size: var(--text-xs);
+}
+
+.btn--md {
+  min-height: var(--control-min);
+  padding-inline: var(--space-4);
+}
+
+.btn--lg {
+  min-height: var(--control-min);
+  padding-inline: var(--space-6);
+  font-size: var(--text-base);
+}
+
+.btn--icon {
+  width: var(--control-min);
+  padding: 0;
+}
+}

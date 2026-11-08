@@ -44,13 +44,13 @@ test('draft conflicts preserve the local title and require explicit resolution',
   await mockApi(page, { conflict: true })
   await login(page, 'author@test.local', 'password')
   await page.goto(`/programs/${programId}/workspace?panel=edit`)
-  await page.getByLabel('Program title').fill('My local title')
+  await page.getByLabel('Program name').fill('My local title')
   await expect(page.getByRole('alert')).toContainText('This draft changed')
-  await expect(page.getByLabel('Program title')).toHaveValue('My local title')
+  await expect(page.getByLabel('Program name')).toHaveValue('My local title')
   await page.getByRole('link', { name: 'Workspace', exact: true }).click()
   await expect(page.getByText('You have unsaved changes.')).toBeVisible()
   await page.getByRole('button', { name: 'Keep editing' }).click()
-  await expect(page.getByLabel('Program title')).toHaveValue('My local title')
+  await expect(page.getByLabel('Program name')).toHaveValue('My local title')
 })
 test('server validation retains field errors and request reference', async ({
   page,
@@ -81,9 +81,9 @@ test('offline edits are kept locally and are not sent', async ({
   const { requests } = await mockApi(page)
   await login(page, 'author@test.local', 'password')
   await page.goto(`/programs/${programId}/workspace?panel=edit`)
-  await expect(page.getByLabel('Program title')).toBeVisible()
+  await expect(page.getByLabel('Program name')).toBeVisible()
   await context.setOffline(true)
-  await page.getByLabel('Program title').fill('Offline title')
+  await page.getByLabel('Program name').fill('Offline title')
   await expect(
     page.getByText('Offline · changes have not been saved'),
   ).toBeVisible()
@@ -105,7 +105,7 @@ test('failed Finish stays on the Activity and never confirms completion', async 
     `/occurrences/${itemId}?returnTo=${encodeURIComponent('/?week=2026-11-09&day=2026-11-09')}`,
   )
   await page.getByRole('button', { name: 'Start', exact: true }).click()
-  await page.getByRole('button', { name: 'Finish', exact: true }).click()
+  await page.getByRole('button', { name: /Finish/ }).click()
   await expect(page.getByRole('alert')).toContainText(
     'Could not confirm completion',
   )
@@ -142,13 +142,13 @@ test('autosave serializes edits typed while a previous save is in flight', async
   const firstRequest = page.waitForRequest(
     (request) => request.method() === 'PATCH',
   )
-  await page.getByLabel('Program title').fill('First edit')
+  await page.getByLabel('Program name').fill('First edit')
   await firstRequest
-  await page.getByLabel('Program title').fill('Latest edit')
+  await page.getByLabel('Program name').fill('Latest edit')
   await expect(
     page.getByRole('status').filter({ hasText: /^Saved$/ }),
   ).toBeVisible()
-  await expect(page.getByLabel('Program title')).toHaveValue('Latest edit')
+  await expect(page.getByLabel('Program name')).toHaveValue('Latest edit')
   const writes = requests.filter((r) => r.method === 'PATCH')
   expect(writes.map((r) => [r.body.title, r.body.expectedRevision])).toEqual([
     ['First edit', 1],
@@ -158,8 +158,10 @@ test('autosave serializes edits typed while a previous save is in flight', async
 test('calendar day selection works from the keyboard', async ({ page }) => {
   await mockApi(page)
   await login(page, 'participant@test.local', 'password')
-  await page.goto('/?week=2026-11-09&day=2026-11-09')
-  const tuesday = page.getByRole('button', { name: 'Tue 10', exact: true })
+  await page.goto('/?view=week&day=2026-11-09')
+  const tuesday = page
+    .getByLabel('Select a day')
+    .getByRole('button', { name: 'Tue 10', exact: true })
   await tuesday.focus()
   await page.keyboard.press('Enter')
   await expect(tuesday).toHaveAttribute('aria-pressed', 'true')
@@ -172,4 +174,63 @@ test('calendar day selection works from the keyboard', async ({ page }) => {
       ),
     ).toBe(true)
   }
+})
+
+test('calendar defaults to month, switches views, and stays within a mobile viewport', async ({
+  page,
+}) => {
+  await mockApi(page)
+  await login(page, 'participant@test.local', 'password')
+  await page.goto('/?view=month&day=2026-11-09')
+  await expect(page.getByRole('button', { name: 'Month', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await page.getByRole('button', { name: 'Year', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '2026', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Week', exact: true }).click()
+  await expect(page).toHaveURL(/view=week/)
+  await page.getByRole('button', { name: 'Month', exact: true }).click()
+  await page.setViewportSize({ width: 360, height: 780 })
+  const day = page
+    .getByLabel('Select a day')
+    .getByRole('button', { name: 'Tue 10', exact: true })
+  await day.click()
+  await expect(day).toHaveAttribute('aria-pressed', 'true')
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+})
+
+test('Program Activity creation keeps description and optional instructions in context', async ({
+  page,
+}) => {
+  const { requests } = await mockApi(page)
+  await login(page, 'author@test.local', 'password')
+  await page.goto(`/programs/${programId}/workspace?panel=activities`)
+  await page.getByLabel('Activity title').fill('Evening walk')
+  await page.getByLabel('Description').fill('Walk around the neighborhood.')
+  await page.getByLabel('Category').selectOption({ label: 'Fitness' })
+  await page
+    .getByLabel('Instructions (optional)')
+    .fill('Choose a comfortable pace.')
+  await page.getByRole('button', { name: 'Continue to media' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Add Activity to Program' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Add Activity to Program' }).click()
+  await expect(page.getByRole('heading', { name: 'Schedule & placement' })).toBeVisible()
+  expect(
+    requests.find((request) => request.path === '/activities' && request.method === 'POST')
+      ?.body,
+  ).toMatchObject({
+    title: 'Evening walk',
+    summary: 'Walk around the neighborhood.',
+  })
+  expect(
+    requests.find((request) => request.path.endsWith('/draft/instructions'))?.body
+      .instructions,
+  ).toEqual([{ body: 'Choose a comfortable pace.' }])
 })

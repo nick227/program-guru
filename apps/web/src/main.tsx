@@ -6,7 +6,7 @@ import { Toaster } from 'sonner'
 import { createApiClient } from '@project/sdk'
 import { queryClient } from './lib/queryClient'
 import { App } from './App'
-import './index.css'
+import './styles/index.css'
 createApiClient({
   baseUrl: import.meta.env.VITE_API_URL ?? 'http://localhost:3001',
 })

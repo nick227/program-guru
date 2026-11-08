@@ -55,25 +55,25 @@ export function Form<T extends Record<string, unknown>>({
     formState: { errors, isSubmitting },
   } = useForm<T>({
     resolver: zodResolver(schema),
-    defaultValues: defaultValues as any,
+    defaultValues: defaultValues as never,
   })
 
   return (
     <form
       onSubmit={handleSubmit((data) => onSubmit(normalizeSubmitData(data)))}
-      className={cn('flex flex-col gap-4', className)}
+      className={cn('form', className)}
     >
       {fields.map((field) => {
         const id = `field-${field.name}`
         return (
-          <div key={field.name} className="flex flex-col gap-1.5">
-            <label htmlFor={id} className="text-sm font-medium">
+          <div key={field.name} className="field">
+            <label htmlFor={id} className="label">
               {field.label}
             </label>
 
             {field.type === 'textarea' ? (
               <Textarea
-                {...register(field.name as any)}
+                {...register(field.name as never)}
                 id={id}
                 aria-invalid={
                   !!errors[field.name] || !!serverErrors?.[field.name]
@@ -86,11 +86,13 @@ export function Form<T extends Record<string, unknown>>({
                 placeholder={field.placeholder}
                 rows={field.rows ?? 4}
                 voice={field.voice}
-                onVoiceResult={(t) => setValue(field.name as any, t as any)}
+                onVoiceResult={(t) =>
+                  setValue(field.name as never, t as never)
+                }
               />
             ) : (
               <Input
-                {...register(field.name as any)}
+                {...register(field.name as never)}
                 id={id}
                 aria-invalid={
                   !!errors[field.name] || !!serverErrors?.[field.name]
@@ -103,12 +105,14 @@ export function Form<T extends Record<string, unknown>>({
                 type={field.type}
                 placeholder={field.placeholder}
                 voice={field.voice}
-                onVoiceResult={(t) => setValue(field.name as any, t as any)}
+                onVoiceResult={(t) =>
+                  setValue(field.name as never, t as never)
+                }
               />
             )}
 
             {(errors[field.name] || serverErrors?.[field.name]) && (
-              <p id={`${id}-error`} className="text-xs text-destructive">
+              <p id={`${id}-error`} className="field-error">
                 {(errors[field.name]?.message as string) ||
                   serverErrors?.[field.name]}
               </p>

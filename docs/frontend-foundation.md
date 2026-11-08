@@ -64,9 +64,9 @@ Invalidation completes before mutation success is surfaced. Finish and Undo neve
 
 ## Visual system
 
-Factory templates supply the standard Button, Input, Textarea, Form, Avatar, Skeleton, Spinner, and EmptyState; project adaptations enforce semantic tokens, accessible labels and 44px controls. Page/Stage/Panel/Row/Grid/Stack are thin native wrappers. No Card or Shell.
+Hybrid design system: token-driven CSS under `apps/web/src/styles/` (scales, semantic colors, light/dark themes, typography, page/panel/card/button/field/form, calendar widget) plus Tailwind for layout/responsive utilities. Shared controls: Button, Input, Textarea, Select, Form, Avatar, Skeleton, Spinner, EmptyState, Card. Layout: Page/Stage/Panel/Card/Row/Grid/Stack. No Shell / primary nav.
 
-Light palette: background `#eef2f6`, white surfaces, slate text, muted blue-gray borders, teal primary actions. Optional dark palette follows the system preference with a user override. Trebuchet display headings and Segoe/system body type avoid external font dependencies. The prominent seven-day selector is the visual anchor. Mobile shows the selected day; desktop shows seven columns. Motion is limited to short state transitions and disabled for reduced motion.
+Editorial practice-studio identity: cool stone canvas, ink typography (Syne display + Source Sans 3 body), cobalt accent, restrained elevation. Dark palette via `.dark` on `<html>` with system preference + user override. Calendar is the first redesigned page; the seven-day week strip is the visual signature. Mobile shows the selected day; desktop shows seven columns. Motion is limited to 120–200ms and disabled for reduced motion.
 
 ## API dependencies and handoff to Claude
 

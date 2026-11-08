@@ -6,7 +6,7 @@ export async function login(page: Page, email: string, password: string) {
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   // exact: true — login heading "Sign in to your week" must not match.
   await expect(
-    page.getByRole('heading', { name: 'Your week', exact: true }),
+    page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
 }
 export async function journey(
@@ -28,29 +28,26 @@ export async function journey(
   await page.getByRole('link', { name: 'Create Program', exact: true }).click()
   await page.getByRole('button', { name: 'Workout', exact: true }).click()
   await page.getByRole('button', { name: 'Strength', exact: true }).click()
+  await page.getByText('Browse suggestions to customize').click()
   // Title is the accessible-name prefix; avoid matching "Chair Squats".
   await page.getByRole('button', { name: /^Squats/ }).click()
-  await page.getByRole('button', { name: 'Add 1 Activities' }).click()
+  await page.getByRole('button', { name: 'Use 1 selected Activity' }).click()
   await expect(
     page.getByRole('heading', { name: 'Activities', exact: true }),
   ).toBeVisible()
-  await page.getByRole('link', { name: 'Edit', exact: true }).click()
   const title = `Browser strength ${Date.now()}`
-  await page.getByLabel('Program title').fill(title)
+  await page.getByLabel('Program name').fill(title)
   await expect(
     page.getByRole('status').filter({ hasText: /^Saved$/ }),
   ).toBeVisible()
-  await page.getByRole('link', { name: 'Workspace', exact: true }).click()
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
-  await page.getByRole('link', { name: 'Calendar', exact: true }).click()
   await expect(
-    page.getByRole('heading', { name: 'Review schedule' }),
+    page.getByRole('heading', { name: 'Schedule & placement' }),
   ).toBeVisible()
   await page.reload()
   await expect(
-    page.getByRole('heading', { name: 'Review schedule' }),
+    page.getByRole('heading', { name: 'Schedule & placement' }),
   ).toBeVisible()
-  await page.getByRole('link', { name: 'Workspace', exact: true }).click()
   await page
     .getByRole('link', { name: 'Preview & Publish', exact: true })
     .click()
@@ -94,9 +91,9 @@ export async function journey(
   else if (await start.isVisible()) await start.click()
   await page.getByRole('button', { name: 'Pause', exact: true }).click()
   await page.getByRole('button', { name: 'Resume', exact: true }).click()
-  await page.getByRole('button', { name: 'Finish', exact: true }).click()
+  await page.getByRole('button', { name: /Finish/ }).click()
   await expect(
-    page.getByRole('heading', { name: 'Your week', exact: true }),
+    page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
   await expect(page).toHaveURL(/completed=/)
   await expect(mine.filter({ hasText: 'Completed' }).first()).toBeVisible()

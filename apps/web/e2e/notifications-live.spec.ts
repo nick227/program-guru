@@ -204,7 +204,7 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   ).toBeVisible()
   await collabPage.getByRole('link', { name: 'Open Calendar' }).click()
   await expect(
-    collabPage.getByRole('heading', { name: 'Your week', exact: true }),
+    collabPage.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
   await expect(collabPage.getByText('Missed')).toHaveCount(0)
 
@@ -233,7 +233,7 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   await collabPage.goto(`/groups/${group.id}`)
   await collabPage.getByRole('button', { name: 'Leave group' }).click()
   await expect(
-    collabPage.getByRole('heading', { name: 'Your week', exact: true }),
+    collabPage.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
 
   // Group endpoints now return 404 for collaborator

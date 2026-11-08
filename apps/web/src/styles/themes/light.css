@@ -1,0 +1,32 @@
+:root {
+  color-scheme: light;
+
+  /* Cool mist stone canvas, ink text, deep cobalt accent */
+  --color-bg: 210 18% 94%;
+  --color-surface: 0 0% 100%;
+  --color-surface-raised: 210 25% 98%;
+  --color-surface-muted: 210 14% 90%;
+  --color-text: 222 28% 12%;
+  --color-muted: 215 12% 40%;
+  --color-border: 214 16% 82%;
+  --color-accent: 224 78% 42%;
+  --color-accent-fg: 0 0% 100%;
+  --color-focus: 224 85% 48%;
+  --color-danger: 0 68% 42%;
+  --color-success: 158 55% 28%;
+  --color-attention: 36 80% 36%;
+
+  /* Legacy aliases used by residual Tailwind utilities */
+  --background: var(--color-bg);
+  --text: var(--color-text);
+  --surface: var(--color-surface);
+  --surface-raised: var(--color-surface-raised);
+  --surface-muted: var(--color-surface-muted);
+  --muted: var(--color-muted);
+  --accent: var(--color-accent);
+  --focus: var(--color-focus);
+  --border: var(--color-border);
+  --danger: var(--color-danger);
+  --success: var(--color-success);
+  --attention: var(--color-attention);
+}

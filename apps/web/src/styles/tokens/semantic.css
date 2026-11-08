@@ -1,0 +1,6 @@
+/*
+  Semantic color token names. Values are set in themes/light.css and themes/dark.css
+  as space-separated HSL channels for Tailwind alpha compatibility:
+  color: hsl(var(--color-text));
+  background: hsl(var(--color-accent) / 0.12);
+*/

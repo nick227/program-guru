@@ -1,0 +1,33 @@
+.dark {
+  color-scheme: dark;
+
+  --color-bg: 222 22% 9%;
+  --color-surface: 220 18% 14%;
+  --color-surface-raised: 220 16% 17%;
+  --color-surface-muted: 218 14% 20%;
+  --color-text: 210 20% 94%;
+  --color-muted: 214 12% 68%;
+  --color-border: 215 12% 28%;
+  --color-accent: 220 85% 62%;
+  --color-accent-fg: 222 28% 10%;
+  --color-focus: 220 90% 70%;
+  --color-danger: 0 78% 68%;
+  --color-success: 156 50% 58%;
+  --color-attention: 38 85% 62%;
+
+  --background: var(--color-bg);
+  --text: var(--color-text);
+  --surface: var(--color-surface);
+  --surface-raised: var(--color-surface-raised);
+  --surface-muted: var(--color-surface-muted);
+  --muted: var(--color-muted);
+  --accent: var(--color-accent);
+  --focus: var(--color-focus);
+  --border: var(--color-border);
+  --danger: var(--color-danger);
+  --success: var(--color-success);
+  --attention: var(--color-attention);
+
+  --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.35);
+  --shadow-md: 0 6px 20px hsl(0 0% 0% / 0.4);
+}

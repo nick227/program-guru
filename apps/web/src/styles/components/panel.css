@@ -1,0 +1,25 @@
+@layer components {
+.panel {
+  box-sizing: border-box;
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-panel);
+  background: hsl(var(--color-surface));
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (min-width: 640px) {
+  .panel {
+    padding: var(--space-6);
+  }
+}
+
+.panel--quiet {
+  box-shadow: none;
+  background: hsl(var(--color-surface-raised));
+}
+
+.panel--accent {
+  border-color: hsl(var(--color-accent) / 0.45);
+}
+}

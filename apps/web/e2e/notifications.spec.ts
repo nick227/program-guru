@@ -913,7 +913,7 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
   // Open Calendar from the group schedule panel -> personal calendar items are present
   await page.getByRole('link', { name: 'Open Calendar' }).click()
   await expect(
-    page.getByRole('heading', { name: 'Your week', exact: true }),
+    page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
   await expect(
     page.getByRole('link', { name: /Morning Squats/ }).first(),
@@ -928,7 +928,7 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
   await page.goto(`/groups/${inviteGroupId}`)
   await page.getByRole('button', { name: 'Leave group' }).click()
   await expect(
-    page.getByRole('heading', { name: 'Your week', exact: true }),
+    page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
   await expect(
     page.getByRole('link', { name: /Morning Squats/ }).first(),
@@ -951,13 +951,13 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
   await shareCheckbox.check()
   await expect(shareCheckbox).toBeChecked()
 
-  // 4. Navigate from Follow Accepted notification -> /u/coach_maya
+  // 4. Navigate from Follow Accepted notification -> /@coach_maya
   await page.goto('/notifications')
   await page.getByRole('button', { name: 'Load more' }).click()
   await page
     .getByRole('link', { name: 'Coach Maya accepted your follow request' })
     .click()
-  await expect(page).toHaveURL(/\/u\/coach_maya$/)
+  await expect(page).toHaveURL(/\/@coach_maya$/)
   await expect(
     page.getByRole('heading', { name: 'Coach Maya' }),
   ).toBeVisible()

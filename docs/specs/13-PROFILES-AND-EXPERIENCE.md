@@ -7,7 +7,7 @@
 
 - **Calendar is Home.** On normal entry, show the user's **weekly** personal calendar, combining scheduled Activities from joined Programs and standalone Activities. No persistent primary navigation is required.
 - **One focus per view.** Use short labels, direct actions, low cognitive load, seeded options, button selections, intelligent defaults, and progressive disclosure. If typing is necessary, prefill a realistic editable suggestion.
-- **Generic composition.** Prefer `Page`, `Stage`, `Panel`, `Row`, `Grid`, `Stack`, and Tailwind utilities. Extract behavior-rich controls only when reused. Do not add a hierarchy of domain-named visual wrappers.
+- **Generic composition.** Prefer `Page`, `Stage`, `Panel`, `Card`, `Row`, `Grid`, `Stack`, semantic CSS classes, and Tailwind layout utilities. Extract behavior-rich controls only when reused. Do not add a hierarchy of domain-named visual wrappers. `Panel` contains interface sections; `Card` is a content item.
 - **Calendar header** offers contextual Add Program / Add Activity and a **user widget with notification indicator** leading to profile, account activity and notifications.
 - **Program Workspace is locked:** compact title/type/focus/duration/frequency header, Draft status, Edit and Calendar actions, enriched Activity rows showing instruction count/media count/metrics, Add Activity, Preview & Publish. No separate Details or Schedule sections.
 - **Activity page is locked in this order:** (1) Header, (2) Today's Results, (3) Collaborators, (4) Session Controls, (5) My Metrics, (6) My Media, (7) Shared Media, (8) Community Media, (9) Community Stats. Session controls support Start, Pause, Resume, Finish. Media uses **small thumbnail grids**, not tabs.
@@ -91,19 +91,19 @@
 
 **Always respect context:** `Mine` means private history unless explicitly published; Group media remains group-scoped; Public media is shareable/discoverable only if permission and moderation allow it. No forced tabs within Activity. Recording/Upload is available via shared Media Studio; captured media defaults private and can be published deliberately later.
 
-## 7. Console-inspired visual language
+## 7. Editorial practice-studio visual language
 
-**Reference principles, not a game skin:**
+**Reference principles, not a game skin or generic dashboard:**
 
-- **Cinematic framing:** large and legible headings, restrained contrast, purposeful negative space, prominent media when it adds value.
-- **Confident controls:** large hit areas, visibly selected buttons, obvious single primary action per stage, keyboard/gamepad-like focus clarity without requiring gamepad support.
-- **Hierarchy over decoration:** minimal copy, compact metadata, strong emphasis on active status and next action; no gratuitous gradients, faux HUD elements or dense status walls.
+- **Editorial framing:** ink typography, cool stone canvas, restrained elevation, purposeful negative space, Program imagery as quiet hero on content cards.
+- **Confident controls:** large hit areas, visibly selected buttons, obvious single primary action per stage, clear focus rings without requiring gamepad support.
+- **Hierarchy over decoration:** minimal copy, compact metadata, strong emphasis on active status and next action; no gratuitous gradients, faux HUD, purple theme defaults, or dense status walls.
 - **Progress feedback:** subtle completion confirmation, tasteful achievement reveal from real milestones, no manipulative streak pressure.
 - **Responsive:** mobile-first touch interactions, desktop keyboard and pointer support, consistent maximum content width where appropriate.
 - **Accessibility:** contrast and visible focus, 44px-equivalent targets when feasible, captions for instructional video, reduced motion, non-color status distinctions.
 - **Motion:** short and meaningful button, panel and media transitions. Never delay a core task to play an animation.
 
-**Design tokens are defined in `04-UI.md` §4:** surface/background/raised surface, primary and muted text, accent/focus, success/attention/error, spacing scale, radius scale, type scale, motion durations/easing, thumbnail size and aspect ratios. Do not invent unrelated token systems in individual pages.
+**Design tokens are defined in `04-UI.md` §4** and implemented under `apps/web/src/styles/`. Do not invent unrelated token systems in individual pages.
 
 ## 8. Loading and feedback system
 
@@ -127,13 +127,13 @@
   <Stage className="...">
     <Panel className="...">
       <Row className="...">{/* identity / action */}</Row>
-      <Grid className="...">{/* programs or media */}</Grid>
+      <Grid className="...">{/* programs or media as Cards */}</Grid>
     </Panel>
   </Stage>
 </Page>
 ```
 
-Use Tailwind for composition, typography, sizing and visuals. Shared behavior controls may include `MediaPicker`, `MediaViewer`, `OptionGrid`, `EntityPicker`, `Recorder`, `FollowControl`, `AccessAction` and `LoadingState`, but avoid creating one visual component per domain row. Reuse the same surface and status conventions in creator profile, Program Workspace and Activity.
+Use semantic CSS for surfaces, type, and controls; Tailwind for layout and responsive composition (`04-UI.md` §1b). Shared behavior controls may include `MediaPicker`, `MediaViewer`, `OptionGrid`, `EntityPicker`, `Recorder`, `FollowControl`, `AccessAction` and `LoadingState`, but avoid creating one visual component per domain row. Reuse the same surface and status conventions in creator profile, Program Workspace and Activity.
 
 ## 10. P1 acceptance scenarios
 
@@ -153,7 +153,7 @@ Resolved for P1: no verified badges; no external profile links; no self-declared
 
 Still open, and not blocking implementation:
 
-- **Brand/name and visual palette:** determine after a small set of actual page mockups; do not equate console-inspired with mandatory dark mode.
+- **Brand/name polish:** product naming and marketing surfaces may still refine; the editorial practice-studio palette and type system are defined in `04-UI.md` §4. Do not equate that direction with mandatory dark mode.
 - **Loading art and sound:** any branded animation or sound must be optional, short, accessible and performance-safe.
 
 ## 12. Cross-document ownership

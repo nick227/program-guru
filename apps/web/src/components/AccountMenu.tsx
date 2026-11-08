@@ -16,6 +16,7 @@ import { UnreadDot } from '@/components/UnreadDot'
 import { NotificationRow } from '@/components/NotificationRow'
 import { linkButton } from '@/components/Navigation'
 import { toggleTheme } from '@/lib/theme'
+import { buildProfileUrl } from '@/lib/urls'
 
 export function AccountMenu() {
   const me = useCurrentUser()
@@ -85,19 +86,19 @@ export function AccountMenu() {
           <section
             role="dialog"
             aria-label="Recent notifications"
-            className="fixed inset-x-0 bottom-0 z-30 max-h-[82vh] overflow-y-auto rounded-t-2xl border-t bg-surface p-4 shadow-lg sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:rounded-xl sm:border"
+            className="fixed inset-x-0 bottom-0 z-30 flex max-h-[82vh] flex-col rounded-t-2xl border-t bg-surface shadow-lg sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[min(32rem,70vh)] sm:w-96 sm:rounded-xl sm:border"
           >
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-border sm:hidden" />
-            <Stack className="gap-3">
-              <Row className="justify-between">
-                <Row className="gap-2">
+            <div className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-border sm:hidden" />
+            <div className="sticky top-0 z-10 shrink-0 border-b bg-surface px-4 py-3">
+              <Row className="justify-between gap-2">
+                <Row className="min-w-0 gap-2">
                   <h2 className="text-base font-semibold">Notifications</h2>
                   <UnreadDot count={count} inline />
                 </Row>
-                <Row className="gap-1">
+                <Row className="shrink-0 gap-1">
                   <Button
                     variant="ghost"
-                    className="min-h-11 px-2 py-1 text-xs"
+                    className="px-2 text-xs"
                     disabled={!hasUnread || mark.isPending}
                     loading={mark.isPending}
                     onClick={() => mark.mutate({ all: true })}
@@ -114,6 +115,8 @@ export function AccountMenu() {
                   </Button>
                 </Row>
               </Row>
+            </div>
+            <Stack className="gap-3 overflow-y-auto px-4 py-3">
 
               <ErrorMessage
                 error={recent.error || mark.error}
@@ -188,7 +191,7 @@ export function AccountMenu() {
         </summary>
         <Panel className="absolute right-0 z-20 mt-2 w-60 shadow-lg">
           <Stack>
-            <Link to={`/${profile.handle}`} className={linkButton}>
+            <Link to={buildProfileUrl(profile.handle)} className={linkButton}>
               Profile
             </Link>
             <Link to="/studio" className={linkButton}>
