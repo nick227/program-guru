@@ -8,6 +8,7 @@ import {
   useCurrentUser,
   useDeclineGroupInvitation,
   useDeclineMyGroupInvitation,
+  useEnrollment,
   useGroup,
   useGroupCompletions,
   useGroupInvitation,
@@ -447,6 +448,9 @@ export function GroupPage() {
 
   const me = useCurrentUser()
   const group = useGroup(id)
+  const myEnrollment = useEnrollment(
+    group.data?.myEnrollment?.enrollmentId ?? '',
+  )
   const receivedInvites = useMyGroupInvitations(!group.data && !group.isPending)
   const invitations = useGroupInvitations(id, !!group.data)
   const completions = useGroupCompletions(id)
@@ -563,6 +567,9 @@ export function GroupPage() {
                       <p className="text-xs text-muted">
                         Started {dateLabel(g.myEnrollment.startLocalDate)} (
                         {g.myEnrollment.startLocalDate})
+                        {myEnrollment.data?.participationStartDate
+                          ? ` · Joined on ${dateLabel(myEnrollment.data.participationStartDate)} (${myEnrollment.data.participationStartDate})`
+                          : ''}
                       </p>
                     </div>
                     <Link

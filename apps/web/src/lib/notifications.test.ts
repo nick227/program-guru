@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatCalendarItemStatus,
   formatLocalTime,
   formatNotificationTimestamp,
   getAvailableTimezones,
   getNotificationMeta,
+  isPendingCalendarItem,
   isValidReminderTime,
   isValidTimezone,
   localNowTime,
@@ -195,6 +197,47 @@ describe('selectUpcomingReminders', () => {
     ])
     expect(reminders[0]?.effectiveReminderTime).toBe('08:00')
     expect(reminders[1]?.effectiveReminderTime).toBe('14:00')
+  })
+
+  it('displays NOT_PARTICIPATING as Not participating (never Missed) and excludes pre-join items from pending/reminder indicators', () => {
+    expect(formatCalendarItemStatus('NOT_PARTICIPATING')).toBe(
+      'Not participating',
+    )
+    expect(formatCalendarItemStatus('NOT_PARTICIPATING')).not.toBe('Missed')
+    expect(formatCalendarItemStatus('DONE')).toBe('Completed')
+    expect(formatCalendarItemStatus('PLANNED')).toBe('Planned')
+
+    const preJoinItem = makeCalendarItem({
+      id: 'item-pre-join',
+      localDate: '2099-05-09',
+      status: 'NOT_PARTICIPATING',
+      title: 'Pre-Join Squats',
+    })
+    const preJoinDatePlanned = makeCalendarItem({
+      id: 'item-before-join-date',
+      localDate: '2099-05-09',
+      status: 'PLANNED',
+      title: 'Before Join Date',
+    })
+    const postJoinPlanned = makeCalendarItem({
+      id: 'item-post-join',
+      localDate: '2099-05-10',
+      status: 'PLANNED',
+      title: 'Post-Join Squats',
+    })
+
+    expect(isPendingCalendarItem(preJoinItem, '2099-05-10')).toBe(false)
+    expect(isPendingCalendarItem(preJoinDatePlanned, '2099-05-10')).toBe(false)
+    expect(isPendingCalendarItem(postJoinPlanned, '2099-05-10')).toBe(true)
+
+    const reminders = selectUpcomingReminders(
+      [preJoinItem, preJoinDatePlanned, postJoinPlanned],
+      {
+        timezone: 'America/Chicago',
+        participationStartDate: '2099-05-10',
+      },
+    )
+    expect(reminders.map((r) => r.id)).toEqual(['item-post-join'])
   })
 })
 

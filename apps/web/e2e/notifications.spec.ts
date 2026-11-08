@@ -282,10 +282,13 @@ async function setupNotificationsMock(
 
     if (path === '/calendar/items') {
       const start = url.searchParams.get('start') ?? '2026-11-07'
+      const end = url.searchParams.get('end') ?? start
+      const itemDate =
+        '2026-11-07' >= start && '2026-11-07' <= end ? '2026-11-07' : start
       return send([
         {
           id: itemId,
-          localDate: start,
+          localDate: itemDate,
           localTime: '09:30',
           status: 'PLANNED',
           title: 'Morning Squats',
@@ -306,10 +309,30 @@ async function setupNotificationsMock(
             : 0,
           updatedAt: '2026-11-07T12:00:00Z',
         },
+        // Pre-join item dated before participationStartDate -> NOT_PARTICIPATING (never Missed, never reminded)
+        {
+          id: uid(32),
+          localDate: itemDate,
+          localTime: '07:00',
+          status: 'NOT_PARTICIPATING',
+          title: 'Pre-Join Warmup',
+          activityId,
+          activityRevisionId: uid(21),
+          programTitle: 'Strength Foundation',
+          enrollmentId,
+          programDayIndex: 0,
+          recurrenceId: null,
+          conflict: false,
+          locked: false,
+          thumbnailUrl: null,
+          participantAvatars: [],
+          unreadCount: 0,
+          updatedAt: '2026-11-07T12:00:00Z',
+        },
         // Duplicate occurrence on same date/time/activity/enrollment to verify deduplication
         {
           id: uid(31),
-          localDate: start,
+          localDate: itemDate,
           localTime: '09:30',
           status: 'PLANNED',
           title: 'Morning Squats',
@@ -407,6 +430,7 @@ async function setupNotificationsMock(
         timezone: prefs.timezone,
         status: 'ACTIVE',
         calendarItemCount: 12,
+        participationStartDate: '2026-11-07',
       } satisfies S['Enrollment'])
     }
 
@@ -422,6 +446,7 @@ async function setupNotificationsMock(
         timezone: prefs.timezone,
         status: 'ACTIVE',
         calendarItemCount: 12,
+        participationStartDate: '2026-11-07',
       } satisfies S['Enrollment'])
     }
 
@@ -841,6 +866,7 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
   await expect(
     page.getByRole('heading', { name: 'Your Personal Schedule' }),
   ).toBeVisible()
+  await expect(page.getByText(/Joined on Nov 7 \(2026-11-07\)/)).toBeVisible()
 
   // React to group completion in Group view
   const clapBtn = page.getByRole('button', {
@@ -857,6 +883,11 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
   await expect(
     page.getByRole('link', { name: /Morning Squats/ }).first(),
   ).toBeVisible()
+  // NOT_PARTICIPATING item shows "Not participating" and never "Missed"
+  await expect(
+    page.getByRole('link', { name: /Pre-Join Warmup.*Not participating/ }).first(),
+  ).toBeVisible()
+  await expect(page.getByText('Missed')).toHaveCount(0)
 
   // Leave group -> group access is revoked (404 Group Unavailable), personal calendar items stay intact
   await page.goto(`/groups/${inviteGroupId}`)

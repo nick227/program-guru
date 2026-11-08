@@ -239,6 +239,42 @@ export interface UpcomingReminderItem {
 }
 
 /**
+ * Formats a CalendarItemStatus for participant display.
+ * NOT_PARTICIPATING always renders as "Not participating", never "Missed".
+ */
+export function formatCalendarItemStatus(
+  status: CalendarItem['status'],
+): string {
+  switch (status) {
+    case 'DONE':
+      return 'Completed'
+    case 'NOT_PARTICIPATING':
+      return 'Not participating'
+    case 'SKIPPED':
+      return 'Skipped'
+    case 'CANCELLED':
+      return 'Cancelled'
+    default:
+      return 'Planned'
+  }
+}
+
+/**
+ * Returns true when a calendar item counts as a pending scheduled Activity.
+ * Pre-join Activities (NOT_PARTICIPATING or dated before participationStartDate) are excluded.
+ */
+export function isPendingCalendarItem(
+  item: Pick<CalendarItem, 'status' | 'localDate' | 'locked'>,
+  participationStartDate?: string | null,
+): boolean {
+  if (item.locked || item.status !== 'PLANNED') return false
+  if (participationStartDate && item.localDate < participationStartDate) {
+    return false
+  }
+  return true
+}
+
+/**
  * Computes deduplicated, chronologically sorted upcoming scheduled Activities
  * respecting the user's timezone and reminder preferences.
  */
@@ -247,6 +283,7 @@ export function selectUpcomingReminders(
   options: {
     timezone: string
     dailyReminderTime?: string
+    participationStartDate?: string | null
     now?: Date
     limit?: number
   },
@@ -271,7 +308,7 @@ export function selectUpcomingReminders(
   })
 
   for (const item of sorted) {
-    if (item.status !== 'PLANNED' || item.locked) continue
+    if (!isPendingCalendarItem(item, options.participationStartDate)) continue
     if (item.localDate < currentDay) continue
     if (seenOccurrenceIds.has(item.id)) continue
 

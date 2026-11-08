@@ -202,7 +202,9 @@ function OccurrenceContent({
               ? 'In progress'
               : status === 'PAUSED'
                 ? 'Paused'
-                : 'Ready'}
+                : o.item.status === 'NOT_PARTICIPATING'
+                  ? 'Not participating'
+                  : 'Ready'}
         </p>
       </Stack>
 
@@ -280,9 +282,11 @@ function OccurrenceContent({
                     {member.user.displayName} ·{' '}
                     {member.status === 'DONE'
                       ? 'Completed'
-                      : member.status === 'UNKNOWN'
-                        ? 'Private'
-                        : 'Planned'}
+                      : member.status === 'NOT_PARTICIPATING'
+                        ? 'Not participating'
+                        : member.status === 'UNKNOWN'
+                          ? 'Private'
+                          : 'Planned'}
                   </span>
                   {member.completionShareId && (
                     <Row className="gap-1">

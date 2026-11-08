@@ -152,6 +152,12 @@ export function ProgramPage() {
         />
         {p.myEnrollmentId ? (
           <Stack className="gap-3">
+            {enrollment.data?.participationStartDate && (
+              <p className="text-xs text-muted">
+                Joined on {dateLabel(enrollment.data.participationStartDate)} (
+                {enrollment.data.participationStartDate})
+              </p>
+            )}
             {enrollment.data?.pendingVersionId && (
               <Panel className="border-accent bg-accent/5">
                 <Stack className="gap-2">

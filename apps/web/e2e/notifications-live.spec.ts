@@ -134,17 +134,22 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
     )
     .toEqual(expect.arrayContaining(['ACTIVITY_REMINDER', 'ACHIEVEMENT_EARNED']))
 
-  // 3. Create a SYNC Group and invite collaborator by handle (kind: 'USER')
+  // 3. Create a SYNC Group (started 4 days ago so collaborator joins as a late joiner) and invite collaborator by handle (kind: 'USER')
   const programDetailRes = await page.request.get(`${api}/programs/${program.id}`)
   expect(programDetailRes.ok()).toBe(true)
   const programDetail = (await programDetailRes.json()).data
+  const pastGroupStart = new Date(
+    Date.parse(`${clock.date}T00:00:00Z`) - 4 * 86_400_000,
+  )
+    .toISOString()
+    .slice(0, 10)
 
   const groupRes = await page.request.post(`${api}/groups`, {
     data: {
       programVersionId: programDetail.latestVersionId,
       name: 'Live Morning Crew',
       mode: 'SYNC',
-      startLocalDate: clock.date,
+      startLocalDate: pastGroupStart,
     },
   })
   expect(groupRes.ok()).toBe(true)
@@ -189,17 +194,21 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   ).toBeVisible()
   await collabPage.getByRole('button', { name: 'Accept invitation' }).click()
 
-  // Transitions to active group page with Your Personal Schedule -> Open Calendar
+  // Transitions to active group page with Your Personal Schedule -> Joined on label -> Open Calendar
   await expect(collabPage).toHaveURL(new RegExp(`/groups/${group.id}$`))
   await expect(
     collabPage.getByRole('heading', { name: 'Your Personal Schedule' }),
+  ).toBeVisible()
+  await expect(
+    collabPage.getByText(new RegExp(`Joined on .* \\(${clock.date}\\)`)),
   ).toBeVisible()
   await collabPage.getByRole('link', { name: 'Open Calendar' }).click()
   await expect(
     collabPage.getByRole('heading', { name: 'Your week', exact: true }),
   ).toBeVisible()
+  await expect(collabPage.getByText('Missed')).toHaveCount(0)
 
-  // Verify collaborator's personal calendar has the Program's scheduled items
+  // Verify collaborator's personal calendar has pre-join NOT_PARTICIPATING items and post-join PLANNED items
   const windowEnd = new Date(
     Date.parse(`${clock.date}T00:00:00Z`) + 14 * 86_400_000,
   )
@@ -208,11 +217,17 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   const collabItemsBefore = (
     await (
       await collabPage.request.get(
-        `${api}/calendar/items?start=${clock.date}&end=${windowEnd}`,
+        `${api}/calendar/items?start=${pastGroupStart}&end=${windowEnd}`,
       )
     ).json()
-  ).data as Array<{ id: string; title: string }>
+  ).data as Array<{ id: string; title: string; localDate: string; status: string }>
   expect(collabItemsBefore.length).toBeGreaterThan(0)
+  const preJoinItems = collabItemsBefore.filter((i) => i.localDate < clock.date)
+  expect(preJoinItems.length).toBeGreaterThan(0)
+  expect(preJoinItems.every((i) => i.status === 'NOT_PARTICIPATING')).toBe(true)
+  await collabPage.goto(`/?week=${pastGroupStart}&day=${preJoinItems[0]!.localDate}`)
+  await expect(collabPage.getByText('Not participating').first()).toBeVisible()
+  await expect(collabPage.getByText('Missed')).toHaveCount(0)
 
   // Collaborator leaves the group -> group access is revoked immediately while personal calendar items stay intact
   await collabPage.goto(`/groups/${group.id}`)
@@ -233,7 +248,7 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   const collabItemsAfter = (
     await (
       await collabPage.request.get(
-        `${api}/calendar/items?start=${clock.date}&end=${windowEnd}`,
+        `${api}/calendar/items?start=${pastGroupStart}&end=${windowEnd}`,
       )
     ).json()
   ).data as Array<{ id: string; title: string }>
@@ -284,7 +299,7 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   const collabItemsAfterRemove = (
     await (
       await collabPage.request.get(
-        `${api}/calendar/items?start=${clock.date}&end=${windowEnd}`,
+        `${api}/calendar/items?start=${pastGroupStart}&end=${windowEnd}`,
       )
     ).json()
   ).data as Array<{ id: string; title: string }>

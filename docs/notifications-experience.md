@@ -67,5 +67,9 @@ All `Notification.deepLink` targets emitted by `apps/server/src/worker/handlers.
     - `ALREADY_MEMBER`, `SIGN_IN_REQUIRED`, `ACCESS_REQUIRED`, `PAYMENT_REQUIRED`, `ENROLLED_OTHER_VERSION`, `LEAVE_OTHER_GROUP`, `UNAVAILABLE`: Renders contextual guidance and actions.
 - **Leaving & Member Removal**:
   - Leaving (`PATCH /groups/{groupId}/members/me` `{ leave: true }`) or owner removal (`DELETE /groups/{groupId}/members/{userId}`) immediately revokes group access (`GET /groups/{groupId}` returns `404`), unlinks the enrollment, and revokes group completion shares while preserving the participant's personal calendar items, sessions, results, and media.
+- **Late Joiners & `NOT_PARTICIPATING` (`2ff182e`, migration `0005`)**:
+  - Calendar items and collaborator day statuses with `NOT_PARTICIPATING` render as **Not participating** (never **Missed**) across [`CalendarSurface.tsx`](../apps/web/src/components/CalendarSurface.tsx) and [`Occurrence.tsx`](../apps/web/src/pages/Occurrence.tsx).
+  - Pre-join Activities (`NOT_PARTICIPATING` or dated before `participationStartDate`) are excluded from pending and upcoming reminder indicators in [`selectUpcomingReminders()`](../apps/web/src/lib/notifications.ts).
+  - When `participationStartDate` is present on an enrollment, [`GroupPage`](../apps/web/src/pages/Group.tsx) and [`ProgramPage`](../apps/web/src/pages/Program.tsx) display `Joined on <date>`.
 
 

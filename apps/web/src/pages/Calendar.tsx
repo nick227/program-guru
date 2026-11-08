@@ -229,6 +229,8 @@ export function CalendarPage() {
                   .filter(Boolean)
                   .join(' · '),
                 done: item.status === 'DONE',
+                notParticipating: item.status === 'NOT_PARTICIPATING',
+                status: item.status,
                 locked: item.locked,
                 conflict: item.conflict,
                 thumbnailUrl: item.thumbnailUrl,

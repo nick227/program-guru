@@ -364,6 +364,7 @@ export async function mockApi(
         timezone: 'America/Chicago',
         status: 'ACTIVE',
         calendarItemCount: 12,
+        participationStartDate: start,
       })
     if (/^\/programs\/[^/]+$/.test(path))
       return send({
