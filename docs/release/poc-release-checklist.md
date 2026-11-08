@@ -98,6 +98,8 @@ Migrations are additive and run only via `prisma migrate deploy`. Bootstrap fail
 | `PUBLIC_API_URL` | ✓ | ✓ | `https://api.<domain>` |
 | `PUBLIC_APP_URL` | ✓ | ✓ | `https://app.<domain>` |
 | `CORS_ORIGIN` | ✓ | | `https://app.<domain>` |
+| `CLIENT_IP_HEADER` | ✓ | | `x-real-ip` (Railway's documented client-IP header; trusted only from private/CGNAT proxy peers) |
+| `TRUSTED_PROXY_CIDRS` | ✓ | | Leave unset (private + CGNAT ranges) unless Railway's proxy source differs; see the hosted check in UAT-HANDOFF §5 |
 | `COOKIE_DOMAIN` | ✓ | | Leave unset (host-only cookie on the API host) unless deliberately sharing |
 | `STORAGE_PROVIDER` | ✓ | ✓ | `r2` |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | ✓ | ✓ | R2 API token scoped to the one bucket (object read/write) |

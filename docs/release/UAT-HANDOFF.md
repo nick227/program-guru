@@ -1,10 +1,11 @@
 # Program Guru: UAT handoff
 
-**Release candidate:** the commit that adds this file on `main`, directly after `11699a9`.
-Local only: not pushed (`origin/main` is behind) and not deployed.
+**Release candidate:** the UAT readiness commit on `main` directly after `cabfc63` (this revision of
+this file). Local only: not pushed (`origin/main` is behind) and not deployed.
 
 | Integrated in this candidate | Commit |
 |---|---|
+| UAT readiness: client IP behind the proxy, live test harness, port guards | this commit |
 | Group Experience (Copilot), fast-forwarded with no conflicts | `11699a9` |
 | Activity attempt history and Activity Authoring | `354eea8` |
 | Account screens (register, verify, forgot/reset password), Vercel SPA fallback | `d3c83bc` |
@@ -22,19 +23,48 @@ from the outbox after sending.
 
 | Suite | Result |
 |---|---|
-| Typecheck (all packages), lint, SDK drift, OpenAPI validation | Clean |
-| Operations implemented | 155 / 155 |
-| Server integration tests (`programs_app_claude_test`) | **285 / 285** |
+| Typecheck (all packages), lint, SDK drift and SDK typecheck, OpenAPI validation | Clean |
+| Server integration tests (`programs_app_claude_test`), including client-IP and rate-limit cases | **296 / 296** |
+| Worker tests (media pipeline, outbox, reminders) | 10 / 10 (included above) |
 | Web unit tests | 22 / 22 |
 | Browser suite, mocked API, desktop + mobile | **90 / 90** |
 | Production builds: API, worker, bootstrap bundles; web | Built |
-| Live: account screens (`apps/web/scripts/auth-live.ts`) | 4 / 4 |
-| Live: media upload → READY → attach → view → detach, photo and video (`media-live.ts`) | 2 / 2 |
-| Live: handle invitation → ID acceptance → calendar, removal/leave revocation, reminders, preferences (`notifications-live.ts`) | 1 / 1 |
-| Live: account switch isolation, Activity history (25 attempts, pagination, detach/restore, authorization) (`*.live.ts`) | 2 / 2 |
-| Live: discovery → author → publish → join → Finish/Undo (`live.spec.ts`) | 1 / 1 **when run alone**; 429 when run after the history suite (see §5.1) |
-| Real API + worker over HTTP: media pipeline, privacy, groups, retries, cleanup (`pnpm --filter server media:e2e`) | 19 / 19 |
-| Local dev API `/health`; dev database migrations | 200; up to date |
+
+Live suites, run **back to back**; each has its own API, worker and dedicated database:
+
+| Live suite | Command | Result |
+|---|---|---|
+| Account screens: register → verify → sign in; reset; invalid/expired links; direct navigation | `pnpm exec tsx apps/web/scripts/auth-live.ts` | 4 / 4 |
+| Activity history (25 attempts, pagination, detach/restore, authorization); account-switch isolation; discovery → author → publish → join → Finish/Undo | `pnpm exec tsx apps/web/scripts/history-live.ts` | 3 / 3 |
+| Media upload → READY → attach → view → detach, photo and video | `MEDIA_TEST_DATABASE_URL=… pnpm exec tsx apps/web/scripts/media-live.ts` | 2 / 2 |
+| Handle invitation → acceptance → calendar; removal/leave revocation; reminders; preferences | `pnpm exec tsx apps/web/scripts/notifications-live.ts` | 1 / 1 |
+| Real API + worker over HTTP: media pipeline, privacy, groups, retries, cleanup | `pnpm --filter server media:e2e` | 19 / 19 |
+
+Local dev API (`:3001`): `/health` 200; dev database migrations up to date.
+
+### Client IP and rate limits (fixed in this candidate)
+
+Railway documents one client-IP header, `X-Real-IP`; its `X-Forwarded-For` handling and proxy source
+addresses are not documented. The API now:
+
+- never reads `X-Forwarded-For`;
+- uses `X-Real-IP` only when `CLIENT_IP_HEADER=x-real-ip` **and** the TCP peer is in `TRUSTED_PROXY_CIDRS` (default: private and CGNAT ranges, which internet clients cannot connect from); otherwise it uses the socket address;
+- refuses to start in production without an explicit `CLIENT_IP_HEADER` (`x-real-ip` or `none`).
+
+Tests run on a real app with rate limiting enabled and two instances sharing the database:
+- two clients behind one proxy have independent sign-in limits;
+- one client repeating requests is limited (429 after 10 sign-ins; global 429 after 300 requests a minute, with `retry-after`);
+- spoofed `X-Real-IP`/`X-Forwarded-For` from an internet peer cannot escape the limit;
+- rotating `X-Forwarded-For` through the proxy does not create new identities;
+- the per-email sign-in limit still applies across clients;
+- limits hold across instances.
+
+With the old code, the two independent-client cases fail.
+
+**Harness traffic vs independent clients:** in `history-live.ts`, each spec is its own client (a
+distinct `X-Real-IP`, trusted only from loopback in that harness), so specs no longer share one
+rate-limit bucket. Earlier, the journey got a 429 after the history spec only because all local test
+traffic shared `127.0.0.1`. Runners now refuse a port that is already in use.
 
 ## 2. UAT scenarios
 
@@ -62,18 +92,14 @@ pnpm --filter server worker                # worker (needs ffmpeg/ffprobe on PAT
 pnpm --filter web dev                      # web :5173
 ```
 
-Live suites (each uses its own database and ports; run **one at a time** because of §5.1):
-
-```bash
-pnpm exec tsx apps/web/scripts/auth-live.ts
-MEDIA_TEST_DATABASE_URL=mysql://root:…@127.0.0.1:3307/programs_app_codex_media_roundtrip pnpm exec tsx apps/web/scripts/media-live.ts
-pnpm exec tsx apps/web/scripts/notifications-live.ts
-pnpm --filter server media:e2e
-```
+Live suites: commands in §1. Each creates or uses its own database (`programs_app_auth_live`,
+`programs_app_history_live`, `programs_app_codex_media_roundtrip`, `programs_app_notifications_live`,
+`programs_app_e2e`), creates fresh accounts, never touches `programs_app_dev`, and refuses busy ports.
 
 Hosted UAT (Railway + Vercel + R2 + Resend) is **not provisioned**. Follow
-`docs/release/poc-release-checklist.md` §3 (order), §5 (secrets), §6 (provisioning), §7 (smoke test).
-Production processes refuse to start on missing or weak configuration; `/health` is the Railway healthcheck.
+`docs/release/poc-release-checklist.md` §3 (order), §5 (secrets, now including `CLIENT_IP_HEADER=x-real-ip`
+on the API), §6 (provisioning), §7 (smoke test). Production processes refuse to start on missing or weak
+configuration; `/health` is the Railway healthcheck.
 
 ## 4. Known limitations
 
@@ -83,10 +109,14 @@ Production processes refuse to start on missing or weak configuration; `/health`
 - Google sign-in: API ready, no button.
 - Platform illustrations are title cards, not instructional drawings.
 - `.railway/railway.ts` has not been validated with `railway config plan` (no linked project yet).
-- Live specs `live.spec.ts` and `*.live.ts` have no committed Playwright config on `main`. The history doc refers to `activity-media-history.live.config.ts`, which isn't committed; results above used a temporary config. `release/p1-uat-rc` (`a2fa727`) wires the account-switch test into a live suite and is **not merged** into `main`.
+- `release/p1-uat-rc` (`a2fa727`): its content (the account-switch test and `activity-media-history.live.config.ts`) was already on `main`, byte-identical. The branch is otherwise far behind `main` and can be retired. This candidate extends that config with per-client projects and the journey spec, run by `scripts/history-live.ts`.
+- Two inert test accounts (`journey-author-…@test.local`, `journey-part-…@test.local`, unverified, no data) were created in the shared `programs_app_dev` by a harness run that reached another agent's API on a busy port. Runners now refuse busy ports. Delete them if the dev data should stay clean.
 
-## 5. Blockers for hosted UAT
+## 5. Remaining blockers for hosted UAT
 
-1. **Client IP behind a proxy.** The API does not set Fastify `trustProxy`, so behind Railway's edge proxy every request appears to come from the proxy. All testers would then share the per-IP limits: 300 requests/minute globally, 10 logins/minute, 5 password-reset requests/minute. A multi-person UAT would hit 429s within minutes. Locally this showed as one test's 429 after another suite (all traffic from `127.0.0.1`). Fix before hosted UAT: trust the platform proxy (for example `trustProxy` limited to Railway's proxy hop), then re-run the live suites back to back.
-2. Infrastructure not provisioned and secrets not set (checklist §5–§6).
-3. `main` not pushed; CI not yet confirmed green on GitHub.
+The application has no known blocking defects. What remains is operational:
+
+1. **Provision infrastructure and set secrets** (checklist §5–§6): Railway project (validate `.railway/railway.ts` with `railway config plan`), R2 bucket and CORS, Resend domain, Vercel, `app.`/`api.` domains.
+2. **Push `main`** and confirm CI is green on GitHub; the workflow fixes are unproven until then.
+3. **First-deploy check of client IP** (one request, about 5 minutes): Railway does not document its proxy's source addresses or whether a client-sent `X-Real-IP` is overwritten. After deploying, send a request with a spoofed `X-Real-IP` header and confirm the rate-limit identity is your real address, and that two testers on different networks have separate limits. If Railway's proxy source is outside the default ranges, the API safely falls back to the proxy address (shared limits); set `TRUSTED_PROXY_CIDRS` to Railway's range.
+4. **Product decisions** already listed in §4 (demo videos, moderation screen, legal pages) for anything beyond invite-only UAT.

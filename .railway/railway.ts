@@ -34,6 +34,8 @@ export default defineRailway(() => {
     env: {
       ...shared,
       CORS_ORIGIN: preserve(),
+      // Railway's edge sets X-Real-IP; trusted only from private/CGNAT peers (apps/server/src/lib/clientIp.ts).
+      CLIENT_IP_HEADER: "x-real-ip",
       COOKIE_DOMAIN: preserve(),
       GOOGLE_CLIENT_ID: preserve(),
     },

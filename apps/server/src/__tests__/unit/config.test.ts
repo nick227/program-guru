@@ -15,6 +15,7 @@ const complete = {
   PUBLIC_API_URL: 'https://api.example.com',
   PUBLIC_APP_URL: 'https://app.example.com',
   CORS_ORIGIN: 'https://app.example.com',
+  CLIENT_IP_HEADER: 'x-real-ip',
   EMAIL_PROVIDER: 'resend',
   RESEND_API_KEY: 're_x',
   EMAIL_FROM: 'Programs <hello@example.com>',
@@ -23,6 +24,12 @@ const complete = {
 describe('production configuration gate', () => {
   it('passes a complete production configuration for every process', () => {
     for (const role of ['api', 'worker', 'bootstrap'] as const) expect(productionConfigProblems(role, complete)).toEqual([])
+  })
+
+  it('requires an explicit client IP decision for the API behind the proxy', () => {
+    expect(productionConfigProblems('api', { ...complete, CLIENT_IP_HEADER: undefined })).toEqual(['CLIENT_IP_HEADER must be x-real-ip (behind Railway) or none'])
+    expect(productionConfigProblems('api', { ...complete, CLIENT_IP_HEADER: 'x-forwarded-for' })).toEqual(['CLIENT_IP_HEADER must be x-real-ip (behind Railway) or none'])
+    expect(productionConfigProblems('worker', { ...complete, CLIENT_IP_HEADER: undefined })).toEqual([])
   })
 
   it('never applies outside production', () => {

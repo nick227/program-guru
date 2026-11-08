@@ -3,6 +3,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { db } from '@project/db'
 import { rateLimited } from './errors'
+import { clientIp } from './clientIp'
 
 export type RateLimitOptions = {
   key: string
@@ -158,7 +159,7 @@ export async function enforceRateLimit(opts: RateLimitOptions, reply?: FastifyRe
  * auth limits backed by `RateLimitBucket` in MySQL.
  */
 export async function rateLimitPreHandler(request: FastifyRequest, reply: FastifyReply, now?: Date) {
-  const ip = request.ip || '127.0.0.1'
+  const ip = clientIp(request)
   const routePath = (request.routeOptions?.url ?? request.url.split('?')[0]) || '/'
   const routeKey = `${request.method.toUpperCase()} ${routePath}`
   const authRule = AUTH_ROUTE_LIMITS[routeKey]

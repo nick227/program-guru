@@ -35,9 +35,18 @@ CORS origin for the test web port. It creates two uniquely named test users, one
 calendar occurrence, and 25 attempts through real APIs. It does not reset the DB
 or modify existing users. Test-created records are retained in the local database.
 
+Reproducible run (isolated API, worker and dedicated database `programs_app_history_live`; also
+runs account-switch isolation and the author → publish → join → Finish/Undo journey):
+
 ```sh
-HISTORY_TEST_API=http://localhost:3041 VITE_API_URL=http://localhost:3041 \
-  E2E_PORT=5192 pnpm --filter web exec playwright test \
+pnpm exec tsx apps/web/scripts/history-live.ts
+```
+
+Against an API you started yourself:
+
+```sh
+HISTORY_TEST_API=http://localhost:3047 VITE_API_URL=http://localhost:3047 \
+  E2E_PORT=5197 pnpm --filter web exec playwright test \
   --config activity-media-history.live.config.ts
 ```
 

@@ -52,9 +52,19 @@ const env = {
 Object.assign(process.env, env)
 const serverRequire = createRequire(resolve(root, 'apps/server/package.json'))
 const run = (cmd: string, args: string[]) => execFileSync(cmd, args, { cwd: root, env, stdio: 'pipe' })
+/** Refuses to run if something already answers on the API port: never talk to another agent's server. */
+async function assertPortFree(base: string) {
+  try {
+    await fetch(`${base}/health`, { signal: AbortSignal.timeout(1000) })
+  } catch {
+    return
+  }
+  throw new Error(`${base} is already in use; set a free port (no requests were sent to it beyond /health)`)
+}
 const children: ChildProcess[] = []
 const logs: string[] = []
 try {
+  await assertPortFree(api)
   console.log(`Preparing dedicated database ${DB}…`)
   run('bash', ['scripts/local-mysql.sh', 'create-database', DB])
   run('pnpm', ['--filter', '@project/db', 'exec', 'prisma', 'generate'])

@@ -2,6 +2,7 @@ import { requireUser, resolveViewer, sha256 } from '../lib/auth'
 import * as social from '../domains/social/social.service'
 import * as notifications from '../domains/social/notification.service'
 import * as moderation from '../domains/social/moderation.service'
+import { clientIp } from '../lib/clientIp'
 
 const uid = (request: any) => requireUser(request).id
 const viewerId = async (request: any) => (await resolveViewer(request))?.id ?? null
@@ -29,7 +30,7 @@ export async function unlikeMediaPublication(request: any) {
 }
 export async function recordMediaPublicationView(request: any) {
   // Anonymous views dedupe on a hash of network and agent; nothing identifying is stored.
-  const fingerprint = sha256(`${request.ip}:${request.headers['user-agent'] ?? ''}`)
+  const fingerprint = sha256(`${clientIp(request)}:${request.headers['user-agent'] ?? ''}`)
   await social.recordView(await viewerId(request), fingerprint, request.params.publicationId)
   return { data: { ok: true } }
 }

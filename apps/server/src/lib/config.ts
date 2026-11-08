@@ -33,7 +33,11 @@ export function productionConfigProblems(role: ProcessRole, env: NodeJS.ProcessE
   if (env.MEDIA_URL_SECRET && env.MEDIA_URL_SECRET === env.EMAIL_LINK_SECRET) problems.push('MEDIA_URL_SECRET and EMAIL_LINK_SECRET must differ')
   need('PUBLIC_API_URL', isUrl(env.PUBLIC_API_URL, true), 'must be an https URL')
   need('PUBLIC_APP_URL', isUrl(env.PUBLIC_APP_URL, true), 'must be an https URL')
-  if (role === 'api') need('CORS_ORIGIN', isUrl(env.CORS_ORIGIN, true), 'must be the https web origin')
+  if (role === 'api') {
+    need('CORS_ORIGIN', isUrl(env.CORS_ORIGIN, true), 'must be the https web origin')
+    // An explicit decision: without it every client behind Railway's proxy shares one rate-limit identity.
+    need('CLIENT_IP_HEADER', ['x-real-ip', 'none'].includes(env.CLIENT_IP_HEADER ?? ''), 'must be x-real-ip (behind Railway) or none')
+  }
   if (role === 'worker') {
     need('EMAIL_PROVIDER', env.EMAIL_PROVIDER === 'resend', 'must be resend (capture never delivers)')
     need('RESEND_API_KEY')
