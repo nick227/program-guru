@@ -58,15 +58,37 @@ export function OccurrenceMedia({
   )
   const [managing, setManaging] = useState(false)
   const [picking, setPicking] = useState(false)
+  // One attributed strip: yours first, then group media, then public community
+  // examples (withheld while access is locked). Credits show in the viewer.
+  const related: (ViewerItem & { badge?: string })[] = [
+    ...toViewer(myMedia),
+    ...toViewer(sharedMedia, (i) => sharedMedia[i]?.owner.displayName ?? null).map(
+      (item) => ({ ...item, badge: 'Group' }),
+    ),
+    ...(locked
+      ? []
+      : toViewer(communityMedia, (i) =>
+          [
+            communityMedia[i]?.creator?.displayName,
+            communityMedia[i]?.attribution,
+            communityMedia[i]?.license,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        ).map((item) => ({ ...item, badge: 'Community' }))),
+  ]
+  const groupCount = sharedMedia.length
+  const communityCount = locked ? 0 : communityMedia.length
   return (
     <>
-      <Panel>
+      <Panel aria-label="Related Media">
         <Stack>
           <div>
-            <h2>Your session media</h2>
+            <h2>Related Media</h2>
             <p className="text-sm text-muted">
-              Add a photo or video to your private session history. Sharing is
-              optional.
+              {myMedia.length} yours (private)
+              {groupCount ? ` · ${groupCount} from your group` : ''}
+              {communityCount ? ` · ${communityCount} community` : ''}
             </p>
           </div>
           <ErrorMessage
@@ -74,27 +96,30 @@ export function OccurrenceMedia({
             retry={() => void session.refetch()}
           />
           <ThumbnailGrid
-            items={myMedia}
-            empty="No session media yet."
+            items={related}
+            empty="No media yet."
             onAdd={() => setPicking(true)}
             addLabel="Add media to this session"
-            columns={4}
+            columns={5}
             onSelect={(id) =>
               setViewer({
-                items: toViewer(myMedia),
-                index: myMedia.findIndex((m) => m.id === id),
+                items: related,
+                index: related.findIndex((m) => m.id === id),
               })
             }
           />
-          {sessionId && (
-            <Button
-              variant="outline"
-              onClick={() => setManaging((value) => !value)}
-              aria-expanded={managing}
-            >
-              Manage attachments
-            </Button>
-          )}
+          <div className="flex flex-wrap items-start gap-2">
+            {sessionId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setManaging((value) => !value)}
+                aria-expanded={managing}
+              >
+                Manage attachments
+              </Button>
+            )}
+          </div>
           {managing && (
             <Stack>
               <p className="text-sm text-muted">Attachments for this attempt</p>
@@ -119,57 +144,6 @@ export function OccurrenceMedia({
           />
         </Stack>
       </Panel>
-      {sharedMedia.length > 0 && (
-        <Panel>
-          <Stack>
-            <h2>Shared Media</h2>
-            <p className="text-sm text-muted">
-              Shared by people in this Program group.
-            </p>
-            <ThumbnailGrid
-              items={sharedMedia}
-              columns={4}
-              onSelect={(id) =>
-                setViewer({
-                  items: toViewer(
-                    sharedMedia,
-                    (i) => sharedMedia[i]?.owner.displayName ?? null,
-                  ),
-                  index: sharedMedia.findIndex((m) => m.id === id),
-                })
-              }
-            />
-          </Stack>
-        </Panel>
-      )}
-      {!locked && communityMedia.length > 0 && (
-        <Panel>
-          <Stack>
-            <h2>Community Media</h2>
-            <p className="text-sm text-muted">
-              Public examples from the community.
-            </p>
-            <ThumbnailGrid
-              items={communityMedia}
-              columns={4}
-              onSelect={(id) =>
-                setViewer({
-                  items: toViewer(communityMedia, (i) =>
-                    [
-                      communityMedia[i]?.creator?.displayName,
-                      communityMedia[i]?.attribution,
-                      communityMedia[i]?.license,
-                    ]
-                      .filter(Boolean)
-                      .join(' · '),
-                  ),
-                  index: communityMedia.findIndex((m) => m.id === id),
-                })
-              }
-            />
-          </Stack>
-        </Panel>
-      )}
       {picking && (
         <MediaPicker
           context={

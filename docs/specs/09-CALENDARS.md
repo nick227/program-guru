@@ -72,17 +72,17 @@ When there are no entries: `Nothing scheduled this week` + `Browse Programs` / `
 
 ## 6. Activity occurrence: exact row order
 
-1. Header — Title, Program, Date, Status.
-2. My Media — Relevant private media, with a clear optional action to add a photo/video to this session.
-3. Shared Media — Explicitly group-shared thumbs, comments in viewer; omit empty. Explain who can see shared items.
-4. Community Media — Public approved thumbs (current Program creator first), views/likes within viewer; omit empty.
-5. Session Controls — Clear Start/Pause/Resume/Finish progression; elapsed time is calculated from session timestamps and paused time is excluded.
-6. Today's Results — Reps and only applicable custom metrics, with clear targets and small controls. Do not ask for elapsed session duration a second time.
-7. Collaborators — Prominent avatars, permitted completion, completion reactions. **Omit when solo.**
-8. My Metrics — Last, Best, Completed (choose relevant maximum three).
-9. Community Stats — Privacy-safe participants, completions, popularity; omit unhelpful.
+The occurrence page follows `03-UX.md` §6 (authoritative):
 
-These nine rows are locked. No tabs between private/group/public media. Instructions blend into content as compact text and media; no forced “read instructions”. There is no chat or live video control in P1.
+1. Header — Title, Program, Date, Status.
+2. Today's Results — Reps and only applicable custom metrics, with clear targets and small controls. Do not ask for elapsed session duration a second time.
+3. Collaborators — Prominent avatars, permitted completion, completion reactions. **Omit when solo.**
+4. Session Controls — Clear Start/Pause/Resume/Finish progression and `Finish now`; elapsed time is calculated from session timestamps and paused time is excluded. `Upload media` beside them adds private session media without starting the session.
+5. My Metrics — Last, Best, Completed (choose relevant maximum three).
+6. Related Media — One section: private media first, then permitted group-shared and public community media with attribution; add (library or upload), view, manage attachments and history from here.
+7. Community Stats — Privacy-safe participants, completions, popularity; omit unhelpful.
+
+These seven rows are locked. No tabs or separate sections between private/group/public media. Instructions blend into content as compact text and media; no forced “read instructions”. There is no chat or live video control in P1.
 
 ## 7. DTOs
 

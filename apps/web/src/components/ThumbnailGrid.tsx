@@ -36,7 +36,12 @@ export function ThumbnailGrid({
   return (
     <ul className={cn('grid gap-2', cols)}>
       {items.map((item) => (
-        <li key={item.id}>
+        <li key={item.id} className="relative">
+          {item.badge && (
+            <span className="pointer-events-none absolute left-1 top-1 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+              {item.badge}
+            </span>
+          )}
           <MediaItem
             asset={item}
             disabled={!onSelect}

@@ -608,7 +608,7 @@ test('occurrence rows follow the locked order with media after session controls'
   await page.goto(`/occurrences/${itemId}`)
   await expect(page.getByRole('heading', { name: 'Session', exact: true })).toBeVisible()
   const headings = await page.getByRole('heading', { level: 2 }).allInnerTexts()
-  const order = ["Today's Results", 'Session', 'My Metrics', 'Your session media']
+  const order = ["Today's Results", 'Session', 'My Metrics', 'Related Media']
     .map((name) => headings.findIndex((text) => text.trim() === name))
   expect(order.every((index) => index >= 0)).toBe(true)
   expect([...order].sort((a, b) => a - b)).toEqual(order)
@@ -642,4 +642,66 @@ test('session upload attaches to the current attempt privately without starting 
   })
   expect(media.calls.filter((call) => call.path.includes('publications'))).toHaveLength(0)
   await expect(session.getByText('Ready to start')).toBeVisible()
+})
+
+test('Related Media is one attributed strip: yours, group and community, with community withheld when locked', async ({
+  page,
+}) => {
+  await mockApi(page)
+  const rewrite = (locked: boolean) =>
+    page.addInitScript((isLocked: boolean) => {
+      const original = window.fetch.bind(window)
+      window.fetch = async (input, init) => {
+        const response = await original(input, init)
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+        if (!new URL(url).pathname.endsWith('/occurrence')) return response
+        const json = await response.clone().json()
+        json.data.item.locked = isLocked
+        json.data.myMedia = [{ id: 'mine-1', thumbnailUrl: null, type: 'PHOTO', alt: 'My squat', durationMs: null }]
+        json.data.sharedMedia = [{ id: 'group-1', publicationId: 'pub-g', thumbnailUrl: null, type: 'PHOTO', alt: 'Group squat', durationMs: null, owner: { id: 'u2', handle: 'maya', displayName: 'Coach Maya', avatarUrl: null }, commentCount: 0 }]
+        json.data.communityMedia = [{ id: 'pub-1', publicationId: 'pub-c', thumbnailUrl: null, type: 'PHOTO', alt: 'Community squat', durationMs: null, creator: { id: 'u3', handle: 'sam', displayName: 'Sam', avatarUrl: null }, attribution: null, license: 'CC0', likeCount: 0, viewCount: 0 }]
+        return new Response(JSON.stringify(json), { status: response.status, headers: response.headers })
+      }
+    }, locked)
+  await rewrite(false)
+  await login(page, 'participant@test.local', 'password')
+  await page.goto(`/occurrences/${itemId}`)
+  const related = page.getByRole('region', { name: 'Related Media' })
+  await expect(related.getByRole('heading', { name: 'Related Media' })).toBeVisible()
+  await expect(related.getByRole('button', { name: /My squat/ })).toBeVisible()
+  await expect(related.getByRole('button', { name: /Group squat/ })).toBeVisible()
+  await expect(related.getByRole('button', { name: /Community squat/ })).toBeVisible()
+  await expect(related.getByText('Group', { exact: true })).toBeVisible()
+  await expect(related.getByText('Community', { exact: true })).toBeVisible()
+  // One section: no separate Mine/Shared/Community headings.
+  for (const name of ['Your session media', 'Shared Media', 'Community Media', 'My Media'])
+    await expect(page.getByRole('heading', { name, exact: true })).toHaveCount(0)
+  // Add, manage and history stay reachable from the same section.
+  await expect(related.getByRole('button', { name: 'Add media to this session' })).toBeVisible()
+  await expect(related.getByRole('button', { name: 'Media from all attempts' })).toBeVisible()
+  // Viewer credits group media to its owner.
+  await related.getByRole('button', { name: /Group squat/ }).click()
+  await expect(page.getByRole('dialog')).toContainText('Coach Maya')
+})
+
+test('Related Media withholds community examples while access is locked', async ({ page }) => {
+  await mockApi(page)
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window)
+    window.fetch = async (input, init) => {
+      const response = await original(input, init)
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      if (!new URL(url).pathname.endsWith('/occurrence')) return response
+      const json = await response.clone().json()
+      json.data.item.locked = true
+      json.data.myMedia = [{ id: 'mine-1', thumbnailUrl: null, type: 'PHOTO', alt: 'My squat', durationMs: null }]
+      json.data.communityMedia = [{ id: 'pub-1', publicationId: 'pub-c', thumbnailUrl: null, type: 'PHOTO', alt: 'Community squat', durationMs: null, creator: null, attribution: null, license: null, likeCount: 0, viewCount: 0 }]
+      return new Response(JSON.stringify(json), { status: response.status, headers: response.headers })
+    }
+  })
+  await login(page, 'participant@test.local', 'password')
+  await page.goto(`/occurrences/${itemId}`)
+  const related = page.getByRole('region', { name: 'Related Media' })
+  await expect(related.getByRole('button', { name: /My squat/ })).toBeVisible()
+  await expect(related.getByRole('button', { name: /Community squat/ })).toHaveCount(0)
 })

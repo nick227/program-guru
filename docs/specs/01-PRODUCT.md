@@ -49,7 +49,7 @@ One user may perform all these jobs. There is no special `CREATOR` account role 
 
 1. Open app directly to the **weekly Calendar** with today highlighted. A first-time user sees an empty week with a prominent `Browse Programs` action.
 2. Tap an activity tile (thumbnail/icon, title, time/status, unread indication).
-3. See its Activity occurrence page in the locked nine-row order (`03-UX.md` §6).
+3. See its Activity occurrence page in the locked seven-row order (`03-UX.md` §6).
 4. Change an applicable metric with a simple control; start/finish; optionally attach a private photo or video.
 5. `Finish` returns to the same calendar week and date with completion visible. The entry survives navigation/reload.
 
@@ -183,7 +183,7 @@ General group chat and direct messaging, video meetings/WebRTC, comments on publ
 | 6 | Customizing an existing activity | Creates a personal copy |
 | 7 | Instruction presentation | Compact text and media |
 | 8 | Scheduling | Automatic distribution, with manual calendar adjustment |
-| 9 | Activity page emphasis | Prominent collaborator row within the locked nine-row order; results stay above it |
+| 9 | Activity page emphasis | Prominent collaborator row within the locked seven-row order; results stay above it |
 | 10 | Initial recording | Camera and upload |
 | 11 | Public media selection | Creator-selected media first; the rest ranked by popularity, relevance, quality review, and safety |
 | 12 | Creator identity | Combined public profile |

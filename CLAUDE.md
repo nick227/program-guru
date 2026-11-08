@@ -16,7 +16,7 @@ Goal-oriented platform: a personal weekly calendar for following structured Prog
 
 **Assumptions:** USD only. Moderation is a report queue and audited actions. Stripe Connect configuration is decided in an ADR before billing is built.
 
-**Locked, do not reinterpret:** Program Workspace layout (`03-UX.md` §4), nine-row Activity page (`03-UX.md` §6), calendar-first with no primary navigation (`03-UX.md` §2).
+**Locked, do not reinterpret:** Program Workspace layout (`03-UX.md` §4), seven-row Activity page with one Related Media section (`03-UX.md` §6), calendar-first with no primary navigation (`03-UX.md` §2).
 
 ## Stack
 

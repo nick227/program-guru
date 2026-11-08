@@ -10,7 +10,7 @@
 - **Generic composition.** Prefer `Page`, `Stage`, `Panel`, `Card`, `Row`, `Grid`, `Stack`, semantic CSS classes, and Tailwind layout utilities. Extract behavior-rich controls only when reused. Do not add a hierarchy of domain-named visual wrappers. `Panel` contains interface sections; `Card` is a content item.
 - **Calendar header** offers contextual Add Program / Add Activity and a **user widget with notification indicator** leading to profile, account activity and notifications.
 - **Program Workspace is locked:** compact title/type/focus/duration/frequency header, Draft status, Edit and Calendar actions, enriched Activity rows showing instruction count/media count/metrics, Add Activity, Preview & Publish. No separate Details or Schedule sections.
-- **Activity page is locked in this order:** (1) Header, (2) Today's Results, (3) Collaborators, (4) Session Controls, (5) My Metrics, (6) My Media, (7) Shared Media, (8) Community Media, (9) Community Stats. Session controls support Start, Pause, Resume, Finish. Media uses **small thumbnail grids**, not tabs.
+- **Activity page is locked in this order:** (1) Header, (2) Today's Results, (3) Collaborators, (4) Session Controls, (5) My Metrics, (6) Related Media, (7) Community Stats (`03-UX.md` §6). Session controls support Start, Pause, Resume, Finish and Finish now. Media uses **one compact, attributed thumbnail strip**, not tabs or separate sections.
 - **Universal creator capability:** any eligible user may publish Activities and Programs; a separate creator account type is unnecessary. Personal history and media are private unless deliberately shared.
 
 ## 2. Page inventory: additions and remaining surfaces
@@ -145,7 +145,7 @@ Use semantic CSS for surfaces, type, and controls; Tailwind for layout and respo
 6. A user opens personal or group thumbnails into the Media Viewer without accidentally publishing them.
 7. Empty, loading, error and offline states have short copy, a useful action and no data loss.
 8. Reduced-motion and keyboard navigation remain functional; small thumbnails provide accessible names and predictable focus order.
-9. The locked Program Workspace and nine-row Activity Page remain unchanged by the new profile/visual-system work.
+9. The locked Program Workspace and seven-row Activity Page remain unchanged by the new profile/visual-system work.
 
 ## 11. Decisions and remaining choices
 

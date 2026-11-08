@@ -183,7 +183,7 @@ components/
 
 ### Out of scope
 - Page decomposition (`ProgramWorkspace` 1,211 lines, `Group` 1,076). Those pages hold 7 and 3 inline sub-components respectively and deserve their own inventory.
-- Anything that changes the Program Workspace layout, the nine-row Activity page, or the calendar-first rule.
+- Anything that changes the Program Workspace layout, the Activity page (`03-UX.md` §6), or the calendar-first rule.
 
 ---
 
