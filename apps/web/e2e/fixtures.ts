@@ -5,7 +5,8 @@ const uid = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 export const programId = uid(10),
   activityId = uid(20),
-  itemId = uid(30)
+  itemId = uid(30),
+  groupId = uid(70)
 const type = {
   id: uid(2),
   categoryId: uid(3),
@@ -62,6 +63,8 @@ export async function mockApi(
     added = false,
     published = false,
     joined = false,
+    groupCreated = false,
+    createdGroupName: string | null = null,
     done = false,
     start = '2026-11-09'
   let session: S['ActivitySession'] | null = null
@@ -286,6 +289,69 @@ export async function mockApi(
       })
     if (path === '/programs' && method === 'POST') return send(workspace(), 201)
     if (path === '/programs') return send([summary()], 200, true)
+    if (path === '/groups' && method === 'GET')
+      return send(
+        groupCreated
+          ? [
+              {
+                id: groupId,
+                programVersionId: uid(12),
+                programTitle: title,
+                name: createdGroupName,
+                mode: 'SYNC',
+                memberCount: 1,
+                myRole: 'OWNER',
+              } satisfies S['GroupSummary'],
+            ]
+          : [],
+        200,
+        true,
+      )
+    if (path === '/groups' && method === 'POST') {
+      groupCreated = true
+      createdGroupName = typeof body.name === 'string' ? body.name : null
+      return send({ id: groupId }, 201)
+    }
+    if (path === `/groups/${groupId}` && method === 'GET')
+      return send({
+        id: groupId,
+        programVersionId: uid(12),
+        programTitle: title,
+        name: createdGroupName,
+        mode: 'SYNC',
+        memberCount: 1,
+        myRole: 'OWNER',
+        startLocalDate: start,
+        timezone: 'America/Chicago',
+        joinLinkEnabled: true,
+        members: [
+          {
+            user: {
+              id: uid(1),
+              handle: 'author',
+              displayName: 'Author',
+              avatarUrl: null,
+            },
+            role: 'OWNER',
+            status: 'ACTIVE',
+            sharedCompletion: false,
+          },
+        ],
+        mySharedCompletion: false,
+        myEnrollment: joined
+          ? {
+              enrollmentId: uid(40),
+              startLocalDate: start,
+              startDateDiffers: false,
+            }
+          : null,
+      } satisfies S['GroupDetail'])
+    if (
+      path === `/groups/${groupId}/invitations` ||
+      path === `/groups/${groupId}/completions` ||
+      path === `/groups/${groupId}/media`
+    )
+      return send([], 200, path.endsWith('/completions') || path.endsWith('/media'))
     if (path.endsWith('/workspace')) return send(workspace())
     if (path.endsWith('/draft/activities')) {
       added = true

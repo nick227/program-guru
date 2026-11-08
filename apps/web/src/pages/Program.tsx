@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   useAcceptEnrollmentUpdate,
@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/Input'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back, linkButton } from '@/components/Navigation'
+import { ProgramGroups } from '@/components/ProgramGroups'
 import {
   calendarUrl,
   dateLabel,
@@ -38,7 +39,19 @@ export function ProgramPage() {
     me.data?.data.preferences.timezone ??
     Intl.DateTimeFormat().resolvedOptions().timeZone
   const [joining, setJoining] = useState(!!groupIdParam)
-  const [date, setDate] = useState('')
+  const requestedStartDate = params.get('startDate')
+  const [date, setDate] = useState(
+    requestedStartDate && isLocalDate(requestedStartDate)
+      ? requestedStartDate
+      : '',
+  )
+  useEffect(() => {
+    if (!groupIdParam) return
+    setJoining(true)
+    if (requestedStartDate && isLocalDate(requestedStartDate)) {
+      setDate(requestedStartDate)
+    }
+  }, [groupIdParam, requestedStartDate])
   const start = date || today(tz)
   const preview = usePreviewEnrollment(id)
   const join = useJoinProgram(id)
@@ -140,6 +153,15 @@ export function ProgramPage() {
               ? ` · ${Math.round(p.completionRate * 100)}% completion`
               : ''}
           </p>
+        )}
+        {me.data && p.latestVersionId && (
+          <ProgramGroups
+            programId={id}
+            versionId={p.latestVersionId}
+            enrollmentId={p.myEnrollmentId}
+            isProgramOwner={p.viewerAccess === 'OWNER'}
+            timezone={tz}
+          />
         )}
         <ErrorMessage
           error={

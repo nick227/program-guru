@@ -13,11 +13,13 @@ import {
   useGroupCompletions,
   useGroupInvitation,
   useGroupInvitations,
+  useGroupMedia,
   useMyGroupInvitations,
   useRemoveCompletionReaction,
   useRemoveGroupMember,
   useRevokeGroupInvitation,
   useUpdateMyGroupMembership,
+  useUpdateGroup,
   useUpdatePreferences,
   type components,
 } from '@project/sdk'
@@ -454,7 +456,9 @@ export function GroupPage() {
   const receivedInvites = useMyGroupInvitations(!group.data && !group.isPending)
   const invitations = useGroupInvitations(id, !!group.data)
   const completions = useGroupCompletions(id)
+  const media = useGroupMedia(id, !!group.data)
   const updateMembership = useUpdateMyGroupMembership(id)
+  const updateGroup = useUpdateGroup(id)
   const removeMember = useRemoveGroupMember(id)
   const updatePrefs = useUpdatePreferences()
   const createInvite = useCreateGroupInvitation(id)
@@ -465,7 +469,10 @@ export function GroupPage() {
   const removeReaction = useRemoveCompletionReaction()
 
   const [inviteHandle, setInviteHandle] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [groupName, setGroupName] = useState<string | null>(null)
   const [latestJoinUrl, setLatestJoinUrl] = useState<string | null>(null)
+  const [closing, setClosing] = useState(false)
 
   const mutedGroupIds =
     me.data?.data.preferences.notifications.mutedGroupIds ?? []
@@ -473,6 +480,7 @@ export function GroupPage() {
   const g = group.data
   const completionRows =
     completions.data?.pages.flatMap((page) => page.data) ?? []
+  const mediaRows = media.data?.pages.flatMap((page) => page.data) ?? []
   const myPendingInvites =
     receivedInvites.data?.pages.flatMap((page) => page.data) ?? []
   const matchedInvitation =
@@ -761,6 +769,35 @@ export function GroupPage() {
                   >
                     Invite user
                   </Button>
+                  <label className="min-w-0 flex-1 space-y-1 text-sm">
+                    <span>Invite by email</span>
+                    <Input
+                      type="email"
+                      aria-label="Invite by email"
+                      value={inviteEmail}
+                      disabled={!online || createInvite.isPending}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                    />
+                  </label>
+                  <Button
+                    variant="outline"
+                    disabled={!online || !inviteEmail.trim()}
+                    loading={createInvite.isPending}
+                    onClick={async () => {
+                      try {
+                        await createInvite.mutateAsync({
+                          kind: 'EMAIL',
+                          email: inviteEmail.trim(),
+                        })
+                        setInviteEmail('')
+                        toast.success('Invitation email queued')
+                      } catch {
+                        /* shown below */
+                      }
+                    }}
+                  >
+                    Send email invite
+                  </Button>
                   {g.myRole === 'OWNER' && (
                     <Button
                       variant="outline"
@@ -828,6 +865,77 @@ export function GroupPage() {
                 )}
               </Stack>
             </Panel>
+
+            {g.myRole === 'OWNER' && (
+              <Panel>
+                <Stack className="gap-3">
+                  <h2>Manage group</h2>
+                  <label className="space-y-1 text-sm">
+                    <span>Group name</span>
+                    <Input
+                      aria-label="Group name"
+                      value={groupName ?? g.name ?? ''}
+                      maxLength={100}
+                      disabled={!online || updateGroup.isPending}
+                      onChange={(e) => setGroupName(e.target.value)}
+                    />
+                  </label>
+                  <Row>
+                    <Button
+                      variant="outline"
+                      disabled={!online || updateGroup.isPending}
+                      loading={updateGroup.isPending}
+                      onClick={async () => {
+                        try {
+                          await updateGroup.mutateAsync({
+                            name: groupName === null ? g.name : groupName.trim() || null,
+                          })
+                          setGroupName(null)
+                          toast.success('Group updated')
+                        } catch {
+                          /* shown below */
+                        }
+                      }}
+                    >
+                      Save group name
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      disabled={!online || closing || updateGroup.isPending}
+                      loading={closing}
+                      onClick={async () => {
+                        setClosing(true)
+                        try {
+                          await updateGroup.mutateAsync({ closed: true })
+                          toast.success('Group closed')
+                          navigate('/discover')
+                        } catch {
+                          setClosing(false)
+                        }
+                      }}
+                    >
+                      Close group
+                    </Button>
+                  </Row>
+                  <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border p-3">
+                    <span>Allow anyone with the share link to join</span>
+                    <input
+                      type="checkbox"
+                      aria-label="Allow anyone with the share link to join"
+                      checked={g.joinLinkEnabled}
+                      disabled={!online || updateGroup.isPending}
+                      onChange={(e) =>
+                        updateGroup.mutate({
+                          joinLinkEnabled: e.target.checked,
+                        })
+                      }
+                      className="h-5 w-5 accent-accent"
+                    />
+                  </label>
+                  <ErrorMessage error={updateGroup.error} />
+                </Stack>
+              </Panel>
+            )}
 
             <Panel>
               <Stack className="gap-3">
@@ -914,6 +1022,43 @@ export function GroupPage() {
                       </div>
                     ))}
                   </Stack>
+                )}
+              </Stack>
+            </Panel>
+
+            <Panel>
+              <Stack className="gap-3">
+                <h2>Shared media</h2>
+                <ErrorMessage error={media.error} />
+                {media.isPending ? (
+                  <Loading />
+                ) : mediaRows.length === 0 ? (
+                  <p className="text-sm text-muted">No shared media yet.</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                    {mediaRows.map((item) => (
+                      <figure key={item.publicationId} className="space-y-1">
+                        {item.thumbnailUrl ? (
+                          <img
+                            src={item.thumbnailUrl}
+                            alt={
+                              item.alt ||
+                              `${item.type.toLowerCase()} shared by ${item.owner.displayName}`
+                            }
+                            className="aspect-square w-full rounded-md object-cover"
+                          />
+                        ) : (
+                          <div className="flex aspect-square items-center justify-center rounded-md bg-surface-muted text-xs">
+                            {item.type}
+                          </div>
+                        )}
+                        <figcaption className="text-xs text-muted">
+                          {item.owner.displayName}
+                          {item.caption ? ` · ${item.caption}` : ''}
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
                 )}
               </Stack>
             </Panel>

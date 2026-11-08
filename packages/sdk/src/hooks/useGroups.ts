@@ -295,6 +295,33 @@ export function useGroupCompletions(groupId: string, occurrenceKey?: string) {
   })
 }
 
+export function useGroupMedia(
+  groupId: string,
+  enabled = true,
+  occurrenceKey?: string,
+) {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.groupMedia(groupId, occurrenceKey ?? '')),
+    enabled: !!groupId && enabled,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/groups/{groupId}/media', {
+          signal,
+          params: {
+            path: { groupId },
+            query: {
+              cursor: pageParam,
+              limit: 20,
+              occurrenceKey: occurrenceKey || undefined,
+            },
+          },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+
 export function useAddCompletionReaction() {
   return useApiMutation(
     async ({
@@ -383,4 +410,3 @@ export function useAddMediaComment(publicationId: string) {
     [keys.mediaComments(publicationId), keys.mediaPublication(publicationId)],
   )
 }
-

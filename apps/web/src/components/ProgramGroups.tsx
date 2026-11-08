@@ -46,7 +46,13 @@ export function ProgramGroups({
           ? { startLocalDate: startDate, timezone }
           : {}),
       })
-      navigate(`/programs/${programId}/groups/${group.id}`)
+      if (enrollmentId) {
+        navigate(`/groups/${group.id}`)
+      } else {
+        const params = new URLSearchParams({ groupId: group.id })
+        if (mode === 'SYNC') params.set('startDate', startDate)
+        navigate(`/programs/${programId}?${params}`)
+      }
     } catch {
       // The mutation error remains visible so the user can correct and retry.
     }
@@ -67,7 +73,7 @@ export function ProgramGroups({
             </span>
             <Link
               className="text-accent underline"
-              to={`/programs/${programId}/groups/${group.id}`}
+              to={`/groups/${group.id}`}
             >
               Open group
             </Link>
