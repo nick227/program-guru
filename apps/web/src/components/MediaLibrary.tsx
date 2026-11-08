@@ -15,10 +15,12 @@ export function MediaLibrary({
   onSelect,
   selected,
   selecting = false,
+  allowCapture = true,
 }: {
   onSelect: (asset: Asset) => void
   selected?: string[]
   selecting?: boolean
+  allowCapture?: boolean
 }) {
   const [source, setSource] = useState<'mine' | 'platform'>('mine')
   const [q, setQ] = useState('')
@@ -101,13 +103,15 @@ export function MediaLibrary({
               }}
             />
           </label>
-          <Button
-            variant="outline"
-            disabled={!online || upload.busy}
-            onClick={() => setCapture(true)}
-          >
-            Capture
-          </Button>
+          {allowCapture && (
+            <Button
+              variant="outline"
+              disabled={!online || upload.busy}
+              onClick={() => setCapture(true)}
+            >
+              Capture
+            </Button>
+          )}
           <p className="text-xs text-muted">
             Uploads start private. Attached media follows the destination’s
             access rules.

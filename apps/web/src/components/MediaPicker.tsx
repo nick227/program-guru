@@ -17,12 +17,15 @@ export function MediaPicker({
   selected: initialSelected = [],
   context,
   title = 'Attach media',
+  allowCapture = true,
 }: {
   onClose: () => void
   onSelect: (asset: components['schemas']['MediaAsset']) => Promise<void>
   selected?: string[]
   context?: MediaContext
   title?: string
+  /** Identity images (covers) choose from the library only; capture belongs to sessions. */
+  allowCapture?: boolean
 }) {
   const attachments = useMediaAttachments(context)
   useEffect(() => {
@@ -84,6 +87,7 @@ export function MediaPicker({
         <fieldset disabled={pending || checking}>
           <MediaLibrary
             selecting
+            allowCapture={allowCapture}
             selected={selected}
             onSelect={(asset) => {
               if (
