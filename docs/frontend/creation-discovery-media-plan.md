@@ -161,3 +161,25 @@ Each stage is a separate commit (or commits) and ends with `pnpm --filter web ty
 
 - **B: seed imagery source.** (1) Generated original, textless illustrations (CC0, reproducible from a script). (2) Curated CC0 photographs (Openverse/Wikimedia, CC0 only, recorded in the manifest). (3) Assets you supply.
 - **C: in-flight work.** Another session is editing `ProgramLibraryDialog`, `seed.ts` and `catalog.test.ts`. Wait for it, or take ownership.
+
+---
+
+## 9. Implementation status (2026-11-08)
+
+Decisions: A1–A5 approved, with the occurrence structure and the compact Workspace intact. Program covers are curated CC0 photographs; Activity images are original text-free illustrations.
+
+| Item | Status | Where |
+|---|---|---|
+| Occurrence rows in locked order 1–9 | Done | `pages/Occurrence.tsx` |
+| Camera action beside Session Controls (private, current attempt, never starts the timer) | Done | `components/SessionCapture.tsx` |
+| Canonical profile/group links | Done | `lib/urls` builders everywhere |
+| Server identity image: COVER → ILLUSTRATION → DEMONSTRATION | Done | `activities/mapper.ts › pickVisual` |
+| `resolveHero` + `EntityHero` (token-drawn fallback, no broken images) | Done; on storefront and profile cards | `lib/hero.ts`, `components/EntityHero.tsx` |
+| `ChangeImage` + `useProgramCover` / `useActivityCover` (no capture in identity picker) | Built; **not mounted** | `components/ChangeImage.tsx`, `lib/useEntityCover.ts` |
+| Activity illustrations (80, text-free, CC0 original) | Done; manifest v2 | `packages/db/scripts/generate-platform-assets.ts` |
+| Program covers (23, CC0 Commons, licence re-checked at fetch, sources in manifest) | Assets done; **seed link pending** | `packages/db/scripts/fetch-program-covers.ts`, `platformProgramCover()` |
+| Discover `sort=POPULAR` for Activities (usage-ranked) | Done | `social.service.ts` |
+| Shared discovery source + deterministic top-5 ranking | Done | `sdk/hooks/useDiscovery.ts` |
+| `SuggestionRail` / `DiscoveryCard` / card models | Built; **not mounted** | `components/SuggestionRail.tsx`, `lib/discoveryCards.ts` |
+| Nested browser routes, Activity mode, replacing "Browse suggestions", rails on create pages, Workspace cover | **Blocked** on in-flight edits to `ProgramCreate`, `ProgramWorkspace`, `Activity`, `App`, `ProgramLibraryDialog` | — |
+| Seed: `coverMediaId` from `platformProgramCover(slug)` | **Blocked** on in-flight `seed.ts` | — |
