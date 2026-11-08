@@ -28,6 +28,7 @@ import { AvatarStack } from '@/components/AvatarStack'
 import { UnreadDot } from '@/components/UnreadDot'
 import { OccurrenceInstructions } from '@/components/OccurrenceInstructions'
 import { OccurrenceMedia } from '@/components/OccurrenceMedia'
+import { SessionCapture } from '@/components/SessionCapture'
 import { calendarUrl, dateLabel, safeReturn } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
@@ -137,6 +138,23 @@ function OccurrenceContent({
     created.current = next
     return next
   }
+  /** Personal media goes to the current attempt, creating an unstarted one if needed. */
+  async function attachToSession(mediaId: string) {
+    if (!online) throw new Error('Connect to attach media.')
+    if (working.current) throw new Error('Wait for the current save to finish.')
+    working.current = true
+    setBusy(true)
+    try {
+      const current =
+        o.session && o.session.status !== 'ABANDONED'
+          ? o.session
+          : await getSession()
+      await attach.mutateAsync({ mediaId, sessionId: current.id })
+    } finally {
+      working.current = false
+      setBusy(false)
+    }
+  }
   async function perform(nextAction?: S['SessionAction']) {
     if (working.current) return
     working.current = true
@@ -231,139 +249,6 @@ function OccurrenceContent({
                   : 'Ready'}
         </p>
       </Stack>
-      <OccurrenceMedia
-        activityId={o.item.activityId}
-        sessionId={o.session?.id}
-        onAttach={async (asset) => {
-          if (!online) throw new Error('Connect to attach media.')
-          if (working.current)
-            throw new Error('Wait for the current save to finish.')
-          working.current = true
-          setBusy(true)
-          try {
-            const current =
-              o.session && o.session.status !== 'ABANDONED'
-                ? o.session
-                : await getSession()
-            await attach.mutateAsync({
-              mediaId: asset.id,
-              sessionId: current.id,
-            })
-          } finally {
-            working.current = false
-            setBusy(false)
-          }
-        }}
-        myMedia={o.myMedia}
-        sharedMedia={o.sharedMedia}
-        communityMedia={o.communityMedia}
-        locked={o.item.locked}
-      />
-      <Panel>
-        <Stack>
-          <Row className="justify-between">
-            <h2>Session</h2>
-            <span className="text-xs text-muted">
-              {status === 'READY' || status === 'ABANDONED'
-                ? 'Ready to start'
-                : status === 'ACTIVE'
-                  ? 'In progress'
-                  : status === 'PAUSED'
-                    ? 'Paused'
-                    : 'Completed'}
-            </span>
-          </Row>
-          <p className="text-sm text-muted">
-            Start when you begin. Pause for breaks; finish when you&apos;re done.
-            Active time is calculated automatically.
-          </p>
-          <ErrorMessage error={failure || undo.error} />
-          {!!failure && (
-            <Button variant="outline" onClick={refresh}>
-              Refresh Activity
-            </Button>
-          )}
-          <Row>
-            {(status === 'READY' || status === 'ABANDONED') && (
-              <>
-                <Button
-                  disabled={disabled}
-                  onClick={() => void perform('START')}
-                >
-                  Start
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={() => void perform('FINISH')}
-                >
-                  Finish now
-                </Button>
-              </>
-            )}
-            {status === 'ACTIVE' && (
-              <>
-                <Button
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={() => void perform('PAUSE')}
-                >
-                  Pause
-                </Button>
-                <Button
-                  disabled={disabled}
-                  onClick={() => void perform('FINISH')}
-                >
-                  Finish Activity
-                </Button>
-              </>
-            )}
-            {status === 'PAUSED' && (
-              <>
-                <Button
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={() => void perform('RESUME')}
-                >
-                  Resume
-                </Button>
-                <Button
-                  disabled={disabled}
-                  onClick={() => void perform('FINISH')}
-                >
-                  Finish Activity
-                </Button>
-              </>
-            )}
-            {status === 'FINISHED' && (
-              <>
-                <Button
-                  disabled={disabled}
-                  onClick={() => void perform('START')}
-                >
-                  Start again
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={disabled || undo.isPending}
-                  onClick={() => undo.mutate(o.item.id)}
-                >
-                  Undo completion
-                </Button>
-              </>
-            )}
-          </Row>
-          {busy && <p role="status">Saving…</p>}
-          {session?.status === 'FINISHED' && (
-            <p className="text-muted">
-              {session.isManualCompletion
-                ? 'Manually completed · no measured duration'
-                : `Active time · ${formatElapsed(session.activeSeconds)}`}
-            </p>
-          )}
-        </Stack>
-      </Panel>
-
       <Panel>
         <Stack>
           <h2>Today&apos;s Results</h2>
@@ -490,6 +375,111 @@ function OccurrenceContent({
         </Panel>
       )}
       <Panel>
+        <Stack>
+          <Row className="justify-between">
+            <h2>Session</h2>
+            <span className="text-xs text-muted">
+              {status === 'READY' || status === 'ABANDONED'
+                ? 'Ready to start'
+                : status === 'ACTIVE'
+                  ? 'In progress'
+                  : status === 'PAUSED'
+                    ? 'Paused'
+                    : 'Completed'}
+            </span>
+          </Row>
+          <p className="text-sm text-muted">
+            Start when you begin. Pause for breaks; finish when you&apos;re done.
+            Active time is calculated automatically.
+          </p>
+          <ErrorMessage error={failure || undo.error} />
+          {!!failure && (
+            <Button variant="outline" onClick={refresh}>
+              Refresh Activity
+            </Button>
+          )}
+          <Row>
+            {(status === 'READY' || status === 'ABANDONED') && (
+              <>
+                <Button
+                  disabled={disabled}
+                  onClick={() => void perform('START')}
+                >
+                  Start
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() => void perform('FINISH')}
+                >
+                  Finish now
+                </Button>
+              </>
+            )}
+            {status === 'ACTIVE' && (
+              <>
+                <Button
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() => void perform('PAUSE')}
+                >
+                  Pause
+                </Button>
+                <Button
+                  disabled={disabled}
+                  onClick={() => void perform('FINISH')}
+                >
+                  Finish Activity
+                </Button>
+              </>
+            )}
+            {status === 'PAUSED' && (
+              <>
+                <Button
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() => void perform('RESUME')}
+                >
+                  Resume
+                </Button>
+                <Button
+                  disabled={disabled}
+                  onClick={() => void perform('FINISH')}
+                >
+                  Finish Activity
+                </Button>
+              </>
+            )}
+            {status === 'FINISHED' && (
+              <>
+                <Button
+                  disabled={disabled}
+                  onClick={() => void perform('START')}
+                >
+                  Start again
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={disabled || undo.isPending}
+                  onClick={() => undo.mutate(o.item.id)}
+                >
+                  Undo completion
+                </Button>
+              </>
+            )}
+            <SessionCapture attach={attachToSession} disabled={disabled} />
+          </Row>
+          {busy && <p role="status">Saving…</p>}
+          {session?.status === 'FINISHED' && (
+            <p className="text-muted">
+              {session.isManualCompletion
+                ? 'Manually completed · no measured duration'
+                : `Active time · ${formatElapsed(session.activeSeconds)}`}
+            </p>
+          )}
+        </Stack>
+      </Panel>
+      <Panel>
         <h2>My Metrics</h2>
         <Grid className="mt-4 grid-cols-3">
           {o.personalStats.slice(0, 3).map((stat) => (
@@ -500,6 +490,15 @@ function OccurrenceContent({
           ))}
         </Grid>
       </Panel>
+      <OccurrenceMedia
+        activityId={o.item.activityId}
+        sessionId={o.session?.id}
+        onAttach={(asset) => attachToSession(asset.id)}
+        myMedia={o.myMedia}
+        sharedMedia={o.sharedMedia}
+        communityMedia={o.communityMedia}
+        locked={o.item.locked}
+      />
       {o.communityStats && (
         <Panel>
           <h2>Community Stats</h2>

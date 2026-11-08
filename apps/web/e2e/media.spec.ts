@@ -599,3 +599,47 @@ test('failed detach preserves the persisted link and allows an explicit retry', 
   await page.getByRole('button', { name: 'Detach', exact: true }).click()
   await expect(page.getByText('No attachments for this result.')).toBeVisible()
 })
+
+test('occurrence rows follow the locked order with media after session controls', async ({
+  page,
+}) => {
+  await mockApi(page)
+  await login(page, 'participant@test.local', 'password')
+  await page.goto(`/occurrences/${itemId}`)
+  await expect(page.getByRole('heading', { name: 'Session', exact: true })).toBeVisible()
+  const headings = await page.getByRole('heading', { level: 2 }).allInnerTexts()
+  const order = ["Today's Results", 'Session', 'My Metrics', 'Your session media']
+    .map((name) => headings.findIndex((text) => text.trim() === name))
+  expect(order.every((index) => index >= 0)).toBe(true)
+  expect([...order].sort((a, b) => a - b)).toEqual(order)
+})
+
+test('session capture attaches to the current attempt privately without starting it', async ({
+  page,
+}) => {
+  await mockApi(page)
+  const media = await mediaApi(page, { photo: true })
+  await login(page, 'participant@test.local', 'password')
+  await page.goto(`/occurrences/${itemId}`)
+  const session = page.getByRole('heading', { name: 'Session', exact: true }).locator('xpath=ancestor::section[1]')
+  await expect(session.getByRole('button', { name: 'Capture media' })).toBeEnabled()
+  await session.locator('input[type="file"][capture]').setInputFiles({
+    name: 'capture.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('fixture-capture'),
+  })
+  await expect(session.getByText('Processing capture…')).toBeVisible()
+  media.ready()
+  await expect(session.getByText('Capture added to this attempt.')).toBeVisible()
+  const attachCalls = media.calls.filter(
+    (call) => call.path === '/media-attachments' && call.method === 'POST',
+  )
+  expect(attachCalls).toHaveLength(1)
+  expect(attachCalls[0]!.body).toMatchObject({
+    mediaId: 'media-one',
+    target: { kind: 'RESULT_ENTRY' },
+    purpose: 'JOURNAL',
+  })
+  expect(media.calls.filter((call) => call.path.includes('publications'))).toHaveLength(0)
+  await expect(session.getByText('Ready to start')).toBeVisible()
+})
