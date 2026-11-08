@@ -200,7 +200,7 @@ describe('private media on results (01 §6 required test 4)', () => {
 
 describe('durable attachment intent & inbound reliability', () => {
   it('1. Program cover upload -> navigate away -> READY -> cover appears', async () => {
-    let ws = (await req('POST', '/programs', { programTypeId: cat.workout.id })).json().data
+    const ws = (await req('POST', '/programs', { programTypeId: cat.workout.id })).json().data
     expect(ws.coverUrl).toBeNull()
 
     // Client initiates upload with target PROGRAM and purpose COVER

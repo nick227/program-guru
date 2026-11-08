@@ -480,6 +480,8 @@ export async function mockApi(
       groupCreated = true
       groupMode = body.mode
       createdGroupName = typeof body.name === 'string' ? body.name : null
+      // Like the server: a same-start group keeps the start date it was created with.
+      if (typeof body.startLocalDate === 'string') start = body.startLocalDate
       return send({ id: groupId }, 201)
     }
     if (path === `/groups/${groupId}` && method === 'PATCH') {

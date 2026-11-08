@@ -13,7 +13,7 @@ test('create a Program group, enroll the owner, and open contextual group manage
 
   await page.getByRole('button', { name: 'Invite people' }).click()
   await page.getByLabel('Group name (optional)').fill('Morning group')
-  await page.getByLabel('Schedule', { exact: true }).selectOption('SYNC')
+  await page.getByRole('combobox', { name: 'Schedule', exact: true }).selectOption('SYNC')
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
 
   await page.getByRole('link', { name: 'Add to my Calendar', exact: true }).click()
@@ -73,7 +73,7 @@ test('contextual flexible participation and owner link controls stay on the Prog
   await login(page, 'author@test.local', 'password')
   await page.goto(`/programs/${programId}`)
   await page.getByRole('button', { name: 'Invite people', exact: true }).click()
-  await expect(page.getByLabel('Schedule', { exact: true })).toHaveValue('ASYNC')
+  await expect(page.getByRole('combobox', { name: 'Schedule', exact: true })).toHaveValue('ASYNC')
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page.getByText('1 participant · Flexible pace')).toBeVisible()
   await expect(page.getByRole('list', { name: 'Author', exact: true })).toBeVisible()
@@ -83,7 +83,10 @@ test('contextual flexible participation and owner link controls stay on the Prog
   await page.getByRole('button', { name: 'Create invite link', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Invite link', exact: true })).toHaveValue('http://localhost/join/link-1')
   await expect(page.getByRole('button', { name: 'Copy invite link', exact: true })).toBeVisible()
-  await page.getByLabel('Allow members to create invite links').check()
+  // Server-confirmed toggle: it reflects the saved group setting once the update returns.
+  const sharing = page.getByLabel('Allow members to create invite links')
+  await sharing.click()
+  await expect(sharing).toBeChecked()
   expect(requests.some((r) => r.method === 'PATCH' && r.body.memberLinkSharingEnabled === true)).toBe(true)
   await page.getByRole('button', { name: 'Replace all invite links' }).click()
   await expect(page.getByRole('textbox', { name: 'Invite link', exact: true })).toHaveValue('http://localhost/join/link-2')
