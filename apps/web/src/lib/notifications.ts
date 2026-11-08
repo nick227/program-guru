@@ -1,3 +1,4 @@
+import { buildProfileUrl } from './urls'
 import type { components } from '@project/sdk'
 import { dateLabel, safeReturn, today } from './dates'
 
@@ -125,7 +126,7 @@ export function resolveNotificationLink(
       return '/settings/follow-requests'
     case 'FOLLOW_ACCEPTED':
       return notification.actor?.handle
-        ? `/u/${notification.actor.handle}`
+        ? buildProfileUrl(notification.actor.handle)
         : '/'
     case 'ACHIEVEMENT_EARNED':
       return '/achievements'

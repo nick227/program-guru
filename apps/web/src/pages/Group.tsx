@@ -37,7 +37,7 @@ import {
 } from '@/lib/notifications'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
-import { buildProfileUrl, buildProgramUrl } from '@/lib/urls'
+import { buildProfileUrl, buildProgramUrl, buildGroupUrl } from '@/lib/urls'
 
 type S = components['schemas']
 const REACTION_EMOJIS = ['👏', '🔥', '💪'] as const
@@ -359,7 +359,7 @@ function InvitationDecisionPanel({
                         : undefined,
                     )
                     toast.success('Group invitation accepted')
-                    navigate(`/groups/${group.id}`, { replace: true })
+                    navigate(buildGroupUrl(group.id), { replace: true })
                   } catch {
                     /* shown via ErrorMessage */
                   }
@@ -513,8 +513,8 @@ export function GroupPage() {
               preview={matchedInvitation.preview}
               returnToPath={
                 invitationId
-                  ? `/groups/${id}/invitations/${invitationId}`
-                  : `/groups/${id}`
+                  ? `${buildGroupUrl(id)}/invitations/${invitationId}`
+                  : buildGroupUrl(id)
               }
               canDecline={matchedInvitation.kind !== 'LINK'}
               accepting={acceptMyInvite.isPending}
@@ -696,7 +696,7 @@ export function GroupPage() {
                   {g.members.map((m) => (
                     <Row key={m.user.id} className="justify-between">
                       <Link
-                        to={`/u/${m.user.handle}`}
+                        to={buildProfileUrl(m.user.handle)}
                         className="flex items-center gap-2 hover:underline"
                       >
                         <Avatar

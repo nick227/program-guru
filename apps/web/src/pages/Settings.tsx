@@ -26,7 +26,7 @@ import {
 import { toggleTheme } from '@/lib/theme'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
-import { buildProfileUrl } from '@/lib/urls'
+import { buildGroupUrl, buildProfileUrl } from '@/lib/urls'
 
 const DEFAULT_NOTIF_PREFS = {
   inAppReminders: true,
@@ -317,7 +317,7 @@ export function SettingsPage() {
                       >
                         <div>
                           <Link
-                            to={`/groups/${g.id}`}
+                            to={buildGroupUrl(g.id)}
                             className="font-medium hover:underline"
                           >
                             {label}

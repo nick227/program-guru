@@ -80,7 +80,7 @@ export function ProgramGroups({
             </span>
             <Link
               className="text-accent underline"
-              to={`/groups/${group.id}`}
+              to={buildGroupUrl(group.id)}
             >
               Open group
             </Link>

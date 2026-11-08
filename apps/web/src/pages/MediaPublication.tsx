@@ -14,6 +14,7 @@ import { Back, linkButton } from '@/components/Navigation'
 import { dateLabel } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
+import { buildGroupUrl, buildProfileUrl } from '@/lib/urls'
 
 export function MediaPublicationPage() {
   const { id = '' } = useParams()
@@ -56,7 +57,7 @@ export function MediaPublicationPage() {
                 <Row className="justify-between">
                   {data.creator ? (
                     <Link
-                      to={`/u/${data.creator.handle}`}
+                      to={buildProfileUrl(data.creator.handle)}
                       className="flex items-center gap-2 hover:underline"
                     >
                       <Avatar
@@ -90,7 +91,7 @@ export function MediaPublicationPage() {
                   <span>{data.commentCount} comments</span>
                   {data.groupId && (
                     <Link
-                      to={`/groups/${data.groupId}`}
+                      to={buildGroupUrl(data.groupId)}
                       className="text-accent underline"
                     >
                       Open Group

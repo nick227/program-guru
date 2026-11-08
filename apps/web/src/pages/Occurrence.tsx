@@ -32,6 +32,7 @@ import { SessionCapture } from '@/components/SessionCapture'
 import { calendarUrl, dateLabel, safeReturn } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
+import { buildGroupUrl } from '@/lib/urls'
 type S = components['schemas']
 const metricKey = (m: S['MetricInput']) =>
   `${m.instructionId ?? ''}:${m.metricDefinitionId}`
@@ -298,7 +299,7 @@ function OccurrenceContent({
                   finished
                 </p>
                 <Link
-                  to={`/groups/${o.collaborators.groupId}`}
+                  to={buildGroupUrl(o.collaborators.groupId)}
                   className={linkButton}
                 >
                   Open Group

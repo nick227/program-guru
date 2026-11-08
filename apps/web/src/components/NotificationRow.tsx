@@ -10,6 +10,7 @@ import {
   resolveNotificationLink,
 } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
+import { buildProfileUrl } from '@/lib/urls'
 
 type Notification = components['schemas']['Notification']
 
@@ -81,7 +82,7 @@ export function NotificationRow({
         <div className="flex items-start gap-3">
           {n.actor && (
             <Link
-              to={`/u/${n.actor.handle}`}
+              to={buildProfileUrl(n.actor.handle)}
               onClick={handleOpen}
               className="shrink-0"
               aria-label={n.actor.displayName}

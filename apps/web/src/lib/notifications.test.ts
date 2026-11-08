@@ -77,7 +77,7 @@ describe('notification metadata & contextual links', () => {
           avatarUrl: null,
         },
       }),
-    ).toBe('/u/coach_maya')
+    ).toBe('/@coach_maya')
 
     expect(
       resolveNotificationLink({
