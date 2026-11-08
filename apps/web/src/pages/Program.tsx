@@ -232,8 +232,9 @@ export function ProgramPage() {
         )}
         {me.data && p.latestVersionId && (
           <ProgramGroups
+            key={enrollment.data?.programVersionId ?? p.latestVersionId}
             programId={id}
-            versionId={p.latestVersionId}
+            versionId={enrollment.data?.programVersionId ?? p.latestVersionId}
             enrollmentId={p.myEnrollmentId}
             isProgramOwner={p.viewerAccess === 'OWNER'}
             timezone={tz}

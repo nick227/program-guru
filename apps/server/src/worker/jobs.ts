@@ -2,7 +2,7 @@
 // Each job is idempotent so overlapping runs or restarts never double-send or duplicate rows.
 import { Prisma, db } from '@project/db'
 import { email, layout } from '../infrastructure/email'
-import { storage } from '../infrastructure/storage'
+import { isStorageMiss, storage } from '../infrastructure/storage'
 import { addDays, fromDbDate, todayIn, toDbDate } from '../lib/time'
 import { HORIZON_DAYS, materializeEnrollment } from '../domains/calendar/materialize'
 import { materializeRecurrence } from '../domains/calendar/recurrence'
@@ -337,11 +337,27 @@ export async function cleanup(now = new Date()) {
   for (const m of abandoned) {
     await storage().remove(m.originalStorageKey).catch(() => {})
     await db.mediaAsset.update({ where: { id: m.id }, data: { state: 'FAILED', uploadExpiresAt: null } })
+    await db.mediaAttachmentIntent.updateMany({ where: { mediaId: m.id, status: 'PENDING' }, data: { status: 'FAILED', error: 'Upload expired' } })
   }
-  const purge = await db.mediaAsset.findMany({ where: { deletedAt: { lt: new Date(now.getTime() - RETENTION_DAYS * 86_400_000) }, ownerId: { not: null } }, include: { variants: true } })
+  const cutoff = new Date(now.getTime() - RETENTION_DAYS * 86_400_000)
+  const purge = await db.mediaAsset.findMany({ where: { deletedAt: { lt: cutoff }, purgedAt: null, ownerId: { not: null } }, include: { variants: true } })
+  let purgedCount = 0
   for (const m of purge) {
-    for (const key of [m.originalStorageKey, ...m.variants.map((v) => v.storageKey)]) await storage().remove(key).catch(() => {})
-    await db.mediaVariant.deleteMany({ where: { mediaId: m.id } })
+    let allDeleted = true
+    for (const key of [m.originalStorageKey, ...m.variants.map((v) => v.storageKey)]) {
+      try {
+        await storage().remove(key)
+      } catch (err) {
+        if (!isStorageMiss(err)) allDeleted = false
+      }
+    }
+    // Only delete variants and mark purgedAt if storage removal succeeded (safely retries on failure).
+    // Never blindly delete MediaAsset rows to preserve relational integrity and auditability.
+    if (allDeleted) {
+      await db.mediaVariant.deleteMany({ where: { mediaId: m.id } })
+      await db.mediaAsset.update({ where: { id: m.id }, data: { purgedAt: now } })
+      purgedCount++
+    }
   }
-  return { abandoned: abandoned.length, purged: purge.length, expiredInvitations }
+  return { abandoned: abandoned.length, purged: purgedCount, expiredInvitations }
 }

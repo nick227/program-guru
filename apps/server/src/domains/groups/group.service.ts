@@ -52,6 +52,7 @@ async function toDetail(groupId: string, userId: string) {
     startLocalDate: g.startLocalDate ? fromDbDate(g.startLocalDate) : null,
     timezone: g.timezone,
     joinLinkEnabled: g.joinLinkEnabled,
+    memberLinkSharingEnabled: g.memberLinkSharingEnabled,
     members: members.map((m) => ({ user: toUserSummary(m.user.profile!), role: m.role, status: m.status, sharedCompletion: m.sharedCompletionEnabled })),
     mySharedCompletion: me?.sharedCompletionEnabled ?? true,
     myEnrollment: mine
@@ -143,13 +144,14 @@ export async function get(userId: string, groupId: string) {
   return toDetail(groupId, userId)
 }
 
-export async function update(userId: string, groupId: string, input: { name?: string | null; joinLinkEnabled?: boolean; closed?: boolean }) {
+export async function update(userId: string, groupId: string, input: { name?: string | null; joinLinkEnabled?: boolean; memberLinkSharingEnabled?: boolean; closed?: boolean }) {
   await ownedGroup(userId, groupId)
   await db.$transaction(async (tx) => {
     await tx.programGroup.update({
       where: { id: groupId },
-      data: { name: input.name === undefined ? undefined : input.name?.trim() || null, joinLinkEnabled: input.joinLinkEnabled, status: input.closed ? 'CLOSED' : undefined },
+      data: { name: input.name === undefined ? undefined : input.name?.trim() || null, joinLinkEnabled: input.joinLinkEnabled, memberLinkSharingEnabled: input.memberLinkSharingEnabled, status: input.closed ? 'CLOSED' : undefined },
     })
+    if (input.memberLinkSharingEnabled === false) await tx.groupInvitation.updateMany({ where: { groupId, kind: 'LINK', createdById: { not: userId }, status: 'PENDING' }, data: { status: 'REVOKED' } })
     if (input.joinLinkEnabled === false) await tx.groupInvitation.updateMany({ where: { groupId, kind: 'LINK', status: 'PENDING' }, data: { status: 'REVOKED' } })
   })
   return toDetail(groupId, userId)
@@ -205,15 +207,25 @@ export async function listInvitations(userId: string, groupId: string) {
   return rows.map((r) => toInvitation(r))
 }
 
-export async function invite(userId: string, groupId: string, input: { kind: 'USER' | 'EMAIL' | 'LINK'; handle?: string; email?: string }) {
+export async function invite(userId: string, groupId: string, input: { kind: 'USER' | 'EMAIL' | 'LINK'; handle?: string; email?: string; rotate?: boolean }) {
   const m = await activeMember(userId, groupId)
   if (m.group.status !== 'ACTIVE') throw badRequest('This group is closed')
   const group = await db.programGroup.findUniqueOrThrow({ where: { id: groupId }, include: invitationInclude.group.include })
   if (!openForJoins(group)) throw badRequest('This program is not open for new participants')
-  if (input.kind === 'LINK' && m.role !== 'OWNER') throw forbidden('Only the group owner can create a join link')
+  if (input.rotate && input.kind !== 'LINK') throw badRequest('Only link invitations can be rotated')
   const token = newToken()
   const base = { groupId, kind: input.kind, createdById: userId, tokenHash: sha256(token), expiresAt: new Date(Date.now() + INVITE_TTL_MS) }
   const row = await db.$transaction(async (tx) => {
+    // Serialize link issuance with owner permission changes and rotation.
+    if (input.kind === 'LINK') {
+      const current = await tx.programGroup.update({ where: { id: groupId }, data: { updatedAt: new Date() } })
+      const member = await tx.groupMember.findUnique({ where: { groupId_userId: { groupId, userId } } })
+      if (!member || member.status !== 'ACTIVE' || current.status !== 'ACTIVE') throw notFound('Group')
+      if (member.role !== 'OWNER' && (input.rotate || !current.joinLinkEnabled || !current.memberLinkSharingEnabled)) {
+        throw forbidden('The group owner must allow member link sharing')
+      }
+      if (input.rotate) await tx.groupInvitation.updateMany({ where: { groupId, kind: 'LINK', status: 'PENDING' }, data: { status: 'REVOKED' } })
+    }
     if (input.kind === 'USER') {
       if (!input.handle) throw badRequest('Enter a handle', { handle: 'is required' })
       const p = await tx.userProfile.findUnique({ where: { handle: input.handle.toLowerCase() }, include: { user: true } })

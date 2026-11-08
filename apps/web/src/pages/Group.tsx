@@ -1,3 +1,4 @@
+import { GroupInviteLink } from '@/components/GroupInviteLink'
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -477,7 +478,6 @@ export function GroupPage() {
   const [inviteHandle, setInviteHandle] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [groupName, setGroupName] = useState<string | null>(null)
-  const [latestJoinUrl, setLatestJoinUrl] = useState<string | null>(null)
   const [closing, setClosing] = useState(false)
 
   const mutedGroupIds =
@@ -761,12 +761,11 @@ export function GroupPage() {
                     loading={createInvite.isPending}
                     onClick={async () => {
                       try {
-                        const created = await createInvite.mutateAsync({
+                        await createInvite.mutateAsync({
                           kind: 'USER',
                           handle: inviteHandle.trim().replace(/^@/, ''),
                         })
                         setInviteHandle('')
-                        if (created.joinUrl) setLatestJoinUrl(created.joinUrl)
                         toast.success('Invitation sent')
                       } catch {
                         /* shown below */
@@ -804,36 +803,8 @@ export function GroupPage() {
                   >
                     Send email invite
                   </Button>
-                  {g.myRole === 'OWNER' && (
-                    <Button
-                      variant="outline"
-                      disabled={!online}
-                      loading={createInvite.isPending}
-                      onClick={async () => {
-                        try {
-                          const created = await createInvite.mutateAsync({
-                            kind: 'LINK',
-                          })
-                          if (created.joinUrl) setLatestJoinUrl(created.joinUrl)
-                          toast.success('Join link created')
-                        } catch {
-                          /* shown below */
-                        }
-                      }}
-                    >
-                      Create join link
-                    </Button>
-                  )}
                 </Row>
-
-                {latestJoinUrl && (
-                  <div className="rounded-lg border bg-surface-muted p-3 text-xs">
-                    <p className="font-medium">Shareable join link:</p>
-                    <code className="mt-1 block break-all">
-                      {latestJoinUrl}
-                    </code>
-                  </div>
-                )}
+                <GroupInviteLink groupId={g.id} />
 
                 <ErrorMessage
                   error={createInvite.error || revokeInvite.error}
@@ -923,21 +894,6 @@ export function GroupPage() {
                       Close group
                     </Button>
                   </Row>
-                  <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border p-3">
-                    <span>Allow anyone with the share link to join</span>
-                    <input
-                      type="checkbox"
-                      aria-label="Allow anyone with the share link to join"
-                      checked={g.joinLinkEnabled}
-                      disabled={!online || updateGroup.isPending}
-                      onChange={(e) =>
-                        updateGroup.mutate({
-                          joinLinkEnabled: e.target.checked,
-                        })
-                      }
-                      className="h-5 w-5 accent-accent"
-                    />
-                  </label>
                   <ErrorMessage error={updateGroup.error} />
                 </Stack>
               </Panel>

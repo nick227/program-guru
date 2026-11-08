@@ -61,8 +61,8 @@ export function OccurrenceMedia({
   // One attributed strip: yours first, then group media, then public community
   // examples (withheld while access is locked). Credits show in the viewer.
   const related: (ViewerItem & { badge?: string })[] = [
-    ...toViewer(myMedia),
-    ...toViewer(sharedMedia, (i) => sharedMedia[i]?.owner.displayName ?? null).map(
+    ...toViewer(myMedia).map((item) => ({ ...item, badge: 'Private' })),
+    ...toViewer(sharedMedia, (i) => sharedMedia[i] ? `Shared by ${sharedMedia[i].owner.displayName} · Group only` : null).map(
       (item) => ({ ...item, badge: 'Group' }),
     ),
     ...(locked
@@ -96,7 +96,7 @@ export function OccurrenceMedia({
             retry={() => void session.refetch()}
           />
           <ThumbnailGrid
-            items={related}
+            items={related.map((item) => ({ ...item, id: item.publicationId ?? `private:${item.id}` }))}
             empty="No media yet."
             onAdd={() => setPicking(true)}
             addLabel="Add media to this session"
@@ -104,7 +104,7 @@ export function OccurrenceMedia({
             onSelect={(id) =>
               setViewer({
                 items: related,
-                index: related.findIndex((m) => m.id === id),
+                index: related.findIndex((m) => (m.publicationId ?? `private:${m.id}`) === id),
               })
             }
           />

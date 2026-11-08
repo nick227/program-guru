@@ -65,8 +65,107 @@ async function variantsFor(type: 'PHOTO' | 'VIDEO' | 'AUDIO', input: string, dir
   return out
 }
 
+async function finalizeIntent(tx: Prisma.TransactionClient, intent: MediaAttachmentIntent, m: MediaAsset) {
+  if (intent.status !== 'PENDING') return
+
+  if (intent.targetKind === 'PROGRAM') {
+    const p = await tx.program.findUnique({ where: { id: intent.targetId } })
+    if (!p) {
+      await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'FAILED', error: 'Program not found' } })
+      return
+    }
+    const newer = await tx.mediaAttachmentIntent.findFirst({
+      where: { targetKind: 'PROGRAM', targetId: p.id, purpose: intent.purpose, createdAt: { gt: intent.createdAt }, status: { in: ['PENDING', 'COMPLETED'] } },
+    })
+    if (newer) {
+      await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'SUPERSEDED' } })
+      return
+    }
+    if (p.updatedAt > intent.createdAt && p.coverMediaId !== null && p.coverMediaId !== m.id) {
+      await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'SUPERSEDED' } })
+      return
+    }
+    if (intent.purpose === 'COVER') {
+      await tx.program.update({ where: { id: p.id }, data: { coverMediaId: m.id } })
+    }
+    await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'COMPLETED' } })
+    return
+  }
+
+  if (intent.targetKind === 'ACTIVITY_REVISION') {
+    const rev = await tx.activityRevision.findUnique({ where: { id: intent.targetId } })
+    if (!rev) {
+      await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'FAILED', error: 'Revision not found' } })
+      return
+    }
+    if (rev.publishedAt) {
+      await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'FAILED', error: 'Revision is published' } })
+      return
+    }
+    if (intent.purpose === 'COVER') {
+      const newer = await tx.mediaAttachmentIntent.findFirst({
+        where: { targetKind: 'ACTIVITY_REVISION', targetId: rev.id, purpose: 'COVER', createdAt: { gt: intent.createdAt }, status: { in: ['PENDING', 'COMPLETED'] } },
+      })
+      if (newer) {
+        await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'SUPERSEDED' } })
+        return
+      }
+      await tx.mediaAttachment.deleteMany({ where: { activityRevisionId: rev.id, purpose: 'COVER' } })
+      await tx.mediaAttachment.create({
+        data: { mediaId: m.id, activityRevisionId: rev.id, purpose: 'COVER', position: 0 },
+      })
+      await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'COMPLETED' } })
+      return
+    }
+
+    const existing = await tx.mediaAttachment.findFirst({ where: { mediaId: m.id, activityRevisionId: rev.id, purpose: intent.purpose } })
+    if (!existing) {
+      const pos = intent.position ?? (await tx.mediaAttachment.count({ where: { activityRevisionId: rev.id } }))
+      await tx.mediaAttachment.create({
+        data: { mediaId: m.id, activityRevisionId: rev.id, purpose: intent.purpose, position: pos },
+      })
+    }
+    await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'COMPLETED' } })
+    return
+  }
+
+  if (intent.targetKind === 'RESULT_ENTRY') {
+    const entry = await tx.resultEntry.findUnique({ where: { id: intent.targetId } })
+    if (!entry) {
+      await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'FAILED', error: 'Result entry not found' } })
+      return
+    }
+    const existing = await tx.mediaAttachment.findFirst({ where: { mediaId: m.id, resultEntryId: entry.id, purpose: intent.purpose } })
+    if (!existing) {
+      const pos = intent.position ?? (await tx.mediaAttachment.count({ where: { resultEntryId: entry.id } }))
+      await tx.mediaAttachment.create({
+        data: { mediaId: m.id, resultEntryId: entry.id, purpose: intent.purpose, position: pos },
+      })
+    }
+    await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'COMPLETED' } })
+    return
+  }
+
+  if (intent.targetKind === 'INSTRUCTION') {
+    const inst = await tx.instruction.findUnique({ where: { id: intent.targetId }, include: { revision: true } })
+    if (!inst || inst.revision.publishedAt) {
+      await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'FAILED', error: 'Instruction not found or published' } })
+      return
+    }
+    const existing = await tx.mediaAttachment.findFirst({ where: { mediaId: m.id, instructionId: inst.id, purpose: intent.purpose } })
+    if (!existing) {
+      const pos = intent.position ?? (await tx.mediaAttachment.count({ where: { instructionId: inst.id } }))
+      await tx.mediaAttachment.create({
+        data: { mediaId: m.id, instructionId: inst.id, purpose: intent.purpose, position: pos },
+      })
+    }
+    await tx.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'COMPLETED' } })
+    return
+  }
+}
+
 export async function processMedia(mediaId: string) {
-  const m = await db.mediaAsset.findUnique({ where: { id: mediaId } })
+  const m = await db.mediaAsset.findUnique({ where: { id: mediaId }, include: { attachmentIntent: true } })
   // Idempotent: only PROCESSING assets are worked on; a retry after success is a no-op.
   if (!m || m.state !== 'PROCESSING' || m.deletedAt) return
   const dir = await mkdtemp(join(tmpdir(), 'media-'))
@@ -80,23 +179,29 @@ export async function processMedia(mediaId: string) {
       variants = await variantsFor(m.type, input, dir, p)
     } catch (err) {
       // Undecodable content is a terminal failure for the asset, not a retryable worker error.
-      await db.mediaAsset.update({ where: { id: m.id }, data: { state: 'FAILED' } })
+      await db.$transaction([
+        db.mediaAsset.update({ where: { id: m.id }, data: { state: 'FAILED' } }),
+        db.mediaAttachmentIntent.updateMany({ where: { mediaId: m.id, status: 'PENDING' }, data: { status: 'FAILED', error: (err as Error).message.slice(0, 200) } }),
+      ])
       console.warn(`[media] ${m.id} failed: ${(err as Error).message.slice(0, 200)}`)
       return
     }
-    const rows = []
+    const rows: Prisma.MediaVariantCreateManyInput[] = []
     for (const v of variants) {
       const key = `${m.originalStorageKey.replace(/\/original$/, '')}/${v.kind.toLowerCase()}`
       const size = (await stat(v.file)).size
       await storage().write(key, createReadStream(v.file), Number.MAX_SAFE_INTEGER)
       rows.push({ mediaId: m.id, kind: v.kind, storageKey: key, mime: v.mime, width: null, height: null, durationMs: p.durationMs, byteSize: BigInt(size) })
     }
-    await db.$transaction([
-      db.mediaVariant.deleteMany({ where: { mediaId: m.id } }),
-      db.mediaVariant.createMany({ data: rows }),
-      db.mediaAsset.update({ where: { id: m.id }, data: { state: 'READY', width: p.width, height: p.height, durationMs: p.durationMs ?? m.durationMs } }),
-    ])
+    await db.$transaction(async (tx) => {
+      await tx.mediaVariant.deleteMany({ where: { mediaId: m.id } })
+      await tx.mediaVariant.createMany({ data: rows })
+      await tx.mediaAsset.update({ where: { id: m.id }, data: { state: 'READY', width: p.width, height: p.height, durationMs: p.durationMs ?? m.durationMs } })
+      if (m.attachmentIntent && m.attachmentIntent.status === 'PENDING') {
+        await finalizeIntent(tx, m.attachmentIntent, m)
+      }
+    })
   } finally {
-    await rm(dir, { recursive: true, force: true })
+    await rm(dir, { recursive: true, force: true }).catch(() => {})
   }
 }

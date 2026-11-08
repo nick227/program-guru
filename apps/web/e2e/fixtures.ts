@@ -73,6 +73,10 @@ export async function mockApi(
     done = false,
     start = options.calendarDate ?? '2026-11-09',
     cancelled = false
+  let groupMode: S['GroupMode'] = 'ASYNC'
+  let joinLinkEnabled = false
+  let memberLinkSharingEnabled = false
+  let linkSequence = 0
   let activeActivityId = activityId
   let activeActivityTitle = 'Squats'
   let activeActivityRevisionId = uid(21)
@@ -463,7 +467,7 @@ export async function mockApi(
                 programVersionId: uid(12),
                 programTitle: title,
                 name: createdGroupName,
-                mode: 'SYNC',
+                mode: groupMode,
                 memberCount: 1,
                 myRole: 'OWNER',
               } satisfies S['GroupSummary'],
@@ -474,21 +478,27 @@ export async function mockApi(
       )
     if (path === '/groups' && method === 'POST') {
       groupCreated = true
+      groupMode = body.mode
       createdGroupName = typeof body.name === 'string' ? body.name : null
       return send({ id: groupId }, 201)
     }
-    if (path === `/groups/${groupId}` && method === 'GET')
+    if (path === `/groups/${groupId}` && method === 'PATCH') {
+      if (body.joinLinkEnabled !== undefined) joinLinkEnabled = body.joinLinkEnabled
+      if (body.memberLinkSharingEnabled !== undefined) memberLinkSharingEnabled = body.memberLinkSharingEnabled
+    }
+    if (path === `/groups/${groupId}` && ['GET', 'PATCH'].includes(method))
       return send({
         id: groupId,
         programVersionId: uid(12),
         programTitle: title,
         name: createdGroupName,
-        mode: 'SYNC',
+        mode: groupMode,
         memberCount: 1,
         myRole: 'OWNER',
-        startLocalDate: start,
+        startLocalDate: groupMode === 'SYNC' ? start : null,
         timezone: 'America/Chicago',
-        joinLinkEnabled: true,
+        joinLinkEnabled,
+        memberLinkSharingEnabled,
         members: [
           {
             user: {
@@ -521,14 +531,15 @@ export async function mockApi(
     ) {
       return send([], 200, path.endsWith('/completions') || path.endsWith('/media'))
     }
-    if (path === `/groups/${groupId}/invitations` && method === 'POST')
+    if (path === `/groups/${groupId}/invitations` && method === 'POST') {
+      if (body.kind === 'LINK') { joinLinkEnabled = true; linkSequence += 1 }
       return send(
         {
           id: uid(71),
           kind: body.kind ?? 'USER',
           status: 'PENDING',
-          expiresAt: '2026-11-14T00:00:00Z',
-          joinUrl: null,
+          expiresAt: '2099-11-14T00:00:00Z',
+          joinUrl: body.kind === 'LINK' ? `http://localhost/join/link-${linkSequence}` : null,
           invitedUser: {
             id: uid(5),
             handle: String(body.handle ?? 'participant'),
@@ -538,6 +549,7 @@ export async function mockApi(
         } satisfies S['GroupInvitation'],
         201,
       )
+    }
     if (path.endsWith('/workspace')) return send(workspace())
     if (path.endsWith('/draft/activities')) {
       added = true

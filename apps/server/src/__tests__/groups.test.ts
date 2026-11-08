@@ -289,3 +289,76 @@ describe('declineGroupInvitation', () => {
     await contractCase(app, 'declineGroupInvitation')
   })
 })
+
+describe('contextual participation links', () => {
+  it('private link → personal Calendar → scoped completion/reaction/media → removal and revocation', async () => {
+    const { programId, versionId } = await challenge('PRIVATE')
+    const groupId = (await req('POST', '/groups', { programVersionId: versionId, mode: 'ASYNC' })).json().data.id
+    const issue = async (userId = testUserId, rotate = false) => req('POST', `/groups/${groupId}/invitations`, { kind: 'LINK', rotate }, userId)
+    const tokenOf = (response: any) => response.json().data.joinUrl.split('/join/')[1]
+    const first = await issue()
+    expect(first.statusCode).toBe(201)
+    const token = tokenOf(first)
+    const anonymous = await app.inject({ method: 'GET', url: `/group-invitations/${token}` })
+    expect(anonymous.json().data.join.status).toBe('SIGN_IN_REQUIRED')
+    expect((await req('GET', `/group-invitations/${token}`, undefined, testOtherUserId)).json().data.join.status).toBe('SELECT_SCHEDULE')
+    expect((await req('POST', `/group-invitations/${token}/accept`, { enrollment: { startLocalDate: '2026-11-09', timezone: 'America/Chicago', idempotencyKey: key() } }, testOtherUserId)).statusCode).toBe(200)
+    expect((await db.program.findUniqueOrThrow({ where: { id: programId } })).visibility).toBe('PRIVATE')
+    expect((await req('GET', `/programs/${programId}/workspace`, undefined, testOtherUserId)).statusCode).toBe(404)
+    expect((await issue(testOtherUserId)).statusCode).toBe(403)
+    expect((await req('PATCH', `/groups/${groupId}`, { memberLinkSharingEnabled: true }, testOtherUserId)).statusCode).toBe(403)
+    const permission = await req('PATCH', `/groups/${groupId}`, { memberLinkSharingEnabled: true })
+    expect(permission.json().data.memberLinkSharingEnabled).toBe(true)
+    const memberLink = await issue(testOtherUserId)
+    expect(memberLink.statusCode).toBe(201)
+    expect((await issue(testOtherUserId, true)).statusCode).toBe(403)
+    // Raw tokens are returned once, never in list responses, stored invitations, or events.
+    expect((await req('GET', `/groups/${groupId}/invitations`, undefined, testOtherUserId)).json().data.every((i: any) => i.joinUrl === null)).toBe(true)
+    const persisted = JSON.stringify(await db.groupInvitation.findMany({ where: { groupId } }))
+    expect(persisted).not.toContain(token)
+    expect(JSON.stringify(await db.outboxEvent.findMany())).not.toContain(tokenOf(memberLink))
+
+    const bobItems = await dayOne(testOtherUserId)
+    const aliceItems = await dayOne(testUserId)
+    const bob = bobItems.find((i) => i.title === 'Squats')
+    const alice = aliceItems.find((i) => i.title === 'Squats')
+    expect(bob.id).not.toBe(alice.id)
+    await finish(testOtherUserId, bob.id)
+    const occurrence = (await req('GET', `/calendar-items/${alice.id}/occurrence`)).json().data
+    const occurrenceKey = occurrence.collaborators.occurrenceKey
+    const feed = (await req('GET', `/groups/${groupId}/completions?occurrenceKey=${encodeURIComponent(occurrenceKey)}`)).json().data
+    expect(feed).toHaveLength(1)
+    expect((await req('POST', `/completion-shares/${feed[0].id}/reactions`, { emoji: '👏' })).statusCode).toBe(200)
+    const media = await db.mediaAsset.create({ data: { ownerId: testUserId, type: 'PHOTO', originalStorageKey: `u/${testUserId}/social`, mime: 'image/png', byteSize: 10, state: 'READY' } })
+    const publication = await req('POST', '/media-publications', { mediaId: media.id, audience: 'GROUP', groupId, occurrenceKey })
+    expect(publication.statusCode).toBe(201)
+    const publicationId = publication.json().data.id
+    const mediaUrl = `/media/${media.id}/url?publicationId=${publicationId}`
+    const shared = (await req('GET', `/groups/${groupId}/media?occurrenceKey=${encodeURIComponent(occurrenceKey)}`, undefined, testOtherUserId)).json().data
+    expect(shared).toEqual([expect.objectContaining({ publicationId, owner: expect.objectContaining({ id: testUserId }) })])
+    const bobOccurrence = (await req('GET', `/calendar-items/${bob.id}/occurrence`, undefined, testOtherUserId)).json().data
+    expect(bobOccurrence.sharedMedia[0].publicationId).toBe(publicationId)
+    const legs = bobItems.find((i) => i.title === 'Leg Raises')
+    expect((await req('GET', `/calendar-items/${legs.id}/occurrence`, undefined, testOtherUserId)).json().data.sharedMedia).toEqual([])
+    expect((await req('GET', mediaUrl, undefined, testOtherUserId)).statusCode).toBe(200)
+
+    const replacement = await issue(testUserId, true)
+    expect(replacement.statusCode).toBe(201)
+    for (const old of [token, tokenOf(memberLink)]) expect((await req('GET', `/group-invitations/${old}`)).statusCode).toBe(404)
+    expect((await req('GET', `/groups/${groupId}`, undefined, testOtherUserId)).statusCode).toBe(200)
+    const newMemberLink = await issue(testOtherUserId)
+    await req('PATCH', `/groups/${groupId}`, { memberLinkSharingEnabled: false })
+    expect((await req('GET', `/group-invitations/${tokenOf(newMemberLink)}`)).statusCode).toBe(404)
+    expect((await issue(testOtherUserId)).statusCode).toBe(403)
+    expect((await req('GET', `/group-invitations/${tokenOf(replacement)}`)).statusCode).toBe(200)
+    expect((await req('DELETE', `/groups/${groupId}/members/${testOtherUserId}`)).statusCode).toBe(200)
+    expect((await req('GET', `/groups/${groupId}/media`, undefined, testOtherUserId)).statusCode).toBe(404)
+    expect((await req('GET', mediaUrl, undefined, testOtherUserId)).statusCode).toBe(404)
+    expect((await req('POST', `/completion-shares/${feed[0].id}/reactions`, { emoji: '🔥' }, testOtherUserId)).statusCode).toBe(404)
+    expect((await req('GET', `/calendar-items/${bob.id}/occurrence`, undefined, testOtherUserId)).json().data).toMatchObject({ collaborators: null, sharedMedia: [] })
+    expect((await dayOne(testOtherUserId)).find((i) => i.id === bob.id)).toBeDefined()
+    expect((await req('POST', `/group-invitations/${tokenOf(replacement)}/accept`, {}, testOtherUserId)).statusCode).toBe(404)
+    await req('PATCH', `/groups/${groupId}`, { joinLinkEnabled: false })
+    expect((await req('GET', `/group-invitations/${tokenOf(replacement)}`)).statusCode).toBe(404)
+  })
+})

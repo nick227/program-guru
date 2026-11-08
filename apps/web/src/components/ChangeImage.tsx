@@ -3,7 +3,7 @@ import { ImageIcon, Loader2 } from 'lucide-react'
 import type { Hero } from '@/lib/hero'
 import type { CoverController } from '@/lib/useEntityCover'
 import { useOnline } from '@/lib/useOnline'
-import { useMediaUpload } from '@project/sdk'
+import { useInboundMedia } from '@project/sdk'
 import { EntityHero } from './EntityHero'
 import { MediaPicker } from './MediaPicker'
 import { Button } from './ui/Button'
@@ -12,8 +12,7 @@ import { ErrorMessage } from './ui/Feedback'
 /**
  * Compact identity-image control: the hero, `Change image` (choose from the
  * media library, photos only, no capture), `Upload image` as an additional
- * direct path that waits for processing before setting the cover, and
- * `Remove image`.
+ * direct path with server-backed intent, and `Remove image`.
  */
 export function ChangeImage({
   hero,
@@ -30,30 +29,24 @@ export function ChangeImage({
   compact?: boolean
 }) {
   const online = useOnline()
-  const upload = useMediaUpload()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [localBusy, setLocalBusy] = useState(false)
-  const [waitingId, setWaitingId] = useState<string | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [picking, setPicking] = useState(false)
 
-  // Attachment requires a READY asset; wait for processing if needed, then set cover.
-  useEffect(() => {
-    if (!waitingId || upload.stage !== 'ready' || localBusy || error) return
-    const id = waitingId
-    setLocalBusy(true)
-    cover
-      .set(id)
-      .then(() => setWaitingId(null))
-      .catch(setError)
-      .finally(() => setLocalBusy(false))
-  }, [waitingId, upload.stage, localBusy, error, cover])
+  const inbound = useInboundMedia({
+    target: cover.target,
+    purpose: 'COVER',
+    onError: setError,
+  })
 
-  const working =
-    localBusy ||
-    upload.busy ||
-    cover.pending ||
-    (!!waitingId && upload.stage === 'processing')
+  // Once upload reaches ready, notify cover controller to invalidate caches
+  useEffect(() => {
+    if (inbound.stage === 'ready' && inbound.mediaId) {
+      cover.set(inbound.mediaId).catch(() => {})
+    }
+  }, [inbound.stage, inbound.mediaId, cover])
+
+  const working = inbound.busy || inbound.stage === 'processing' || cover.pending
   const disabled = !online || working
 
   return (
@@ -80,20 +73,13 @@ export function ChangeImage({
                 return
               }
               setError(null)
-              setLocalBusy(true)
               try {
-                const asset = await upload.upload(file)
-                if (asset) {
-                  if (asset.state === 'READY') {
-                    await cover.set(asset.id)
-                  } else {
-                    setWaitingId(asset.id)
-                  }
+                const asset = await inbound.upload(file)
+                if (asset?.state === 'READY') {
+                  await cover.set(asset.id)
                 }
               } catch (err) {
                 setError(err)
-              } finally {
-                setLocalBusy(false)
               }
             }}
           />
@@ -137,7 +123,7 @@ export function ChangeImage({
               Remove image
             </Button>
           )}
-          <ErrorMessage error={error || cover.error || upload.error} />
+          <ErrorMessage error={error || cover.error || inbound.error} />
         </div>
       )}
       {picking && (

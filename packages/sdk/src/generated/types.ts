@@ -3589,6 +3589,8 @@ export interface components {
             startLocalDate: string | null;
             timezone: string | null;
             joinLinkEnabled: boolean;
+            /** @description Owner permission for active members to issue reshareable links while link joining is enabled. */
+            memberLinkSharingEnabled?: boolean;
             members: components["schemas"]["GroupMember"][];
             mySharedCompletion: boolean;
             /** @description The viewer's enrollment linked to this group, or null when they follow it without one (for example a Program owner hosting the group). */
@@ -3653,6 +3655,8 @@ export interface components {
         UpdateGroupInput: {
             name?: string | null;
             joinLinkEnabled?: boolean;
+            /** @description Owner permission for active members to issue reshareable links while link joining is enabled. */
+            memberLinkSharingEnabled?: boolean;
             closed?: boolean;
         };
         UpdateMyMembershipInput: {
@@ -3661,6 +3665,8 @@ export interface components {
         };
         InviteToGroupInput: {
             kind: components["schemas"]["InviteKind"];
+            /** @description Owner only. Revoke all prior link invitations atomically when creating this link. */
+            rotate?: boolean;
             /** @description Case-insensitive; stored and returned in lowercase. */
             handle?: string;
             /** Format: email */
@@ -3741,6 +3747,8 @@ export interface components {
             checksum?: string;
             durationMs?: number;
             alt?: string;
+            target?: components["schemas"]["AttachmentTarget"];
+            purpose?: components["schemas"]["MediaPurpose"];
         };
         UploadTicket: {
             /** Format: uuid */

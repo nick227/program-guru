@@ -54,7 +54,7 @@ export function useUpdateGroup(groupId: string) {
           body,
         }),
       ).data,
-    [keys.groups, keys.group(groupId)],
+    [keys.groups, keys.group(groupId), keys.groupInvitations(groupId)],
   )
 }
 

@@ -9251,6 +9251,9 @@ components:
           - 'null'
         joinLinkEnabled:
           type: boolean
+        memberLinkSharingEnabled:
+          type: boolean
+          description: Owner permission for active members to issue reshareable links while link joining is enabled.
         members:
           type: array
           items:
@@ -9402,6 +9405,9 @@ components:
           maxLength: 100
         joinLinkEnabled:
           type: boolean
+        memberLinkSharingEnabled:
+          type: boolean
+          description: Owner permission for active members to issue reshareable links while link joining is enabled.
         closed:
           type: boolean
       additionalProperties: false
@@ -9420,6 +9426,9 @@ components:
       properties:
         kind:
           $ref: '#/components/schemas/InviteKind'
+        rotate:
+          type: boolean
+          description: Owner only. Revoke all prior link invitations atomically when creating this link.
         handle:
           type: string
           pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,29}$
@@ -9657,6 +9666,10 @@ components:
           type: string
           minLength: 0
           maxLength: 300
+        target:
+          $ref: '#/components/schemas/AttachmentTarget'
+        purpose:
+          $ref: '#/components/schemas/MediaPurpose'
       additionalProperties: false
     UploadTicket:
       type: object

@@ -155,13 +155,18 @@ export function useRevokeMediaPublication() {
   )
 }
 /** Retry resumes the failed stage; completion retries never send the bytes again. */
-export function useMediaUpload() {
+export function useMediaUpload(defaultOptions?: {
+  target?: S['AttachmentTarget']
+  purpose?: S['MediaPurpose']
+}) {
   const create = useCreateMediaUpload()
   const complete = useCompleteMediaUpload()
   const pending = useRef<{
     file: File
     ticket?: S['UploadTicket']
     uploaded?: boolean
+    target?: S['AttachmentTarget']
+    purpose?: S['MediaPurpose']
   }>()
   const running = useRef(false)
   const [mediaId, setMediaId] = useState('')
@@ -170,9 +175,14 @@ export function useMediaUpload() {
     'idle' | 'uploading' | 'processing' | 'ready' | 'failed'
   >('idle')
   const [error, setError] = useState<Error | null>(null)
-  async function upload(file?: File) {
+  async function upload(
+    file?: File,
+    options?: { target?: S['AttachmentTarget']; purpose?: S['MediaPurpose'] },
+  ) {
     if (running.current) return
-    if (file) pending.current = { file }
+    const target = options?.target ?? defaultOptions?.target
+    const purpose = options?.purpose ?? defaultOptions?.purpose
+    if (file) pending.current = { file, target, purpose }
     const job = pending.current
     if (!job) return
     running.current = true
@@ -185,6 +195,8 @@ export function useMediaUpload() {
           filename: job.file.name,
           mime: job.file.type,
           sizeBytes: job.file.size,
+          ...(job.target ? { target: job.target } : {}),
+          ...(job.purpose ? { purpose: job.purpose } : {}),
         })
       if (job.file.size > job.ticket.maxBytes)
         throw new Error('File exceeds the upload limit. Choose a smaller file.')
@@ -229,7 +241,52 @@ export function useMediaUpload() {
     busy: stage === 'uploading',
     assetState: asset.data?.state,
     canRetry: !!pending.current || !!asset.error,
+    mediaId,
   }
+}
+
+/** Shared headless inbound-media controller for target-bound or library uploads. */
+export function useInboundMedia(defaultOptions?: {
+  target?: S['AttachmentTarget']
+  purpose?: S['MediaPurpose']
+  onSuccess?: (asset: S['MediaAsset']) => void
+  onError?: (err: unknown) => void
+}) {
+  const upload = useMediaUpload(defaultOptions)
+  return {
+    ...upload,
+    upload: async (
+      file?: File,
+      options?: { target?: S['AttachmentTarget']; purpose?: S['MediaPurpose'] },
+    ) => {
+      const merged = { ...defaultOptions, ...options }
+      const res = await upload.upload(file, merged)
+      if (res) {
+        defaultOptions?.onSuccess?.(res)
+      } else if (upload.error) {
+        defaultOptions?.onError?.(upload.error)
+      }
+      return res
+    },
+  }
+}
+
+/** Resolve or create the default unassigned result entry for an attempt session. */
+export async function getOrCreateSessionResultEntry(sessionId: string): Promise<string> {
+  const detail = apiData(
+    await getApiClient().GET('/sessions/{sessionId}', {
+      params: { path: { sessionId } },
+    }),
+  ).data
+  const entry =
+    detail.entries.find((entry) => entry.instructionId === null) ??
+    apiData(
+      await getApiClient().POST('/sessions/{sessionId}/results', {
+        params: { path: { sessionId } },
+        body: { values: [] },
+      }),
+    ).data
+  return entry.id
 }
 
 export function useMediaAsset(mediaId: string) {

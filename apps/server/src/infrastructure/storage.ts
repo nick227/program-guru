@@ -1,7 +1,8 @@
 // Object storage behind one interface (05-ARCHITECTURE.md §15). STORAGE_PROVIDER=local (default, a
 // directory on disk) or r2 (Cloudflare R2 through the S3 API). Keys are never sent to clients.
-import { createWriteStream } from 'fs'
+import { createReadStream, createWriteStream } from 'fs'
 import { mkdir, rm, stat, open } from 'fs/promises'
+import { tmpdir } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { pipeline } from 'stream/promises'
 import type { Readable } from 'stream'
@@ -157,15 +158,27 @@ class R2Storage implements StorageProvider {
     return getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.bucket, Key: key }), { expiresIn: expiresSec })
   }
   async write(key: string, body: Readable, maxBytes: number) {
-    const chunks: Buffer[] = []
+    const tmp = join(tmpdir(), `r2-upload-${crypto.randomUUID()}`)
     let bytes = 0
-    for await (const c of body) {
-      bytes += (c as Buffer).length
-      if (bytes > maxBytes) throw Object.assign(new Error('File is larger than allowed'), { code: 'TOO_LARGE' })
-      chunks.push(c as Buffer)
+    body.on('data', (chunk: Buffer) => {
+      bytes += chunk.length
+      if (bytes > maxBytes) body.destroy(Object.assign(new Error('File is larger than allowed'), { code: 'TOO_LARGE' }))
+    })
+    try {
+      await pipeline(body, createWriteStream(tmp))
+      const fileBytes = (await stat(tmp)).size
+      await this.s3.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: createReadStream(tmp),
+          ContentLength: fileBytes,
+        }),
+      )
+      return fileBytes
+    } finally {
+      await rm(tmp, { force: true }).catch(() => {})
     }
-    await this.s3.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: Buffer.concat(chunks) }))
-    return bytes
   }
   async read(key: string, range?: { start: number; end: number }) {
     try {

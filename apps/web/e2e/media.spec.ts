@@ -614,7 +614,7 @@ test('occurrence rows follow the locked order with media after session controls'
   expect([...order].sort((a, b) => a - b)).toEqual(order)
 })
 
-test('session upload attaches to the current attempt privately without starting it', async ({
+test('session upload binds media to the current attempt privately without starting it', async ({
   page,
 }) => {
   await mockApi(page)
@@ -628,18 +628,13 @@ test('session upload attaches to the current attempt privately without starting 
     mimeType: 'image/png',
     buffer: Buffer.from('fixture-capture'),
   })
-  await expect(session.getByText('Processing media…')).toBeVisible()
-  media.ready()
   await expect(session.getByText('Media attached to this attempt.')).toBeVisible()
-  const attachCalls = media.calls.filter(
-    (call) => call.path === '/media-attachments' && call.method === 'POST',
-  )
-  expect(attachCalls).toHaveLength(1)
-  expect(attachCalls[0]!.body).toMatchObject({
-    mediaId: 'media-one',
-    target: { kind: 'RESULT_ENTRY' },
-    purpose: 'JOURNAL',
-  })
+  // Durable inbound attachment: the upload carries its target; the server attaches when READY.
+  const ticket = media.calls.find((call) => call.path === '/media/uploads' && call.method === 'POST')
+  expect(ticket?.body).toMatchObject({ target: { kind: 'RESULT_ENTRY' }, purpose: 'JOURNAL' })
+  expect(
+    media.calls.filter((call) => call.path === '/media-attachments' && call.method === 'POST'),
+  ).toHaveLength(0)
   expect(media.calls.filter((call) => call.path.includes('publications'))).toHaveLength(0)
   await expect(session.getByText('Ready to start')).toBeVisible()
 })

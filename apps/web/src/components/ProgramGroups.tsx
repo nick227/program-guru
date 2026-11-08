@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useCreateGroup, useMyGroups } from '@project/sdk'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useCreateGroup, useMyGroups, useGroup } from '@project/sdk'
 import type { components } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -8,6 +8,10 @@ import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { isLocalDate, today } from '@/lib/dates'
 import { buildGroupUrl, buildProgramUrl } from '@/lib/urls'
+
+import { useOnline } from '@/lib/useOnline'
+import { GroupInviteLink } from './GroupInviteLink'
+import { AvatarStack } from './AvatarStack'
 
 type GroupSummary = components['schemas']['GroupSummary']
 
@@ -24,20 +28,24 @@ export function ProgramGroups({
   isProgramOwner: boolean
   timezone: string
 }) {
-  const navigate = useNavigate()
+  const online = useOnline()
   const groups = useMyGroups()
   const create = useCreateGroup()
+  const [createdGroupId, setCreatedGroupId] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [mode, setMode] = useState<'SYNC' | 'ASYNC'>('SYNC')
+  const [mode, setMode] = useState<'SYNC' | 'ASYNC'>('ASYNC')
   const [creating, setCreating] = useState(false)
   const [startDate, setStartDate] = useState(today(timezone))
+  useEffect(() => {
+    if (groups.hasNextPage && !groups.isFetchingNextPage && !groups.isFetchNextPageError) void groups.fetchNextPage()
+  }, [groups.hasNextPage, groups.isFetchingNextPage, groups.isFetchNextPageError, groups.fetchNextPage])
   const canCreate = !!enrollmentId || isProgramOwner
   const matching = (groups.data?.pages.flatMap((page) => page.data) ?? []).filter(
     (group: GroupSummary) => group.programVersionId === versionId,
   )
 
   async function createGroup() {
-    if (!versionId) return
+    if (!versionId || !online || create.isPending) return
     try {
       const group = await create.mutateAsync({
         programVersionId: versionId,
@@ -47,19 +55,8 @@ export function ProgramGroups({
           ? { startLocalDate: startDate, timezone }
           : {}),
       })
-      if (enrollmentId) {
-        navigate(buildGroupUrl(group.id))
-      } else {
-        navigate(
-          buildProgramUrl(
-            { id: programId },
-            {
-              groupId: group.id,
-              startDate: mode === 'SYNC' ? startDate : undefined,
-            },
-          ),
-        )
-      }
+      setCreating(false)
+      setCreatedGroupId(group.id)
     } catch {
       // The mutation error remains visible so the user can correct and retry.
     }
@@ -68,31 +65,18 @@ export function ProgramGroups({
   return (
     <Panel>
       <Stack>
-        <h2>Program groups</h2>
+        <h2>Do this together</h2>
         {groups.isPending && <Loading />}
         <ErrorMessage error={groups.error} retry={() => void groups.refetch()} />
-        {matching.map((group) => (
-          <Row key={group.id} className="justify-between">
-            <span>
-              {group.name || group.programTitle} · {group.memberCount}{' '}
-              {group.memberCount === 1 ? 'participant' : 'participants'} ·{' '}
-              {group.mode === 'SYNC' ? 'Same start' : 'Flexible start'}
-            </span>
-            <Link
-              className="text-accent underline"
-              to={buildGroupUrl(group.id)}
-            >
-              Open group
-            </Link>
-          </Row>
-        ))}
-        {!matching.length && !groups.isPending && !groups.error && (
+        {matching.map((group) => <Participation key={group.id} groupId={group.id} programId={programId} />)}
+        {createdGroupId && !matching.some((g) => g.id === createdGroupId) && <Participation groupId={createdGroupId} programId={programId} />}
+        {!matching.length && !createdGroupId && !groups.isPending && !groups.error && (
           <p className="text-sm text-muted">
-            Start a group to follow this Program with other people. Everyone
+            Invite people to follow this Program with you. Everyone
             keeps an independent calendar and private results.
           </p>
         )}
-        {canCreate && versionId ? (
+        {!matching.length && !createdGroupId && canCreate && versionId ? (
           creating ? (
             <Stack>
               <label className="space-y-2">
@@ -138,13 +122,11 @@ export function ProgramGroups({
                 <Button
                   loading={create.isPending}
                   disabled={
-                    mode === 'SYNC' &&
-                    !enrollmentId &&
-                    !isLocalDate(startDate)
+                    !online || create.isPending || (mode === 'SYNC' && !enrollmentId && !isLocalDate(startDate))
                   }
                   onClick={() => void createGroup()}
                 >
-                  Create group
+                  Continue
                 </Button>
                 <Button
                   variant="outline"
@@ -157,14 +139,29 @@ export function ProgramGroups({
               <ErrorMessage error={create.error} />
             </Stack>
           ) : (
-            <Button onClick={() => setCreating(true)}>Start a group</Button>
+            <Button disabled={groups.isPending || groups.hasNextPage || !!groups.error} onClick={() => setCreating(true)}>Invite people</Button>
           )
-        ) : (
+        ) : !matching.length && !createdGroupId ? (
           <p className="text-sm text-muted">
-            Join this Program before starting a group.
+            {versionId ? 'Join this Program to invite people to participate with you.' : 'Prepare a published version to invite people. Your Program can stay private.'}
           </p>
-        )}
+        ) : null}
       </Stack>
     </Panel>
+  )
+}
+
+function Participation({ groupId, programId }: { groupId: string; programId: string }) {
+  const group = useGroup(groupId)
+  return (
+    <Stack className="gap-2">
+      {group.data && <Row className="justify-between">
+        <AvatarStack people={group.data.members.map((m) => ({ id: m.user.id, name: m.user.displayName, avatarUrl: m.user.avatarUrl }))} max={5} />
+        <span className="text-sm text-muted">{group.data.memberCount} {group.data.memberCount === 1 ? 'participant' : 'participants'} · {group.data.mode === 'ASYNC' ? 'Flexible pace' : 'Shared start'}</span>
+        <Link className="text-sm text-accent underline" to={buildGroupUrl(groupId)}>View group</Link>
+      </Row>}
+      <GroupInviteLink groupId={groupId} />
+      {group.data && !group.data.myEnrollment && <Link className="text-sm text-accent underline" to={buildProgramUrl({ id: programId }, { groupId, startDate: group.data.startLocalDate ?? undefined })}>Add to my Calendar</Link>}
+    </Stack>
   )
 }

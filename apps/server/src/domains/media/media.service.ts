@@ -273,20 +273,102 @@ export async function update(userId: string, mediaId: string, input: { alt?: str
 
 // ── Upload ──────────────────────────────────────────────────────────────────
 
-export async function createUpload(userId: string, raw: { filename: string; mime: string; sizeBytes: number; checksum?: string; durationMs?: number; alt?: string }) {
+export async function createUpload(
+  userId: string,
+  raw: {
+    filename: string
+    mime: string
+    sizeBytes: number
+    checksum?: string
+    durationMs?: number
+    alt?: string
+    target?: { kind: TargetKind; id: string }
+    purpose?: Prisma.MediaAttachmentCreateInput['purpose']
+  },
+) {
   // MediaRecorder reports types with codec parameters ("video/webm;codecs=vp8,opus"): keep only the type.
   const input = { ...raw, mime: raw.mime.split(';')[0]!.trim().toLowerCase() }
   const type = MIME[input.mime]
   if (!type) throw badRequest('That file type is not supported', { mime: 'not allowed' })
   if (input.sizeBytes > LIMITS[type]) throw badRequest(`Files up to ${Math.round(LIMITS[type] / MB)} MB`, { sizeBytes: 'too large' })
-  const used = await db.mediaAsset.aggregate({ where: { ownerId: userId, deletedAt: null }, _sum: { byteSize: true } })
-  if (Number(used._sum.byteSize ?? 0) + input.sizeBytes > QUOTA_BYTES) throw badRequest('Your media storage is full', { sizeBytes: 'over quota' })
+
+  if (input.purpose) {
+    if ((input.purpose === 'COVER' || input.purpose === 'AVATAR') && type !== 'PHOTO') {
+      throw badRequest('Cover and avatar media must be a photo', { purpose: 'must be photo' })
+    }
+  }
+
   const id = crypto.randomUUID()
   const key = `u/${userId}/${id}/original`
   const expiresAt = new Date(Date.now() + UPLOAD_WINDOW_MS)
-  await db.mediaAsset.create({
-    data: { id, ownerId: userId, type, originalStorageKey: key, mime: input.mime, byteSize: BigInt(input.sizeBytes), durationMs: input.durationMs ?? null, checksum: input.checksum ?? null, alt: input.alt?.trim() || null, state: 'UPLOADING', uploadExpiresAt: expiresAt },
+
+  await db.$transaction(async (tx) => {
+    // Lock User row to serialize concurrent quota checks for this user
+    await tx.$queryRaw`SELECT id FROM User WHERE id = ${userId} FOR UPDATE`
+
+    if (input.target && input.purpose) {
+      await assertTargetOwner(userId, input.target.kind, input.target.id, true, tx)
+    }
+
+    const now = new Date()
+    const activeAssets = await tx.mediaAsset.findMany({
+      where: {
+        ownerId: userId,
+        deletedAt: null,
+        OR: [
+          { state: { in: ['PROCESSING', 'READY'] } },
+          { state: 'UPLOADING', uploadExpiresAt: { gt: now } },
+        ],
+      },
+      select: { byteSize: true },
+    })
+    const totalReserved = activeAssets.reduce((sum, a) => sum + Number(a.byteSize), 0)
+    if (totalReserved + input.sizeBytes > QUOTA_BYTES) {
+      throw badRequest('Your media storage is full', { sizeBytes: 'over quota' })
+    }
+
+    if (input.target && input.purpose === 'COVER') {
+      await tx.mediaAttachmentIntent.updateMany({
+        where: {
+          targetKind: input.target.kind,
+          targetId: input.target.id,
+          purpose: 'COVER',
+          status: 'PENDING',
+        },
+        data: { status: 'SUPERSEDED' },
+      })
+    }
+
+    await tx.mediaAsset.create({
+      data: {
+        id,
+        ownerId: userId,
+        type,
+        originalStorageKey: key,
+        mime: input.mime,
+        byteSize: BigInt(input.sizeBytes),
+        durationMs: input.durationMs ?? null,
+        checksum: input.checksum ?? null,
+        alt: input.alt?.trim() || null,
+        state: 'UPLOADING',
+        uploadExpiresAt: expiresAt,
+      },
+    })
+
+    if (input.target && input.purpose) {
+      await tx.mediaAttachmentIntent.create({
+        data: {
+          mediaId: id,
+          userId,
+          targetKind: input.target.kind,
+          targetId: input.target.id,
+          purpose: input.purpose,
+          status: 'PENDING',
+        },
+      })
+    }
   })
+
   const direct = await storage().presignPut(key, input.mime, UPLOAD_WINDOW_MS / 1000)
   return {
     uploadId: id,
@@ -317,16 +399,56 @@ export async function completeUpload(userId: string, uploadId: string) {
   if (m.state !== 'UPLOADING') return toAsset(userId, m)
   const size = await storage().size(m.originalStorageKey)
   if (size === null) throw conflict('The upload has not arrived yet')
-  if (size > LIMITS[m.type]) throw badRequest('The file is larger than allowed', { file: 'too large' })
+  if (size > LIMITS[m.type]) {
+    await storage().remove(m.originalStorageKey).catch(() => {})
+    await db.mediaAsset.update({ where: { id: m.id }, data: { state: 'FAILED', uploadExpiresAt: null } })
+    await db.mediaAttachmentIntent.updateMany({ where: { mediaId: m.id, status: 'PENDING' }, data: { status: 'FAILED', error: 'The file is larger than allowed' } })
+    throw badRequest('The file is larger than allowed', { file: 'too large' })
+  }
   if (!sniffMatches(m.mime, sniff(await storage().head(m.originalStorageKey, 32)))) {
-    await db.mediaAsset.update({ where: { id: m.id }, data: { state: 'FAILED' } })
+    await storage().remove(m.originalStorageKey).catch(() => {})
+    await db.mediaAsset.update({ where: { id: m.id }, data: { state: 'FAILED', uploadExpiresAt: null } })
+    await db.mediaAttachmentIntent.updateMany({ where: { mediaId: m.id, status: 'PENDING' }, data: { status: 'FAILED', error: 'The file does not match its type' } })
     throw badRequest('The file does not match its type', { mime: 'content mismatch' })
   }
+
+  const extraBytes = size - Number(m.byteSize)
+  let overQuota = false
   const updated = await db.$transaction(async (tx) => {
-    const r = await tx.mediaAsset.update({ where: { id: m.id }, data: { state: 'PROCESSING', byteSize: BigInt(size), uploadedAt: new Date(), uploadExpiresAt: null } })
+    if (extraBytes > 0) {
+      await tx.$queryRaw`SELECT id FROM User WHERE id = ${userId} FOR UPDATE`
+      const activeAssets = await tx.mediaAsset.findMany({
+        where: {
+          ownerId: userId,
+          deletedAt: null,
+          id: { not: m.id },
+          OR: [
+            { state: { in: ['PROCESSING', 'READY'] } },
+            { state: 'UPLOADING', uploadExpiresAt: { gt: new Date() } },
+          ],
+        },
+        select: { byteSize: true },
+      })
+      const totalOther = activeAssets.reduce((sum, a) => sum + Number(a.byteSize), 0)
+      if (totalOther + size > QUOTA_BYTES) {
+        overQuota = true
+        await tx.mediaAsset.update({ where: { id: m.id }, data: { state: 'FAILED', uploadExpiresAt: null } })
+        await tx.mediaAttachmentIntent.updateMany({ where: { mediaId: m.id, status: 'PENDING' }, data: { status: 'FAILED', error: 'Your media storage is full' } })
+        return null
+      }
+    }
+    const r = await tx.mediaAsset.update({
+      where: { id: m.id },
+      data: { state: 'PROCESSING', byteSize: BigInt(size), uploadedAt: new Date(), uploadExpiresAt: null },
+    })
     await enqueue(tx, 'MediaUploaded', { mediaId: m.id })
     return r
   })
+
+  if (overQuota || !updated) {
+    await storage().remove(m.originalStorageKey).catch(() => {})
+    throw badRequest('Your media storage is full', { sizeBytes: 'over quota' })
+  }
   return toAsset(userId, updated)
 }
 
@@ -335,10 +457,11 @@ export async function remove(userId: string, mediaId: string) {
   // Soft delete hides it everywhere and ends every publication; the worker purges files after retention.
   await db.$transaction([
     db.mediaPublication.updateMany({ where: { mediaId: m.id, status: { in: ['PENDING', 'APPROVED'] } }, data: { status: 'REVOKED' } }),
+    db.mediaAttachmentIntent.updateMany({ where: { mediaId: m.id, status: 'PENDING' }, data: { status: 'CANCELLED' } }),
     db.userProfile.updateMany({ where: { avatarMediaId: m.id }, data: { avatarMediaId: null } }),
     db.userProfile.updateMany({ where: { coverMediaId: m.id }, data: { coverMediaId: null } }),
     db.program.updateMany({ where: { coverMediaId: m.id }, data: { coverMediaId: null } }),
-    db.mediaAsset.update({ where: { id: m.id }, data: { deletedAt: new Date() } }),
+    db.mediaAsset.update({ where: { id: m.id }, data: { deletedAt: new Date(), uploadExpiresAt: null } }),
   ])
 }
 
@@ -347,15 +470,21 @@ export async function remove(userId: string, mediaId: string) {
 type TargetKind = 'PROGRAM' | 'ACTIVITY_REVISION' | 'INSTRUCTION' | 'RESULT_ENTRY' | 'PROFILE'
 
 /** Only the owner of the target may attach, and only to editable drafts of their content. */
-async function assertTargetOwner(userId: string, kind: TargetKind, id: string, editable = true) {
+async function assertTargetOwner(
+  userId: string,
+  kind: TargetKind,
+  id: string,
+  editable = true,
+  client: Prisma.TransactionClient | typeof db = db,
+) {
   const draftRevisionOwned = async (revisionId: string) => {
-    const rev = await db.activityRevision.findUnique({ where: { id: revisionId }, include: { activity: true } })
+    const rev = await client.activityRevision.findUnique({ where: { id: revisionId }, include: { activity: true } })
     if (!rev || rev.activity.creatorId !== userId) throw notFound('Target')
     if (editable && rev.publishedAt) throw badRequest('Edit the draft to change its media', { target: 'is published' })
   }
   switch (kind) {
     case 'PROGRAM': {
-      const p = await db.program.findUnique({ where: { id } })
+      const p = await client.program.findUnique({ where: { id } })
       if (!p || !isProgramOwner(p, userId)) throw notFound('Target')
       return { programId: id }
     }
@@ -363,13 +492,13 @@ async function assertTargetOwner(userId: string, kind: TargetKind, id: string, e
       await draftRevisionOwned(id)
       return { activityRevisionId: id }
     case 'INSTRUCTION': {
-      const i = await db.instruction.findUnique({ where: { id } })
+      const i = await client.instruction.findUnique({ where: { id } })
       if (!i) throw notFound('Target')
       await draftRevisionOwned(i.activityRevisionId)
       return { instructionId: id }
     }
     case 'RESULT_ENTRY': {
-      const e = await db.resultEntry.findUnique({ where: { id }, include: { session: true } })
+      const e = await client.resultEntry.findUnique({ where: { id }, include: { session: true } })
       if (!e || e.session.userId !== userId) throw notFound('Target')
       return { resultEntryId: id }
     }
@@ -422,7 +551,41 @@ export async function listAttachments(userId: string, query: PageQuery & { targe
   const target = await assertTargetOwner(userId, query.targetKind, query.targetId, false)
   const { limit, skip, take } = offsetArgs(query)
   const rows = await db.mediaAttachment.findMany({ where: target, include: { media: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }], skip, take })
-  return toOffsetPage(rows, limit, skip, toAttachment)
+  const result = toOffsetPage(rows, limit, skip, toAttachment)
+
+  // Surface active PENDING attachment intents for this target so UI reactively reflects processing
+  const pendingIntents = await db.mediaAttachmentIntent.findMany({
+    where: {
+      targetKind: query.targetKind,
+      targetId: query.targetId,
+      status: 'PENDING',
+      media: { deletedAt: null },
+    },
+    include: { media: true },
+    orderBy: { createdAt: 'desc' },
+  })
+  for (const intent of pendingIntents) {
+    if (!result.data.some((a) => a.mediaId === intent.mediaId)) {
+      result.data.unshift({
+        id: `intent-${intent.id}`,
+        mediaId: intent.mediaId,
+        mediaState: intent.media.state,
+        mediaDeleted: false,
+        target: { kind: query.targetKind, id: query.targetId },
+        purpose: intent.purpose,
+        position: intent.position ?? 0,
+        media: {
+          id: intent.media.id,
+          thumbnailUrl: null,
+          type: intent.media.type,
+          durationMs: intent.media.durationMs,
+          alt: intent.media.alt ?? '',
+          canSelect: false,
+        },
+      })
+    }
+  }
+  return result
 }
 
 /**
@@ -465,6 +628,13 @@ export async function listActivityHistory(
 }
 
 export async function detach(userId: string, attachmentId: string) {
+  if (attachmentId.startsWith('intent-')) {
+    const intentId = attachmentId.replace(/^intent-/, '')
+    const intent = await db.mediaAttachmentIntent.findUnique({ where: { id: intentId } })
+    if (!intent || intent.userId !== userId) throw notFound('Attachment')
+    await db.mediaAttachmentIntent.update({ where: { id: intent.id }, data: { status: 'CANCELLED' } })
+    return
+  }
   const a = await db.mediaAttachment.findUnique({ where: { id: attachmentId } })
   if (!a) throw notFound('Attachment')
   const kind: TargetKind = a.programId ? 'PROGRAM' : a.activityRevisionId ? 'ACTIVITY_REVISION' : a.instructionId ? 'INSTRUCTION' : a.resultEntryId ? 'RESULT_ENTRY' : 'PROFILE'

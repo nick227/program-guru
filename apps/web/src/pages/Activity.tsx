@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
   useActivity,
   useActivityPublicMedia,
@@ -11,6 +12,7 @@ import {
   useCurrentUser,
   usePutActivityInstructions,
   useUpdateActivityDraft,
+  useInboundMedia,
   type components,
 } from '@project/sdk'
 import { Page, Stage, Stack, Panel } from '@/components/ui/Layout'
@@ -45,6 +47,16 @@ export function ActivityPage() {
   const resolved = useResolveActivityTarget(rawSlugOrId)
   const activity = useActivity(resolved.activityId)
   const publicMedia = useActivityPublicMedia(resolved.activityId, undefined, !resolved.notFound && !!resolved.activityId)
+  const inbound = useInboundMedia({
+    target: activity.data?.revisionId
+      ? { kind: 'ACTIVITY_REVISION', id: activity.data.revisionId }
+      : undefined,
+    purpose: 'DEMONSTRATION',
+    onSuccess: () => {
+      void activity.refetch()
+      toast.success('Media uploaded and attached')
+    },
+  })
 
   useDocumentTitle(
     activity.data?.title ??
@@ -131,8 +143,10 @@ export function ActivityPage() {
                   title="Related Media"
                   description="Visual guides and demonstration media for this Activity"
                   items={riverItems}
-                  // Read-only until durable inbound attachments land (Antigravity); attaching
-                  // a still-processing upload fails with "not ready".
+                  canUpload={!!activity.data?.canEdit}
+                  onUpload={async (file) => {
+                    await inbound.upload(file)
+                  }}
                 />
               </Panel>
               {!!activity.data.metricLabels.filter(

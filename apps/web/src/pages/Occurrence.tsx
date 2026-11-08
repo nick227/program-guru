@@ -1,3 +1,4 @@
+import { GroupInviteLink } from '@/components/GroupInviteLink'
 import { useRef, useState } from 'react'
 import {
   Link,
@@ -11,6 +12,8 @@ import {
   useAddCompletionReaction,
   useCreateSession,
   useAttachSessionMedia,
+  useInboundMedia,
+  getOrCreateSessionResultEntry,
   useOccurrence,
   useRemoveCompletionReaction,
   useSaveResults,
@@ -100,6 +103,7 @@ function OccurrenceContent({
   const save = useSaveResults(o.item.id)
   const undo = useUndoCompletion()
   const attach = useAttachSessionMedia()
+  const inbound = useInboundMedia({ purpose: 'JOURNAL' })
   const addReaction = useAddCompletionReaction()
   const removeReaction = useRemoveCompletionReaction()
   const [dirty, setDirty] = useState<Record<string, string | number | boolean>>(
@@ -140,7 +144,7 @@ function OccurrenceContent({
     return next
   }
   /** Personal media goes to the current attempt, creating an unstarted one if needed. */
-  async function attachToSession(mediaId: string) {
+  async function attachToSession(fileOrMediaId: File | string) {
     if (!online) throw new Error('Connect to attach media.')
     if (working.current) throw new Error('Wait for the current save to finish.')
     working.current = true
@@ -150,7 +154,15 @@ function OccurrenceContent({
         o.session && o.session.status !== 'ABANDONED'
           ? o.session
           : await getSession()
-      await attach.mutateAsync({ mediaId, sessionId: current.id })
+      if (typeof fileOrMediaId === 'string') {
+        await attach.mutateAsync({ mediaId: fileOrMediaId, sessionId: current.id })
+      } else {
+        const resultEntryId = await getOrCreateSessionResultEntry(current.id)
+        await inbound.upload(fileOrMediaId, {
+          target: { kind: 'RESULT_ENTRY', id: resultEntryId },
+          purpose: 'JOURNAL',
+        })
+      }
     } finally {
       working.current = false
       setBusy(false)
@@ -290,7 +302,7 @@ function OccurrenceContent({
           <Stack>
             <Row className="justify-between">
               <Row className="gap-2">
-                <h2>Collaborators</h2>
+                <h2>Do this together</h2>
                 <UnreadDot count={o.collaborators.unreadCount} inline />
               </Row>
               <Row className="gap-2">
@@ -306,6 +318,8 @@ function OccurrenceContent({
                 </Link>
               </Row>
             </Row>
+            <GroupInviteLink groupId={o.collaborators.groupId} />
+            <ErrorMessage error={addReaction.error || removeReaction.error} />
             <AvatarStack
               people={o.collaborators.members.map((m) => ({
                 id: m.user.id,

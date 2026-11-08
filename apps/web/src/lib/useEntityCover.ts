@@ -3,6 +3,7 @@ import {
   useDetachMedia,
   useMediaAttachments,
   useUpdateProgram,
+  type components,
 } from '@project/sdk'
 
 /**
@@ -18,6 +19,7 @@ export type CoverController = {
   hasCover: boolean
   pending: boolean
   error: unknown
+  target?: components['schemas']['AttachmentTarget']
 }
 
 /** Program cover = `coverMediaId` on the draft (revision-checked). */
@@ -28,6 +30,7 @@ export function useProgramCover(program: {
 }): CoverController {
   const update = useUpdateProgram(program.id)
   return {
+    target: { kind: 'PROGRAM', id: program.id },
     hasCover: !!program.coverUrl,
     pending: update.isPending,
     error: update.error,
@@ -62,6 +65,7 @@ export function useActivityCover(revisionId: string | null): CoverController {
     (link) => link.purpose === 'COVER',
   )
   return {
+    target: revisionId ? { kind: 'ACTIVITY_REVISION', id: revisionId } : undefined,
     hasCover: covers.some((link) => !link.mediaDeleted),
     pending: attach.isPending || detach.isPending || links.isPending,
     error: links.error || attach.error || detach.error,

@@ -121,6 +121,7 @@ model User {
   moderationActions    ModerationAction[]
   idempotencyKeys      IdempotencyKey[]
   programSlugAliases   ProgramSlugAlias[]   @relation("UserProgramAliases")
+  attachmentIntents    MediaAttachmentIntent[]
 
   @@index([status])
 }
@@ -1178,6 +1179,7 @@ model ProgramGroup {
   name             String?     @db.VarChar(100)
   mode             GroupMode   @default(SYNC)
   joinLinkEnabled  Boolean     @default(false)
+  memberLinkSharingEnabled Boolean @default(false)
   startLocalDate   DateTime?   @db.Date
   timezone         String?     @db.VarChar(64)
   status           GroupStatus @default(ACTIVE)
@@ -1278,6 +1280,14 @@ enum MediaType {
   AUDIO
 }
 
+enum IntentStatus {
+  PENDING
+  COMPLETED
+  SUPERSEDED
+  CANCELLED
+  FAILED
+}
+
 enum MediaState {
   UPLOADING
   PROCESSING
@@ -1337,17 +1347,40 @@ model MediaAsset {
   uploadedAt         DateTime?
   createdAt          DateTime   @default(now())
   deletedAt          DateTime?
+  purgedAt           DateTime?
 
-  owner           User?              @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  variants        MediaVariant[]
-  attachments     MediaAttachment[]
-  publications    MediaPublication[]
-  avatarFor       UserProfile[]      @relation("ProfileAvatar")
-  profileCoverFor UserProfile[]      @relation("ProfileCover")
-  coverFor        Program[]          @relation("ProgramCover")
+  owner            User?                  @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  variants         MediaVariant[]
+  attachments      MediaAttachment[]
+  attachmentIntent MediaAttachmentIntent?
+  publications     MediaPublication[]
+  avatarFor        UserProfile[]          @relation("ProfileAvatar")
+  profileCoverFor  UserProfile[]          @relation("ProfileCover")
+  coverFor         Program[]              @relation("ProgramCover")
 
   @@index([ownerId, createdAt])
   @@index([state, uploadExpiresAt])
+  @@index([deletedAt, purgedAt])
+}
+
+model MediaAttachmentIntent {
+  id         String       @id @default(uuid()) @db.Char(36)
+  mediaId    String       @unique @db.Char(36)
+  userId     String       @db.Char(36)
+  targetKind String       @db.VarChar(32)
+  targetId   String       @db.Char(36)
+  purpose    MediaPurpose @default(OTHER)
+  position   Int?
+  status     IntentStatus @default(PENDING)
+  error      String?      @db.VarChar(255)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([targetKind, targetId, status])
+  @@index([userId, status])
 }
 
 model MediaVariant {

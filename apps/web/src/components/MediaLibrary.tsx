@@ -1,8 +1,8 @@
 import { ApiError } from '@project/sdk'
 import { MediaGrid } from './MediaGrid'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MediaCapture } from './MediaCapture'
-import { useMediaLibrary, useMediaUpload, type components } from '@project/sdk'
+import { useMediaLibrary, useMediaUpload, useMediaAsset, type components } from '@project/sdk'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { ErrorMessage, Loading } from './ui/Feedback'
@@ -26,9 +26,18 @@ export function MediaLibrary({
   const [q, setQ] = useState('')
   const [type, setType] = useState<Asset['type'] | undefined>()
   const [capture, setCapture] = useState(false)
+  const [pendingUploadId, setPendingUploadId] = useState<string | null>(null)
   const library = useMediaLibrary({ source, q, type })
   const upload = useMediaUpload()
+  const pendingAsset = useMediaAsset(pendingUploadId ?? '')
   const online = useOnline()
+
+  useEffect(() => {
+    if (selecting && onSelect && pendingUploadId && pendingAsset.data?.state === 'READY') {
+      onSelect(pendingAsset.data)
+      setPendingUploadId(null)
+    }
+  }, [selecting, onSelect, pendingUploadId, pendingAsset.data])
   const denied =
     library.error instanceof ApiError &&
     [401, 403, 404].includes(library.error.status)
@@ -96,10 +105,19 @@ export function MediaLibrary({
               type="file"
               accept="image/*,video/*,audio/*"
               disabled={!online || upload.busy}
-              onChange={(event) => {
+              onChange={async (event) => {
                 const file = event.target.files?.[0]
                 event.target.value = ''
-                if (file) void upload.upload(file)
+                if (!file) return
+                const asset = await upload.upload(file)
+                if (asset) {
+                  if (asset.state === 'READY' && selecting) {
+                    onSelect(asset)
+                  } else if (selecting) {
+                    setPendingUploadId(asset.id)
+                  }
+                  void library.refetch()
+                }
               }}
             />
           </label>

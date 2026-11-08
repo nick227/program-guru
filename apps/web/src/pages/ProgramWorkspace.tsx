@@ -1,3 +1,4 @@
+import { ProgramGroups } from '@/components/ProgramGroups'
 import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -22,6 +23,7 @@ import {
   usePublishCheck,
   usePublishProgram,
   useMediaUpload,
+  useInboundMedia,
   type components,
 } from '@project/sdk'
 import { Upload, Loader2 } from 'lucide-react'
@@ -147,6 +149,7 @@ export function ProgramWorkspacePage() {
                 refresh={() => void workspace.refetch()}
               />
             )}
+            {ws.status !== 'ARCHIVED' && <WorkspaceTogether ws={ws} />}
             <Link
               to={`${base}?panel=publish`}
               className={linkButton + ' bg-accent text-white'}
@@ -159,6 +162,15 @@ export function ProgramWorkspacePage() {
       <WorkspaceBrowserOutlet ws={ws} />
     </Page>
   )
+}
+
+function WorkspaceTogether({ ws }: { ws: Workspace }) {
+  const me = useCurrentUser()
+  const enrollments = useMyEnrollments()
+  const enrollment = enrollments.data?.pages.flatMap((page) => page.data).find(
+    (entry) => entry.program.id === ws.id && entry.programVersionId === ws.latestPublishedVersionId && ['ACTIVE', 'PAUSED'].includes(entry.status),
+  )
+  return <ProgramGroups key={ws.latestPublishedVersionId} programId={ws.id} versionId={ws.latestPublishedVersionId} enrollmentId={enrollment?.id ?? null} isProgramOwner timezone={me.data?.data.preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone} />
 }
 
 /** Program image attachment below the Program details. */
@@ -531,35 +543,15 @@ function AddDemonstrationMedia({
   disabled?: boolean
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const upload = useMediaUpload()
-  const attachMedia = useAttachMedia()
-  const [attaching, setAttaching] = useState(false)
-  const [waitingId, setWaitingId] = useState<string | null>(null)
   const [error, setError] = useState<unknown>(null)
+  const inbound = useInboundMedia({
+    target: { kind: 'ACTIVITY_REVISION', id: revisionId },
+    purpose: 'DEMONSTRATION',
+    onSuccess: () => toast.success('Demonstration media attached'),
+    onError: setError,
+  })
 
-  useEffect(() => {
-    if (!waitingId || upload.stage !== 'ready' || attaching || error) return
-    const id = waitingId
-    setAttaching(true)
-    attachMedia
-      .mutateAsync({
-        mediaId: id,
-        target: { kind: 'ACTIVITY_REVISION', id: revisionId },
-        purpose: 'DEMONSTRATION',
-      })
-      .then(() => {
-        setWaitingId(null)
-        toast.success('Demonstration media attached')
-      })
-      .catch(setError)
-      .finally(() => setAttaching(false))
-  }, [waitingId, upload.stage, attaching, error, attachMedia, revisionId])
-
-  const working =
-    attaching ||
-    upload.busy ||
-    attachMedia.isPending ||
-    (!!waitingId && upload.stage === 'processing')
+  const working = inbound.busy || inbound.stage === 'processing'
 
   return (
     <div className="space-y-1">
@@ -576,25 +568,10 @@ function AddDemonstrationMedia({
           event.target.value = ''
           if (!file) return
           setError(null)
-          setAttaching(true)
           try {
-            const asset = await upload.upload(file)
-            if (asset) {
-              if (asset.state === 'READY') {
-                await attachMedia.mutateAsync({
-                  mediaId: asset.id,
-                  target: { kind: 'ACTIVITY_REVISION', id: revisionId },
-                  purpose: 'DEMONSTRATION',
-                })
-                toast.success('Demonstration media attached')
-              } else {
-                setWaitingId(asset.id)
-              }
-            }
+            await inbound.upload(file)
           } catch (err) {
             setError(err)
-          } finally {
-            setAttaching(false)
           }
         }}
       />
@@ -612,7 +589,7 @@ function AddDemonstrationMedia({
         )}
         <span>{working ? 'Uploading…' : 'Add demonstration media'}</span>
       </Button>
-      <ErrorMessage error={error || upload.error || attachMedia.error} />
+      <ErrorMessage error={error || inbound.error} />
     </div>
   )
 }
@@ -927,10 +904,6 @@ function ScheduleEditor({ ws }: { ws: Workspace }) {
       <Stack>
       <div>
         <h2>Schedule &amp; placement</h2>
-        <p className="text-sm text-muted">
-          The schedule is generated from your duration and activity placements. Select a
-          day to move, remove, or add an Activity.
-        </p>
       </div>
       <Panel>
         <Stack>
