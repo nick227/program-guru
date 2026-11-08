@@ -112,11 +112,44 @@ configuration; `/health` is the Railway healthcheck.
 - `release/p1-uat-rc` (`a2fa727`): its content (the account-switch test and `activity-media-history.live.config.ts`) was already on `main`, byte-identical. The branch is otherwise far behind `main` and can be retired. This candidate extends that config with per-client projects and the journey spec, run by `scripts/history-live.ts`.
 - Two inert test accounts (`journey-author-…@test.local`, `journey-part-…@test.local`, unverified, no data) were created in the shared `programs_app_dev` by a harness run that reached another agent's API on a busy port. Runners now refuse busy ports. Delete them if the dev data should stay clean.
 
-## 5. Remaining blockers for hosted UAT
+## 5. Hosted UAT on Railway (deployed 2026-11-08)
 
-The application has no known blocking defects. What remains is operational:
+**URL:** https://program-guru.up.railway.app (project `program-guru`, environment `production`).
+Configuration is code: `.railway/railway.ts`; `railway config plan` shows no drift.
 
-1. **Provision infrastructure and set secrets** (checklist §5–§6): Railway project (validate `.railway/railway.ts` with `railway config plan`), R2 bucket and CORS, Resend domain, Vercel, `app.`/`api.` domains.
-2. **Push `main`** and confirm CI is green on GitHub; the workflow fixes are unproven until then.
-3. **First-deploy check of client IP** (one request, about 5 minutes): Railway does not document its proxy's source addresses or whether a client-sent `X-Real-IP` is overwritten. After deploying, send a request with a spoofed `X-Real-IP` header and confirm the rate-limit identity is your real address, and that two testers on different networks have separate limits. If Railway's proxy source is outside the default ranges, the API safely falls back to the proxy address (shared limits); set `TRUSTED_PROXY_CIDRS` to Railway's range.
-4. **Product decisions** already listed in §4 (demo videos, moderation screen, legal pages) for anything beyond invite-only UAT.
+| Service | State | Notes |
+|---|---|---|
+| `web` | Running `d525d69`'s build | `vite preview` of the production build; forwards `/api` over the private network; public domain targets port 3001 |
+| `server` | Running `d525d69` | No public domain; `/health` checks the database; pre-deploy ran migrations `0001`–`0005` and the catalog/media bootstrap |
+| `MySQL` | `mysql:8`, unchanged | Pinned in IaC (the SDK defaults to `mysql:9`) |
+| `media` bucket | Railway Bucket (iad) | Seeded illustrations and uploads; uploads go through the API (no bucket CORS) |
+| worker | **Not deployed** | Waits for email (Resend); see blockers |
+
+**Single origin.** `up.railway.app` is on the Public Suffix List, so a separate API domain would be a
+different site and `SameSite=Lax` session cookies would not flow. The browser talks only to the web
+origin; `/api/*` is proxied to the API.
+
+Hosted smoke test (HTTPS, public internet):
+- SPA routes and deep links: 200.
+- `/api/health` 200 with the deployed commit.
+- 6 categories and 5 starter Programs from bootstrap.
+- A seeded illustration is served from the bucket byte-identical to its manifest checksum; a range request returns 206.
+- Register → `session` cookie is `HttpOnly; Secure; SameSite=Lax` on the web origin → `/auth/me` 200 → logout → 401.
+- Photo upload through the API → stored in the bucket and verified on completion (state PROCESSING, waiting for the worker).
+
+**Client IP, verified live.**
+- The API's only peer for proxied requests is the web service (`fd12:3c86:6500:1:…`); the healthcheck comes from `100.64.0.1`.
+- `TRUSTED_PROXY_CIDRS=fd12:3c86:6500::/48`: only this project's private network, not every private range.
+- Eleven sign-ins with forged `X-Real-IP` headers hit 429 on the 11th, so forged values cannot create new identities.
+- At the same moment, a second client on another network (from a Railway container, `152.55.180.144`) had its own untouched limit while ours was exhausted (`136.62.60.81`). Railway's edge overwrites `X-Real-IP` with the real client address.
+
+## 6. Remaining blockers for hosted UAT
+
+1. **Worker and email.** Without the worker:
+   - uploads stay PROCESSING;
+   - verification and password-reset emails are never sent, so new accounts stay unverified and cannot publish;
+   - in-app notifications, reminders and daily summaries are not produced.
+
+   To finish: verify a sending domain in Resend, set `RESEND_API_KEY` and `EMAIL_FROM` on a worker service (same build as `server`, start `pnpm --filter server start:worker`, `RAILPACK_DEPLOY_APT_PACKAGES=ffmpeg`, the same storage and secret variables, no public domain), then add it to `.railway/railway.ts` and apply. The production gate deliberately refuses captured (unsent) email.
+2. **Smoke-test accounts in the hosted database:** `uat-smoke-*`, `uat-cookie-*`, `uat-upload-*` `@example.com` (unverified; one PROCESSING photo). Remove with a targeted operation if UAT should start empty.
+3. **Product decisions** in §4 for anything beyond invite-only UAT.
