@@ -67,95 +67,101 @@ export async function dailySummaries(now = new Date()) {
     const nowLocal = localTime(timezone, now)
     const today = todayIn(timezone, now)
     const todayDate = toDbDate(today)
-    const candidates = await db.userPreference.findMany({
-      where: {
-        timezone,
-        dailyReminderTime: { lte: nowLocal },
-        OR: [{ inAppRemindersEnabled: true }, { dailyEmailEnabled: true }],
-        user: {
-          status: 'ACTIVE',
-          calendarItems: {
-            some: {
-              status: 'PLANNED',
-              localDate: todayDate,
-              OR: [{ enrollmentId: null }, { enrollment: { status: 'ACTIVE' } }],
+    // Cursor past each batch so already-dispatched users cannot strand a backlog > BATCH.
+    let afterUserId: string | undefined
+    for (;;) {
+      const candidates = await db.userPreference.findMany({
+        where: {
+          timezone,
+          dailyReminderTime: { lte: nowLocal },
+          OR: [{ inAppRemindersEnabled: true }, { dailyEmailEnabled: true }],
+          ...(afterUserId ? { userId: { gt: afterUserId } } : {}),
+          user: {
+            status: 'ACTIVE',
+            calendarItems: {
+              some: {
+                status: 'PLANNED',
+                localDate: todayDate,
+                OR: [{ enrollmentId: null }, { enrollment: { status: 'ACTIVE' } }],
+              },
             },
           },
         },
-      },
-      include: { user: true },
-      orderBy: { userId: 'asc' },
-      take: DAILY_SUMMARY_BATCH,
-    })
-    if (!candidates.length) continue
+        include: { user: true },
+        orderBy: { userId: 'asc' },
+        take: DAILY_SUMMARY_BATCH,
+      })
+      if (!candidates.length) break
+      afterUserId = candidates[candidates.length - 1]!.userId
 
-    const dispatched = await db.reminderDispatch.findMany({
-      where: { userId: { in: candidates.map((c) => c.userId) }, localDate: todayDate },
-      select: { userId: true, channel: true },
-    })
-    const have = new Map<string, Set<string>>()
-    for (const d of dispatched) {
-      const set = have.get(d.userId) ?? new Set<string>()
-      set.add(d.channel)
-      have.set(d.userId, set)
-    }
-    const pending = candidates.filter((p) => {
-      const done = have.get(p.userId) ?? new Set()
-      return (p.inAppRemindersEnabled && !done.has('IN_APP')) || (p.dailyEmailEnabled && !done.has('EMAIL'))
-    })
-    if (!pending.length) continue
+      const dispatched = await db.reminderDispatch.findMany({
+        where: { userId: { in: candidates.map((c) => c.userId) }, localDate: todayDate },
+        select: { userId: true, channel: true },
+      })
+      const have = new Map<string, Set<string>>()
+      for (const d of dispatched) {
+        const set = have.get(d.userId) ?? new Set<string>()
+        set.add(d.channel)
+        have.set(d.userId, set)
+      }
+      const pending = candidates.filter((p) => {
+        const done = have.get(p.userId) ?? new Set()
+        return (p.inAppRemindersEnabled && !done.has('IN_APP')) || (p.dailyEmailEnabled && !done.has('EMAIL'))
+      })
+      if (!pending.length) continue
 
-    const items = await db.calendarItem.findMany({
-      where: {
-        ownerId: { in: pending.map((p) => p.userId) },
-        status: 'PLANNED',
-        localDate: todayDate,
-        OR: [{ enrollmentId: null }, { enrollment: { status: 'ACTIVE' } }],
-      },
-      include: { revision: true },
-      orderBy: [{ ownerId: 'asc' }, { localTime: { sort: 'asc', nulls: 'last' } }],
-    })
-    const itemsByOwner = new Map<string, typeof items>()
-    for (const item of items) {
-      const list = itemsByOwner.get(item.ownerId)
-      if (list) list.push(item)
-      else itemsByOwner.set(item.ownerId, [item])
-    }
+      const items = await db.calendarItem.findMany({
+        where: {
+          ownerId: { in: pending.map((p) => p.userId) },
+          status: 'PLANNED',
+          localDate: todayDate,
+          OR: [{ enrollmentId: null }, { enrollment: { status: 'ACTIVE' } }],
+        },
+        include: { revision: true },
+        orderBy: [{ ownerId: 'asc' }, { localTime: { sort: 'asc', nulls: 'last' } }],
+      })
+      const itemsByOwner = new Map<string, typeof items>()
+      for (const item of items) {
+        const list = itemsByOwner.get(item.ownerId)
+        if (list) list.push(item)
+        else itemsByOwner.set(item.ownerId, [item])
+      }
 
-    for (const prefs of pending) {
-      const dayItems = itemsByOwner.get(prefs.userId) ?? []
-      if (!dayItems.length) continue
-      const count = dayItems.length
-      const title = `${count} ${count === 1 ? 'activity' : 'activities'} today`
-      const channels = [...(prefs.inAppRemindersEnabled ? (['IN_APP'] as const) : []), ...(prefs.dailyEmailEnabled ? (['EMAIL'] as const) : [])]
-      for (const channel of channels) {
-        try {
-          await db.reminderDispatch.create({ data: { userId: prefs.userId, localDate: todayDate, channel } })
-        } catch (err) {
-          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') continue // already sent today
-          throw err
+      for (const prefs of pending) {
+        const dayItems = itemsByOwner.get(prefs.userId) ?? []
+        if (!dayItems.length) continue
+        const count = dayItems.length
+        const title = `${count} ${count === 1 ? 'activity' : 'activities'} today`
+        const channels = [...(prefs.inAppRemindersEnabled ? (['IN_APP'] as const) : []), ...(prefs.dailyEmailEnabled ? (['EMAIL'] as const) : [])]
+        for (const channel of channels) {
+          try {
+            await db.reminderDispatch.create({ data: { userId: prefs.userId, localDate: todayDate, channel } })
+          } catch (err) {
+            if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') continue // already sent today
+            throw err
+          }
+          if (channel === 'IN_APP') {
+            await notify({ recipientId: prefs.userId, type: 'DAILY_SUMMARY', title, deepLink: `/?day=${today}`, entityKind: 'CALENDAR_DAY', entityId: prefs.userId, dedupeKey: `daily:${prefs.userId}:${today}` })
+          } else {
+            const unsubscribe = appUrl(`/unsubscribe?token=${encodeURIComponent(unsubscribeToken(prefs.userId))}`)
+            // Activity titles only: never results, amounts, notes, or health details (12 §6).
+            const { text, html } = layout({
+              heading: title,
+              lines: dayItems.slice(0, 10).map((i) => (i.localTime ? `${i.localTime} · ${i.revision.titleSnapshot}` : i.revision.titleSnapshot)),
+              action: { label: 'Open your calendar', url: appUrl(`/?day=${today}`) },
+              footer: `You chose a daily reminder at ${prefs.dailyReminderTime}. Unsubscribe: ${unsubscribe}`,
+            })
+            await email().send({
+              to: prefs.user.email,
+              subject: title,
+              text,
+              html,
+              headers: { 'List-Unsubscribe': `<${unsubscribe}>` },
+              idempotencyKey: `daily:${prefs.userId}:${today}`,
+            })
+          }
+          sent++
         }
-        if (channel === 'IN_APP') {
-          await notify({ recipientId: prefs.userId, type: 'DAILY_SUMMARY', title, deepLink: `/?day=${today}`, entityKind: 'CALENDAR_DAY', entityId: prefs.userId, dedupeKey: `daily:${prefs.userId}:${today}` })
-        } else {
-          const unsubscribe = appUrl(`/unsubscribe?token=${encodeURIComponent(unsubscribeToken(prefs.userId))}`)
-          // Activity titles only: never results, amounts, notes, or health details (12 §6).
-          const { text, html } = layout({
-            heading: title,
-            lines: dayItems.slice(0, 10).map((i) => (i.localTime ? `${i.localTime} · ${i.revision.titleSnapshot}` : i.revision.titleSnapshot)),
-            action: { label: 'Open your calendar', url: appUrl(`/?day=${today}`) },
-            footer: `You chose a daily reminder at ${prefs.dailyReminderTime}. Unsubscribe: ${unsubscribe}`,
-          })
-          await email().send({
-            to: prefs.user.email,
-            subject: title,
-            text,
-            html,
-            headers: { 'List-Unsubscribe': `<${unsubscribe}>` },
-            idempotencyKey: `daily:${prefs.userId}:${today}`,
-          })
-        }
-        sent++
       }
     }
   }

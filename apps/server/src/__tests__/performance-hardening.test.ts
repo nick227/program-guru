@@ -131,6 +131,37 @@ describe('P0.3 bounded dailySummaries', () => {
     expect(queries).toBeLessThan(40)
     expect(await db.notification.count({ where: { type: 'DAILY_SUMMARY', recipientId: { in: idle } } })).toBe(0)
   })
+
+  it('drains a backlog larger than the 200-user batch without misses or duplicates', async () => {
+    const BACKLOG = 250
+    const ids: string[] = []
+    for (let i = 0; i < BACKLOG; i++) {
+      const id = `00000000-0000-4000-8000-00000000a${String(i).padStart(3, '0')}`
+      await seedUser(id, `back${i}`)
+      await db.userPreference.update({
+        where: { userId: id },
+        data: { timezone: 'America/Chicago', dailyReminderTime: '07:00', inAppRemindersEnabled: true, dailyEmailEnabled: false },
+      })
+      await db.calendarItem.create({
+        data: {
+          ownerId: id,
+          activityId: cat.squats.activity.id,
+          activityRevisionId: cat.squats.revision.id,
+          idempotencyKey: `backlog-${id}`,
+          localDate: toDbDate('2026-11-10'),
+          status: 'PLANNED',
+        },
+      })
+      ids.push(id)
+    }
+    const at = new Date('2026-11-10T13:31:00Z')
+    expect(await dailySummaries(at)).toBe(BACKLOG)
+    expect(await dailySummaries(at)).toBe(0)
+    const notices = await db.notification.findMany({ where: { type: 'DAILY_SUMMARY', recipientId: { in: ids } }, select: { recipientId: true } })
+    expect(notices).toHaveLength(BACKLOG)
+    expect(new Set(notices.map((n) => n.recipientId)).size).toBe(BACKLOG)
+    expect(await db.reminderDispatch.count({ where: { userId: { in: ids }, channel: 'IN_APP' } })).toBe(BACKLOG)
+  })
 })
 
 describe('P0.4 DB-filtered extendHorizons', () => {
