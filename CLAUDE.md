@@ -20,7 +20,7 @@ Goal-oriented platform: a personal weekly calendar for following structured Prog
 
 ## Stack
 
-Factory defaults: pnpm monorepo, Vite + React + Tailwind, Fastify routed from OpenAPI via `fastify-openapi-glue`, `openapi-fetch` SDK with React Query hooks, Prisma + MySQL 8. Deploy: Railway (API, worker, DB) and Vercel (web) on sibling subdomains. Storage: Cloudflare R2.
+Factory defaults: pnpm monorepo, Vite + React + Tailwind, Fastify routed from OpenAPI via `fastify-openapi-glue`, `openapi-fetch` SDK with React Query hooks, Prisma + MySQL 8. Deploy: Railway (API, worker, DB) via `.railway/railway.ts` (IaC; `railway.json` is deprecated) and Vercel (web) on sibling subdomains. Storage: Cloudflare R2. Release state and P0s: `docs/release/poc-release-checklist.md`.
 
 ## Phase Completed
 
@@ -41,8 +41,8 @@ Phase 2 — Server, worker, billing: complete and gated (2026-11-07). Phase 3 (f
 
 | Process | Local | Railway |
 |---|---|---|
-| API | `pnpm --filter server dev` (port 3001) | `node dist/index.js` |
-| Worker | `pnpm --filter server worker` | separate service, `node dist/worker.js`, same build and env |
+| API | `pnpm --filter server dev` (port 3001) | `pnpm --filter server start` (esbuild bundle `dist/index.js`; pre-deploy `pnpm db:deploy && pnpm --filter server bootstrap:prod`) |
+| Worker | `pnpm --filter server worker` | separate service, `pnpm --filter server start:worker`, same build and env, `RAILPACK_DEPLOY_APT_PACKAGES=ffmpeg` |
 | Web | `pnpm --filter web dev` (port 5173) | Vercel |
 
 The worker is safe to run as several copies (outbox claims use `FOR UPDATE SKIP LOCKED`; reminders claim `ReminderDispatch`). It needs `ffmpeg` and `ffprobe` on the PATH.
@@ -84,7 +84,8 @@ The worker is safe to run as several copies (outbox claims use `FOR UPDATE SKIP 
 - **Local MySQL** is user-level, from `scripts/local-mysql.sh` (no sudo, no Docker): binaries in `~/.local/opt/mysql-8.4.13`, data in `~/.local/share/programs-app-mysql`, `127.0.0.1:3307`, systemd user service `programs-app-mysql` (enabled). Same start flags as Railway's template. Root credentials: `~/.local/share/programs-app-mysql/root.cnf` (0600). App user `programs_app` can reach only `programs_app_dev`, `programs_app_shadow`, `programs_app_test`. `pnpm db:local:setup` rebuilds all of this idempotently and writes the URLs into `.env`.
 - **Never touch MariaDB.** The system MariaDB 10.11 on 3306 holds ~20 other projects' databases. Ubuntu's `mysql-server` package conflicts with it; that is why local MySQL is user-level.
 - **One schema, one migration history** for every environment. Author migrations locally with `pnpm db:migrate`; everything else runs only `pnpm db:deploy` (`prisma migrate deploy`), which never resets or drops data.
-- **Railway:** `railway.json` runs `pnpm db:deploy` as the pre-deploy command. The server service sets `DATABASE_URL=${{MySQL.MYSQL_URL}}`.
+- **Railway:** `.railway/railway.ts` runs `pnpm db:deploy` (both services) and the idempotent `bootstrap:prod` (API) before start; `DATABASE_URL` references `MySQL.MYSQL_URL`. Production processes refuse to start on missing or weak config (`apps/server/src/lib/config.ts`).
+- **Platform media** is committed under `packages/db/prisma/platform-assets/` (CC0 title cards plus a checksummed manifest); regenerate with `pnpm --filter @project/db assets:generate`. Seed and bootstrap publish it through the storage layer.
 - **Guard:** `db:migrate`, `db:seed`, `db:reset`, `db:studio` go through `scripts/db-guard.ts` and refuse any host but localhost, `NODE_ENV=production`, or a Railway environment.
 - **Verified on MySQL 8.4.13:** `0001_init` applies cleanly; all 4 CHECKs reject invalid rows; `prisma migrate dev` generates an empty migration (no drift). `prisma migrate diff --from-migrations` falsely lists the two FULLTEXT indexes; ignore that tool's output for them. A full rebuild takes ~30s.
 - A column in a CHECK cannot have a CASCADE or SET NULL foreign key on MySQL; those relations declare `Restrict`.

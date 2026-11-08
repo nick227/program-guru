@@ -1,6 +1,9 @@
 // Background worker entry point: a separate process (a second Railway service) built from the same
 // package as the API so it shares domain code and the Prisma client. Safe to run several copies.
+import { execFileSync } from 'child_process'
 import { db } from '@project/db'
+import { storage } from './infrastructure/storage'
+import { assertProductionConfig } from './lib/config'
 import { drain } from './worker/outbox'
 import { cleanup, dailySummaries, extendHorizons, programStats, timedReminders } from './worker/jobs'
 
@@ -34,7 +37,25 @@ async function tick() {
   }
 }
 
+/**
+ * Fail fast instead of leaving uploads stuck in PROCESSING: the media pipeline needs ffmpeg and
+ * ffprobe, every job needs the database, and production needs R2 (storage() enforces that).
+ */
+async function preflight() {
+  assertProductionConfig('worker')
+  for (const bin of ['ffmpeg', 'ffprobe']) {
+    try {
+      execFileSync(bin, ['-version'], { stdio: 'ignore' })
+    } catch {
+      throw new Error(`${bin} is not on PATH (Railway: set RAILPACK_DEPLOY_APT_PACKAGES=ffmpeg on the worker)`)
+    }
+  }
+  await db.$queryRaw`SELECT 1`
+  storage()
+}
+
 async function main() {
+  await preflight()
   console.log(`[worker] started (storage: ${process.env.STORAGE_PROVIDER ?? 'local'}${process.env.STORAGE_DIR ? ` at ${process.env.STORAGE_DIR}` : ''})`)
   while (!stopping) {
     try {

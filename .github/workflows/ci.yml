@@ -26,20 +26,23 @@ jobs:
 
     env:
       DATABASE_URL: mysql://root:test_secret@127.0.0.1:3306/testdb
+      TEST_DATABASE_URL: mysql://root:test_secret@127.0.0.1:3306/testdb
       SESSION_SECRET: ci-session-secret-not-for-production
       NODE_ENV: test
 
     steps:
       - uses: actions/checkout@v4
 
+      # Version comes from package.json "packageManager"; also pinning it here fails the action.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
+
+      - name: Install ffmpeg (worker media pipeline tests)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
 
       - name: Install
         run: pnpm install --frozen-lockfile
@@ -64,3 +67,6 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Production build (bundle must start without workspace TypeScript)
+        run: pnpm --filter server build

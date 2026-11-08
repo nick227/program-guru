@@ -4,13 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "node scripts/build.mjs",
     "start": "node dist/index.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "handlers:sync": "tsx scripts/sync-handlers.ts",
     "worker": "dotenv -e ../../.env -- tsx watch src/worker.ts",
     "start:worker": "node dist/worker.js",
+    "bootstrap:prod": "node dist/bootstrap.js",
     "media:e2e": "tsx scripts/media-e2e.ts",
     "lint": "eslint src scripts"
   },
@@ -22,6 +23,7 @@
     "@fastify/rate-limit": "^9.0.0",
     "@fastify/swagger": "^8.0.0",
     "@fastify/swagger-ui": "^3.0.0",
+    "@prisma/client": "^5.0.0",
     "@project/db": "workspace:*",
     "bcryptjs": "^2.4.3",
     "fastify": "^4.0.0",
@@ -38,6 +40,7 @@
     "ajv": "^8.0.0",
     "ajv-formats": "^3.0.0",
     "dotenv-cli": "^7.4.0",
+    "esbuild": "~0.28.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
     "vitest": "^2.0.0"

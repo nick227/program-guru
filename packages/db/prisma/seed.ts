@@ -1,13 +1,14 @@
 // Deterministic, idempotent platform seed (02-DOMAIN.md §2, 07-PROGRAMS.md §8, 08-ACTIVITIES.md §12, 09-CALENDARS.md §9a).
 // All media references are original platform-owned CC0-1.0 assets — never scraped, copyrighted, or unlicensed.
-// Files are written under STORAGE_DIR before any MediaAsset/MediaVariant row is created.
+// Committed files (prisma/platform-assets/) are published to the caller's storage and verified before any
+// MediaAsset/MediaVariant row references them. Safe to re-run in production: catalog rows are upserted by
+// deterministic id, and an existing Activity's or Program's status and visibility are never overwritten,
+// so moderation and archive decisions stand.
 import { createHash } from 'crypto'
 import { db, type PrismaClient } from '../src/client'
-import { assertReadable, ensurePlatformPhoto, ensurePlatformVideo } from './platform-media'
+import { localSink, platformIllustration, publishPlatformFiles, type PlatformMediaSink } from './platform-media'
 
 const SEEDED_AT = new Date('2026-01-01T00:00:00.000Z')
-const PLATFORM_LICENSE = 'CC0-1.0'
-const PLATFORM_ATTRIBUTION = 'Programs App Platform Studio (CC0 1.0 Public Domain Dedication)'
 
 /** Deterministic UUID v4-shaped identifier derived from a stable namespace key. */
 export function deterministicUuid(key: string): string {
@@ -23,7 +24,7 @@ export function deterministicUuid(key: string): string {
 
 type CategorySeed = { slug: string; label: string; icon: string; position: number }
 
-const CATEGORIES: CategorySeed[] = [
+export const CATEGORIES: CategorySeed[] = [
   { slug: 'fitness', label: 'Fitness', icon: 'dumbbell', position: 1 },
   { slug: 'wellness', label: 'Wellness', icon: 'sparkles', position: 2 },
   { slug: 'finance', label: 'Finance', icon: 'piggy-bank', position: 3 },
@@ -1606,7 +1607,16 @@ export const STARTER_PROGRAMS: StarterProgramSeed[] = [
   },
 ]
 
-export async function seedDatabase(prisma: PrismaClient = db) {
+/** True when any field in `next` differs from the stored row. */
+function changed(row: Record<string, unknown>, next: Record<string, unknown>) {
+  return Object.entries(next).some(([k, v]) => row[k] !== v)
+}
+
+export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: PlatformMediaSink } = {}) {
+  // 0. Platform illustration files first: rows only ever reference objects storage can serve.
+  const illustrations = new Map(SEEDED_ACTIVITIES.filter((a) => !a.textOnly).map((a) => [a.slug, platformIllustration(a.slug)]))
+  const published = await publishPlatformFiles(opts.sink ?? localSink(), [...illustrations.values()].flatMap((i) => [i.original, i.thumb]))
+
   // 1. Categories
   const categoryBySlug = new Map<string, string>()
   for (const c of CATEGORIES) {
@@ -1746,17 +1756,13 @@ export async function seedDatabase(prisma: PrismaClient = db) {
 
     // Upsert the Activity row first
     const existingAct = await prisma.activity.findUnique({ where: { slug: act.slug } })
+    // Content only, and only when it changed: an archive, visibility change or moderation decision on
+    // this row stands, and an unchanged row is not rewritten (bootstrap runs on every deploy).
+    const actContent = { categoryId, title: act.title, summary: act.summary }
     const savedAct = existingAct
-      ? await prisma.activity.update({
-          where: { id: existingAct.id },
-          data: {
-            categoryId,
-            title: act.title,
-            summary: act.summary,
-            status: 'PUBLISHED',
-            visibility: 'PUBLIC',
-          },
-        })
+      ? changed(existingAct, actContent)
+        ? await prisma.activity.update({ where: { id: existingAct.id }, data: actContent })
+        : existingAct
       : await prisma.activity.create({
           data: {
             id: activityId,
@@ -1862,9 +1868,11 @@ export async function seedDatabase(prisma: PrismaClient = db) {
 
     // Rights-cleared platform MediaAsset & attachments (unless textOnly outlier).
     // Files are written first; DB rows only reference keys that exist and are readable.
-    await prisma.mediaAttachment.deleteMany({ where: { activityRevisionId: rev.id } })
+    // Keep only the platform illustration on the seeded revision; upsert it by its deterministic id.
+    const attachmentId = deterministicUuid(`attachment:photo:${act.slug}`)
+    await prisma.mediaAttachment.deleteMany({ where: { activityRevisionId: rev.id, ...(act.textOnly ? {} : { id: { not: attachmentId } }) } })
     if (!act.textOnly) {
-      const photo = ensurePlatformPhoto(act.slug)
+      const photo = illustrations.get(act.slug)!
       const photoId = deterministicUuid(`media:photo:${act.slug}`)
       await prisma.mediaAsset.upsert({
         where: { id: photoId },
@@ -1878,10 +1886,10 @@ export async function seedDatabase(prisma: PrismaClient = db) {
           width: photo.original.width,
           height: photo.original.height,
           state: 'READY',
-          alt: `${act.title} illustration`,
-          license: PLATFORM_LICENSE,
-          attribution: PLATFORM_ATTRIBUTION,
-          sourceUrl: `https://programs.app/media/${photo.original.storageKey}`,
+          alt: photo.alt,
+          license: photo.license,
+          attribution: photo.attribution,
+          sourceUrl: null,
           uploadedAt: SEEDED_AT,
         },
         update: {
@@ -1890,9 +1898,10 @@ export async function seedDatabase(prisma: PrismaClient = db) {
           byteSize: BigInt(photo.original.byteSize),
           width: photo.original.width,
           height: photo.original.height,
-          alt: `${act.title} illustration`,
-          license: PLATFORM_LICENSE,
-          attribution: PLATFORM_ATTRIBUTION,
+          alt: photo.alt,
+          license: photo.license,
+          attribution: photo.attribution,
+          sourceUrl: null,
           state: 'READY',
         },
       })
@@ -1916,100 +1925,16 @@ export async function seedDatabase(prisma: PrismaClient = db) {
           height: photo.thumb.height,
         },
       })
-      await prisma.mediaAttachment.create({
-        data: {
-          id: deterministicUuid(`attachment:photo:${act.slug}`),
-          mediaId: photoId,
-          activityRevisionId: rev.id,
-          purpose: 'ILLUSTRATION',
-          position: 0,
-        },
+      await prisma.mediaAttachment.upsert({
+        where: { id: attachmentId },
+        create: { id: attachmentId, mediaId: photoId, activityRevisionId: rev.id, purpose: 'ILLUSTRATION', position: 0 },
+        update: {},
       })
 
+      // Placeholder demonstration clips are retired until licensed footage exists (release checklist):
+      // hide any created by earlier seeds. The illustration above stays.
       if (act.hasVideo) {
-        const video = ensurePlatformVideo(act.slug)
-        const videoId = deterministicUuid(`media:video:${act.slug}`)
-        await prisma.mediaAsset.upsert({
-          where: { id: videoId },
-          create: {
-            id: videoId,
-            ownerId: null,
-            type: 'VIDEO',
-            originalStorageKey: video.original.storageKey,
-            mime: video.original.mime,
-            byteSize: BigInt(video.original.byteSize),
-            width: video.original.width,
-            height: video.original.height,
-            durationMs: video.original.durationMs,
-            state: 'READY',
-            alt: `${act.title} demonstration clip`,
-            license: PLATFORM_LICENSE,
-            attribution: PLATFORM_ATTRIBUTION,
-            sourceUrl: `https://programs.app/media/${video.original.storageKey}`,
-            uploadedAt: SEEDED_AT,
-          },
-          update: {
-            originalStorageKey: video.original.storageKey,
-            mime: video.original.mime,
-            byteSize: BigInt(video.original.byteSize),
-            width: video.original.width,
-            height: video.original.height,
-            durationMs: video.original.durationMs,
-            alt: `${act.title} demonstration clip`,
-            license: PLATFORM_LICENSE,
-            attribution: PLATFORM_ATTRIBUTION,
-            state: 'READY',
-          },
-        })
-        await prisma.mediaVariant.upsert({
-          where: { mediaId_kind: { mediaId: videoId, kind: 'STREAM' } },
-          create: {
-            id: deterministicUuid(`media-variant:stream:${act.slug}`),
-            mediaId: videoId,
-            kind: 'STREAM',
-            storageKey: video.stream.storageKey,
-            mime: video.stream.mime,
-            byteSize: BigInt(video.stream.byteSize),
-            width: video.stream.width,
-            height: video.stream.height,
-          },
-          update: {
-            storageKey: video.stream.storageKey,
-            mime: video.stream.mime,
-            byteSize: BigInt(video.stream.byteSize),
-            width: video.stream.width,
-            height: video.stream.height,
-          },
-        })
-        await prisma.mediaVariant.upsert({
-          where: { mediaId_kind: { mediaId: videoId, kind: 'POSTER' } },
-          create: {
-            id: deterministicUuid(`media-variant:poster:${act.slug}`),
-            mediaId: videoId,
-            kind: 'POSTER',
-            storageKey: video.poster.storageKey,
-            mime: video.poster.mime,
-            byteSize: BigInt(video.poster.byteSize),
-            width: video.poster.width,
-            height: video.poster.height,
-          },
-          update: {
-            storageKey: video.poster.storageKey,
-            mime: video.poster.mime,
-            byteSize: BigInt(video.poster.byteSize),
-            width: video.poster.width,
-            height: video.poster.height,
-          },
-        })
-        await prisma.mediaAttachment.create({
-          data: {
-            id: deterministicUuid(`attachment:video:${act.slug}`),
-            mediaId: videoId,
-            activityRevisionId: rev.id,
-            purpose: 'DEMONSTRATION',
-            position: 1,
-          },
-        })
+        await prisma.mediaAsset.updateMany({ where: { id: deterministicUuid(`media:video:${act.slug}`), deletedAt: null }, data: { deletedAt: SEEDED_AT } })
       }
     }
 
@@ -2027,32 +1952,14 @@ export async function seedDatabase(prisma: PrismaClient = db) {
     const programDayCount = new Set(sp.placements.map((p) => p.relativeDay)).size
     const placementCount = sp.placements.length
 
-    await prisma.program.upsert({
-      where: { id: programId },
-      create: {
-        id: programId,
-        creatorId: null,
-        categoryId,
-        programTypeId,
-        focusId,
-        title: sp.title,
-        description: sp.description,
-        coverMediaId: firstActivityMediaId,
-        status: 'PUBLISHED',
-        visibility: 'PUBLIC',
-        draftRevision: 1,
-      },
-      update: {
-        categoryId,
-        programTypeId,
-        focusId,
-        title: sp.title,
-        description: sp.description,
-        coverMediaId: firstActivityMediaId,
-        status: 'PUBLISHED',
-        visibility: 'PUBLIC',
-      },
-    })
+    // Content only, and only when it changed: never re-publish an archived or moderated starter Program.
+    const programContent = { categoryId, programTypeId, focusId, title: sp.title, description: sp.description, coverMediaId: firstActivityMediaId }
+    const existingProgram = await prisma.program.findUnique({ where: { id: programId } })
+    if (!existingProgram) {
+      await prisma.program.create({ data: { id: programId, creatorId: null, ...programContent, status: 'PUBLISHED', visibility: 'PUBLIC', draftRevision: 1 } })
+    } else if (changed(existingProgram, programContent)) {
+      await prisma.program.update({ where: { id: programId }, data: programContent })
+    }
 
     await prisma.programAccessPolicy.upsert({
       where: { programId },
@@ -2097,10 +2004,8 @@ export async function seedDatabase(prisma: PrismaClient = db) {
       },
     })
 
-    await prisma.program.update({
-      where: { id: programId },
-      data: { latestPublishedVersionId: versionId },
-    })
+    await prisma.program.updateMany({ where: { id: programId, NOT: { latestPublishedVersionId: versionId } }, data: { latestPublishedVersionId: versionId } })
+    await prisma.program.updateMany({ where: { id: programId, latestPublishedVersionId: null }, data: { latestPublishedVersionId: versionId } })
 
     for (const [idx, pl] of sp.placements.entries()) {
       const ref = activityBySlug.get(pl.activitySlug)!
@@ -2127,20 +2032,6 @@ export async function seedDatabase(prisma: PrismaClient = db) {
     }
   }
 
-  // Every key this seed wrote must be readable. (Ignore unrelated ownerless fixtures from tests.)
-  const seededKeys = SEEDED_ACTIVITIES.flatMap((act) => {
-    if (act.textOnly) return [] as string[]
-    const photo = [`platform/illustrations/${act.slug}.png`, `platform/illustrations/${act.slug}-thumb.webp`]
-    if (!act.hasVideo) return photo
-    return [
-      ...photo,
-      `platform/demos/${act.slug}.mp4`,
-      `platform/demos/${act.slug}-stream.mp4`,
-      `platform/demos/${act.slug}-poster.webp`,
-    ]
-  })
-  assertReadable(seededKeys)
-
   return {
     categories: CATEGORIES.length,
     focuses: FOCUSES.length,
@@ -2150,7 +2041,8 @@ export async function seedDatabase(prisma: PrismaClient = db) {
     achievements: ACHIEVEMENT_DEFINITIONS.length,
     activities: SEEDED_ACTIVITIES.length,
     starterPrograms: STARTER_PROGRAMS.length,
-    platformMediaFiles: seededKeys.length,
+    platformMediaFiles: published.verified,
+    platformMediaUploaded: published.uploaded,
   }
 }
 

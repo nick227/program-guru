@@ -7,7 +7,7 @@ import openapiGlue from 'fastify-openapi-glue'
 import { load } from 'js-yaml'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
-import { Prisma } from '@project/db'
+import { Prisma, db } from '@project/db'
 import * as handlers from './handlers'
 import * as security from './plugins/security'
 import { AppError } from './lib/errors'
@@ -130,6 +130,15 @@ export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance
     noAdditional: true,
   } as any)
 
-  app.get('/health', async () => ({ status: 'ok' }))
+  // Railway healthcheck: ready only when the database answers (2 s budget). Not in the OpenAPI contract.
+  app.get('/health', async (_request, reply) => {
+    try {
+      await Promise.race([db.$queryRaw`SELECT 1`, new Promise((_, fail) => setTimeout(() => fail(new Error('database timeout')), 2000))])
+      return { status: 'ok', commit: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? null }
+    } catch (err) {
+      app.log.error({ err }, 'health check failed')
+      return reply.code(503).send({ status: 'unavailable' })
+    }
+  })
   return app
 }

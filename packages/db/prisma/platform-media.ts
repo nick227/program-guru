@@ -1,158 +1,99 @@
-// Deterministic platform media bytes for seed/bootstrap. Writes real, readable files under the
-// local storage root before any MediaAsset / MediaVariant row is created. Never invents DB keys
-// that do not exist on disk.
+// Platform media for seed/bootstrap: committed, checksummed files (prisma/platform-assets/), published
+// to whatever storage the caller provides. Nothing is generated at runtime, so every environment gets
+// byte-identical assets and production needs neither ffmpeg nor fonts. Regenerate with
+// `pnpm --filter @project/db assets:generate` and commit the result.
 import { createHash } from 'crypto'
-import { execFileSync } from 'child_process'
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs'
 import { dirname, join, resolve } from 'path'
-import { deflateSync } from 'zlib'
 
-export type PlatformPhotoFiles = {
-  original: { storageKey: string; mime: 'image/png'; byteSize: number; width: number; height: number }
-  thumb: { storageKey: string; mime: 'image/webp'; byteSize: number; width: number; height: number }
+export const MANIFEST_VERSION = 1
+
+type AssetFile = { file: string; mime: 'image/jpeg' | 'image/webp'; bytes: number; sha256: string; width: number; height: number }
+export type PlatformManifest = {
+  version: number
+  license: string
+  attribution: string
+  renderedWith: string
+  assets: Record<string, { alt: string; original: AssetFile; thumb: AssetFile }>
 }
 
-export type PlatformVideoFiles = {
-  original: { storageKey: string; mime: 'video/mp4'; byteSize: number; width: number; height: number; durationMs: number }
-  stream: { storageKey: string; mime: 'video/mp4'; byteSize: number; width: number; height: number }
-  poster: { storageKey: string; mime: 'image/webp'; byteSize: number; width: number; height: number }
-}
-
-function storageRoot() {
-  return resolve(process.env.STORAGE_DIR ?? join(__dirname, '../../../uploads'))
-}
-
-/** CRC32 for PNG chunks. */
-function crc32(buf: Buffer): number {
-  let c = 0xffffffff
-  for (let i = 0; i < buf.length; i++) {
-    c ^= buf[i]!
-    for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xedb88320 : c >>> 1
+/** The monorepo root, found from this file whether it runs from source or from a bundle in dist/. */
+export function repoRoot(): string {
+  let dir = __dirname
+  for (;;) {
+    if (existsSync(join(dir, 'pnpm-workspace.yaml'))) return dir
+    const up = dirname(dir)
+    if (up === dir) throw new Error(`pnpm-workspace.yaml not found above ${__dirname}`)
+    dir = up
   }
-  return (c ^ 0xffffffff) >>> 0
 }
 
-function pngChunk(type: string, data: Buffer) {
-  const typeBuf = Buffer.from(type, 'ascii')
-  const len = Buffer.alloc(4)
-  len.writeUInt32BE(data.length)
-  const crc = Buffer.alloc(4)
-  crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])))
-  return Buffer.concat([len, typeBuf, data, crc])
+export const ASSET_DIR = join(repoRoot(), 'packages/db/prisma/platform-assets')
+
+let manifest: PlatformManifest | undefined
+export function loadManifest(): PlatformManifest {
+  if (manifest) return manifest
+  const m = JSON.parse(readFileSync(join(ASSET_DIR, 'manifest.json'), 'utf8')) as PlatformManifest
+  if (m.version !== MANIFEST_VERSION) throw new Error(`Platform asset manifest v${m.version}; expected v${MANIFEST_VERSION}`)
+  return (manifest = m)
 }
 
-/** Solid-color PNG whose RGB is derived from the slug (stable, rights-cleared placeholder). */
-export function platformPng(slug: string, width = 1200, height = 900): Buffer {
-  const h = createHash('sha256').update(slug).digest()
-  const r = h[0]!, g = h[1]!, b = h[2]!
-  const stride = width * 3 + 1
-  const raw = Buffer.alloc(stride * height)
-  for (let y = 0; y < height; y++) {
-    const row = y * stride
-    raw[row] = 0
-    for (let x = 0; x < width; x++) {
-      const i = row + 1 + x * 3
-      raw[i] = r
-      raw[i + 1] = g
-      raw[i + 2] = b
-    }
-  }
-  const ihdr = Buffer.alloc(13)
-  ihdr.writeUInt32BE(width, 0)
-  ihdr.writeUInt32BE(height, 4)
-  ihdr[8] = 8
-  ihdr[9] = 2 // RGB
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    pngChunk('IHDR', ihdr),
-    pngChunk('IDAT', deflateSync(raw, { level: 9 })),
-    pngChunk('IEND', Buffer.alloc(0)),
-  ])
+/** Storage keys are versioned so a regenerated set never collides with cached objects. */
+const keyFor = (file: string) => `platform/v${MANIFEST_VERSION}/${file}`
+
+export type PlatformFile = { storageKey: string; mime: string; byteSize: number; width: number; height: number; sha256: string; source: string }
+export type PlatformIllustration = { alt: string; license: string; attribution: string; original: PlatformFile; thumb: PlatformFile }
+
+export function platformIllustration(slug: string): PlatformIllustration {
+  const m = loadManifest()
+  const a = m.assets[slug]
+  if (!a) throw new Error(`No platform illustration for "${slug}": run pnpm --filter @project/db assets:generate`)
+  const file = (f: AssetFile): PlatformFile => ({ storageKey: keyFor(f.file), mime: f.mime, byteSize: f.bytes, width: f.width, height: f.height, sha256: f.sha256, source: join(ASSET_DIR, f.file) })
+  return { alt: a.alt, license: m.license, attribution: m.attribution, original: file(a.original), thumb: file(a.thumb) }
 }
 
-// Valid deterministic placeholders, not instructional demonstrations. ffmpeg is already required
-// by the worker. Cache the bytes during seed so this runs once, not once per Activity.
-let webp: Buffer | undefined
-let mp4: Buffer | undefined
-export function platformWebp(): Buffer {
-  return webp ??= execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=0x176b73:s=400x300', '-frames:v', '1', '-c:v', 'libwebp', '-f', 'image2pipe', 'pipe:1'])
-}
-export function platformMp4(): Buffer {
-  return mp4 ??= execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=0x176b73:s=1280x720:r=25', '-t', '1', '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'ultrafast', '-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1'])
+/** Where platform media goes: local disk in development and tests, the API's storage (R2) in production. */
+export interface PlatformMediaSink {
+  readonly name: string
+  size(key: string): Promise<number | null>
+  put(key: string, bytes: Buffer, mime: string): Promise<void>
 }
 
-function writeKey(key: string, bytes: Buffer): number {
-  const path = join(storageRoot(), key)
-  mkdirSync(dirname(path), { recursive: true })
-  // Idempotent: rewrite only when missing or content length differs (keeps re-seed cheap and safe).
-  if (!existsSync(path) || !readFileSync(path).equals(bytes)) writeFileSync(path, bytes)
-  return bytes.length
-}
-
-/** Materialize illustration + thumb for an Activity slug; returns metadata for DB rows. */
-export function ensurePlatformPhoto(slug: string): PlatformPhotoFiles {
-  const originalKey = `platform/illustrations/${slug}.png`
-  const thumbKey = `platform/illustrations/${slug}-thumb.webp`
-  const png = platformPng(slug)
-  const webp = platformWebp()
+export function localSink(root = resolve(process.env.STORAGE_DIR ?? join(repoRoot(), 'uploads'))): PlatformMediaSink {
   return {
-    original: {
-      storageKey: originalKey,
-      mime: 'image/png',
-      byteSize: writeKey(originalKey, png),
-      width: 1200,
-      height: 900,
+    name: `local:${root}`,
+    async size(key) {
+      try {
+        return statSync(join(root, key)).size
+      } catch {
+        return null
+      }
     },
-    thumb: {
-      storageKey: thumbKey,
-      mime: 'image/webp',
-      byteSize: writeKey(thumbKey, webp),
-      width: 400,
-      height: 300,
-    },
-  }
-}
-
-/** Materialize demo original + stream + poster for an Activity that declares hasVideo. */
-export function ensurePlatformVideo(slug: string): PlatformVideoFiles {
-  const originalKey = `platform/demos/${slug}.mp4`
-  const streamKey = `platform/demos/${slug}-stream.mp4`
-  const posterKey = `platform/demos/${slug}-poster.webp`
-  const mp4 = platformMp4()
-  const webp = platformWebp()
-  return {
-    original: {
-      storageKey: originalKey,
-      mime: 'video/mp4',
-      byteSize: writeKey(originalKey, mp4),
-      width: 1280,
-      height: 720,
-      durationMs: 1000,
-    },
-    stream: {
-      storageKey: streamKey,
-      mime: 'video/mp4',
-      byteSize: writeKey(streamKey, mp4),
-      width: 1280,
-      height: 720,
-    },
-    poster: {
-      storageKey: posterKey,
-      mime: 'image/webp',
-      byteSize: writeKey(posterKey, webp),
-      width: 400,
-      height: 300,
+    async put(key, bytes) {
+      const path = join(root, key)
+      mkdirSync(dirname(path), { recursive: true })
+      writeFileSync(path, bytes)
     },
   }
 }
 
-/** Assert every platform MediaAsset / MediaVariant key is readable under the storage root. */
-export function assertReadable(keys: string[]) {
-  const root = storageRoot()
-  const missing = keys.filter((k) => {
-    try { return readFileSync(join(root, k)).length === 0 } catch { return true }
-  })
-  if (missing.length) {
-    throw new Error(`Platform media missing on disk (${missing.length}): ${missing.slice(0, 5).join(', ')}`)
+/**
+ * Uploads each file whose object is missing or a different size, after checking the committed bytes
+ * against the manifest checksum. Then confirms every object is present at the expected size, so no
+ * MediaAsset row ever points at a key storage cannot serve.
+ */
+export async function publishPlatformFiles(sink: PlatformMediaSink, files: PlatformFile[]) {
+  let uploaded = 0
+  for (const f of files) {
+    if ((await sink.size(f.storageKey)) === f.byteSize) continue
+    const bytes = readFileSync(f.source)
+    const digest = createHash('sha256').update(bytes).digest('hex')
+    if (digest !== f.sha256 || bytes.length !== f.byteSize) throw new Error(`Platform asset ${f.source} does not match its manifest checksum`)
+    await sink.put(f.storageKey, bytes, f.mime)
+    uploaded++
   }
+  const missing: string[] = []
+  for (const f of files) if ((await sink.size(f.storageKey)) !== f.byteSize) missing.push(f.storageKey)
+  if (missing.length) throw new Error(`Platform media not readable in ${sink.name} (${missing.length}): ${missing.slice(0, 5).join(', ')}`)
+  return { uploaded, verified: files.length }
 }

@@ -2,11 +2,12 @@
 // directory on disk) or r2 (Cloudflare R2 through the S3 API). Keys are never sent to clients.
 import { createWriteStream } from 'fs'
 import { mkdir, rm, stat, open } from 'fs/promises'
-import { dirname, resolve, sep } from 'path'
+import { dirname, join, resolve, sep } from 'path'
 import { pipeline } from 'stream/promises'
 import type { Readable } from 'stream'
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { repoRoot } from '@project/db/prisma/platform-media'
 
 /** Thrown when a key escapes the root or an object is missing. Callers map these to 404. */
 export class StorageError extends Error {
@@ -202,7 +203,8 @@ export function storage(): StorageProvider {
     if (process.env.NODE_ENV === 'production' && process.env.ALLOW_LOCAL_STORAGE !== 'true') {
       throw new Error('STORAGE_PROVIDER=local is not allowed in production; set STORAGE_PROVIDER=r2')
     }
-    provider = new LocalStorage(process.env.STORAGE_DIR ?? resolve(__dirname, '../../../../uploads'))
+    // Default <repo>/uploads, found by walking up so it is the same from src/ (tsx) and dist/ (bundle).
+    provider = new LocalStorage(process.env.STORAGE_DIR ?? join(repoRoot(), 'uploads'))
   }
   return provider
 }

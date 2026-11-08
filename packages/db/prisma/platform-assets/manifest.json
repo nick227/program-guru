@@ -1,0 +1,1528 @@
+{
+  "version": 1,
+  "license": "CC0-1.0",
+  "attribution": "Programs App platform illustration (original work, CC0 1.0 Public Domain Dedication)",
+  "renderedWith": "ffmpeg drawtext, DejaVu Sans Bold",
+  "assets": {
+    "squats": {
+      "alt": "Squats: Fitness activity",
+      "original": {
+        "file": "illustrations/squats.jpg",
+        "mime": "image/jpeg",
+        "bytes": 22023,
+        "sha256": "47f2eff524b63d9e4f1ad18e3e4dd65f24dea0f48ce382ff8688d31de0ef6684",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/squats-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 2944,
+        "sha256": "cd33d355090f05b7cf91cca511e4125a912cd667874c837183df60d3e0172982",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "leg-raises": {
+      "alt": "Leg Raises: Fitness activity",
+      "original": {
+        "file": "illustrations/leg-raises.jpg",
+        "mime": "image/jpeg",
+        "bytes": 25859,
+        "sha256": "bbfa4d40b8b12dca2c7957abc552685f770384c3caa38ab11500535b54e0b863",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/leg-raises-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3608,
+        "sha256": "eb7188be9adbcfdae63483c144827078767a62cecb2a7c3889cb39da5109141a",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "push-ups": {
+      "alt": "Push-ups: Fitness activity",
+      "original": {
+        "file": "illustrations/push-ups.jpg",
+        "mime": "image/jpeg",
+        "bytes": 23064,
+        "sha256": "b6f6969900d7d3a851bc18fffd9c067ab782e1ff16b9a1b6b9381ef46f0e1915",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/push-ups-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3182,
+        "sha256": "6c23e0c465621de0b4bce50570e13e28e7846a392d25037ed79c9398f2cdc1f9",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "plank": {
+      "alt": "Plank: Fitness activity",
+      "original": {
+        "file": "illustrations/plank.jpg",
+        "mime": "image/jpeg",
+        "bytes": 19368,
+        "sha256": "682cdd419d310edc82fa5899b71be0726e1378637b80ab1c2ca50cef43e77588",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/plank-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 2526,
+        "sha256": "1d93d19b311d28c02f4579a0eb899ed2c9850d34173e389316bbf396b5300a20",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "side-plank": {
+      "alt": "Side Plank: Fitness activity",
+      "original": {
+        "file": "illustrations/side-plank.jpg",
+        "mime": "image/jpeg",
+        "bytes": 24729,
+        "sha256": "2c76d252621729a6c1a9b3ff7822968dcf5733aa5066c9753d668ddbf3305d92",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/side-plank-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3426,
+        "sha256": "0c91180c543c153af1847e9a773e00e13589c836bbe05a1c70d78a01c2751c83",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "bird-dog": {
+      "alt": "Bird Dog: Fitness activity",
+      "original": {
+        "file": "illustrations/bird-dog.jpg",
+        "mime": "image/jpeg",
+        "bytes": 23075,
+        "sha256": "bc83070c30444258c78fcc0c451661524becbf37f93af8d7a876d0a459ebf4e1",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/bird-dog-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3166,
+        "sha256": "ab1f107ccfb6e920d8d504f1776828b5e8231ac335d319632de85c6be95278d7",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "dead-bug": {
+      "alt": "Dead Bug: Fitness activity",
+      "original": {
+        "file": "illustrations/dead-bug.jpg",
+        "mime": "image/jpeg",
+        "bytes": 24183,
+        "sha256": "6b9903fd4f5554a3de3bec71a64795348ebee7b375548607d8ba0b819d71ae25",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/dead-bug-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3430,
+        "sha256": "2f03e5f958bf603a40a3f1cd6399c08f0c7730da9ef15dc6bc78c5dc84f50fd8",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "glute-bridge": {
+      "alt": "Glute Bridge: Fitness activity",
+      "original": {
+        "file": "illustrations/glute-bridge.jpg",
+        "mime": "image/jpeg",
+        "bytes": 27546,
+        "sha256": "8d3f771e5d9629fba20e07f1b9357b3cdc69a236d92599632dd5a37e482e2af6",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/glute-bridge-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3858,
+        "sha256": "2681f2caceaabbfac77b77bc957ed21082088f938840567af6c26f50187ef23c",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "lunges": {
+      "alt": "Lunges: Fitness activity",
+      "original": {
+        "file": "illustrations/lunges.jpg",
+        "mime": "image/jpeg",
+        "bytes": 20769,
+        "sha256": "11a2d828fcb9f5c3576491f1e1abd00a8f333897965e86da2aaf385b6be5af0c",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/lunges-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 2862,
+        "sha256": "a206ddd7777aa9fb69f2f3a5125ee519f16761a0884c5cdf47075de0dca0a47f",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "wall-sit": {
+      "alt": "Wall Sit: Fitness activity",
+      "original": {
+        "file": "illustrations/wall-sit.jpg",
+        "mime": "image/jpeg",
+        "bytes": 21744,
+        "sha256": "3c50c865d44a1e6c4074b049035714dcbb34d444a5bc6c4f85236ed51de17d30",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/wall-sit-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3072,
+        "sha256": "66aaa6e25d3fd3029272cb5caeb8e2b2a0db2bdab030f0d5211f92ac476ac953",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "calf-raises": {
+      "alt": "Calf Raises: Fitness activity",
+      "original": {
+        "file": "illustrations/calf-raises.jpg",
+        "mime": "image/jpeg",
+        "bytes": 26227,
+        "sha256": "ac93445284a7206e86d3acae12d20dbce510a516e4ddee3e0a5a0eb2ecf2592d",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/calf-raises-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3716,
+        "sha256": "c3c414146f815818d8c42d384c7ac55e4a6401615cacab1a5d850c883c96730f",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "step-ups": {
+      "alt": "Step-ups: Fitness activity",
+      "original": {
+        "file": "illustrations/step-ups.jpg",
+        "mime": "image/jpeg",
+        "bytes": 23825,
+        "sha256": "778a584db5c959141f03d4f31904c54f640300959e8d2b16af18b82e556d6322",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/step-ups-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3304,
+        "sha256": "e4114094dbc9c512c5683dae99234ff200cef9bcab2418b4d78b0ec79bb1f6f0",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "chair-squats": {
+      "alt": "Chair Squats: Fitness activity",
+      "original": {
+        "file": "illustrations/chair-squats.jpg",
+        "mime": "image/jpeg",
+        "bytes": 27764,
+        "sha256": "b92bb8e73f336298570acb1515225f46e10c9149d45640cbdcfb19e8106c3f39",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/chair-squats-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3912,
+        "sha256": "3bacb9536c81f776b1aea7fcbe4489e273bdfedd28ab18d8adcd8a47e6493062",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "resistance-band-row": {
+      "alt": "Resistance Band Row: Fitness activity",
+      "original": {
+        "file": "illustrations/resistance-band-row.jpg",
+        "mime": "image/jpeg",
+        "bytes": 33733,
+        "sha256": "e6c453804a7cd36f1cc3297c1525694417ada9b26ad18e591ff3e3a7c739c3a5",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/resistance-band-row-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5030,
+        "sha256": "db464ae0f4ca5c4d75535d748af7f532dd8082189190056e275e1d4ecf0e4f3b",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "standing-row": {
+      "alt": "Standing Row: Fitness activity",
+      "original": {
+        "file": "illustrations/standing-row.jpg",
+        "mime": "image/jpeg",
+        "bytes": 28915,
+        "sha256": "10a03e06ddf94696d8d37c5a657912766f1a426b41ee51a7a4090f52c9b4468d",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/standing-row-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4162,
+        "sha256": "a186043d166409e8b7aaa8424bf85fe92ff2e868faa3549f6c1912c1f6a1eb23",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "brisk-walk": {
+      "alt": "Brisk Walk: Fitness activity",
+      "original": {
+        "file": "illustrations/brisk-walk.jpg",
+        "mime": "image/jpeg",
+        "bytes": 25635,
+        "sha256": "9c0941cea3a6546c592f34946088e355a1dd3c9c0990c35276cdde416d4ff980",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/brisk-walk-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3560,
+        "sha256": "39b69af1d6105a473b3f0b48d4a543a958e266c143f10e5de45f98735446575a",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "easy-walk": {
+      "alt": "Easy Walk: Fitness activity",
+      "original": {
+        "file": "illustrations/easy-walk.jpg",
+        "mime": "image/jpeg",
+        "bytes": 25031,
+        "sha256": "97da9b6bc0f4509b966c9196c3537e4d280dc9375c751a3b553becb2e0796caa",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/easy-walk-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3502,
+        "sha256": "e679bfa9ba7cc40ce4002c97aaef902ed26f283b3a3d9ff27168bfa8297e096c",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "jog-intervals": {
+      "alt": "Jog Intervals: Fitness activity",
+      "original": {
+        "file": "illustrations/jog-intervals.jpg",
+        "mime": "image/jpeg",
+        "bytes": 27192,
+        "sha256": "8833f4ba40201269e8a6ea19f0d5ee16392bd6975755c9f92c1a4a6974979d6e",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/jog-intervals-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3798,
+        "sha256": "bd0b04085b1b101477e8f27d8722ece36ca9d0ea493af2b52a9d0585c15b67e4",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "bike-ride": {
+      "alt": "Bike Ride: Fitness activity",
+      "original": {
+        "file": "illustrations/bike-ride.jpg",
+        "mime": "image/jpeg",
+        "bytes": 24321,
+        "sha256": "0a8a5684a6625c898b26ac0e4ed4bcd16bd30a3ea67dddbd7e880e48ea8aa6f1",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/bike-ride-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3278,
+        "sha256": "4a7e71d039d4738af7beaad71c294c6b1ca3cf74c071455db2b8b12cb7c1d843",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "stair-walking": {
+      "alt": "Stair Walking: Fitness activity",
+      "original": {
+        "file": "illustrations/stair-walking.jpg",
+        "mime": "image/jpeg",
+        "bytes": 28865,
+        "sha256": "198add66da622a88b0a245599633c980f29ef91a3570273b61e3541afb1473d8",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/stair-walking-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4132,
+        "sha256": "bf355402a7f88e8db0d28714e99801249b42d24376a345642bbc0b147be9b9d7",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "warm-up": {
+      "alt": "Warm-up: Fitness activity",
+      "original": {
+        "file": "illustrations/warm-up.jpg",
+        "mime": "image/jpeg",
+        "bytes": 22371,
+        "sha256": "c7d9333df682638842c03062ac1cf0368d13d26f7e4c77e5e7ad2c63eaacf901",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/warm-up-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3188,
+        "sha256": "4c746481b3fb43beb8ab04d669d5b1ebd7fa3a8c94f823bcb56140ebaabe18f0",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "cool-down": {
+      "alt": "Cool-down: Fitness activity",
+      "original": {
+        "file": "illustrations/cool-down.jpg",
+        "mime": "image/jpeg",
+        "bytes": 24692,
+        "sha256": "108db62a1c05a6264718006e72f708eaf08e8ee5f14b96e49675e5cbe73c04c8",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/cool-down-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3478,
+        "sha256": "94cc7ff4e1b1972ef6c6bb787a56d0d3bdf3203e2d4bc3a6180ce6392bd92d8c",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "neck-mobility": {
+      "alt": "Neck Mobility: Fitness activity",
+      "original": {
+        "file": "illustrations/neck-mobility.jpg",
+        "mime": "image/jpeg",
+        "bytes": 28878,
+        "sha256": "14f3bbad11e4835ce1b9d2a746419d9876eaa171206e95a068b7adcc0a2d53f5",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/neck-mobility-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4070,
+        "sha256": "5cd082702c20024c26c4386f29a09364f36a2b7488348f9745186568a8c48030",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "shoulder-circles": {
+      "alt": "Shoulder Circles: Fitness activity",
+      "original": {
+        "file": "illustrations/shoulder-circles.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31559,
+        "sha256": "8dc02586639b53e942789019a807c5f70ab7956341387d2c4a6f81cd5bf78a1d",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/shoulder-circles-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4444,
+        "sha256": "01386d31c6ba63f4488bb6de49ab5755ea91c06d975fbcbe1fa0611ba1c6cdce",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "hip-mobility": {
+      "alt": "Hip Mobility: Fitness activity",
+      "original": {
+        "file": "illustrations/hip-mobility.jpg",
+        "mime": "image/jpeg",
+        "bytes": 26430,
+        "sha256": "92939ee4b327cb29f36a16e2676c23c0c10a99515235c463045409d5d99e3b08",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/hip-mobility-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3786,
+        "sha256": "3f52b396dfd12bdaf3018733836dccfc132d8125f197bf3dfd18d00b71a1141f",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "calf-stretch": {
+      "alt": "Calf Stretch: Fitness activity",
+      "original": {
+        "file": "illustrations/calf-stretch.jpg",
+        "mime": "image/jpeg",
+        "bytes": 26519,
+        "sha256": "351bc4605d83f91661e12a2a66864ebfd3ad0ad0aa8e7d56d5b22f08bbf62abd",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/calf-stretch-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3758,
+        "sha256": "0611c34b1e1273cd3a38d65c0355f98ac5ecd6084faee59eb9442a3fc91c35fe",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "hamstring-stretch": {
+      "alt": "Hamstring Stretch: Fitness activity",
+      "original": {
+        "file": "illustrations/hamstring-stretch.jpg",
+        "mime": "image/jpeg",
+        "bytes": 33321,
+        "sha256": "3edfc542bcf30ee7891a0aa6454e900283145558f541fcbcd761fb678281d63c",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/hamstring-stretch-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4962,
+        "sha256": "3a11d2490f1470a49d1a3d4fbeee4c159b970636460307ece342c9ba4bab225f",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "gentle-yoga": {
+      "alt": "Gentle Yoga: Fitness activity",
+      "original": {
+        "file": "illustrations/gentle-yoga.jpg",
+        "mime": "image/jpeg",
+        "bytes": 27357,
+        "sha256": "46c73ca03095483a6dfa0c04eaaedfbcfa70283d79bf5aac446bb0040f2dd4cb",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/gentle-yoga-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3916,
+        "sha256": "9a8ba817e503d1132e564451598f26b2ac6b2556f38368b4d19d927a3cf7eea7",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "balance-practice": {
+      "alt": "Balance Practice: Fitness activity",
+      "original": {
+        "file": "illustrations/balance-practice.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31385,
+        "sha256": "b6576eb87dc5926a5249c83a723febe325a37ece42808f20879c0e05acf1154e",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/balance-practice-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4536,
+        "sha256": "e8c9e1416fe1c45f74606a5abc33160caba6a486f861a96dda169b4b56b3303f",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "breathing-break": {
+      "alt": "Breathing Break: Fitness activity",
+      "original": {
+        "file": "illustrations/breathing-break.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31633,
+        "sha256": "796fa2d8adb9732af1648cbcc0c7c286c6f0e6f5e6e93603999d7e5e9afb0602",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/breathing-break-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4626,
+        "sha256": "ad075fb92c8f53e3080c8e5cfa7010ca745905e4055d09fcefab12636809b9da",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "vocabulary-review": {
+      "alt": "Vocabulary Review: Education activity",
+      "original": {
+        "file": "illustrations/vocabulary-review.jpg",
+        "mime": "image/jpeg",
+        "bytes": 36698,
+        "sha256": "2ba5da78917b94645c7b349b98f85bf918306394158101e8b5b9c73fc8630616",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/vocabulary-review-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5370,
+        "sha256": "9c8179463524e1474d928ba93e99a53ece532cbd1fc1fbaa426cc3d48c71bfaa",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "flashcard-practice": {
+      "alt": "Flashcard Practice: Education activity",
+      "original": {
+        "file": "illustrations/flashcard-practice.jpg",
+        "mime": "image/jpeg",
+        "bytes": 35109,
+        "sha256": "f2a7fd32f9d744a534e46836f62cfd3817f051c29abfb64bc66408598bc4c102",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/flashcard-practice-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5172,
+        "sha256": "beb6f0794c9c7e3f85c645364e488b064b04c9cc4e6c483a5f7caa1919e93243",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "read-a-chapter": {
+      "alt": "Read a Chapter: Education activity",
+      "original": {
+        "file": "illustrations/read-a-chapter.jpg",
+        "mime": "image/jpeg",
+        "bytes": 32089,
+        "sha256": "512e21615ccd41fc43f9ccb7eaf6d92130a7614a65d0e674c4a6cba754249b09",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/read-a-chapter-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4652,
+        "sha256": "2f0a18af83ea4bce651a56fa6ca230fe6b0a508676b256bea8f23ae046dd52f1",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "read-for-20-minutes": {
+      "alt": "Read for 20 Minutes: Education activity",
+      "original": {
+        "file": "illustrations/read-for-20-minutes.jpg",
+        "mime": "image/jpeg",
+        "bytes": 33508,
+        "sha256": "39a32084301d25e65327a372eae10f4fba4fca03e6dfcada4e3ff465378d609d",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/read-for-20-minutes-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4986,
+        "sha256": "726059b4a53b0849fb286b2449813756a2eddf175cc174e8add42f6064627fd1",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "practice-speaking": {
+      "alt": "Practice Speaking: Education activity",
+      "original": {
+        "file": "illustrations/practice-speaking.jpg",
+        "mime": "image/jpeg",
+        "bytes": 36025,
+        "sha256": "39975a5813e343244a98e7022bd2822a8eade619d7ff40df7b88c2fe4f5155c2",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/practice-speaking-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5176,
+        "sha256": "fbf966d61ff3b6ecc17d9b0be862d5a2c7a5249fd6fc71e5be2a4ef896a80cb9",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "listening-practice": {
+      "alt": "Listening Practice: Education activity",
+      "original": {
+        "file": "illustrations/listening-practice.jpg",
+        "mime": "image/jpeg",
+        "bytes": 34195,
+        "sha256": "8634b1431d376394686c2db0cdcfc58fb3e9013aecda6e0daf10e1b8a2fc55c0",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/listening-practice-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5066,
+        "sha256": "dc341b74b5198469a3aaada96810afddcaee978be221e977d033187691795f1f",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "solve-practice-problems": {
+      "alt": "Solve Practice Problems: Education activity",
+      "original": {
+        "file": "illustrations/solve-practice-problems.jpg",
+        "mime": "image/jpeg",
+        "bytes": 37231,
+        "sha256": "7c6e5432761c135d418316982952fd94eed1cf37c56cef6f6a12fd759c2b5205",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/solve-practice-problems-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5614,
+        "sha256": "967eabcd7e49cc4f04c55f74d5594149f7bfd14b39894751d676bd2513ed0416",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "review-notes": {
+      "alt": "Review Notes: Education activity",
+      "original": {
+        "file": "illustrations/review-notes.jpg",
+        "mime": "image/jpeg",
+        "bytes": 30662,
+        "sha256": "a6595ecc6dd965fa65e5ac9f698759088e2ab7a995622e2971104a40204adbb5",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/review-notes-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4352,
+        "sha256": "1ad588652a33495cc604bd104e9b9adafe15aaf73b9f90123d2eee36a0817dd7",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "complete-a-lesson": {
+      "alt": "Complete a Lesson: Education activity",
+      "original": {
+        "file": "illustrations/complete-a-lesson.jpg",
+        "mime": "image/jpeg",
+        "bytes": 35285,
+        "sha256": "367aa413f39be082dc8dda81e13cf43d347b1a0448dfffaccebafedad3e3a7f9",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/complete-a-lesson-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5186,
+        "sha256": "988112468da68e87604fa407d726d6e50b4b2adfb7178df82f3b47d3b5f96213",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "self-quiz": {
+      "alt": "Self-Quiz: Education activity",
+      "original": {
+        "file": "illustrations/self-quiz.jpg",
+        "mime": "image/jpeg",
+        "bytes": 25250,
+        "sha256": "95a2045648403192a1763b3263c50c2d86c941e2728b5615a7f98c1448bfe072",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/self-quiz-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3584,
+        "sha256": "f3d3700a9c09d3fdf52055fa54831826f6c0fbc5c4260e37c1c7215464d70f9f",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "research-a-topic": {
+      "alt": "Research a Topic: Education activity",
+      "original": {
+        "file": "illustrations/research-a-topic.jpg",
+        "mime": "image/jpeg",
+        "bytes": 32505,
+        "sha256": "6c0a91b86207588f7d417d92ec3d9fd96e8ae89355f9a0de7c3b9c9efc8c3936",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/research-a-topic-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4734,
+        "sha256": "f597e1564e65e3da03ee654e87c39edc819054dd05414ab5355c1eaad371e9b0",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "practice-an-instrument": {
+      "alt": "Practice an Instrument: Education activity",
+      "original": {
+        "file": "illustrations/practice-an-instrument.jpg",
+        "mime": "image/jpeg",
+        "bytes": 34030,
+        "sha256": "c85853e3020437872c9e57e698c7cbac79e46a20301fef9111cdb5f916e8a02e",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/practice-an-instrument-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5182,
+        "sha256": "22e291c214e62e842e0bfb6719bfa5a7cb20d5ae4fdc2b80a2649d19f4166c27",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "review-mistakes": {
+      "alt": "Review Mistakes: Education activity",
+      "original": {
+        "file": "illustrations/review-mistakes.jpg",
+        "mime": "image/jpeg",
+        "bytes": 34710,
+        "sha256": "89c136f83d09d68cebcf3c09c3e1bf674284852763e5092d706b493bcb67024b",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/review-mistakes-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5096,
+        "sha256": "cda5875ffa2d67774effd4dfeca5b7ad14081578cc14d38b8012546c4cf23eba",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "teach-back-a-concept": {
+      "alt": "Teach Back a Concept: Education activity",
+      "original": {
+        "file": "illustrations/teach-back-a-concept.jpg",
+        "mime": "image/jpeg",
+        "bytes": 34257,
+        "sha256": "7564cb497413b6282cfce1491866385d177eaf7e88b58729d66bb7f6446dca4f",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/teach-back-a-concept-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5192,
+        "sha256": "91f8b3df680d95ac21d2b938ab2226f4e33896ad52c505d183217a728f7ad315",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "guided-meditation": {
+      "alt": "Guided Meditation: Wellness activity",
+      "original": {
+        "file": "illustrations/guided-meditation.jpg",
+        "mime": "image/jpeg",
+        "bytes": 30374,
+        "sha256": "283dfe3ea0c31b5c7f57df5fc7a692d8737d06cc11977cccb78588076377db2c",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/guided-meditation-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4378,
+        "sha256": "2195555731d5c1586c7a51f94ecee814557a8f0d53f94920a14903412ce6b857",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "breathing-exercise": {
+      "alt": "Breathing Exercise: Wellness activity",
+      "original": {
+        "file": "illustrations/breathing-exercise.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31168,
+        "sha256": "9b03043ab5f054e5cb8e194bbdcfa30c2f7f97fa43a47ff19fc4378a3029b744",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/breathing-exercise-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4466,
+        "sha256": "e59791fb7de63cf2449d53dadde549e2353f49347270a056149f4078829694e9",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "daily-reflection": {
+      "alt": "Daily Reflection: Wellness activity",
+      "original": {
+        "file": "illustrations/daily-reflection.jpg",
+        "mime": "image/jpeg",
+        "bytes": 27991,
+        "sha256": "e3c36a1365dd2e03eb8002aea462026854124e51372807461c27132978f00adc",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/daily-reflection-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3974,
+        "sha256": "0f21b9e83cc6ed35d0e744875e62161c7ac07b6654724b0c95e1b5e88f1284d5",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "gratitude-journal": {
+      "alt": "Gratitude Journal: Wellness activity",
+      "original": {
+        "file": "illustrations/gratitude-journal.jpg",
+        "mime": "image/jpeg",
+        "bytes": 28875,
+        "sha256": "1161590e2221ab205f395d594377ab99c895030bf102e8e24b3d52a407493ebc",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/gratitude-journal-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4112,
+        "sha256": "324b342988178b9720e48ca87d9e00c31631cb80af69ffd8f07cb1ae64d748d3",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "set-bedtime-reminder": {
+      "alt": "Set Bedtime Reminder: Wellness activity",
+      "original": {
+        "file": "illustrations/set-bedtime-reminder.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31062,
+        "sha256": "324d9ba726d8709917863ea0fce10c3dc1c7d85ef500697dfbc63b925fac2b28",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/set-bedtime-reminder-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4594,
+        "sha256": "371a6d61c6a985e0f398372a64f58a864ccfd68c07b1cfca8cfff2f4a8896916",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "evening-wind-down": {
+      "alt": "Evening Wind-down: Wellness activity",
+      "original": {
+        "file": "illustrations/evening-wind-down.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31217,
+        "sha256": "07b668b9b5f324477918502ac2cf1e2b4aaa507f4f860efc1c5a02fcc7283a23",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/evening-wind-down-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4438,
+        "sha256": "3e1f34518f279ccc61c439cfef932150ab332e46f5419dc8588a1854a4ae057c",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "morning-routine": {
+      "alt": "Morning Routine: Wellness activity",
+      "original": {
+        "file": "illustrations/morning-routine.jpg",
+        "mime": "image/jpeg",
+        "bytes": 27961,
+        "sha256": "9f900d94de360d3db2a1de854400f153b04f015baf7dcee2deda6129b2bdcb3d",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/morning-routine-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3952,
+        "sha256": "bc1d1048b7d6b5755e1fe47effc2de2acd8b102f700d6551b8f3f37d769fca5a",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "outdoor-break": {
+      "alt": "Outdoor Break: Wellness activity",
+      "original": {
+        "file": "illustrations/outdoor-break.jpg",
+        "mime": "image/jpeg",
+        "bytes": 26937,
+        "sha256": "6bb67c00761cce7034174171c2c0e5b8cdb71cc0a34ee777ca94f4eff274b686",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/outdoor-break-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3798,
+        "sha256": "7446e8bc13f80d89fe2d2a1b1b5f3e77e6ac7f4225bf82faa451ecee2ec78a05",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "mindful-walk": {
+      "alt": "Mindful Walk: Wellness activity",
+      "original": {
+        "file": "illustrations/mindful-walk.jpg",
+        "mime": "image/jpeg",
+        "bytes": 24516,
+        "sha256": "84becf4987bdb5381f85b76d7156da1add4003d6481cae0e81bbd4edfe8966b3",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/mindful-walk-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3498,
+        "sha256": "39a3a9913e0f6891609ed8f01ba5cb9cda58f1f240dd47f5b3d26713a77686c1",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "stretch-break": {
+      "alt": "Stretch Break: Wellness activity",
+      "original": {
+        "file": "illustrations/stretch-break.jpg",
+        "mime": "image/jpeg",
+        "bytes": 25904,
+        "sha256": "39fb2f8820420b1960922cde13886fc1216dbb4de8fdbfee28ad57bbf2d0eb8c",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/stretch-break-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3746,
+        "sha256": "4b6ed90befd6bf26e0fa21278c5dfd7f6d321604a8fcacaaad8f83596e2d037c",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "screen-free-break": {
+      "alt": "Screen-free Break: Wellness activity",
+      "original": {
+        "file": "illustrations/screen-free-break.jpg",
+        "mime": "image/jpeg",
+        "bytes": 30107,
+        "sha256": "3169fd84aa5e307104b37960d1dcbfc26020750b72c5ae3730e0e9958236681e",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/screen-free-break-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4334,
+        "sha256": "eece9855b25fa0745f4928c6655d97ce5861c8cae179be5a0bf6e900158f18d5",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "weekly-reflection": {
+      "alt": "Weekly Reflection: Wellness activity",
+      "original": {
+        "file": "illustrations/weekly-reflection.jpg",
+        "mime": "image/jpeg",
+        "bytes": 30853,
+        "sha256": "7a6036aec7d16fa65f9f6eef56e392cd47aa7f8c6534cf1e7fe73b1868890a72",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/weekly-reflection-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4446,
+        "sha256": "81ac3cc8c0231b4dc489d721a34a9d3cf065c9c13c0c51501021226a2cebb37f",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "savings-contribution": {
+      "alt": "Savings Contribution: Finance activity",
+      "original": {
+        "file": "illustrations/savings-contribution.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31255,
+        "sha256": "0750448b025ad8c18aa581eb71f801d6809ead369274a9549dfb6b266ab3c470",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/savings-contribution-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4596,
+        "sha256": "aed190c949f5704381b681ce4427422fff195ca0b776ef3a36f77182f36bf626",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "weekly-budget-review": {
+      "alt": "Weekly Budget Review: Finance activity",
+      "original": {
+        "file": "illustrations/weekly-budget-review.jpg",
+        "mime": "image/jpeg",
+        "bytes": 34079,
+        "sha256": "cd960b1930de1f54327b986a8fa172ceb33d62b87a2ad79fc6bbd06857afb9ae",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/weekly-budget-review-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5084,
+        "sha256": "56296b2a60fa1021c3fe083784d6e534c2ad425fef2a5d999caef3a29cfe1a80",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "categorize-expenses": {
+      "alt": "Categorize Expenses: Finance activity",
+      "original": {
+        "file": "illustrations/categorize-expenses.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31279,
+        "sha256": "d26f7d477377ee5e41d82ae14e17ef6350f63c61dab54984e0dd110649605001",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/categorize-expenses-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4696,
+        "sha256": "6727ac9240b336dea29b8c17a84a921d89663a8e050d57eb2e306937f4dcc2e4",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "review-subscriptions": {
+      "alt": "Review Subscriptions: Finance activity",
+      "original": {
+        "file": "illustrations/review-subscriptions.jpg",
+        "mime": "image/jpeg",
+        "bytes": 32180,
+        "sha256": "003f96d478889d9e5dd97abe205917be5e4ee884019cb42ee5e8395a2eebb314",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/review-subscriptions-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4770,
+        "sha256": "c36de1df0546d487029f133763198a398f76c240c6831149de5cc20157341acf",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "check-monthly-bills": {
+      "alt": "Check Monthly Bills: Finance activity",
+      "original": {
+        "file": "illustrations/check-monthly-bills.jpg",
+        "mime": "image/jpeg",
+        "bytes": 29470,
+        "sha256": "4f6a32ab3e7cef09d489eefc7a81565bb7c76625a67de4dff6821429700fe862",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/check-monthly-bills-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4198,
+        "sha256": "94dbdb02569484296e8b52a3b441cfb524fd3a66f847fdd7d4494052745ad8cb",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "update-savings-goal": {
+      "alt": "Update Savings Goal: Finance activity",
+      "original": {
+        "file": "illustrations/update-savings-goal.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31476,
+        "sha256": "7c7f7d4d0dd5aa8b09c7da9b72af5d8a7012c7f4bdd7ec542ca812d56ea73245",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/update-savings-goal-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4658,
+        "sha256": "1880d257b4a2c0934fef2ab12fee923f9c7fa305e76b004c8a498e624e39ea4d",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "review-spending-plan": {
+      "alt": "Review Spending Plan: Finance activity",
+      "original": {
+        "file": "illustrations/review-spending-plan.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31747,
+        "sha256": "6ec6486f6428e5cd2021b2836c68acf387d4d4b51bf86f356efb651b7ae12e73",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/review-spending-plan-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4716,
+        "sha256": "c0368a153b1352669364c96b25a3428e558e011017ac5f550c315e5501b4f77d",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "learn-a-finance-concept": {
+      "alt": "Learn a Finance Concept: Finance activity",
+      "original": {
+        "file": "illustrations/learn-a-finance-concept.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31912,
+        "sha256": "1cde926e256bfb2f854620a3f50d80847941eac7cc8f748699844f9d05289688",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/learn-a-finance-concept-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4768,
+        "sha256": "500502d78f9ad775e1f73456f29d224213a64e46c453f55a2742bcbad9a79aae",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "set-a-spending-reminder": {
+      "alt": "Set a Spending Reminder: Finance activity",
+      "original": {
+        "file": "illustrations/set-a-spending-reminder.jpg",
+        "mime": "image/jpeg",
+        "bytes": 34664,
+        "sha256": "b74154f1bf597cd8ed66479a11bfb9b241d4eeadf81a336afadfd7a5055f9b6b",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/set-a-spending-reminder-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5158,
+        "sha256": "4da37289bd09b8a6c5714a47aac2f4806127ba338b81dfe6f4afc5f668775eab",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "organize-receipts": {
+      "alt": "Organize Receipts: Finance activity",
+      "original": {
+        "file": "illustrations/organize-receipts.jpg",
+        "mime": "image/jpeg",
+        "bytes": 32109,
+        "sha256": "992f7f172c6f1b9a1f8cd6f84fef617a50293192cf0e2cf0da0ac5dd5372d884",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/organize-receipts-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4760,
+        "sha256": "bb50a1fe17edae3780eb825a0550570a004db14b66e308b2375aec0e6f3ab5e9",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "plan-a-purchase": {
+      "alt": "Plan a Purchase: Finance activity",
+      "original": {
+        "file": "illustrations/plan-a-purchase.jpg",
+        "mime": "image/jpeg",
+        "bytes": 27571,
+        "sha256": "58367c7c556727f2543571de79cda91f87ad88562c92270efbff79973046c517",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/plan-a-purchase-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3910,
+        "sha256": "8bf450999a0ba73bae0095220469027e74cfc838da13567bf7e65cdf2f31949b",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "review-financial-goals": {
+      "alt": "Review Financial Goals: Finance activity",
+      "original": {
+        "file": "illustrations/review-financial-goals.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31922,
+        "sha256": "024ab25ae079afa16fd20cc307d52cfcaf39e887d6d32628a09f76766b9cd795",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/review-financial-goals-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4764,
+        "sha256": "6d030de2e8a50c8f27cbbca8472f7fea38334f2d9dcab61eda7c64ab5608800c",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "call-a-friend": {
+      "alt": "Call a Friend: Relationships activity",
+      "original": {
+        "file": "illustrations/call-a-friend.jpg",
+        "mime": "image/jpeg",
+        "bytes": 27249,
+        "sha256": "e868fff76046eede7b2f57890309c6b3fdec0bfc575324ad8d3cee596f819ded",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/call-a-friend-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3962,
+        "sha256": "c4cd857b3412addff79bbdd1f60cfa68c8796421a512d48f786d5620934776f6",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "plan-quality-time": {
+      "alt": "Plan Quality Time: Relationships activity",
+      "original": {
+        "file": "illustrations/plan-quality-time.jpg",
+        "mime": "image/jpeg",
+        "bytes": 32530,
+        "sha256": "be646a56a01fce4a91e514e6db3a571a5a07f7a71853ac29441fced265e70ac3",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/plan-quality-time-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4898,
+        "sha256": "a3f78d10c9bdad5456c3cc46e6022ea475779e1356024bb9d920f7d10f324a73",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "send-a-check-in-message": {
+      "alt": "Send a Check-in Message: Relationships activity",
+      "original": {
+        "file": "illustrations/send-a-check-in-message.jpg",
+        "mime": "image/jpeg",
+        "bytes": 37525,
+        "sha256": "10adeb69e28dd415bf67ce169e55f53b926ac69b895a254c541e426707b4fd29",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/send-a-check-in-message-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5848,
+        "sha256": "38785702b7a81efaabed8b4e675673486bf82f8b36adb762ce63fc01e81cf75d",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "family-activity": {
+      "alt": "Family Activity: Relationships activity",
+      "original": {
+        "file": "illustrations/family-activity.jpg",
+        "mime": "image/jpeg",
+        "bytes": 30782,
+        "sha256": "27918fd4632b3c975539475d6888c99f219305ce52d249686f06b20ef3b2859c",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/family-activity-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4616,
+        "sha256": "fca8deeda4d049358e3695bcb5d7b09e8f21c79e2767504c1b838d6573f3c8a2",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "shared-meal": {
+      "alt": "Shared Meal: Relationships activity",
+      "original": {
+        "file": "illustrations/shared-meal.jpg",
+        "mime": "image/jpeg",
+        "bytes": 28281,
+        "sha256": "b1396b9bf5794d72b16aa36d82194eca49a90f5eef6d3a462f8e05921d245fe9",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/shared-meal-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4206,
+        "sha256": "284ee4c0425d82a9b9bde8e2fbc832a33a7dc4d20da0155f1636aba5ad25e06d",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "schedule-a-visit": {
+      "alt": "Schedule a Visit: Relationships activity",
+      "original": {
+        "file": "illustrations/schedule-a-visit.jpg",
+        "mime": "image/jpeg",
+        "bytes": 32250,
+        "sha256": "bfdc8ef760fc500ca9382befd05478a2b4c6a1f6a8412c5c7d9bf30c5172ec81",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/schedule-a-visit-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4804,
+        "sha256": "ba064ac4973167be91fd298d212b06bd786c94f000f1f296618af8023bf44f93",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "write-a-thank-you-note": {
+      "alt": "Write a Thank-you Note: Relationships activity",
+      "original": {
+        "file": "illustrations/write-a-thank-you-note.jpg",
+        "mime": "image/jpeg",
+        "bytes": 35137,
+        "sha256": "27db58140a60d33f18d60cd821a845d6de9ae559b994acca6e48787dbd595be8",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/write-a-thank-you-note-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5406,
+        "sha256": "5ddfc15059bc275f9de52d4d9fe33ee9c9fa2627afe67c08d8131299037525f5",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "listen-and-reflect": {
+      "alt": "Listen and Reflect: Relationships activity",
+      "original": {
+        "file": "illustrations/listen-and-reflect.jpg",
+        "mime": "image/jpeg",
+        "bytes": 33683,
+        "sha256": "14093df376ecfe77825758e106a46e7383e3924d2621e3e8245a17f0fac238bc",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/listen-and-reflect-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5066,
+        "sha256": "b9741ec3ef9189a98b276000c714a31a0525c29abfc8f982fe76156390cf308b",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "plan-a-group-outing": {
+      "alt": "Plan a Group Outing: Relationships activity",
+      "original": {
+        "file": "illustrations/plan-a-group-outing.jpg",
+        "mime": "image/jpeg",
+        "bytes": 32697,
+        "sha256": "be0747247f6162206ad331f312dafd0c3812098b0acb0b8b5c00c3fd6c21638b",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/plan-a-group-outing-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4800,
+        "sha256": "9dbcb1625a34873533bc97917d7cd1b9c94dcdc8d2b3af7794b384dbf223c1a4",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "reconnect-with-someone": {
+      "alt": "Reconnect with Someone: Relationships activity",
+      "original": {
+        "file": "illustrations/reconnect-with-someone.jpg",
+        "mime": "image/jpeg",
+        "bytes": 36726,
+        "sha256": "d86ed534ce8fdebb70c90efc3ce55224e48be0089c1fc80f2dded51f4b2c6b22",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/reconnect-with-someone-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5710,
+        "sha256": "184ff5778aa0a039abeccffefffddadf786283c364609058d3076161c3c75cfd",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "weekly-relationship-check-in": {
+      "alt": "Weekly Relationship Check-in: Relationships activity",
+      "original": {
+        "file": "illustrations/weekly-relationship-check-in.jpg",
+        "mime": "image/jpeg",
+        "bytes": 38350,
+        "sha256": "5843bf4d93b52782d10479181c8d9c9536a70562d3b2695e34044cbd0055ec05",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/weekly-relationship-check-in-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5594,
+        "sha256": "d85e219f226b23fb179d1ae65e3455158d5b057a6a3f5302d705be8a95c04462",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "celebrate-a-milestone": {
+      "alt": "Celebrate a Milestone: Relationships activity",
+      "original": {
+        "file": "illustrations/celebrate-a-milestone.jpg",
+        "mime": "image/jpeg",
+        "bytes": 35022,
+        "sha256": "c3d832dbb10c6040efb2a0d868631f4057f3fcec8d5b06a3256ee7d093897b5c",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/celebrate-a-milestone-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5346,
+        "sha256": "afdf2b929f2bddda181f4c955b0edd9363aaed67e33fa5d17949cb2f3f74b67d",
+        "width": 480,
+        "height": 360
+      }
+    }
+  }
+}

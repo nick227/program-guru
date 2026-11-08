@@ -56,10 +56,10 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
       activities: 81,
       starterPrograms: 5,
     })
-    expect(first.platformMediaFiles).toBeGreaterThan(0)
-    // Running a second time is a no-op and produces the exact same row counts.
+    expect(first.platformMediaFiles).toBe(160) // 80 illustrations × (original + thumbnail)
+    // Running a second time is a no-op: same row counts, and no file is uploaded again.
     const second = await seedDatabase(db)
-    expect(second).toEqual(first)
+    expect(second).toEqual({ ...first, platformMediaUploaded: 0 })
     expect(await db.activity.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(81)
     expect(await db.program.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(5)
     expect(await db.achievementDefinition.count()).toBe(7)
