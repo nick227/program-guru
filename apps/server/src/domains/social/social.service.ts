@@ -70,7 +70,13 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
         ...(query.focusId ? { focuses: { some: { focusId: query.focusId } } } : {}),
         ...(q ? { AND: [{ OR: [{ title: { contains: q } }, { summary: { contains: q } }] }] } : {}),
       },
-      orderBy: query.sort === 'NEW' ? [{ createdAt: 'desc' }, { id: 'desc' }] : [{ creatorId: { sort: 'asc', nulls: 'first' } }, { title: 'asc' }, { id: 'asc' }],
+      orderBy:
+        query.sort === 'NEW'
+          ? [{ createdAt: 'desc' }, { id: 'desc' }]
+          : query.sort === 'POPULAR'
+            ? // Usage, not ratings: scheduled occurrences, Program placements, then personal copies.
+              [{ calendarItems: { _count: 'desc' } }, { scheduleItems: { _count: 'desc' } }, { copies: { _count: 'desc' } }, { title: 'asc' }, { id: 'asc' }]
+            : [{ creatorId: { sort: 'asc', nulls: 'first' } }, { title: 'asc' }, { id: 'asc' }],
       skip,
       take,
       include: activityInclude,

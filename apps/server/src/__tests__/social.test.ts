@@ -37,6 +37,17 @@ describe('discover and creator profiles', () => {
   })
 })
 
+describe('discover activities by popularity', () => {
+  it('POPULAR ranks Activities by usage with a deterministic title tie-break; RELEVANT is unchanged', async () => {
+    const titles = async (sort: string) =>
+      (await app.inject({ method: 'GET', url: `/discover?kind=ACTIVITY&sort=${sort}` })).json().data.map((d: any) => d.activity.title)
+    expect(await titles('POPULAR')).toEqual(['Leg Raises', 'Squats'])
+    await publicProgram('Squat Basics')
+    expect(await titles('POPULAR')).toEqual(['Squats', 'Leg Raises'])
+    expect(await titles('RELEVANT')).toEqual(['Leg Raises', 'Squats'])
+  })
+})
+
 describe('likes and views on public media', () => {
   it('likes are idempotent and views dedupe per viewer per day', async () => {
     const media = await db.mediaAsset.create({ data: { ownerId: testUserId, type: 'PHOTO', originalStorageKey: 'u/a/p', mime: 'image/png', byteSize: 10, state: 'READY' } })
