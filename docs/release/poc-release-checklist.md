@@ -76,9 +76,9 @@ Migrations are additive and run only via `prisma migrate deploy`. Bootstrap fail
 
 | # | Blocker | Owner | Notes |
 |---|---|---|---|
-| 1 | **No sign-up screen** on any branch: `useRegister` exists, nothing uses it. New users cannot create accounts | Web | Login page only signs in |
-| 2 | **`/verify-email` and `/reset-password` pages missing.** Emails link there and get the catch-all page. Verification is required to publish | Web | API: `verifyEmail`, `resetPassword`, plus a "forgot password" request screen |
-| 3 | **Vercel SPA fallback missing.** Browser routing plus no rewrite means deep links (`/join/:token`, `/occurrences/:id`, `/groups/:id`) 404 on load | Web | `apps/web/vercel.json`: `{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }` |
+| ~~1~~ | ~~No sign-up screen~~ | Resolved | `/register` (`pages/Auth.tsx`), linked from login |
+| ~~2~~ | ~~`/verify-email` and `/reset-password` missing~~ | Resolved | Plus `/forgot-password` from login; verification-required, invalid, expired and used-link states |
+| ~~3~~ | ~~Vercel SPA fallback missing~~ | Resolved | `apps/web/vercel.json` rewrite; live suite checks direct navigation and refresh on the production build |
 | 4 | **Frontend branches unmerged; duplicate group work** (§1) | Coordinator | Merge order: notifications (includes Creator Studio) → activity-authoring → groups worktree **after** rebasing onto it and dropping its backend edits. Run the browser suite after each |
 | 5 | **Infrastructure not provisioned** (§6) | Ops | Nothing exists yet |
 | 6 | **Push `main` and get CI green** | Ops | `origin/main` is 2 integration commits plus this branch behind |
@@ -140,7 +140,7 @@ The startup gate enforces every required row: a missing value fails the deploy w
 
 | Area | Spec | Built |
 |---|---|---|
-| Accounts | Sign-up, verification, reset, Google | API complete; **web: sign-in only** |
+| Accounts | Sign-up, verification, reset, Google | Built, except the Google sign-in UI (P1). Live suite: `pnpm exec tsx apps/web/scripts/auth-live.ts` |
 | Calendar, Activity page, sessions, results | `03-UX`, `09` | Built (web on `main`) |
 | Program authoring | Workspace, auto scheduling | Built (web on `main`) |
 | Media library, capture, attachments, history | `11` | Built (Codex); history UI on activity-authoring |

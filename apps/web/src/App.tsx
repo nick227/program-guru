@@ -11,6 +11,7 @@ import { AuthGuard } from '@/lib/AuthGuard'
 import { useOnline } from '@/lib/useOnline'
 import { CalendarPage } from '@/pages/Calendar'
 import { LoginPage } from '@/pages/Login'
+import { ForgotPasswordPage, RegisterPage, ResetPasswordPage, VerifyEmailPage } from '@/pages/Auth'
 import { DiscoverPage, LibraryPage } from '@/pages/Discover'
 import { ProgramCreatePage } from '@/pages/ProgramCreate'
 import { ProgramWorkspacePage } from '@/pages/ProgramWorkspace'
@@ -81,6 +82,11 @@ const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       { path: '/login', element: <LoginPage /> },
+      // Account screens: before /:handle (these names are reserved handles server-side).
+      { path: '/register', element: <RegisterPage /> },
+      { path: '/verify-email', element: <VerifyEmailPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/reset-password', element: <ResetPasswordPage /> },
       { path: '/discover', element: <DiscoverPage /> },
       { path: '/programs/:id', element: <ProgramPage /> },
       { path: '/activities/:id', element: <ActivityPage /> },

@@ -73,3 +73,54 @@ export function useLogout() {
     },
   })
 }
+
+/** Consumes a single-use verification token from the emailed link. */
+export function useVerifyEmail() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (token: string) => {
+      const { data, error, response } = await getApiClient().POST('/auth/verify-email', { body: { token } })
+      if (error) throw apiError(response, error)
+      return data!
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['me'] }),
+  })
+}
+
+/** Sends a fresh verification link to the signed-in user (no-op once verified). */
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error, response } = await getApiClient().POST('/auth/verify-email/resend')
+      if (error) throw apiError(response, error)
+      return data!
+    },
+  })
+}
+
+/** Always succeeds, so it never reveals whether an address has an account. */
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: async (body: { email: string }) => {
+      const { data, error, response } = await getApiClient().POST('/auth/forgot-password', { body })
+      if (error) throw apiError(response, error)
+      return data!
+    },
+  })
+}
+
+/** Sets a new password from the emailed token. The server signs out every session, so cached data goes too. */
+export function useResetPassword() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { token: string; password: string }) => {
+      const { data, error, response } = await getApiClient().POST('/auth/reset-password', { body })
+      if (error) throw apiError(response, error)
+      return data!
+    },
+    onSuccess: async () => {
+      await queryClient.cancelQueries()
+      queryClient.clear()
+    },
+  })
+}

@@ -48,9 +48,20 @@ export function LoginPage() {
           />
           <ErrorMessage error={login.error} />
         </Panel>
-        <Link to="/discover" className="text-accent underline">
-          Browse Programs
-        </Link>
+        <p className="flex flex-wrap gap-x-4 gap-y-2">
+          <Link
+            to={`/register${params.get('returnTo') ? `?returnTo=${encodeURIComponent(safeReturn(params.get('returnTo')))}` : ''}`}
+            className="text-accent underline"
+          >
+            Create an account
+          </Link>
+          <Link to="/forgot-password" className="text-accent underline">
+            Forgot your password?
+          </Link>
+          <Link to="/discover" className="text-accent underline">
+            Browse Programs
+          </Link>
+        </p>
       </Stage>
     </Page>
   )

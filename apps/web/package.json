@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:e2e:live": "E2E_LIVE=1 playwright test --project=live"
+    "test:e2e:live": "E2E_LIVE=1 playwright test --project=live",
+    "test:e2e:auth": "tsx scripts/auth-live.ts"
   },
   "dependencies": {
     "@project/sdk": "workspace:*",
