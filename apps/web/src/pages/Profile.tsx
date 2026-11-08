@@ -18,6 +18,8 @@ import { Back, linkButton } from '@/components/Navigation'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { buildActivityUrl, buildProfileUrl, buildProgramUrl } from '@/lib/urls'
+import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
+import { programHero } from '@/lib/hero'
 
 export function ProfilePage() {
   const { handle = '' } = useParams()
@@ -32,6 +34,7 @@ export function ProfilePage() {
   const follow = useFollowUser(cleanHandle)
   const unfollow = useUnfollowUser(cleanHandle)
   const online = useOnline()
+  const categorySlugOf = useCategorySlugOf()
   const p = profile.data
 
   useDocumentTitle(
@@ -155,13 +158,10 @@ export function ProfilePage() {
                     )}
                     className="rounded-lg border p-3 transition-colors hover:border-accent"
                   >
-                    {program.coverUrl && (
-                      <img
-                        src={program.coverUrl}
-                        alt=""
-                        className="mb-3 aspect-video w-full rounded-md object-cover"
-                      />
-                    )}
+                    <EntityHero
+                      hero={programHero(program, categorySlugOf)}
+                      className="mb-3"
+                    />
                     <strong>{program.title}</strong>
                     <p className="mt-2 text-xs text-muted">
                       {program.frequencyLabel}

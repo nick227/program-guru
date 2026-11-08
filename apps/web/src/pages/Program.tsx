@@ -29,6 +29,8 @@ import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { useResolveProgramTarget } from '@/lib/useResolveSlug'
 import { buildGroupUrl, buildProfileUrl, buildProgramUrl, buildWorkspaceUrl } from '@/lib/urls'
+import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
+import { programHero } from '@/lib/hero'
 
 export function ProgramPage() {
   const paramsFromRouter = useParams()
@@ -41,6 +43,7 @@ export function ProgramPage() {
   const [params] = useSearchParams()
   const groupIdParam = params.get('groupId')?.trim() || undefined
   const program = useProgramPreview(id)
+  const categorySlugOf = useCategorySlugOf()
   const me = useCurrentUser()
   const online = useOnline()
   const navigate = useNavigate()
@@ -141,13 +144,7 @@ export function ProgramPage() {
     <Page>
       <Stage>
         <Back to={safeReturn(params.get('returnTo'), '/discover')} />
-        {p.coverUrl && (
-          <img
-            src={p.coverUrl}
-            alt=""
-            className="aspect-[2/1] w-full rounded-xl object-cover"
-          />
-        )}
+        <EntityHero hero={programHero(p, categorySlugOf)} size="banner" />
         <Stack className="gap-2">
           <Row>
             {p.creator && (
