@@ -43,10 +43,12 @@ export default defineRailway(() => {
       PUBLIC_API_URL: `${ORIGIN}/api`,
       PUBLIC_APP_URL: ORIGIN,
       CORS_ORIGIN: ORIGIN,
-      // Requests arrive from `web` over the private network carrying Railway's X-Real-IP.
-      // TRUSTED_PROXY_CIDRS is narrowed to the observed private range after the first deploy.
+      // Requests arrive from `web` over this project's private network (observed peer
+      // fd12:3c86:6500:1:…) carrying Railway's X-Real-IP, which the edge overwrites with the real client
+      // address (verified: forged values change nothing; two networks get separate limits). Trust only
+      // this project's private range, not every private address.
       CLIENT_IP_HEADER: "x-real-ip",
-      TRUSTED_PROXY_CIDRS: preserve(),
+      TRUSTED_PROXY_CIDRS: "fd12:3c86:6500::/48",
       MARKETPLACE_ENABLED: "false",
     },
   });
