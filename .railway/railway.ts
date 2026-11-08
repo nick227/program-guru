@@ -60,6 +60,8 @@ export default defineRailway(() => {
     start: "pnpm --filter web exec vite preview",
     healthcheck: "/",
     env: {
+      // The public domain program-guru.up.railway.app targets port 3001 on this service.
+      PORT: "3001",
       // Build time: the SDK calls /api on the same origin.
       VITE_API_URL: `${ORIGIN}/api`,
       // Runtime: vite preview forwards /api to the API over the private network.
