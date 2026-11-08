@@ -64,7 +64,8 @@ export default defineRailway(() => {
       VITE_API_URL: `${ORIGIN}/api`,
       // Runtime: vite preview forwards /api to the API over the private network.
       API_PROXY_TARGET: "http://server.railway.internal:3001",
-      PREVIEW_ALLOWED_HOSTS: "program-guru.up.railway.app",
+      // Railway's healthcheck sends Host: healthcheck.railway.app.
+      PREVIEW_ALLOWED_HOSTS: "program-guru.up.railway.app,healthcheck.railway.app",
     },
   });
 
