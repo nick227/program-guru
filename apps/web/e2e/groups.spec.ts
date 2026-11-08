@@ -53,4 +53,15 @@ test('create a Program group, enroll the owner, and open contextual group manage
   await expect(
     page.getByRole('heading', { name: 'Group Completions' }),
   ).toBeVisible()
+
+  await page.getByLabel('Invite by handle').fill('participant')
+  await page.getByRole('button', { name: 'Invite user' }).click()
+  await expect(page.getByText('Invitation sent')).toBeVisible()
+  expect(
+    requests.find(
+      (request) =>
+        request.path === `/groups/${groupId}/invitations` &&
+        request.method === 'POST',
+    )?.body,
+  ).toMatchObject({ kind: 'USER', handle: 'participant' })
 })

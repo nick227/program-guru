@@ -347,11 +347,32 @@ export async function mockApi(
           : null,
       } satisfies S['GroupDetail'])
     if (
-      path === `/groups/${groupId}/invitations` ||
-      path === `/groups/${groupId}/completions` ||
-      path === `/groups/${groupId}/media`
-    )
+      method === 'GET' &&
+      [
+        `/groups/${groupId}/invitations`,
+        `/groups/${groupId}/completions`,
+        `/groups/${groupId}/media`,
+      ].includes(path)
+    ) {
       return send([], 200, path.endsWith('/completions') || path.endsWith('/media'))
+    }
+    if (path === `/groups/${groupId}/invitations` && method === 'POST')
+      return send(
+        {
+          id: uid(71),
+          kind: body.kind ?? 'USER',
+          status: 'PENDING',
+          expiresAt: '2026-11-14T00:00:00Z',
+          joinUrl: null,
+          invitedUser: {
+            id: uid(5),
+            handle: String(body.handle ?? 'participant'),
+            displayName: 'Participant',
+            avatarUrl: null,
+          },
+        } satisfies S['GroupInvitation'],
+        201,
+      )
     if (path.endsWith('/workspace')) return send(workspace())
     if (path.endsWith('/draft/activities')) {
       added = true

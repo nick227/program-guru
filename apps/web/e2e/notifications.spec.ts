@@ -30,6 +30,7 @@ async function setupNotificationsMock(
   let reacted = false
   let joinedInvitedGroup = false
   let leftInvitedGroup = false
+  let declinedInvitation = false
 
   let prefs: S['UserPreferences'] = {
     timezone: 'America/Chicago',
@@ -506,7 +507,7 @@ async function setupNotificationsMock(
 
     if (path === '/users/me/group-invitations' && method === 'GET') {
       return send(
-        joinedInvitedGroup || leftInvitedGroup
+        joinedInvitedGroup || leftInvitedGroup || declinedInvitation
           ? ([] satisfies S['ReceivedGroupInvitation'][])
           : ([
               {
@@ -531,6 +532,14 @@ async function setupNotificationsMock(
       }
       joinedInvitedGroup = true
       return send(buildGroupDetail(inviteGroupId))
+    }
+
+    if (
+      path === `/users/me/group-invitations/${invitationId}/decline` &&
+      method === 'POST'
+    ) {
+      declinedInvitation = true
+      return send({ ok: true } satisfies S['Ack'])
     }
 
     if (path === '/group-invitations/invite-token-123' && method === 'GET') {
@@ -629,6 +638,30 @@ async function setupNotificationsMock(
               : [],
           },
         ] satisfies S['CompletionShare'][],
+        200,
+        { hasMore: false, nextCursor: null },
+      )
+    }
+
+    if (path === `/groups/${inviteGroupId}/media` && method === 'GET') {
+      if (!joinedInvitedGroup || leftInvitedGroup) {
+        return error(404, 'NOT_FOUND', 'Group not found')
+      }
+      return send(
+        [
+          {
+            id: uid(82),
+            thumbnailUrl: null,
+            type: 'PHOTO',
+            durationMs: null,
+            alt: 'Shared workout photo',
+            canSelect: false,
+            publicationId: uid(83),
+            owner: coach,
+            commentCount: 0,
+            caption: 'Post-workout',
+          },
+        ] satisfies S['GroupMediaThumb'][],
         200,
         { hasMore: false, nextCursor: null },
       )
@@ -869,6 +902,8 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
   await expect(page.getByText(/Joined on Nov 7 \(2026-11-07\)/)).toBeVisible()
 
   // React to group completion in Group view
+  await expect(page.getByRole('heading', { name: 'Group Completions' })).toBeVisible()
+  await expect(page.getByText('Coach Maya · Post-workout')).toBeVisible()
   const clapBtn = page.getByRole('button', {
     name: 'React 👏 to Coach Maya',
   })
@@ -927,6 +962,27 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
     page.getByRole('heading', { name: 'Coach Maya' }),
   ).toBeVisible()
   await expect(page.getByText('Program Finisher')).toBeVisible()
+})
+
+test('recipient can decline an addressed group invitation', async ({ page }) => {
+  const { requests } = await setupNotificationsMock(page)
+  await login(page, 'participant@test.local', 'password')
+
+  await page.goto(`/groups/${inviteGroupId}/invitations/${invitationId}`)
+  await expect(
+    page.getByRole('heading', { name: 'Confirm your schedule' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Decline invitation' }).click()
+
+  await expect(page).toHaveURL('/notifications')
+  expect(
+    requests.filter(
+      (request) =>
+        request.path ===
+          `/users/me/group-invitations/${invitationId}/decline` &&
+        request.method === 'POST',
+    ),
+  ).toHaveLength(1)
 })
 
 test('activity reminders deduplicate occurrences, respect timezone, persist preferences, and support email unsubscribe', async ({
@@ -989,4 +1045,3 @@ test('activity reminders deduplicate occurrences, respect timezone, persist pref
     page.getByRole('heading', { name: 'Daily reminder emails turned off' }),
   ).toBeVisible()
 })
-
