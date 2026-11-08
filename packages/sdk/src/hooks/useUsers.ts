@@ -112,6 +112,16 @@ export function useUpdatePreferences() {
   )
 }
 
+export function useUpdateMyProfile() {
+  return useApiMutation(
+    async (body: S['UpdateProfileInput']) =>
+      apiData(
+        await getApiClient().PATCH('/users/me/profile', { body }),
+      ).data,
+    [keys.me, ['users']],
+  )
+}
+
 export function useMyFollowRequests() {
   return useInfiniteQuery({
     queryKey: useViewerKey(keys.followRequests),
@@ -147,7 +157,7 @@ export function useDeclineFollowRequest() {
           params: { path: { requestId } },
         }),
       ).data,
-    [keys.followRequests, keys.notifications, keys.unreadCount, ['users']],
+    [keys.followRequests, keys.notifications, keys.unreadCount, ['users'], keys.me],
   )
 }
 

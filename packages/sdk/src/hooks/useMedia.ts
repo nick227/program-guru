@@ -143,6 +143,17 @@ export function useMediaPublication() {
     mediaChanges,
   )
 }
+export function useRevokeMediaPublication() {
+  return useApiMutation(
+    async (publicationId: string) =>
+      apiData(
+        await getApiClient().DELETE('/media-publications/{publicationId}', {
+          params: { path: { publicationId } },
+        }),
+      ).data,
+    mediaChanges,
+  )
+}
 /** Retry resumes the failed stage; completion retries never send the bytes again. */
 export function useMediaUpload() {
   const create = useCreateMediaUpload()

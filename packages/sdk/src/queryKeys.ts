@@ -46,6 +46,11 @@ export const queryKeys = {
   notifications: ['notifications'] as const,
   unreadCount: ['notifications', 'unread'] as const,
   followRequests: ['users', 'me', 'follow-requests'] as const,
+  accessRequests: (programId: string) =>
+    ['programs', programId, 'access-requests'] as const,
+  earnings: ['billing', 'earnings'] as const,
+  payoutAccount: ['billing', 'payout-account'] as const,
+  myActivities: (q = '') => ['activities', 'mine', { q }] as const,
   achievements: ['achievements'] as const,
   myAchievements: ['achievements', 'me'] as const,
   userAchievements: (handle: string) =>

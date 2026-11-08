@@ -191,6 +191,9 @@ export function AccountMenu() {
             <Link to={`/${profile.handle}`} className={linkButton}>
               Profile
             </Link>
+            <Link to="/studio" className={linkButton}>
+              Creator Studio
+            </Link>
             <Link to="/library" className={linkButton}>
               My Programs
             </Link>

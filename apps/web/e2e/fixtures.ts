@@ -373,8 +373,8 @@ export async function mockApi(
         safeActivityOutline: [
           { title: 'Squats', dayIndex: 0, mediaPreviewUrl: null },
         ],
-        enrollmentCount: 0,
-        completionRate: null,
+        enrollmentCount: 12,
+        completionRate: 0.4,
         canJoin: !!user,
         canRequestAccess: false,
         canPurchase: false,

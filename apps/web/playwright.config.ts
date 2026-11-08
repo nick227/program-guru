@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
-const port = process.env.E2E_PORT ?? '5173'
+const port = process.env.E2E_PORT ?? '5174'
 const baseURL = `http://localhost:${port}`
 export default defineConfig({
   testDir: './e2e',
@@ -19,7 +19,8 @@ export default defineConfig({
   webServer: {
     command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    // Never reuse another worktree's Vite on the same port (e.g. main on 5173).
+    reuseExistingServer: process.env.E2E_REUSE === '1',
   },
   projects: process.env.E2E_MEDIA_LIVE
     ? [
