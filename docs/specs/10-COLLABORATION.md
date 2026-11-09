@@ -14,7 +14,7 @@ Example: “30 Days — 10 Push-ups + 10 Sit-ups.” Group owner creates a group
 
 | Entity | Key fields | Ownership / rule |
 |---|---|---|
-| `ProgramGroup` | id, programVersionId, ownerId, name?, mode SYNC/ASYNC, startLocalDate?, timezone?, joinLinkEnabled, status ACTIVE/CLOSED, createdAt | Group tied to one Program Version; not a separate Program |
+| `ProgramGroup` | id, programVersionId, ownerId, name?, mode SYNC/ASYNC, startLocalDate?, timezone?, joinLinkEnabled, status ACTIVE/CLOSED, createdAt | Group belongs to one Program; `programVersionId` is the version it was created on. Members may follow different versions of that Program; their membership never depends on it. Not a separate Program |
 | `GroupMember` | groupId, userId, role OWNER/MEMBER, status ACTIVE/LEFT/REMOVED (pending invites live in `GroupInvitation`), joinedAt?, sharedCompletionEnabled | Exactly one row per pair; participation/access checked |
 | `GroupInvitation` | id, groupId, kind USER/EMAIL/LINK, invitedUserId?, invitedEmailHash?, tokenHash, expiresAt, status PENDING/ACCEPTED/DECLINED/REVOKED/EXPIRED, createdAt | USER and EMAIL are single-use; LINK is reusable until revoked or expired; at most one pending USER/EMAIL invitation per invitee and group; no email disclosure in public API |
 | `CompletionShare` | id, groupId, occurrenceKey, calendarItemId, userId, activityId, programDayIndex, completedAt, revokedAt? | Minimal completion event, never metric detail; unique per calendarItemId |
@@ -22,7 +22,7 @@ Example: “30 Days — 10 Push-ups + 10 Sit-ups.” Group owner creates a group
 
 Group-shared media is a `MediaPublication` with `audience GROUP` plus `groupId` and `occurrenceKey` (`11-MEDIA.md`). Its comments are `MediaComment` rows (`12-SOCIAL.md`).
 
-Occurrence key is stable across members, not a user's Calendar Item ID: `programVersionId:scheduleItemId:cycleIndex`. For `SYNC`, members share a group start date. For `ASYNC`, each member has a personal start date, the same key still maps equivalent occurrences, and the UI shows `Program Day 7` rather than implying a shared calendar date. Consolidated persistence: `packages/db/prisma/schema.prisma`.
+Occurrence key is stable across members and versions, not a user's Calendar Item ID: `programId:activityId:programDayIndex:ordinal` (absolute Program Day; `ordinal` ranks repeated placements of the same Activity on that day by position). Version and schedule-item ids are regenerated per version, so they are not part of it. Members whose version does not schedule an occurrence are left out of its Collaborators row and counts, never shown as missing it. For `SYNC`, members share a group start date. For `ASYNC`, each member has a personal start date, the same key still maps equivalent occurrences, and the UI shows `Program Day 7` rather than implying a shared calendar date. Consolidated persistence: `packages/db/prisma/schema.prisma`.
 
 ## 3. Collaboration lifecycle
 
@@ -40,10 +40,10 @@ Occurrence key is stable across members, not a user's Calendar Item ID: `program
 | `UNAVAILABLE` | Group closed, Program archived/moderated/unpublished | Refused (`404`) |
 | `ACCESS_REQUIRED` / `PAYMENT_REQUIRED` | Locked Program without entitlement | Refused until access is granted |
 | `ALREADY_MEMBER` | Already an active member | Returns the group; nothing changes |
-| `READY_TO_JOIN` | Already following this Program Version, not in another group for it | Joins and links the existing enrollment; the calendar is not changed. If a SYNC group's start date differs, `startDateDiffers` is true and the UI labels Program Days |
-| `CONFIRM_ENROLLMENT` | SYNC group, not yet following | The participant confirms the group's start date and timezone; accept carries the enrollment |
-| `SELECT_SCHEDULE` | ASYNC group, not yet following | The participant chooses a start date and timezone; accept carries the enrollment |
-| `ENROLLED_OTHER_VERSION` | Following a different version of this Program | Refused (`409`); leave or update that enrollment first |
+| `READY_TO_JOIN` | Already following any version of this Program, not in another group for it | Joins and links the existing enrollment; the calendar is not changed. If a SYNC group's start date differs, `startDateDiffers` is true and the UI labels Program Days |
+| `CONFIRM_ENROLLMENT` | SYNC group, not yet following | The participant confirms the group's start date and timezone; accept carries the enrollment on the version currently published |
+| `SELECT_SCHEDULE` | ASYNC group, not yet following | The participant chooses a start date and timezone; accept carries the enrollment on the version currently published |
+| `ENROLLED_OTHER_VERSION` | No longer produced: a participant on any version of the group's Program is `READY_TO_JOIN`. Kept in the enum for compatibility | — |
 | `LEAVE_OTHER_GROUP` | Following this version with another active group | Refused (`409`); leave the other group first |
 
 When enrollment is needed, membership, entitlement, enrollment and calendar items are created in **one transaction** after the participant confirmed the schedule: a validation or scheduling failure leaves no membership, enrollment, or calendar items behind. Calendar items are never created without that confirmation.

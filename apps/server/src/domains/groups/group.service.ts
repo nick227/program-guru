@@ -7,7 +7,7 @@ import { withIdempotency } from '../../lib/idempotency'
 import { enqueue } from '../../lib/outbox'
 import { afterCursor, pageArgs, pageOrder, toPage, type PageQuery } from '../../lib/paging'
 import { fromDbDate, isValidTimeZone, toDbDate } from '../../lib/time'
-import { occurrenceKey } from '../calendar/materialize'
+import { occurrenceKey, sameDayOrdinals } from '../calendar/materialize'
 import { isBlockedEitherWay } from '../users/follow.service'
 import { normalizeEmail } from '../users/auth.service'
 import { toUserSummary } from '../users/mapper'
@@ -62,19 +62,30 @@ async function toDetail(groupId: string, userId: string) {
 }
 
 /**
- * Links a member's live enrollment for this version to the group, and stamps the stable group
- * occurrence key on their future items, recovered from each item's deterministic idempotency key.
+ * Links a member's live enrollment for this Program, whichever version it follows, to the group and
+ * stamps the version-independent group occurrence key on its items. The calendar itself (dates,
+ * statuses, results) is never changed.
  */
-async function linkEnrollment(tx: Prisma.TransactionClient, userId: string, group: ProgramGroup) {
-  const e = await tx.programEnrollment.findFirst({ where: { userId, programVersionId: group.programVersionId, status: { in: ['ACTIVE', 'PAUSED'] } } })
+async function linkEnrollment(tx: Prisma.TransactionClient, userId: string, group: ProgramGroup & { version: { programId: string } }) {
+  const e = await tx.programEnrollment.findFirst({ where: { userId, programId: group.version.programId, status: { in: ['ACTIVE', 'PAUSED'] } } })
   if (!e) return
   await tx.programEnrollment.update({ where: { id: e.id }, data: { groupId: group.id } })
-  const items = await tx.calendarItem.findMany({ where: { enrollmentId: e.id, sourceScheduleItemId: { not: null } }, select: { id: true, idempotencyKey: true, sourceScheduleItemId: true } })
+  const items = await tx.calendarItem.findMany({
+    where: { enrollmentId: e.id, sourceScheduleItemId: { not: null }, programDayIndex: { not: null } },
+    select: { id: true, activityId: true, programDayIndex: true, sourceScheduleItemId: true, scheduleItem: { select: { programVersionId: true } } },
+  })
+  // Kept items may come from an earlier version than the enrollment's: rank within each one's own version.
+  const versionIds = [...new Set(items.map((i) => i.scheduleItem!.programVersionId))]
+  const placements = await tx.programScheduleItem.findMany({ where: { programVersionId: { in: versionIds } }, select: { id: true, programVersionId: true, activityId: true, relativeDay: true, position: true } })
+  const ordinals = new Map<string, number>()
+  for (const v of versionIds) for (const [id, n] of sameDayOrdinals(placements.filter((p) => p.programVersionId === v))) ordinals.set(id, n)
   await Promise.all(
-    items.map((i) => {
-      const cycle = Number(i.idempotencyKey.split(':')[2] ?? 0)
-      return tx.calendarItem.update({ where: { id: i.id }, data: { groupOccurrenceKey: occurrenceKey(group.programVersionId, i.sourceScheduleItemId!, cycle) } })
-    }),
+    items.map((i) =>
+      tx.calendarItem.update({
+        where: { id: i.id },
+        data: { groupOccurrenceKey: occurrenceKey(group.version.programId, i.activityId, i.programDayIndex!, ordinals.get(i.sourceScheduleItemId!) ?? 0) },
+      }),
+    ),
   )
 }
 
@@ -121,7 +132,7 @@ export async function listMine(userId: string, query: PageQuery) {
 export async function create(userId: string, input: { programVersionId: string; name?: string | null; mode: 'SYNC' | 'ASYNC'; startLocalDate?: string | null; timezone?: string }) {
   const version = await db.programVersion.findUnique({ where: { id: input.programVersionId }, include: { program: true } })
   if (!version?.publishedAt || !(await canSeeProgram(userId, version.program))) throw notFound('Program')
-  const enrolled = await db.programEnrollment.findFirst({ where: { userId, programVersionId: version.id, status: { in: ['ACTIVE', 'PAUSED'] } } })
+  const enrolled = await db.programEnrollment.findFirst({ where: { userId, programId: version.programId, status: { in: ['ACTIVE', 'PAUSED'] } } })
   // 10 §3: created by an enrolled participant or the Program owner.
   if (!enrolled && !isProgramOwner(version.program, userId)) throw forbidden('Join this program before starting a group')
   if (enrolled?.groupId) throw conflict('You are already following this program with a group')
@@ -133,7 +144,7 @@ export async function create(userId: string, input: { programVersionId: string; 
     const group = await tx.programGroup.create({
       data: { programVersionId: version.id, ownerId: userId, name: input.name?.trim() || null, mode: input.mode, startLocalDate: start ? toDbDate(start) : null, timezone: tz, members: { create: { userId, role: 'OWNER', status: 'ACTIVE', joinedAt: new Date() } } },
     })
-    await linkEnrollment(tx, userId, group)
+    await linkEnrollment(tx, userId, { ...group, version: { programId: version.programId } })
     return group
   })
   return toDetail(g.id, userId)
@@ -333,7 +344,7 @@ async function joinState(viewerId: string | null, inv: InvitationRow) {
     return state(mode === 'PAID' ? 'PAYMENT_REQUIRED' : 'ACCESS_REQUIRED')
   }
   if (enrollment) {
-    if (enrollment.programVersionId !== group.programVersionId) return state('ENROLLED_OTHER_VERSION', enrollment)
+    // Any version of this Program is fine: members of one group may follow different versions.
     if (enrollment.groupId && enrollment.groupId !== group.id) {
       const other = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: enrollment.groupId, userId: viewerId } }, include: { group: true } })
       if (other?.status === 'ACTIVE' && other.group.status === 'ACTIVE') return state('LEAVE_OTHER_GROUP', enrollment)
@@ -422,7 +433,8 @@ async function acceptInvitation(userId: string, inv: InvitationRow, input: Accep
     if (!start) throw badRequest('Choose a start date', { 'enrollment.startLocalDate': 'is required' })
     schedule = { startLocalDate: start, timezone: e.timezone }
   }
-  const joinable = needsEnrollment ? await joinableVersion(userId, program.id, group.programVersionId, { invited: true }) : null
+  // Newcomers start on the version available now; the group's creation version may be older.
+  const joinable = needsEnrollment ? await joinableVersion(userId, program.id, program.latestPublishedVersionId ?? group.programVersionId, { invited: true }) : null
 
   const apply = () =>
     db.$transaction(

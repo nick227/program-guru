@@ -127,7 +127,72 @@ Optional, for Program Detail: add the same `participation` property to `ProgramP
 
 ## Known limitations (deliberately not changed: scope correction)
 
-- **Groups are tied to one version** (`10-COLLABORATION.md` §1). After a group member accepts an update, their new items carry occurrence keys of the new version. Those items no longer line up with members still on the old version, so the Collaborators row is empty for them. Past and kept items, and their completion shares, stay in the group. New joiners start on the latest version, and an invitation to an old-version group then reads `ENROLLED_OTHER_VERSION`. Changing this means changing the group↔version relationship, which is out of scope. For a group, the decision is per member until the spec defines group-level version alignment.
+- ~~Groups are tied to one version~~: resolved by "Mixed-version groups" below.
 - **Joining an existing group requires an invitation** (USER, EMAIL or LINK). There is no group directory or join request. That matches the spec.
 - `ProgramStat.enrollmentCount` (Program preview, ranking) counts enrollments, not people. It is left unchanged because `performance-hardening.test.ts` pins its reference behavior. The new `participantCount` is the right number for My Programs.
 - Not built: ProgramEdition, ProgramRun, a global Community, a rules engine, cohort infrastructure, calendar virtualization, aggregation changes, ADR 0002, spec rewrites for scale.
+
+## Mixed-version groups (P0)
+
+Requirement: one group can hold members on different versions of its Program. For example, Alice on v1, Bob on v2 and Charlie on v1 all stay in "Morning Workout". Their calendars and Activity revisions can differ; their membership does not.
+
+### Where groups were bound to a version (before this change)
+
+| Constraint | Where | Effect |
+|---|---|---|
+| Occurrence key `programVersionId:scheduleItemId:cycleIndex` | `calendar/materialize.ts:13`, `:78`; `groups/group.service.ts:75–76` | Both ids are per-version: `openDraftVersion` copies schedule items with **new ids** (`programs/authoring.service.ts:43–60`), and `regenerate` recreates them. So the same Activity on the same Program Day never matches across versions |
+| Linking an existing enrollment | `group.service.ts:69` (`programVersionId: group.programVersionId`) | A member on another version was silently not linked |
+| Invitation join state | `group.service.ts:336` → `ENROLLED_OTHER_VERSION`, refused at `:407` | Anyone on the latest version could not join an older group |
+| New invitee enrollment | `group.service.ts:425` (`joinableVersion(..., group.programVersionId)`) | Newcomers were enrolled on the group's creation version, not the current one |
+| Direct join with `groupId` | `programs/enrollment.service.ts:173` | Refused "This group follows a different version" |
+| Collaborators row | `calendar/occurrence.service.ts:127–160` | Every member without a share read `PENDING`, including members whose version has no such Activity |
+| Equality on the key | completion shares (`session.service.ts:120–131`), shared media (`occurrence.service.ts:179`, `media.service.ts:683`), calendar tiles (`calendar.service.ts:41–88`), notification deep links (`worker/handlers.ts:80`, `:97`) | All of these compare the key with `=`, so a version-independent key fixes them with no query changes |
+
+### Chosen change: no schema change, no API shape change
+
+1. **`ProgramGroup.programVersionId` means "version at creation".** Join, link and enrollment checks are anchored on the Program (`version.programId`). A different Program is still refused.
+2. **A version-independent occurrence key**, `programId:activityId:programDayIndex:ordinal`. `ordinal` is the 0-based rank of that placement among placements of the **same Activity on the same relative day** in its version, ordered by `(position, id)`.
+3. **A forward-only data migration** (`20261109000000_version_independent_occurrence_keys` (named after the latest timestamped migration so it sorts last)). It rewrites legacy three-part keys in `CalendarItem.groupOccurrenceKey`, `CompletionShare.occurrenceKey`, `MediaPublication.occurrenceKey` and `Notification.groupOccurrenceKey`, using the schedule item and version the old key names. Calendar dates, statuses, sessions and results are untouched; only the group overlay key changes. Existing completion shares, reactions (attached to shares by id), group media and comments (attached to publications by id) keep their permissions and line up with the new key.
+4. **Joining uses the currently available version.** A new invitee is enrolled on `Program.latestPublishedVersionId` through the same `joinableVersion` + `enrollInTx` path, so visibility, moderation, approval, payment and invitation checks are unchanged. A member already following any version of the same Program is linked as they are; their calendar is never migrated.
+5. **Collaborators row:** a member with no linked item for that key is left out of the row and out of `finished of total`. They are never shown as `PENDING` (missed) for an Activity their version doesn't schedule. `UNKNOWN` (sharing off) and `NOT_PARTICIPATING` still apply to members who do have the item.
+
+### Compatibility rule: what counts as "the same Activity"
+
+Two members' occurrences are compatible when they share **Program, Activity id, absolute Program Day index and same-day ordinal**.
+
+- The legacy key cannot work across versions, because both of its ids are regenerated for every version.
+- `(activityId, day)` is already the identity the system relies on. Schedule regeneration keeps manual placements by `activityId:relativeDay` (`authoring.service.ts:93`). Accepting an update keeps a slot by `(activityId, programDayIndex)` (`materialize.ts` `dropSlotsKeptFromOtherVersions`). Keys and dedupe now agree.
+- The Activity **id** is stable across revisions, so a v2 that only edits Squats' instructions still compares Squats with Squats. A customized copy is a different Activity id and is deliberately not compatible.
+- The absolute Program Day index (`cycle × cycleLength + relativeDay`) is what both SYNC and ASYNC groups already display (`Program Day 7`), so it stays meaningful when start dates differ.
+- The ordinal handles a manually duplicated placement (the same Activity twice on one day) without depending on `position`, which shifts when other Activities are inserted.
+- Not compatible: a different Activity, a different Program Day, or an Activity the other version dropped. Those members are omitted, never marked missed.
+
+The key is at most 36+1+36+1+5+1+2 = 82 characters, within the existing `VarChar(140)` columns.
+
+### Spec change
+
+`10-COLLABORATION.md` §1–§3 is updated in the same commit. The `ProgramGroup` row says the version is the one at creation, the occurrence key format is the new one, and `ENROLLED_OTHER_VERSION` is no longer produced (it stays in the enum for compatibility). The web branch at `apps/web/src/pages/Group.tsx:178` becomes unreachable and can be removed by the web owner later; no web change is required.
+
+### Implemented and verified
+
+The change was made as proposed. `program-journey.test.ts` covers:
+
+- a mixed v1/v2 group: two members accept, one declines, two leave the offer pending;
+- membership and the enrollment's group link kept after accepting;
+- v2 newcomers joining through a USER invitation and through the LINK, and a v1 outsider linked through the link with an unchanged calendar;
+- cross-version completion, reaction and the day-tile count;
+- v2 members left out (not "missing") of a v1-only Activity;
+- pre-update completions, reactions, media and comments still visible to a new v2 member;
+- 404 for non-members;
+- one item per (Activity, Program Day) after accepting.
+
+A second test rewrites keys back to the legacy format, runs the migration SQL twice, and checks that the result equals the keys the server writes, including a repeated same-day placement.
+
+### Remaining risks
+
+- The migration was applied to `programs_app_test` only. Run `pnpm db:deploy` for `programs_app_dev`. Production runs it at the next deploy, before start.
+- Same-day ordinals tie-break on schedule item id when two placements of one Activity share a `position`. JavaScript compares the ids as plain strings, MySQL uses the column collation. This only matters for manual duplicates with equal positions created before the migration.
+- Outbox events already queued with a legacy key resolve their deep link to no calendar item. The notification still appears, without the item link.
+- A SYNC group keeps one shared start date. A v2 joiner whose version has a different duration still starts on it; their Program Days line up and later days simply don't exist on the shorter side.
+- A participant who is already in a group for the Program, including the Program owner, can no longer create a second group on another version. Previously the version mismatch let that through. This matches the one-group-per-Program rule.
+- `apps/web/src/pages/Group.tsx:178` still has a branch for `ENROLLED_OTHER_VERSION`, which the server no longer returns (owner: web).

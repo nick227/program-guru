@@ -7,11 +7,31 @@ export const HORIZON_DAYS = 84 // 12 weeks (05 §9)
 
 type Tx = Prisma.TransactionClient
 type Enrollment = { id: string; userId: string; startLocalDate: Date; timezone: string; groupId: string | null; participationStartDate?: Date | null }
-type Version = { id: string; durationDays: number | null; cycleDays: number | null }
-type Item = { id: string; activityId: string; activityRevisionId: string; relativeDay: number; localTime: string | null; targetOverrides: Prisma.JsonValue }
+type Version = { id: string; programId: string; durationDays: number | null; cycleDays: number | null }
+type Item = { id: string; activityId: string; activityRevisionId: string; relativeDay: number; position: number; localTime: string | null; targetOverrides: Prisma.JsonValue }
 
-export function occurrenceKey(versionId: string, scheduleItemId: string, cycleIndex: number) {
-  return `${versionId}:${scheduleItemId}:${cycleIndex}`
+/**
+ * Group occurrence key (10 §2): the same Activity on the same absolute Program Day of the same
+ * Program, whatever version each member follows. Schedule item and version ids are regenerated for
+ * every version, so they cannot identify an occurrence across versions. `ordinal` separates repeated
+ * placements of one Activity on one day. Must match the 20261109000000 data migration.
+ */
+export function occurrenceKey(programId: string, activityId: string, programDayIndex: number, ordinal: number) {
+  return `${programId}:${activityId}:${programDayIndex}:${ordinal}`
+}
+
+/** Rank of each placement among the same Activity on the same relative day, by (position, id). */
+export function sameDayOrdinals(items: { id: string; activityId: string; relativeDay: number; position: number }[]) {
+  const sorted = [...items].sort((a, b) => a.position - b.position || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  const seen = new Map<string, number>()
+  const out = new Map<string, number>()
+  for (const i of sorted) {
+    const slot = `${i.activityId}:${i.relativeDay}`
+    const n = seen.get(slot) ?? 0
+    out.set(i.id, n)
+    seen.set(slot, n + 1)
+  }
+  return out
 }
 
 /**
@@ -61,6 +81,7 @@ export async function materializeEnrollment(
   const joined = e.participationStartDate ? fromDbDate(e.participationStartDate) : null
   const finite = version.durationDays !== null
   const cycle = finite ? version.durationDays! : version.cycleDays ?? 7
+  const ordinals = sameDayOrdinals(items)
   const rows: Prisma.CalendarItemCreateManyInput[] = []
   for (let c = 0; ; c++) {
     const cycleStart = addDays(start, c * cycle)
@@ -75,7 +96,7 @@ export async function materializeEnrollment(
         enrollmentId: e.id,
         sourceScheduleItemId: item.id,
         idempotencyKey: `${e.id}:${item.id}:${c}`,
-        groupOccurrenceKey: e.groupId ? occurrenceKey(version.id, item.id, c) : null,
+        groupOccurrenceKey: e.groupId ? occurrenceKey(version.programId, item.activityId, c * cycle + item.relativeDay, ordinals.get(item.id)!) : null,
         programDayIndex: c * cycle + item.relativeDay,
         localDate: toDbDate(localDate),
         localTime: item.localTime,

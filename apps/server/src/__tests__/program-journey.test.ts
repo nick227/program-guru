@@ -5,6 +5,8 @@
 // results and personal adjustments, declining keeps the pinned version.
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { buildTestApp, asAuth, seedUser, validateResponse, testUserId as alice } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 import { drain } from '../worker/outbox'
@@ -249,7 +251,142 @@ describe('POC journey: publish → discover → join → group → share → upd
     expect((await liveItems(U.carol)).map((i) => i.id)).toEqual(carolBefore.map((i) => i.id))
     expect((await ok(U.carol, 'GET', `/calendar-items/${(await dayItem(U.carol, 0, cat.squats.activity.id)).id}/occurrence`)).resultInputs[0].recorded).toBe(30)
 
+    // ── Mixed-version group: v1 and v2 members stay together ─────────────────────────────────
+    // dave accepts too; carol declined; erin and frank leave the offer pending (still v1).
+    await ok(U.dave, 'POST', `/enrollments/${enrollment[U.dave]}/accept-update`)
+    const versionOf = async (userId: string) => (await db.programEnrollment.findUniqueOrThrow({ where: { id: enrollment[userId] } })).programVersionId
+    expect([await versionOf(bob), await versionOf(U.dave), await versionOf(U.carol), await versionOf(U.erin), await versionOf(U.frank)]).toEqual([v2, v2, v1, v1, v1])
+    // Accepting removed nobody: same six members, enrollments still linked to the group.
+    expect((await ok(U.erin, 'GET', `/groups/${group.id}`)).memberCount).toBe(6)
+    for (const userId of [bob, U.dave, U.carol, U.erin, U.frank]) {
+      expect((await db.programEnrollment.findUniqueOrThrow({ where: { id: enrollment[userId] } })).groupId).toBe(group.id)
+    }
+    // No duplicate items after acceptance: one per (Activity, Program Day) for each accepting member.
+    for (const userId of [bob, U.dave]) {
+      const slots = (await liveItems(userId)).map((i) => `${i.activityId}:${i.programDayIndex}`)
+      expect(new Set(slots).size, userId).toBe(slots.length)
+    }
+
+    // New invitees join on the version available now (v2), by USER invitation and by the link.
+    const leo = '00000000-0000-4000-8000-000000001020'
+    const mia = '00000000-0000-4000-8000-000000001021'
+    await seedUser(leo, 'leo')
+    await seedUser(mia, 'mia')
+    const forLeo = await ok(bob, 'POST', `/groups/${group.id}/invitations`, { kind: 'USER', handle: 'leo' })
+    expect((await ok(leo, 'GET', `/group-invitations/${tokenOf(forLeo)}`)).join.status).toBe('SELECT_SCHEDULE')
+    await ok(leo, 'POST', `/users/me/group-invitations/${forLeo.id}/accept`, { enrollment: { startLocalDate: today, timezone: TZ, idempotencyKey: key() } })
+    await ok(mia, 'POST', `/group-invitations/${tokenOf(link)}/accept`, { enrollment: { startLocalDate: addDays(today, 1), timezone: TZ, idempotencyKey: key() } })
+    for (const userId of [leo, mia]) {
+      const e = await db.programEnrollment.findFirstOrThrow({ where: { userId, programId } })
+      expect([e.programVersionId, e.groupId, e.pendingVersionId]).toEqual([v2, group.id, null])
+      enrollment[userId] = e.id
+    }
+    // A v1 participant outside the group (judy, offer pending) joins through the link: linked as is.
+    const judyBefore = (await liveItems(U.judy)).map((i) => [i.id, i.localDate.toISOString(), i.status])
+    expect((await ok(U.judy, 'GET', `/group-invitations/${tokenOf(link)}`)).join).toMatchObject({ status: 'READY_TO_JOIN', enrollmentId: enrollment[U.judy] })
+    await ok(U.judy, 'POST', `/group-invitations/${tokenOf(link)}/accept`)
+    expect((await liveItems(U.judy)).map((i) => [i.id, i.localDate.toISOString(), i.status])).toEqual(judyBefore) // calendar untouched
+    expect(await versionOf(U.judy)).toBe(v1)
+    expect((await ok(bob, 'GET', `/groups/${group.id}`)).memberCount).toBe(9)
+
+    // Compatible across versions: Squats on Program Day 1 is the same occurrence for v1 and v2.
+    const occOf = async (userId: string, day: number, activityId: string) => ok(userId, 'GET', `/calendar-items/${(await dayItem(userId, day, activityId)).id}/occurrence`)
+    await finish(bob, (await dayItem(bob, 1, cat.squats.activity.id)).id, 26) // v2
+    await finish(U.carol, (await dayItem(U.carol, 1, cat.squats.activity.id)).id, 31) // v1
+    const carolDay1 = await occOf(U.carol, 1, cat.squats.activity.id)
+    const statusIn = (occ: any) => Object.fromEntries(occ.collaborators.members.map((m: any) => [m.user.handle, m.status]))
+    expect(statusIn(carolDay1)).toMatchObject({ bob: 'DONE', carol: 'DONE', dave: 'PENDING', leo: 'PENDING', erin: 'PENDING', judy: 'PENDING' })
+    const leoDay1 = await occOf(leo, 1, cat.squats.activity.id)
+    expect(leoDay1.collaborators.occurrenceKey).toBe(carolDay1.collaborators.occurrenceKey)
+    const carolShare = leoDay1.collaborators.members.find((m: any) => m.user.handle === 'carol')
+    expect(carolShare.status).toBe('DONE')
+    expect(await ok(leo, 'POST', `/completion-shares/${carolShare.completionShareId}/reactions`, { emoji: '💪', idempotencyKey: key() })).toEqual([{ emoji: '💪', count: 1, reactedByMe: true }])
+    expect(JSON.stringify(leoDay1)).not.toMatch(/"recorded":\s*31/) // carol's reps stay hers
+    // The day tile counts shared completions across versions too.
+    const leoTile = (await ok(leo, 'GET', `/calendar/items?start=${addDays(today, 1)}&end=${addDays(today, 1)}`)).find((i: any) => i.activityId === cat.squats.activity.id || i.title === 'Squats')
+    expect(leoTile.sharedCompletionCount).toBe(2)
+
+    // An Activity v2 doesn't schedule: v2 members are left out, never "missing" it.
+    const carolLegs1 = await occOf(U.carol, 1, cat.legRaises.activity.id)
+    const legsRow = statusIn(carolLegs1)
+    expect(Object.keys(legsRow).sort()).toEqual(['carol', 'erin', 'frank', 'grace', 'judy'])
+    expect(carolLegs1.collaborators.totalCount).toBe(5)
+    // bob's moved Leg Raises (kept from v1 on Program Day 2) keeps him in that day's row.
+    expect(Object.keys(statusIn(await occOf(U.carol, 2, cat.legRaises.activity.id)))).toContain('bob')
+
+    // Pre-update shared history stays: day-0 completions, carol's 🔥, bob's photo and its comment.
+    const feedNow = (await ok(leo, 'GET', `/groups/${group.id}/completions`)).map((c: any) => `${c.user.handle}:${c.programDayIndex}`)
+    expect(feedNow).toEqual(expect.arrayContaining(['bob:0', 'carol:0', 'dave:0', 'bob:1', 'carol:1']))
+    const leoDay0 = await occOf(leo, 0, cat.squats.activity.id)
+    expect(leoDay0.collaborators.members.find((m: any) => m.user.handle === 'bob')).toMatchObject({ status: 'DONE', reactions: [{ emoji: '🔥', count: 1, reactedByMe: false }] })
+    expect(leoDay0.sharedMedia).toEqual([expect.objectContaining({ publicationId: pub.id, commentCount: 1 })])
+    expect((await ok(leo, 'GET', `/groups/${group.id}/media`)).length).toBe(1)
+    expect((await ok(leo, 'GET', `/media-publications/${pub.id}/comments`)).map((c: any) => c.body)).toEqual(['Strong start!'])
+    // bob (now v2) still sees his kept day-0 item's group row, with carol's share.
+    expect(statusIn(await ok(bob, 'GET', `/calendar-items/${bobSquats0.id}/occurrence`))).toMatchObject({ bob: 'DONE', carol: 'DONE', dave: 'DONE' })
+
+    // Non-members still get 404 for everything group-scoped.
+    for (const outsider of [U.heidi, U.ivan]) {
+      for (const path of [`/groups/${group.id}`, `/groups/${group.id}/completions`, `/groups/${group.id}/media`, `/media-publications/${pub.id}/comments`]) {
+        expect((await call(outsider, 'GET', path)).status, path).toBe(404)
+      }
+      expect((await call(outsider, 'POST', `/completion-shares/${carolShare.completionShareId}/reactions`, { emoji: '👏' })).status).toBe(404)
+    }
+
     // The template of v1 never changed; participants' calendars are independent of it.
     expect(await db.programScheduleItem.findMany({ where: { programVersionId: v1 }, orderBy: { id: 'asc' } })).toEqual(templateBefore)
+  })
+
+  it('the data migration turns legacy version-bound keys into the same keys the server now writes', async () => {
+    // A Program with a repeated placement (Squats twice on day 1) and a group with a share and media.
+    let ws = await ok(alice, 'POST', '/programs', { programTypeId: cat.workout.id })
+    ws = await ok(alice, 'POST', `/programs/${ws.id}/draft/activities`, { activityIds: [cat.squats.activity.id, cat.legRaises.activity.id], expectedRevision: ws.draftRevision })
+    ws = await ok(alice, 'PATCH', `/programs/${ws.id}/draft`, { title: 'Doubles', durationDays: 7, frequency: { kind: 'DAILY' }, expectedRevision: ws.draftRevision })
+    await ok(alice, 'POST', `/programs/${ws.id}/draft/placements`, { activityId: cat.squats.activity.id, relativeDay: 1, localTime: '18:00', expectedRevision: ws.draftRevision })
+    ws = await ok(alice, 'GET', `/programs/${ws.id}/workspace`)
+    const v = (await ok(alice, 'POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })).latestPublishedVersionId
+    const today = todayIn(TZ)
+    for (const userId of [bob, U.carol]) await ok(userId, 'POST', `/programs/${ws.id}/enrollments`, { programVersionId: v, startLocalDate: today, timezone: TZ, idempotencyKey: key() })
+    const group = await ok(bob, 'POST', '/groups', { programVersionId: v, mode: 'ASYNC' })
+    const link = await ok(bob, 'POST', `/groups/${group.id}/invitations`, { kind: 'LINK' })
+    await ok(U.carol, 'POST', `/group-invitations/${tokenOf(link)}/accept`)
+    const bobItems = await db.calendarItem.findMany({ where: { ownerId: bob, programDayIndex: 1, activityId: cat.squats.activity.id } })
+    expect(bobItems).toHaveLength(2)
+    expect(new Set(bobItems.map((i) => i.groupOccurrenceKey)).size).toBe(2) // ordinals 0 and 1
+    await finish(bob, bobItems[0]!.id, 10)
+    const photo = await db.mediaAsset.create({ data: { ownerId: bob, type: 'PHOTO', originalStorageKey: `u/${bob}/m`, mime: 'image/jpeg', byteSize: 10, state: 'READY' } })
+    await ok(bob, 'POST', '/media-publications', { mediaId: photo.id, audience: 'GROUP', groupId: group.id, occurrenceKey: bobItems[0]!.groupOccurrenceKey })
+    await db.notification.create({ data: { recipientId: U.carol, type: 'COMPLETION_SHARED', title: 'x', deepLink: '/', entityKind: 'CALENDAR_ITEM', entityId: bobItems[0]!.id, groupOccurrenceKey: bobItems[0]!.groupOccurrenceKey, dedupeKey: key() } })
+
+    const snapshot = async () => ({
+      items: (await db.calendarItem.findMany({ where: { groupOccurrenceKey: { not: null } }, orderBy: { id: 'asc' }, select: { id: true, groupOccurrenceKey: true } })),
+      shares: (await db.completionShare.findMany({ orderBy: { id: 'asc' }, select: { id: true, occurrenceKey: true } })),
+      pubs: (await db.mediaPublication.findMany({ where: { occurrenceKey: { not: null } }, orderBy: { id: 'asc' }, select: { id: true, occurrenceKey: true } })),
+      notes: (await db.notification.findMany({ where: { groupOccurrenceKey: { not: null } }, orderBy: { id: 'asc' }, select: { id: true, groupOccurrenceKey: true } })),
+    })
+    const expected = await snapshot()
+    expect(expected.items.length).toBeGreaterThan(20)
+
+    // Rewrite every key back to the legacy `versionId:scheduleItemId:cycleIndex` form.
+    const legacy = new Map<string, string>()
+    for (const i of await db.calendarItem.findMany({ where: { groupOccurrenceKey: { not: null } } })) {
+      const cycle = Number(i.idempotencyKey.split(':')[2])
+      const old = `${v}:${i.sourceScheduleItemId}:${cycle}`
+      legacy.set(i.groupOccurrenceKey!, old)
+      await db.calendarItem.update({ where: { id: i.id }, data: { groupOccurrenceKey: old } })
+    }
+    for (const r of expected.shares) await db.completionShare.update({ where: { id: r.id }, data: { occurrenceKey: legacy.get(r.occurrenceKey)! } })
+    for (const r of expected.pubs) await db.mediaPublication.update({ where: { id: r.id }, data: { occurrenceKey: legacy.get(r.occurrenceKey!)! } })
+    for (const r of expected.notes) await db.notification.update({ where: { id: r.id }, data: { groupOccurrenceKey: legacy.get(r.groupOccurrenceKey!)! } })
+    expect((await snapshot()).items).not.toEqual(expected.items)
+
+    const sql = readFileSync(join(__dirname, '../../../../packages/db/prisma/migrations/20261109000000_version_independent_occurrence_keys/migration.sql'), 'utf8')
+    const statements = sql.split(';').map((x) => x.replace(/^\s*--.*$/gm, '').trim()).filter(Boolean)
+    expect(statements).toHaveLength(4)
+    for (const st of statements) await db.$executeRawUnsafe(st)
+    expect(await snapshot()).toEqual(expected)
+    // Idempotent: a second run changes nothing.
+    for (const st of statements) await db.$executeRawUnsafe(st)
+    expect(await snapshot()).toEqual(expected)
   })
 })

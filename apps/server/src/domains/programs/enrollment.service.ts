@@ -168,9 +168,10 @@ export async function join(
     run: async () => {
       const { program, version } = await joinableVersion(userId, programId, input.programVersionId)
       if (input.groupId) {
-        const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: input.groupId, userId } }, include: { group: true } })
+        const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: input.groupId, userId } }, include: { group: { include: { version: { select: { programId: true } } } } } })
         if (!member || member.status !== 'ACTIVE' || member.group.status !== 'ACTIVE') throw badRequest('Join the group first', { groupId: 'not a member' })
-        if (member.group.programVersionId !== version.id) throw badRequest('This group follows a different version', { groupId: 'version mismatch' })
+        // Members of one group may follow different versions of its Program, never another Program.
+        if (member.group.version.programId !== version.programId) throw badRequest('This group follows a different program', { groupId: 'program mismatch' })
         // SYNC groups share one start date; ASYNC members choose their own and align by Program Day (10 §2).
         if (member.group.mode === 'SYNC' && member.group.startLocalDate && fromDbDate(member.group.startLocalDate) !== input.startLocalDate) {
           throw badRequest(`This group starts on ${fromDbDate(member.group.startLocalDate)}`, { startLocalDate: 'must match the group start date' })

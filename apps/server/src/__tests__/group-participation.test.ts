@@ -141,7 +141,7 @@ describe('an existing participant joining a group', () => {
     expect(await db.programEnrollment.count({ where: { userId: bob, programId } })).toBe(1)
   })
 
-  it('refuses to silently move an enrollment from another group or another version', async () => {
+  it('refuses to silently move an enrollment from another group, whatever its version', async () => {
     const { programId, versionId } = await program()
     const first = await group(versionId)
     await ok(bob, 'POST', `/group-invitations/${tokenOf(await inviteHandle(first.id, 'bob'))}/accept`, enrollment())
@@ -155,14 +155,15 @@ describe('an existing participant joining a group', () => {
     expect(await db.groupMember.count({ where: { groupId: second.id, userId: bob } })).toBe(0)
     expect((await db.programEnrollment.findFirstOrThrow({ where: { userId: bob, programId, status: 'ACTIVE' } })).groupId).toBe(first.id)
 
-    // A group on a newer version: Bob follows the old one.
+    // A group created on a newer version: versions no longer matter, the other group still does.
     let ws = await ok(alice, 'GET', `/programs/${programId}/workspace`)
     ws = await ok(alice, 'PATCH', `/programs/${programId}/draft`, { title: '30 Days v2', expectedRevision: ws.draftRevision })
     const v2 = (await ok(alice, 'POST', `/programs/${programId}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })).latestPublishedVersionId
     expect(v2).not.toBe(versionId)
-    const newer = await ok(alice, 'POST', '/groups', { programVersionId: v2, mode: 'SYNC', startLocalDate: '2026-11-16' })
-    const inv2 = await inviteHandle(newer.id, 'bob')
-    expect((await ok(bob, 'GET', `/group-invitations/${tokenOf(inv2)}`)).join.status).toBe('ENROLLED_OTHER_VERSION')
+    await ok(dave, 'POST', `/programs/${programId}/enrollments`, { programVersionId: v2, startLocalDate: '2026-11-16', timezone: TZ, idempotencyKey: key() })
+    const newer = await ok(dave, 'POST', '/groups', { programVersionId: v2, mode: 'SYNC', startLocalDate: '2026-11-16' })
+    const inv2 = await inviteHandle(newer.id, 'bob', dave)
+    expect((await ok(bob, 'GET', `/group-invitations/${tokenOf(inv2)}`)).join.status).toBe('LEAVE_OTHER_GROUP')
     expect((await http(bob, 'POST', `/group-invitations/${tokenOf(inv2)}/accept`, enrollment())).status).toBe(409)
     expect(await db.groupMember.count({ where: { groupId: newer.id, userId: bob } })).toBe(0)
   })

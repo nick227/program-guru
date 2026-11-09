@@ -139,7 +139,11 @@ export async function occurrence(userId: string, itemId: string) {
     const preJoin = new Set(
       memberItems.filter((i) => i.status === 'NOT_PARTICIPATING' || (i.enrollment?.participationStartDate && i.localDate < i.enrollment.participationStartDate)).map((i) => i.ownerId),
     )
-    const statuses = members.map((m) => {
+    // Members may follow different versions: only those whose calendar holds this same occurrence
+    // (same Activity on the same Program Day) are compared. Nobody reads as missing an Activity
+    // their version doesn't schedule. A share keeps its author in the row (pre-update history).
+    const scheduled = new Set([...memberItems.map((i) => i.ownerId), ...shares.map((s) => s.userId)])
+    const statuses = members.filter((m) => scheduled.has(m.userId)).map((m) => {
       const share = shares.find((s) => s.userId === m.userId)
       const counts = new Map<string, { count: number; mine: boolean }>()
       for (const r of share?.reactions ?? []) {
