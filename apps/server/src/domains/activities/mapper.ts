@@ -97,15 +97,24 @@ export function pickVisual<T extends VisualCandidate>(revisionAttachments: T[], 
 }
 
 export function summarizeRevision(rev: RevisionFull | null) {
-  if (!rev) return { instructionCount: 0, mediaCount: 0, metricLabels: [] as string[], thumbnailUrl: null as string | null }
+  if (!rev) return { instructionCount: 0, mediaCount: 0, metricLabels: [] as string[], thumbnailUrl: null as string | null, coverMedia: null }
   const allAttachments = [...rev.attachments, ...rev.instructions.flatMap((i) => i.attachments)]
   const visual = pickVisual(rev.attachments, allAttachments)
   const metricLabels = [...new Set([...rev.metrics, ...rev.instructions.flatMap((i) => i.metrics)].map((m) => m.metric.label))]
+  const vm = visual?.media
   return {
     instructionCount: rev.instructions.length,
     mediaCount: allAttachments.length,
     metricLabels,
     thumbnailUrl: visual ? mediaUrl(visual.media.id, 'thumb') : null,
+    coverMedia: vm && vm.state === 'READY' ? {
+      id: vm.id,
+      type: vm.type as 'PHOTO' | 'VIDEO',
+      thumbnailUrl: mediaUrl(vm.id, 'thumb'),
+      posterUrl: vm.type === 'VIDEO' ? mediaUrl(vm.id, 'poster') : mediaUrl(vm.id, 'original'),
+      playbackUrl: vm.type === 'VIDEO' ? mediaUrl(vm.id, 'stream') : null,
+      durationMs: vm.type === 'VIDEO' ? vm.durationMs : null,
+    } : null,
   }
 }
 

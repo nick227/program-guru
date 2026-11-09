@@ -20,7 +20,7 @@ Capture is valuable to the creator and to the user's private progress log; do no
 
 ### Identity media
 
-A Program's identity image is `Program.coverMediaId`; an Activity's is its revision's `COVER` attachment. Every surface resolves the image the same way: the selected identity image, then other eligible entity media (Activity `ILLUSTRATION`, then `DEMONSTRATION`), then a category fallback drawn from design tokens, then a neutral fallback. Fallbacks are presentation only and are never stored or added to a library. Choosing an identity image uses the library only (no capture); session capture attaches to the attempt. Seeded Activities use original, text-free CC0 illustrations; seeded Programs use curated CC0 photographs whose source, author and licence are recorded in `packages/db/prisma/platform-assets/manifest.json`.
+A Program's identity media is `Program.coverMediaId`; an Activity's is its revision's `COVER` attachment. Both `PHOTO` and `VIDEO` are supported for Program and Activity covers (user profile avatars remain photo-only). For video covers, the generated `POSTER` image serves as the visible background and the `STREAM` URL is used for playback when the user initiates Play. Every surface resolves the identity media the same way: the selected identity media, then other eligible entity media (Activity `ILLUSTRATION`, then `DEMONSTRATION`), then a category fallback drawn from design tokens, then a neutral fallback. Fallbacks are presentation only and are never stored or added to a library. Video covers and identity media never autoplay in heroes, cards, calendar tiles, or galleries. Choosing an identity image uses the library or upload (no capture); session capture attaches to the attempt. Seeded Activities use original, text-free CC0 illustrations; seeded Programs use curated CC0 photographs whose source, author and licence are recorded in `packages/db/prisma/platform-assets/manifest.json`.
 
 ### MediaAttachment referential integrity
 
@@ -89,6 +89,8 @@ A contribution may be rejected without deleting the submitter's source asset; cr
 ```ts
 interface MediaThumbDto { id:string; thumbnailUrl:string; type:'PHOTO'|'VIDEO'|'AUDIO';
   durationMs?:number|null; alt:string; canSelect:boolean; }
+interface MediaPresentationDto { id:string; type:'PHOTO'|'VIDEO'; thumbnailUrl:string;
+  posterUrl:string; playbackUrl?:string|null; durationMs?:number|null; }
 interface PublicMediaThumbDto extends MediaThumbDto { publicationId:string; creator:UserSummaryDto;
   likes:number; views:number; }
 interface RequestUploadDto { filename:string; mime:string; sizeBytes:number; checksum?:string; }

@@ -203,8 +203,8 @@ export async function create(userId: string, input: { programTypeId: string; foc
 
 async function assertCover(userId: string, mediaId: string) {
   const asset = await db.mediaAsset.findFirst({ where: { id: mediaId, deletedAt: null, OR: [{ ownerId: userId }, { ownerId: null }] } })
-  if (!asset || asset.type !== 'PHOTO') throw badRequest('Choose one of your images or a platform image', { coverMediaId: 'not found' })
-  if (asset.state !== 'READY') throw badRequest('That image is still processing', { coverMediaId: 'is not ready' })
+  if (!asset || (asset.type !== 'PHOTO' && asset.type !== 'VIDEO')) throw badRequest('Choose one of your media files or a platform media file', { coverMediaId: 'not found' })
+  if (asset.state !== 'READY') throw badRequest('That media is still processing', { coverMediaId: 'is not ready' })
 }
 
 export async function updateDraft(

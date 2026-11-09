@@ -146,7 +146,7 @@ export function VerifyEmailPage() {
           <Panel className="space-y-3">
             <p role="status">Your email is confirmed. You can now publish Programs and Activities.</p>
             <Link to={signedIn ? returnTo : '/login'} className="text-accent underline">
-              {signedIn ? 'Continue' : 'Sign in'}
+              {signedIn ? 'Proceed' : 'Sign in'}
             </Link>
           </Panel>
         </AuthShell>
@@ -201,7 +201,7 @@ export function VerifyEmailPage() {
         <Panel className="space-y-3">
           <p role="status">Your email is already confirmed.</p>
           <Link to={returnTo} className="text-accent underline">
-            Continue
+            Go to calendar
           </Link>
         </Panel>
       </AuthShell>

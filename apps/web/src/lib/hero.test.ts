@@ -25,8 +25,34 @@ describe('resolveHero', () => {
       src: '/activity.webp',
       category: 'fitness',
       alt: 'Strong',
+      media: null,
     })
     expect(programHero({ ...program, coverUrl: '/cover.jpg' }, slugOf, ['/activity.webp']).src).toBe('/cover.jpg')
+  })
+
+  it('programs with video covers preserve video presentation and posterUrl', () => {
+    const videoProgram = {
+      title: 'HIIT Blast',
+      coverUrl: '/poster.jpg',
+      coverMedia: {
+        id: 'video-1',
+        type: 'VIDEO' as const,
+        thumbnailUrl: '/thumb.jpg',
+        posterUrl: '/poster.jpg',
+        playbackUrl: '/stream.mp4',
+        durationMs: 45000,
+      },
+      type: { categoryId: 'cat-fit' },
+    }
+    const hero = programHero(videoProgram, slugOf)
+    expect(hero.src).toBe('/poster.jpg')
+    expect(hero.media).toEqual({
+      id: 'video-1',
+      type: 'VIDEO',
+      posterUrl: '/poster.jpg',
+      playbackUrl: '/stream.mp4',
+      durationMs: 45000,
+    })
   })
 
   it('activities use the server-resolved identity thumbnail and their category', () => {
@@ -34,6 +60,7 @@ describe('resolveHero', () => {
       src: null,
       category: 'custom',
       alt: 'Squats',
+      media: null,
     })
   })
 })

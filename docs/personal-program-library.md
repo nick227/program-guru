@@ -2,7 +2,9 @@
 
 ## Implemented surfaces
 
-`/library` is a media-led management table with Program, Status, Progress, Next Activity, Source, Updates and Actions. Search covers name, type and creator. Status filters cover All, Active, Not Started, Paused, Completed and Archived. Created by me excludes source copies. Sorts use actual last participation, name or occurrence completion ratio (unknown progress last).
+`/library` is a media-led management table with Program, Status, Progress, Next Activity, Source, Updates and Actions. Search covers name, type and creator. Status filters cover All, Active, Not Started, Paused and Completed.
+
+**Personal archiving is omitted from the UI for now** (product decision, 2026-11-09): there is no Archive/Restore action and no Archived Programs shelf. Entries with `archivedAt` set are hidden from the library. "Remove from Programs" still uses the API's `ARCHIVE` action underneath, so a removed Program just disappears. The API (`ARCHIVE`/`RESTORE`) and `ProgramLibraryState` are unchanged. Created by me excludes source copies. Sorts use actual last participation, name or occurrence completion ratio (unknown progress last).
 
 `/library?program=<id>` is the personal management surface: upcoming Activities, completion, consistency through yesterday, recorded timer time, activity history, pinned version, adjusted placements and selectable previous runs. It is separate from the public Program overview and editor.
 

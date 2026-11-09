@@ -78,53 +78,22 @@ test('Library browser keeps filters and cached content through discovery and par
   )
 })
 
-test('archived Programs stay reachable and Restore does not resume scheduling', async ({
+test('archived Programs are hidden and there is no archive shelf', async ({
   page,
 }) => {
   await mockApi(page)
-  const rows = libraryRows().slice(0, 1)
-  const first = rows[0]!
-  first.status = 'Archived'
-  first.current!.status = 'PAUSED'
-  const actions: string[] = []
+  const rows = libraryRows().slice(0, 2)
+  rows[0]!.status = 'Archived'
   await page.route('**/me/program-library', (route) =>
     route.fulfill({ json: { data: rows } }),
   )
-  await page.route('**/me/program-library/*', async (route) => {
-    actions.push(route.request().postDataJSON().action)
-    first.status = 'Paused'
-    return route.fulfill({ json: { data: first } })
-  })
-  await page.route('**/enrollments/run', async (route) => {
-    actions.push(route.request().postDataJSON().status)
-    first.status = 'Active'
-    first.current!.status = 'ACTIVE'
-    return route.fulfill({ json: { data: {} } })
-  })
   await login(page, 'author@test.local', 'password')
   await page.goto('/library')
-  await page.getByRole('button', { name: 'Archived Programs (1)' }).click()
-  await page.getByRole('link', { name: 'View', exact: true }).click()
-  await expect(
-    page.getByText(/Its schedule will stay paused until you choose Resume/),
-  ).toBeVisible()
-  await page.getByLabel('Manage Strength, with intention').click()
-  await expect(
-    page.getByText(/Its schedule stays paused until you choose Resume/),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Restore to library' }).click()
-  await expect(
-    page.getByRole('button', { name: 'Resume', exact: true }),
-  ).toBeVisible()
-  expect(actions).toEqual(['RESTORE'])
-  await expect(
-    page.getByText(/Restored to Library. Your schedule is still paused/),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Resume', exact: true }).click()
-  await expect(
-    page.getByRole('link', { name: 'Continue', exact: true }),
-  ).toBeVisible()
-  expect(actions).toEqual(['RESTORE', 'ACTIVE'])
+  await expect(page.getByText(rows[1]!.program.title).first()).toBeVisible()
+  await expect(page.getByText(rows[0]!.program.title)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Archived Programs/ })).toHaveCount(0)
+  await page.getByLabel(`Manage ${rows[1]!.program.title}`).click()
+  await expect(page.getByRole('button', { name: /Archive personally|Restore to library/ })).toHaveCount(0)
 })
 
 test('shared hero renders covers and recovers from failed images', async ({

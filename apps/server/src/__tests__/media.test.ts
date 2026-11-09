@@ -224,6 +224,45 @@ describe('durable attachment intent & inbound reliability', () => {
     // Workspace now returns the cover
     currentWs = (await req('GET', `/programs/${ws.id}/workspace`)).json().data
     expect(currentWs.coverUrl).not.toBeNull()
+    expect(currentWs.coverMedia).toBeDefined()
+    expect(currentWs.coverMedia.type).toBe('PHOTO')
+    expect(currentWs.coverMedia.posterUrl).toBe(currentWs.coverUrl)
+    expect(currentWs.coverMedia.playbackUrl).toBeNull()
+  })
+
+  it('1b. Video Program cover upload -> READY -> coverMedia with poster and playback stream', async () => {
+    const ws = (await req('POST', '/programs', { programTypeId: cat.workout.id })).json().data
+    expect(ws.coverUrl).toBeNull()
+
+    // Video upload with purpose COVER
+    const t = await uploadWithTarget(MP4, 'video/mp4', testUserId, { kind: 'PROGRAM', id: ws.id }, 'COVER')
+    const completed = await req('POST', `/media/uploads/${t.uploadId}/complete`)
+    expect(completed.statusCode).toBe(200)
+
+    await drain()
+
+    expect((await db.mediaAsset.findUniqueOrThrow({ where: { id: t.mediaId } })).state).toBe('READY')
+    const updatedProgram = await db.program.findUniqueOrThrow({ where: { id: ws.id } })
+    expect(updatedProgram.coverMediaId).toBe(t.mediaId)
+
+    const currentWs = (await req('GET', `/programs/${ws.id}/workspace`)).json().data
+    expect(currentWs.coverUrl).toContain('/poster')
+    expect(currentWs.coverMedia).toBeDefined()
+    expect(currentWs.coverMedia.type).toBe('VIDEO')
+    expect(currentWs.coverMedia.posterUrl).toContain('/poster')
+    expect(currentWs.coverMedia.playbackUrl).toContain('/stream')
+    expect(currentWs.coverMedia.thumbnailUrl).toContain('/thumb')
+    expect(typeof currentWs.coverMedia.durationMs).toBe('number')
+
+    // Avatars remain photo-only
+    const avatarRes = await req('POST', '/media/uploads', {
+      filename: 'avatar.mp4',
+      mime: 'video/mp4',
+      sizeBytes: MP4.length,
+      target: { kind: 'PROFILE', id: testUserId },
+      purpose: 'AVATAR',
+    })
+    expect(avatarRes.statusCode).toBe(400)
   })
 
   it('2. Replace a pending cover -> previous upload completes late -> replacement remains', async () => {

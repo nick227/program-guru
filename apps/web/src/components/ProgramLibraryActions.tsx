@@ -18,8 +18,6 @@ import type { PersonalProgram } from '@/lib/programLibrary'
 
 type Action =
   | 'REMOVE_LIBRARY'
-  | 'ARCHIVE'
-  | 'RESTORE'
   | 'RESTART'
   | 'REMOVE'
   | 'ACTIVE'
@@ -60,7 +58,7 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
         await manage.mutateAsync({
           programId: p.id,
           expectedRunId: r?.id,
-          action: action as 'ARCHIVE' | 'RESTORE' | 'RESTART',
+          action: 'RESTART',
         })
       }
       setConfirm(null)
@@ -68,11 +66,6 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
       const messages: Record<Action, string> = {
         REMOVE_LIBRARY:
           'Program removed from your library. Completed results are preserved.',
-        ARCHIVE: 'Archived. Future unstarted Activities are paused.',
-        RESTORE:
-          r?.status === 'PAUSED'
-            ? 'Restored to Library. Your schedule is still paused; choose Resume when ready.'
-            : 'Restored to Library',
         RESTART: 'New run started',
         REMOVE:
           'Future Activities removed. Your Program and history are preserved.',
@@ -92,25 +85,6 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
   }
   return (
     <div className="library-actions">
-      {primary.label === 'Resume' ? (
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => void run('ACTIVE')}
-        >
-          Resume
-        </Button>
-      ) : (
-        <Link
-          className="library-open"
-          to={primary.href!}
-          onPointerEnter={warmStart}
-          onFocus={warmStart}
-        >
-          {primary.label}
-          <ArrowUpRight size={14} />
-        </Link>
-      )}
       <details
         ref={menu}
         className="library-menu"
@@ -156,48 +130,27 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
               Customize a copy
             </button>
           )}
-          {entry.status !== 'Archived' && r?.status === 'ACTIVE' && (
+          {r?.status === 'ACTIVE' && (
             <button disabled={busy} onClick={() => void run('PAUSED')}>
               Pause schedule
             </button>
           )}
-          {entry.status !== 'Archived' &&
-            r &&
-            ['ACTIVE', 'PAUSED'].includes(r.status) && (
-              <button disabled={busy} onClick={() => setConfirm('REMOVE')}>
-                Remove from Calendar
-              </button>
-            )}
+          {r && ['ACTIVE', 'PAUSED'].includes(r.status) && (
+            <button disabled={busy} onClick={() => setConfirm('REMOVE')}>
+              Remove from Calendar
+            </button>
+          )}
           {r && entry.publicationStatus === 'PUBLISHED' && (
             <button disabled={busy} onClick={() => setConfirm('RESTART')}>
               Restart as a new run
             </button>
           )}
-          {entry.status !== 'Archived' && (
-            <button
-              className="text-danger"
-              disabled={busy}
-              onClick={() => setConfirm('REMOVE_LIBRARY')}
-            >
-              Remove from Programs
-            </button>
-          )}
-          <p className="library-menu-note">
-            {entry.status === 'Archived'
-              ? r?.status === 'PAUSED'
-                ? 'Restore returns this Program to your library. Its schedule stays paused until you choose Resume.'
-                : 'Restore returns this Program to your library.'
-              : 'Archiving pauses future unstarted Activities and keeps your history.'}
-          </p>
           <button
+            className="text-danger"
             disabled={busy}
-            onClick={() =>
-              void run(entry.status === 'Archived' ? 'RESTORE' : 'ARCHIVE')
-            }
+            onClick={() => setConfirm('REMOVE_LIBRARY')}
           >
-            {entry.status === 'Archived'
-              ? 'Restore to library'
-              : 'Archive personally'}
+            Remove from Programs
           </button>
         </div>
       </details>
@@ -226,7 +179,7 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
               {confirm === 'RESTART'
                 ? 'A new independent run will use the same published version. Personal schedule changes will remain with your earlier run.'
                 : confirm === 'REMOVE_LIBRARY'
-                  ? 'Future unstarted Activities will leave your Calendar and the Program will move to Archived Programs. The source Program is not deleted.'
+                  ? 'Future unstarted Activities will leave your Calendar and the Program will leave your library. The source Program is not deleted.'
                   : 'Future unstarted Activities will leave your Calendar. Your Program stays in your library.'}{' '}
               Completed results and earlier history are preserved.
             </p>

@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { EntityHero } from '@/components/EntityHero'
+import { MediaViewer } from './MediaViewer'
 import type { Hero } from '@/lib/hero'
 import { buildProfileUrl } from '@/lib/urls'
 import { cn } from '@/lib/utils'
@@ -69,6 +70,7 @@ export function ProgramHero({
   className,
 }: ProgramHeroProps) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [watching, setWatching] = useState(false)
 
   const handleShare = async () => {
     setMenuOpen(false)
@@ -200,6 +202,17 @@ export function ProgramHero({
               <span>Do this together</span>
             </Button>
           )}
+          {hero.media?.type === 'VIDEO' && (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setWatching(true)}
+              className={cn('gap-2 px-5 font-semibold', glass)}
+            >
+              <Play size={16} className="fill-current translate-x-0.5" />
+              <span>Watch preview</span>
+            </Button>
+          )}
           {isOwner && onEditProgram && (
             <Button
               variant="outline"
@@ -239,6 +252,22 @@ export function ProgramHero({
           </div>
         </div>
       </div>
+      {watching && hero.media && (
+        <MediaViewer
+          items={[
+            {
+              id: hero.media.id,
+              url: hero.media.playbackUrl ?? hero.src ?? '',
+              type: 'VIDEO',
+              alt: `${title} preview`,
+              credit: creator?.displayName ?? undefined,
+            },
+          ]}
+          index={0}
+          onIndex={() => {}}
+          onClose={() => setWatching(false)}
+        />
+      )}
     </section>
   )
 }

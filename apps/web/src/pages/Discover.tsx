@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import { useProgramLibrary } from '@project/sdk'
-import { Search, Plus, ArrowUpRight, BookOpen, ArrowLeft } from 'lucide-react'
+import { Search, Plus, ArrowUpRight, BookOpen, ArrowLeft, ChevronLeft, Calendar } from 'lucide-react'
 import { ProgramLibraryActions as Actions } from '@/components/ProgramLibraryActions'
 import { ProgramPeople } from '@/components/ProgramPeople'
 import { Page } from '@/components/ui/Layout'
@@ -60,26 +60,33 @@ export function LibraryPage() {
       ),
   }
 
-  const rows = library.data ?? []
-  const archivedCount = rows.filter((r) => r.status === 'Archived').length
+  // Personal archiving is omitted for now: archived entries (also what
+  // "Remove from Programs" produces) simply don't appear in the library.
+  const rows = (library.data ?? []).filter((r) => r.status !== 'Archived')
   const selected = rows.find((r) => r.program.id === params.get('program'))
   const filtered = selectPrograms(rows, query, status, owned, sort)
   return (
     <Page className="page--wide program-library">
       <header className="library-heading">
-        <div>
+        <div className="flex gap-3">
           <h1>
             My Programs
             <span className="library-count">
               {library.data ? rows.length : '—'}
             </span>
           </h1>
-          <p className="library-lede">
-            Make room for what you want to keep doing.
-          </p>
         </div>
         <div className="library-heading-actions">
-          <Button onClick={browser.open}>
+          
+          <Button
+            onClick={() => navigate('/')}
+            variant="outline"
+          >
+            <Calendar size={16} /> Calendar
+          </Button>
+          <Button onClick={browser.open}
+            variant="outline"
+          >
             <Search size={16} /> Browse Programs
           </Button>
           <Link
@@ -149,7 +156,7 @@ export function LibraryPage() {
                 {s}
                 <span className="filter-tabs__count">
                   {s === 'All'
-                    ? rows.length - archivedCount
+                    ? rows.length
                     : rows.filter((r) => r.status === s).length}
                 </span>
               </button>
@@ -168,6 +175,7 @@ export function LibraryPage() {
                       'People',
                       'Next Activity',
                       'Source',
+                      'Privacy',
                       'Actions',
                     ].map((h) => (
                       <th key={h} scope="col" data-label={h}>
@@ -207,18 +215,6 @@ export function LibraryPage() {
               }
             />
           )}
-          {archivedCount > 0 && (
-            <button
-              className="library-archive-link"
-              onClick={() =>
-                setStatus(status === 'Archived' ? 'All' : 'Archived')
-              }
-            >
-              {status === 'Archived'
-                ? 'Back to current Programs'
-                : `Archived Programs (${archivedCount})`}
-            </button>
-          )}
           <p className="library-footnote">
             {filtered.length} {filtered.length === 1 ? 'Program' : 'Programs'} ·
             Progress reflects eligible Calendar occurrences. Ongoing schedules
@@ -237,20 +233,11 @@ function Progress({ entry }: { entry: PersonalProgram }) {
   const r = entry.current
   return r?.planned ? (
     <div className="library-progress">
-      <span>
-        <strong>{r.completed}</strong> / {r.planned}
-        <small> occurrences</small>
-      </span>
       <progress
         aria-label={`${entry.program.title} completed occurrences`}
         value={r.completed}
         max={r.planned}
       />
-      <small>
-        {r.durationDays === null
-          ? 'Generated schedule'
-          : 'Scheduled occurrences'}
-      </small>
     </div>
   ) : (
     <span className="text-muted">
@@ -291,16 +278,6 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
                 />
               )}
             </strong>
-            <span>
-              <span className="library-meta-type">{p.type.label} · </span>
-              {[
-                p.durationDays ? `${p.durationDays} days` : 'Ongoing',
-                p.frequencyLabel ?? 'Schedule not set',
-                r?.status === 'ACTIVE' ? `Week ${r.week}` : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </span>
           </div>
         </Link>
       </td>
@@ -320,20 +297,30 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
         {next ? (
           <Link to={`/occurrences/${next.id}`} className="library-next">
             <strong>{next.title}</strong>
-            <span>
-              {next.date}
-              {next.time ? ` · ${next.time}` : ''}
-            </span>
           </Link>
         ) : (
           <span className="text-muted">
-            {entry.status === 'Paused' || entry.status === 'Archived'
+            {entry.status === 'Paused'
               ? 'Schedule paused'
               : 'Nothing scheduled'}
           </span>
         )}
       </td>
       <td data-label="Source">
+        <div className="library-source">
+          <strong>
+            {entry.owned
+              ? entry.sourceVersionId
+                ? 'Customized by you'
+                : 'Created by you'
+              : (p.creator?.displayName ?? 'Programs')}
+          </strong>
+          <span>
+            {entry.owned ? p.visibility.toLowerCase() : 'Joined Program'}
+          </span>
+        </div>
+      </td>
+      <td data-label="Privacy">
         <div className="library-source">
           <strong>
             {entry.owned
@@ -378,15 +365,6 @@ function ProgramDetails({
         </div>
         <Actions entry={entry} />
       </div>
-      {entry.status === 'Archived' && (
-        <p className="library-lifecycle-note" role="status">
-          This Program is archived. Restore it from the management menu to
-          return it to your library.
-          {entry.current?.status === 'PAUSED'
-            ? ' Its schedule will stay paused until you choose Resume.'
-            : ''}
-        </p>
-      )}
       {entry.runs.length > 1 && (
         <label className="library-run-selector">
           <span>Viewing run</span>
@@ -441,9 +419,7 @@ function ProgramDetails({
       <div className="library-detail-grid">
         <section>
           <h3>Upcoming Activities</h3>
-          {r?.upcoming.length &&
-          entry.status !== 'Paused' &&
-          entry.status !== 'Archived' ? (
+          {r?.upcoming.length && entry.status !== 'Paused' ? (
             r.upcoming.map((a) => (
               <Link
                 className="library-activity"
@@ -463,7 +439,7 @@ function ProgramDetails({
             ))
           ) : (
             <p className="text-muted">
-              {entry.status === 'Paused' || entry.status === 'Archived'
+              {entry.status === 'Paused'
                 ? 'Your schedule is paused. Resume to restore future Activities.'
                 : 'No upcoming Activities.'}
             </p>

@@ -75,7 +75,7 @@ export function ActivitiesStep({
           className="h-11 px-8 font-semibold"
           onClick={onContinue}
         >
-          Continue
+          Go
         </Button>
       </Row>
     </Stack>

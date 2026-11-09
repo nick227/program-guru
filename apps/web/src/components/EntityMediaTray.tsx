@@ -2,7 +2,7 @@ import { useOnline } from '@/lib/useOnline'
 import { useActivityMedia, useProgramMedia } from '@/lib/useEntityMedia'
 import { MediaTray } from './MediaTray'
 
-/** Program cover: one image, replaced by adding another, removed inline. */
+/** Program cover: one photo or video, replaced by adding another, removed inline. */
 export function ProgramMediaTray({
   program,
   disabled = false,
@@ -15,7 +15,7 @@ export function ProgramMediaTray({
   return (
     <MediaTray
       label="Program cover"
-      accept="image"
+      accept="media"
       multiple={false}
       items={media.items}
       onAdd={media.add}

@@ -187,10 +187,10 @@ export function ProgramCreatePage() {
           <Stack className="gap-5">
 
             <div className="field">
-              <span className="label font-semibold">Cover image</span>
+              <span className="label font-semibold">Cover media</span>
               <MediaTray
                 label="Program cover"
-                accept="image"
+                accept="media"
                 multiple={false}
                 items={cover.items}
                 onAdd={cover.add}
@@ -219,8 +219,8 @@ export function ProgramCreatePage() {
                 onClick={() => void continueToWorkspace()}
               >
                 {!me.data
-                  ? 'Sign in to continue'
-                  : 'Continue'}
+                  ? 'Sign in'
+                  : 'Next'}
               </Button>
             </div>
 

@@ -2792,6 +2792,16 @@ export interface components {
             categoryId: string;
             label: string;
         };
+        /** @description Consistent media presentation contract for photo and video. */
+        MediaPresentation: {
+            /** Format: uuid */
+            id: string;
+            type: components["schemas"]["MediaType"];
+            thumbnailUrl: string | null;
+            posterUrl: string | null;
+            playbackUrl?: string | null;
+            durationMs?: number | null;
+        };
         MediaThumb: {
             /** Format: uuid */
             id: string;
@@ -2844,6 +2854,7 @@ export interface components {
             categoryId: string;
             focusIds: string[];
             thumbnailUrl: string | null;
+            coverMedia?: components["schemas"]["MediaPresentation"] | null;
             instructionCount: number;
             mediaCount: number;
             metricLabels: string[];
@@ -2900,6 +2911,7 @@ export interface components {
             categoryId: string;
             focusIds: string[];
             thumbnailUrl: string | null;
+            coverMedia?: components["schemas"]["MediaPresentation"] | null;
             instructionCount: number;
             mediaCount: number;
             metricLabels: string[];
@@ -3009,6 +3021,7 @@ export interface components {
             focus: components["schemas"]["Focus"] | null;
             creator: components["schemas"]["UserSummary"] | null;
             coverUrl: string | null;
+            coverMedia?: components["schemas"]["MediaPresentation"] | null;
             durationDays: number | null;
             programDays: number | null;
             placements: number | null;
@@ -3052,6 +3065,7 @@ export interface components {
             focus: components["schemas"]["Focus"] | null;
             creator: components["schemas"]["UserSummary"] | null;
             coverUrl: string | null;
+            coverMedia?: components["schemas"]["MediaPresentation"] | null;
             durationDays: number | null;
             programDays: number | null;
             placements: number | null;
@@ -3091,6 +3105,7 @@ export interface components {
             focus: components["schemas"]["Focus"] | null;
             creator: components["schemas"]["UserSummary"] | null;
             coverUrl: string | null;
+            coverMedia?: components["schemas"]["MediaPresentation"] | null;
             durationDays: number | null;
             programDays: number | null;
             placements: number | null;

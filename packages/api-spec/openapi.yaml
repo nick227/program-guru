@@ -6913,6 +6913,36 @@ components:
           minLength: 1
           maxLength: 80
       additionalProperties: false
+    MediaPresentation:
+      type: object
+      description: Consistent media presentation contract for photo and video.
+      required:
+      - id
+      - type
+      - thumbnailUrl
+      - posterUrl
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/MediaType'
+        thumbnailUrl:
+          type:
+          - string
+          - 'null'
+        posterUrl:
+          type:
+          - string
+          - 'null'
+        playbackUrl:
+          type:
+          - string
+          - 'null'
+        durationMs:
+          type:
+          - integer
+          - 'null'
     MediaThumb:
       type: object
       required:
@@ -7086,6 +7116,10 @@ components:
           type:
           - string
           - 'null'
+        coverMedia:
+          anyOf:
+          - $ref: '#/components/schemas/MediaPresentation'
+          - type: 'null'
         instructionCount:
           type: integer
         mediaCount:
@@ -7266,6 +7300,10 @@ components:
           type:
           - string
           - 'null'
+        coverMedia:
+          anyOf:
+          - $ref: '#/components/schemas/MediaPresentation'
+          - type: 'null'
         instructionCount:
           type: integer
         mediaCount:
@@ -7581,6 +7619,10 @@ components:
           type:
           - string
           - 'null'
+        coverMedia:
+          anyOf:
+          - $ref: '#/components/schemas/MediaPresentation'
+          - type: 'null'
         durationDays:
           type:
           - integer
@@ -7731,6 +7773,10 @@ components:
           type:
           - string
           - 'null'
+        coverMedia:
+          anyOf:
+          - $ref: '#/components/schemas/MediaPresentation'
+          - type: 'null'
         durationDays:
           type:
           - integer
@@ -7866,6 +7912,10 @@ components:
           type:
           - string
           - 'null'
+        coverMedia:
+          anyOf:
+          - $ref: '#/components/schemas/MediaPresentation'
+          - type: 'null'
         durationDays:
           type:
           - integer

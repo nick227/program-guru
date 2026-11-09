@@ -148,6 +148,7 @@ export function useProgramMedia(ws: {
   id: string
   draftRevision: number
   coverUrl: string | null
+  coverMedia?: components['schemas']['MediaPresentation'] | null
   title?: string
 }): EntityMedia {
   const cache = useQueryClient()
@@ -208,8 +209,8 @@ export function useProgramMedia(ws: {
   } else if (ws.coverUrl)
     item = {
       key: `cover-${ws.coverUrl}`,
-      src: ws.coverUrl,
-      type: 'PHOTO',
+      src: ws.coverMedia?.posterUrl ?? ws.coverUrl,
+      type: ws.coverMedia?.type ?? 'PHOTO',
       alt: ws.title ? `${ws.title} cover` : 'Program cover',
       status: 'ready',
       remove: () => setCover(null),

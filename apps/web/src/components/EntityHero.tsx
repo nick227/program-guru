@@ -1,6 +1,8 @@
 import { useState, type CSSProperties } from 'react'
+import { Play } from 'lucide-react'
 import { useCategories } from '@project/sdk'
 import type { CategorySlugOf, Hero } from '@/lib/hero'
+import { MediaViewer } from './MediaViewer'
 import { cn } from '@/lib/utils'
 import { CategoryIcon } from './CategoryIcon'
 
@@ -25,25 +27,30 @@ const ICON_SIZES = {
 } as const
 
 /**
- * Render-only identity image. Missing or failing images show the category
- * fallback, drawn from design tokens, so there is never a broken image.
- * Decorative: consumers render the entity title next to it.
+ * Render-only identity image with optional video play affordance.
+ * Missing or failing images show the category fallback, drawn from design
+ * tokens, so there is never a broken image.
  */
 export function EntityHero({
   hero,
   size = 'card',
   className,
+  onPlay,
 }: {
   hero: Hero
   size?: keyof typeof SIZES
   className?: string
+  onPlay?: () => void
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const [viewerOpen, setViewerOpen] = useState(false)
   const showImage = !!hero.src && failedSrc !== hero.src
   const tone = `var(--cat-${hero.category}, var(--color-accent))`
+  const isVideo = hero.media?.type === 'VIDEO' && showImage
+
   return (
     <div
-      aria-hidden
+      aria-hidden={!isVideo ? true : undefined}
       style={
         !showImage
           ? ({
@@ -75,6 +82,59 @@ export function EntityHero({
           decoding="async"
           onError={() => setFailedSrc(hero.src)}
           className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+      {isVideo && (
+        <button
+          type="button"
+          aria-label={`Play ${hero.alt || 'video'}`}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (onPlay) {
+              onPlay()
+            } else {
+              setViewerOpen(true)
+            }
+          }}
+          className={cn(
+            'absolute inset-0 z-10 flex items-center justify-center transition-colors',
+            size === 'thumb' || size === 'row'
+              ? 'p-1'
+              : 'bg-black/25 hover:bg-black/40',
+          )}
+        >
+          <span
+            className={cn(
+              'flex items-center justify-center rounded-full bg-black/75 text-white shadow-md transition-transform hover:scale-110',
+              size === 'thumb'
+                ? 'h-6 w-6'
+                : size === 'row'
+                  ? 'h-7 w-7'
+                  : 'h-11 w-11 sm:h-12 sm:w-12',
+            )}
+          >
+            <Play
+              size={size === 'thumb' ? 12 : size === 'row' ? 14 : 20}
+              className="fill-current translate-x-0.5"
+              aria-hidden
+            />
+          </span>
+        </button>
+      )}
+      {viewerOpen && hero.media && (
+        <MediaViewer
+          items={[
+            {
+              id: hero.media.id,
+              url: hero.media.playbackUrl ?? hero.src ?? '',
+              type: 'VIDEO',
+              alt: hero.alt,
+            },
+          ]}
+          index={0}
+          onIndex={() => {}}
+          onClose={() => setViewerOpen(false)}
         />
       )}
     </div>

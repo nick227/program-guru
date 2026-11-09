@@ -11,6 +11,7 @@ export const programInclude = {
   policy: true,
   prices: { where: { active: true }, orderBy: { kind: 'asc' } },
   latestPublished: true,
+  coverMedia: true,
 } satisfies Prisma.ProgramInclude
 
 export type ProgramFull = Prisma.ProgramGetPayload<{ include: typeof programInclude }>
@@ -36,7 +37,25 @@ export function toProgramSummary(p: ProgramFull, viewerAccess: ViewerAccess, ver
     type: toProgramType(p.programType),
     focus: p.focus ? { id: p.focus.id, categoryId: p.focus.categoryId, slug: p.focus.slug, label: p.focus.label } : null,
     creator: p.creator?.profile ? toUserSummary(p.creator.profile) : null,
-    coverUrl: mediaUrl(p.coverMediaId, 'original'),
+    coverUrl: p.coverMediaId
+      ? p.coverMedia?.type === 'VIDEO'
+        ? mediaUrl(p.coverMediaId, 'poster')
+        : mediaUrl(p.coverMediaId, 'original')
+      : null,
+    coverMedia: p.coverMediaId && p.coverMedia && p.coverMedia.state === 'READY'
+      ? {
+          id: p.coverMedia.id,
+          type: p.coverMedia.type as 'PHOTO' | 'VIDEO',
+          thumbnailUrl: mediaUrl(p.coverMedia.id, 'thumb'),
+          posterUrl: p.coverMedia.type === 'VIDEO'
+            ? mediaUrl(p.coverMedia.id, 'poster')
+            : mediaUrl(p.coverMedia.id, 'original'),
+          playbackUrl: p.coverMedia.type === 'VIDEO'
+            ? mediaUrl(p.coverMedia.id, 'stream')
+            : null,
+          durationMs: p.coverMedia.type === 'VIDEO' ? p.coverMedia.durationMs : null,
+        }
+      : null,
     durationDays: version?.durationDays ?? null,
     programDays: version ? version.programDayCount : null,
     placements: version ? version.placementCount : null,

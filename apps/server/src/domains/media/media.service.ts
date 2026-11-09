@@ -176,7 +176,9 @@ export async function fileForDelivery(mediaId: string, variant: MediaVariantName
   // "original" for a user's photo is the metadata-stripped WEB rendition: raw uploads (with EXIF and
   // GPS) are never served. Only rights-cleared platform assets without variants fall back to the file.
   const kind = variant === 'original' && m.type === 'PHOTO' ? 'WEB' : variant === 'original' && m.type === 'AUDIO' ? 'STREAM' : variant.toUpperCase()
-  const wanted = m.variants.find((v) => v.kind === kind) ?? (variant === 'thumb' ? m.variants.find((v) => v.kind === 'POSTER') : undefined)
+  const wanted = m.variants.find((v) => v.kind === kind) ??
+    (variant === 'thumb' ? m.variants.find((v) => v.kind === 'POSTER') : undefined) ??
+    (variant === 'poster' && m.type === 'PHOTO' ? m.variants.find((v) => v.kind === 'WEB') : undefined)
   const fallback = m.ownerId === null ? { storageKey: m.originalStorageKey, mime: m.mime } : null
   const file = wanted ? { storageKey: wanted.storageKey, mime: wanted.mime } : fallback
   if (!file) throw notFound('Media')
@@ -293,8 +295,11 @@ export async function createUpload(
   if (input.sizeBytes > LIMITS[type]) throw badRequest(`Files up to ${Math.round(LIMITS[type] / MB)} MB`, { sizeBytes: 'too large' })
 
   if (input.purpose) {
-    if ((input.purpose === 'COVER' || input.purpose === 'AVATAR') && type !== 'PHOTO') {
-      throw badRequest('Cover and avatar media must be a photo', { purpose: 'must be photo' })
+    if (input.purpose === 'AVATAR' && type !== 'PHOTO') {
+      throw badRequest('Avatar media must be a photo', { purpose: 'must be photo' })
+    }
+    if (input.purpose === 'COVER' && type !== 'PHOTO' && type !== 'VIDEO') {
+      throw badRequest('Cover media must be a photo or video', { purpose: 'must be photo or video' })
     }
   }
 

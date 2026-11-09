@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Play } from 'lucide-react'
 import type { components } from '@project/sdk'
 import { Button } from './ui/Button'
 import { Grid } from './ui/Layout'
@@ -38,13 +39,20 @@ export function MediaItem({
       {asset.type !== 'AUDIO' &&
       asset.thumbnailUrl &&
       failedUrl !== asset.thumbnailUrl ? (
-        <img
-          loading="lazy"
-          onError={() => setFailedUrl(asset.thumbnailUrl ?? null)}
-          src={asset.thumbnailUrl}
-          alt=""
-          className="aspect-square w-full rounded object-cover"
-        />
+        <div className="relative aspect-square w-full">
+          <img
+            loading="lazy"
+            onError={() => setFailedUrl(asset.thumbnailUrl ?? null)}
+            src={asset.thumbnailUrl}
+            alt=""
+            className="h-full w-full rounded object-cover"
+          />
+          {asset.type === 'VIDEO' && (
+            <span className="absolute bottom-1.5 left-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white">
+              <Play size={12} className="fill-current translate-x-0.5" aria-hidden />
+            </span>
+          )}
+        </div>
       ) : (
         <span className="flex aspect-square w-full items-center justify-center text-xs">
           {asset.type || 'Media'}
