@@ -210,5 +210,7 @@ Done in `79bd86e` (server/API) and `5e9e7d7` (web). The dev database has `202611
 ### Open issues
 
 - ~~Restarting drops the group link~~: resolved. A restart links the new run to the existing membership (10 §3); see `restart-group.test.ts`.
-- **`journey.spec.ts` is out of date.** It still uses the pre-redesign Program creation flow ("Continue to customize", "You have unsaved changes.") and fails in 6 tests on desktop and mobile. `program-editor.spec.ts` on mobile is flaky.
+- **`journey.spec.ts` is out of date (owner: Program editor).** It still expects the retired creation flow ("Continue to customize", "You have unsaved changes.", "Instructions (optional)", "Change image") and fails 6 tests on desktop and mobile, including the full author-to-participant journey. Update it to the approved three-step flow (Details → Activities → Publish & Share) and restore that journey: author creates and publishes, another user joins, records, finishes and undoes.
+- **The editor shows unsaved Activity metadata (owner: Program editor).** Every Activity row in `ProgramWorkspace.tsx` shows "30 min · 3x / week". These are local `useState` defaults that are never saved, and the New Activity form doesn't send them either. Remove the values, or wire them to persisted data. Activity frequency must not be invented separately from Program scheduling, which already owns frequency and placements.
+- ~~`program-editor.spec.ts` on mobile is flaky~~: resolved in `76108ee`. A toast covered the Publish button on phones; toasts now appear under the header there.
 - ~~Leaving without a body returns 500~~: resolved. Any route whose JSON body has required fields now answers a missing body with `400 VALIDATION_ERROR` (`app.ts` `onRoute`).
