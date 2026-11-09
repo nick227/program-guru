@@ -15,6 +15,37 @@ export function occurrenceKey(versionId: string, scheduleItemId: string, cycleIn
 }
 
 /**
+ * 07 §6: after accepting an update, the participant's done, in-progress, moved and removed items
+ * from the earlier version stay. Each one already fills its (Activity, Program Day) slot, so the new
+ * version must not add a second copy beside it. Matched by count, since a Program Day may hold the
+ * same Activity more than once. Items of the version being materialized are deduplicated by their
+ * idempotency keys instead.
+ */
+async function dropSlotsKeptFromOtherVersions(tx: Tx, enrollmentId: string, items: Item[], rows: Prisma.CalendarItemCreateManyInput[]) {
+  if (!rows.length) return
+  const days = [...new Set(rows.map((r) => r.programDayIndex!))]
+  const kept = await tx.calendarItem.findMany({
+    where: {
+      enrollmentId,
+      programDayIndex: { in: days },
+      OR: [{ sourceScheduleItemId: null }, { sourceScheduleItemId: { notIn: items.map((i) => i.id) } }],
+    },
+    select: { activityId: true, programDayIndex: true },
+  })
+  if (!kept.length) return
+  const occupied = new Map<string, number>()
+  for (const k of kept) occupied.set(`${k.activityId}:${k.programDayIndex}`, (occupied.get(`${k.activityId}:${k.programDayIndex}`) ?? 0) + 1)
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const slot = `${rows[i]!.activityId}:${rows[i]!.programDayIndex}`
+    const n = occupied.get(slot) ?? 0
+    if (n > 0) {
+      occupied.set(slot, n - 1)
+      rows.splice(i, 1)
+    }
+  }
+}
+
+/**
  * Creates Calendar Items for an enrollment between `from` and `through` (inclusive local dates).
  * Each placement becomes its own item with independent status, sessions, and results.
  */
@@ -55,6 +86,7 @@ export async function materializeEnrollment(
     }
     if (finite) break
   }
+  await dropSlotsKeptFromOtherVersions(tx, e.id, items, rows)
   const created = rows.length ? (await tx.calendarItem.createMany({ data: rows, skipDuplicates: true })).count : 0
   const end = finite ? addDays(start, cycle - 1) : window.through
   await tx.programEnrollment.update({
