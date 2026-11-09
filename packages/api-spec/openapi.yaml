@@ -40,6 +40,90 @@ tags:
 - name: moderation
   description: Reports and moderator actions
 paths:
+  /me/program-library:
+    get:
+      summary: List personal Program management projections
+      operationId: getPersonalProgramLibrary
+      tags:
+        - programs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PersonalProgram'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /me/program-library/{programId}:
+    post:
+      summary: Archive, restore or restart a personal Program
+      operationId: managePersonalProgram
+      tags:
+        - programs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: programId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - action
+              properties:
+                action:
+                  type: string
+                  enum:
+                    - ARCHIVE
+                    - RESTORE
+                    - RESTART
+                expectedRunId:
+                  type: string
+                  format: uuid
+                  description: Required for restart; rejects retries against a superseded run.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PersonalProgram'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /auth/register:
     post:
       operationId: register
@@ -8157,6 +8241,140 @@ components:
           items:
             $ref: '#/components/schemas/SetPriceInput'
       additionalProperties: false
+    PersonalProgramActivity:
+      type: object
+      required:
+        - id
+        - title
+        - date
+        - time
+        - status
+        - adjusted
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        date:
+          type: string
+        time:
+          type:
+            - string
+            - 'null'
+        status:
+          type: string
+        adjusted:
+          type: boolean
+    PersonalProgramRun:
+      type: object
+      required:
+        - id
+        - status
+        - versionId
+        - versionNumber
+        - pendingVersionId
+        - startDate
+        - createdAt
+        - durationDays
+        - week
+        - planned
+        - completed
+        - due
+        - dueCompleted
+        - activeSeconds
+        - lastParticipation
+        - upcoming
+        - history
+        - customizedCount
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        versionNumber:
+          type: integer
+        versionId:
+          type: string
+        pendingVersionId:
+          type:
+            - string
+            - 'null'
+        startDate:
+          type: string
+        createdAt:
+          type: string
+        durationDays:
+          type:
+            - integer
+            - 'null'
+        week:
+          type: integer
+        planned:
+          type: integer
+        completed:
+          type: integer
+        due:
+          type: integer
+        dueCompleted:
+          type: integer
+        activeSeconds:
+          type:
+            - integer
+            - 'null'
+        lastParticipation:
+          type:
+            - string
+            - 'null'
+        upcoming:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonalProgramActivity'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonalProgramActivity'
+        customizedCount:
+          type: integer
+    PersonalProgram:
+      type: object
+      required:
+        - program
+        - owned
+        - publicationStatus
+        - sourceVersionId
+        - sourceLabel
+        - status
+        - current
+        - runs
+      properties:
+        program:
+          $ref: '#/components/schemas/ProgramSummary'
+        owned:
+          type: boolean
+        publicationStatus:
+          type: string
+        sourceLabel:
+          type: [string, 'null']
+        sourceVersionId:
+          type:
+            - string
+            - 'null'
+        status:
+          type: string
+          enum:
+            - Active
+            - Not Started
+            - Paused
+            - Completed
+            - Archived
+        current:
+          anyOf:
+            - $ref: '#/components/schemas/PersonalProgramRun'
+            - type: 'null'
+        runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonalProgramRun'
     Enrollment:
       type: object
       required:

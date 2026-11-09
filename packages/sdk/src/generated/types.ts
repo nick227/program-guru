@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/me/program-library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List personal Program management projections */
+        get: operations["getPersonalProgramLibrary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/program-library/{programId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive, restore or restart a personal Program */
+        post: operations["managePersonalProgram"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/register": {
         parameters: {
             query?: never;
@@ -3193,6 +3227,45 @@ export interface components {
         SetProgramPricesInput: {
             prices: components["schemas"]["SetPriceInput"][];
         };
+        PersonalProgramActivity: {
+            id: string;
+            title: string;
+            date: string;
+            time: string | null;
+            status: string;
+            adjusted: boolean;
+        };
+        PersonalProgramRun: {
+            id: string;
+            status: string;
+            versionNumber: number;
+            versionId: string;
+            pendingVersionId: string | null;
+            startDate: string;
+            createdAt: string;
+            durationDays: number | null;
+            week: number;
+            planned: number;
+            completed: number;
+            due: number;
+            dueCompleted: number;
+            activeSeconds: number | null;
+            lastParticipation: string | null;
+            upcoming: components["schemas"]["PersonalProgramActivity"][];
+            history: components["schemas"]["PersonalProgramActivity"][];
+            customizedCount: number;
+        };
+        PersonalProgram: {
+            program: components["schemas"]["ProgramSummary"];
+            owned: boolean;
+            publicationStatus: string;
+            sourceLabel: string | null;
+            sourceVersionId: string | null;
+            /** @enum {string} */
+            status: "Active" | "Not Started" | "Paused" | "Completed" | "Archived";
+            current: components["schemas"]["PersonalProgramRun"] | null;
+            runs: components["schemas"]["PersonalProgramRun"][];
+        };
         Enrollment: {
             /** Format: uuid */
             id: string;
@@ -4049,6 +4122,72 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getPersonalProgramLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PersonalProgram"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    managePersonalProgram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    action: "ARCHIVE" | "RESTORE" | "RESTART";
+                    /**
+                     * Format: uuid
+                     * @description Required for restart; rejects retries against a superseded run.
+                     */
+                    expectedRunId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PersonalProgram"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     register: {
         parameters: {
             query?: never;

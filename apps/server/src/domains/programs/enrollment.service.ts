@@ -205,7 +205,18 @@ export async function setStatus(userId: string, enrollmentId: string, status: Pr
   if (!['ACTIVE', 'PAUSED'].includes(status) || !['ACTIVE', 'PAUSED'].includes(e.status)) {
     throw badRequest('You can pause or resume an active program', { status: 'must be ACTIVE or PAUSED' })
   }
-  return toEnrollment(await db.programEnrollment.update({ where: { id: e.id }, data: { status } }))
+  await db.$transaction(async tx => {
+    const today = toDbDate(todayIn(e.timezone))
+    if (status === 'PAUSED') {
+      await tx.calendarItem.updateMany({ where: { enrollmentId: e.id, status: 'PLANNED', localDate: { gte: today }, sessions: { none: {} } }, data: { status: 'CANCELLED', pausedByEnrollment: true } })
+    } else {
+      await tx.calendarItem.updateMany({ where: { enrollmentId: e.id, status: 'CANCELLED', pausedByEnrollment: true, localDate: { gte: today } }, data: { status: 'PLANNED', pausedByEnrollment: false } })
+      const version = await tx.programVersion.findUniqueOrThrow({ where: { id: e.programVersionId }, include: { items: true } })
+      await materializeEnrollment(tx, e, version, version.items, { from: todayIn(e.timezone), through: addDays(todayIn(e.timezone), HORIZON_DAYS) })
+    }
+    await tx.programEnrollment.update({ where: { id: e.id }, data: { status } })
+  })
+  return toEnrollment(await ownEnrollment(userId, enrollmentId))
 }
 
 /** 09 §4.6: past results are never erased. Future planned items are removed or kept as standalone. */
@@ -213,7 +224,7 @@ export async function leave(userId: string, enrollmentId: string, futureItems: '
   const e = await ownEnrollment(userId, enrollmentId)
   if (!LIVE.includes(e.status)) return toEnrollment(e)
   const today = toDbDate(todayIn(e.timezone))
-  const future: Prisma.CalendarItemWhereInput = { enrollmentId: e.id, status: 'PLANNED', localDate: { gte: today } }
+  const future: Prisma.CalendarItemWhereInput = { enrollmentId: e.id, status: 'PLANNED', localDate: { gte: today }, sessions: { none: {} } }
   await db.$transaction([
     futureItems === 'REMOVE'
       ? db.calendarItem.updateMany({ where: future, data: { status: 'CANCELLED' } })
@@ -229,6 +240,7 @@ export async function leave(userId: string, enrollmentId: string, futureItems: '
  */
 export async function acceptUpdate(userId: string, enrollmentId: string) {
   const e = await ownEnrollment(userId, enrollmentId)
+  if (e.status !== 'ACTIVE') throw badRequest('Resume this Program before adopting an update')
   if (!e.pendingVersionId) throw badRequest('There is no update to accept')
   const next = await db.programVersion.findUniqueOrThrow({ where: { id: e.pendingVersionId }, include: { items: true } })
   const today = todayIn(e.timezone)

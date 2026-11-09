@@ -113,3 +113,7 @@ export async function approveProgramAccessRequest(request: any) {
 export async function declineProgramAccessRequest(request: any) {
   return { data: await enrollment.resolveAccessRequest(uid(request), request.params.requestId, 'DECLINED') }
 }
+
+import * as personalLibrary from '../domains/programs/library.service'
+export async function getPersonalProgramLibrary(request: any) { return { data: await personalLibrary.library(uid(request)) } }
+export async function managePersonalProgram(request: any) { return { data: await personalLibrary.manageLibrary(uid(request), request.params.programId, request.body) } }

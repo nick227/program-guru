@@ -379,3 +379,70 @@ describe('declineProgramAccessRequest', () => {
     await contractCase(app, 'declineProgramAccessRequest')
   })
 })
+
+describe('Personal Program library', () => {
+  it('separates ownership, copies and participation, and rejects cross-user management', async () => {
+    const { ws } = await buildProgram()
+    const pub = (await publish(ws.id)).json().data
+    const mine = await alice.get('/me/program-library')
+    expect(mine.statusCode).toBe(200)
+    await validateResponse('getPersonalProgramLibrary', 200, mine.json())
+    expect(mine.json().data[0]).toMatchObject({ owned: true, status: 'Not Started', current: null })
+    expect((await bob.get('/me/program-library')).json().data).toEqual([])
+    expect((await bob.post(`/me/program-library/${ws.id}`, { action: 'ARCHIVE' })).statusCode).toBe(404)
+    const copied = (await bob.post(`/programs/${ws.id}/copy`)).json().data
+    const copyRow = (await bob.get('/me/program-library')).json().data.find((r: any) => r.program.id === copied.id)
+    expect(copyRow.owned).toBe(true)
+    expect(copyRow.sourceVersionId).toBe(pub.latestPublishedVersionId)
+    expect(copyRow.program.visibility).toBe('PRIVATE')
+    const archived = await alice.post(`/me/program-library/${ws.id}`, { action: 'ARCHIVE' })
+    expect(archived.json().data.status).toBe('Archived')
+    expect((await db.program.findUniqueOrThrow({ where: { id: ws.id } })).status).toBe('PUBLISHED')
+    expect((await alice.post(`/me/program-library/${ws.id}`, { action: 'RESTORE' })).json().data.status).toBe('Not Started')
+  })
+
+  it('pauses and restores future placements, retains results, and restarts independently', async () => {
+    const { ws } = await buildProgram()
+    const pub = (await publish(ws.id)).json().data
+    const { todayIn, addDays } = await import('../lib/time')
+    const start = todayIn('America/Chicago')
+    const e = (await bob.post(`/programs/${ws.id}/enrollments`, { programVersionId: pub.latestPublishedVersionId, startLocalDate: start, timezone: 'America/Chicago', idempotencyKey: 'library-run' })).json().data
+    const items = await db.calendarItem.findMany({ where: { enrollmentId: e.id }, orderBy: { localDate: 'asc' } })
+    await db.calendarItem.update({ where: { id: items[0]!.id }, data: { status: 'DONE' } })
+    await db.activitySession.create({ data: { calendarItemId: items[0]!.id, activityRevisionId: items[0]!.activityRevisionId, userId: testOtherUserId, status: 'FINISHED', startedAt: new Date(), endedAt: new Date(), activeSeconds: 125 } })
+    await db.calendarItem.update({ where: { id: items[1]!.id }, data: { isUserAdjusted: true, localTime: '09:15' } })
+    expect((await alice.patch(`/enrollments/${e.id}`, { status: 'PAUSED' })).statusCode).toBe(404)
+    const before = (await bob.get('/me/program-library')).json().data[0]
+    expect(before).toMatchObject({ owned: false, status: 'Active', current: { completed: 1, activeSeconds: 125, customizedCount: 1 } })
+    expect((await bob.patch(`/enrollments/${e.id}`, { status: 'PAUSED' })).statusCode).toBe(200)
+    const paused = (await bob.get('/me/program-library')).json().data[0]
+    expect(paused.status).toBe('Paused')
+    expect(paused.current.planned).toBe(before.current.planned)
+    expect(paused.current.upcoming).toEqual([])
+    expect((await bob.patch(`/enrollments/${e.id}`, { status: 'ACTIVE' })).statusCode).toBe(200)
+    expect(await db.calendarItem.findUnique({ where: { id: items[1]!.id } })).toMatchObject({ status: 'PLANNED', localTime: '09:15', isUserAdjusted: true })
+    expect((await bob.post(`/me/program-library/${ws.id}`, { action: 'ARCHIVE' })).json().data.status).toBe('Archived')
+    expect((await db.program.findUniqueOrThrow({ where: { id: ws.id } })).status).toBe('PUBLISHED')
+    expect((await bob.post(`/me/program-library/${ws.id}`, { action: 'RESTORE' })).json().data.status).toBe('Paused')
+    expect((await bob.patch(`/enrollments/${e.id}`, { status: 'ACTIVE' })).statusCode).toBe(200)
+    const restarted = await bob.post(`/me/program-library/${ws.id}`, { action: 'RESTART', expectedRunId: e.id })
+    expect(restarted.statusCode).toBe(200)
+    await validateResponse('managePersonalProgram', 200, restarted.json())
+    expect(restarted.json().data.runs).toHaveLength(2)
+    expect((await bob.post(`/me/program-library/${ws.id}`, { action: 'RESTART', expectedRunId: e.id })).statusCode).toBe(400)
+    expect(restarted.json().data.current.id).not.toBe(e.id)
+    expect(await db.calendarItem.findUnique({ where: { id: items[0]!.id } })).toMatchObject({ status: 'DONE' })
+    expect(await db.activitySession.count({ where: { calendarItemId: items[0]!.id } })).toBe(1)
+    const current = restarted.json().data.current
+    const partial = await db.calendarItem.findFirstOrThrow({ where: { enrollmentId: current.id } })
+    await db.calendarItem.update({ where: { id: partial.id }, data: { status: 'DONE' } })
+    expect((await bob.post(`/enrollments/${current.id}/leave`, { futureItems: 'REMOVE' })).statusCode).toBe(200)
+    expect(await db.calendarItem.count({ where: { enrollmentId: current.id, status: 'PLANNED' } })).toBe(0)
+    expect((await bob.get('/me/program-library')).json().data[0].status).toBe('Not Started')
+    // Future enrollment is distinct from an already active run, without invented participation.
+    const future = (await bob.post(`/programs/${ws.id}/enrollments`, { programVersionId: pub.latestPublishedVersionId, startLocalDate: addDays(start, 7), timezone: 'America/Chicago', idempotencyKey: 'future-run' })).json().data
+    expect((await bob.get('/me/program-library')).json().data[0]).toMatchObject({ status: 'Not Started', current: { id: future.id, completed: 0, activeSeconds: null, lastParticipation: null } })
+    await db.calendarItem.updateMany({ where: { enrollmentId: future.id }, data: { status: 'DONE' } })
+    expect((await bob.get('/me/program-library')).json().data[0].status).toBe('Completed')
+  })
+})

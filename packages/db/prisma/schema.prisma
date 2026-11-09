@@ -89,6 +89,7 @@ model User {
   activityRevisions    ActivityRevision[]
   programs             Program[]
   programVersions      ProgramVersion[]
+  libraryStates        ProgramLibraryState[]
   enrollments          ProgramEnrollment[]
   accessGrants         ProgramAccessGrant[]
   approvalRequests     ProgramApprovalRequest[]
@@ -608,6 +609,7 @@ model Program {
   versions         ProgramVersion[]         @relation("ProgramVersions")
   policy           ProgramAccessPolicy?
   prices           ProgramPrice[]
+  libraryStates    ProgramLibraryState[]
   enrollments      ProgramEnrollment[]
   accessGrants     ProgramAccessGrant[]
   approvalRequests ProgramApprovalRequest[]
@@ -1011,6 +1013,7 @@ model CalendarItem {
   status               CalendarItemStatus @default(PLANNED)
   targetOverrides      Json?
   movedFromDate        DateTime?          @db.Date
+  pausedByEnrollment   Boolean            @default(false)
   isUserAdjusted       Boolean            @default(false)
   reminderSentAt       DateTime?
   createdAt            DateTime           @default(now())
@@ -1713,4 +1716,15 @@ model RateLimitBucket {
   updatedAt DateTime @updatedAt
 
   @@index([resetAt])
+}
+
+// Personal library organization never changes a source definition's publication state.
+model ProgramLibraryState {
+  userId String @db.Char(36)
+  programId String @db.Char(36)
+  archivedAt DateTime?
+  user User @relation(fields: [userId], references: [id])
+  program Program @relation(fields: [programId], references: [id])
+  @@id([userId, programId])
+  @@index([programId])
 }
