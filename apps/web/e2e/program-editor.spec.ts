@@ -136,7 +136,14 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
     await expect(page.getByRole('button', { name: 'Private' })).toBeVisible()
 
     // Publish Program
+    // Wait for the request itself: checking the log right after the click raced the network.
+    const publishRequest = page.waitForRequest(
+      (request) =>
+        new URL(request.url()).pathname === `/programs/${programId}/publish` &&
+        request.method() === 'POST',
+    )
     await page.getByRole('button', { name: 'Publish Program', exact: true }).click()
+    await publishRequest
     expect(
       requests.find(
         (r) =>
