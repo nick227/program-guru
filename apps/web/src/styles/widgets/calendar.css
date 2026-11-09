@@ -675,6 +675,8 @@
   margin-left: auto;
 }
 
+.library-browser-controls,
+.library-heading-actions button,
 .calendar-toolbar__library, 
 .calendar-toolbar__add {
   display: inline-flex;

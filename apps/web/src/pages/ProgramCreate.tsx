@@ -219,8 +219,8 @@ export function ProgramCreatePage() {
                 onClick={() => void continueToWorkspace()}
               >
                 {!me.data
-                  ? 'Sign in'
-                  : 'Next'}
+                  ? 'Sign in to continue'
+                  : 'Continue'}
               </Button>
             </div>
 

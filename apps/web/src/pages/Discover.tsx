@@ -93,7 +93,8 @@ export function LibraryPage() {
             to={`/programs/new?returnTo=${encodeURIComponent(`/library?${params}`)}`}
             className="library-open"
           >
-            <Plus size={16} /> Create a Program
+                <Plus size={16} aria-hidden />
+                Add Program
           </Link>
         </div>
       </header>
@@ -215,11 +216,6 @@ export function LibraryPage() {
               }
             />
           )}
-          <p className="library-footnote">
-            {filtered.length} {filtered.length === 1 ? 'Program' : 'Programs'} ·
-            Progress reflects eligible Calendar occurrences. Ongoing schedules
-            grow over time.
-          </p>
         </>
       )}
       <Outlet context={browserContext} />
@@ -320,7 +316,7 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
       <td data-label="Privacy">
         <div className="library-privacy">
           <span>
-            {entry.owned ? p.visibility.toLowerCase() : 'Joined Program'}
+            {entry.owned ? p.visibility.toLowerCase() : 'community'}
           </span>
         </div>
       </td>

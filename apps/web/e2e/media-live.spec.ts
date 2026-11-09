@@ -129,9 +129,36 @@ test('live Program cover: uploaded image becomes the cover once processed', asyn
     }, { timeout: 90000, intervals: [2000] })
     .toBe(true)
   await page.reload()
-  await expect(cover.getByRole('button', { name: 'Replace image' })).toBeVisible()
+  await expect(cover.getByRole('button', { name: /Replace (media|image)/ })).toBeVisible()
   await expect(cover.locator('img')).toBeVisible()
   // Inline removal clears the persisted cover.
+  await cover.getByRole('button', { name: /^Remove/ }).click()
+  await expect
+    .poll(async () => (await (await page.request.get(`${api}/programs/${program.id}/workspace`)).json()).data.coverUrl)
+    .toBeNull()
+})
+
+test('live Program cover: uploaded video becomes the cover with poster and play affordance', async ({ page }) => {
+  const { api, email, password } = liveEnv()
+  await login(page, email, password)
+  const type = (await (await page.request.get(`${api}/catalog/program-types`)).json()).data[0]
+  const created = await page.request.post(`${api}/programs`, { data: { programTypeId: type.id, focusId: null } })
+  expect(created.ok()).toBe(true)
+  const program = (await created.json()).data
+  await page.goto(`/programs/${program.id}/workspace`)
+  const cover = page.getByRole('group', { name: 'Program cover' })
+  await cover.locator('input[type="file"]').setInputFiles(process.env.MEDIA_TEST_VIDEO!)
+  await expect
+    .poll(async () => {
+      const ws = (await (await page.request.get(`${api}/programs/${program.id}/workspace`)).json()).data
+      return Boolean(ws.coverUrl && ws.coverMedia?.type === 'VIDEO')
+    }, { timeout: 90000, intervals: [2000] })
+    .toBe(true)
+  await page.reload()
+  await expect(cover.getByRole('button', { name: /Replace (media|image)/ })).toBeVisible()
+  // Video cover renders poster with play badge
+  await expect(cover.locator('img')).toBeVisible()
+  // Inline removal clears the persisted video cover.
   await cover.getByRole('button', { name: /^Remove/ }).click()
   await expect
     .poll(async () => (await (await page.request.get(`${api}/programs/${program.id}/workspace`)).json()).data.coverUrl)
