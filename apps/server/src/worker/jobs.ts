@@ -173,9 +173,12 @@ export async function extendHorizons(now = new Date()) {
   let created = 0
   // UTC pad covers every IANA zone (±14h) so the WHERE never drops a row that still needs work.
   const horizonPad = toDbDate(addDays(todayIn('UTC', now), HORIZON_DAYS + 1))
+  // Only ACTIVE runs grow. A PAUSED run (including one paused by archiving it from the library)
+  // resumes from generatedThroughDate; generating for it would put fresh PLANNED rows back on a
+  // calendar the person cleared.
   const enrollments = await db.programEnrollment.findMany({
     where: {
-      status: { in: ['ACTIVE', 'PAUSED'] },
+      status: 'ACTIVE',
       OR: [{ generatedThroughDate: null }, { generatedThroughDate: { lt: horizonPad } }],
     },
     include: { version: { include: { items: true } } },

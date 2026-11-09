@@ -3,7 +3,7 @@ import { badRequest, notFound } from '../../lib/errors'
 import { addDays, fromDbDate, toDbDate, todayIn } from '../../lib/time'
 import { resolveAccess } from './access'
 import { programInclude, toProgramSummary } from './mapper'
-import { enrollInTx, joinableVersion } from './enrollment.service'
+import { enrollInTx, joinableVersion, notInProgress } from './enrollment.service'
 import { participationSummaries } from './participation.service'
 
 const live = ['ACTIVE', 'PAUSED', 'PENDING_ACCESS'] as const
@@ -186,7 +186,7 @@ export async function manageLibrary(
             enrollmentId: e.id,
             status: 'PLANNED',
             localDate: { gte: toDbDate(todayIn(e.timezone)) },
-            sessions: { none: {} },
+            ...notInProgress,
           },
           data: { status: 'CANCELLED', pausedByEnrollment: true },
         })
@@ -231,7 +231,7 @@ export async function manageLibrary(
             enrollmentId: old.id,
             status: 'PLANNED',
             localDate: { gte: toDbDate(todayIn(old.timezone)) },
-            sessions: { none: {} },
+            ...notInProgress,
           },
           data: { status: 'CANCELLED' },
         })

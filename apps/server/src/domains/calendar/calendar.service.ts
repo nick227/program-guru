@@ -129,12 +129,30 @@ export async function itemDto(userId: string, itemId: string) {
   return (await toCalendarItems(userId, [await ownItem(db, userId, itemId)]))[0]!
 }
 
+/**
+ * The Calendar is the current schedule, not the history view (09 §4.6). Items of a removed
+ * enrollment are hidden whatever their date or status: LEFT (removed from My Programs or the
+ * Calendar, or the earlier run of a restart), or PAUSED by archiving the Program in the library.
+ * Rows, sessions, results, media and group records stay; standalone items always show.
+ */
+const onCurrentSchedule = (userId: string): Prisma.CalendarItemWhereInput => ({
+  OR: [
+    { enrollmentId: null },
+    {
+      enrollment: {
+        status: { not: 'LEFT' },
+        NOT: { status: 'PAUSED', program: { libraryStates: { some: { userId, archivedAt: { not: null } } } } },
+      },
+    },
+  ],
+})
+
 export async function list(userId: string, query: { start: string; end: string }) {
   if (query.end < query.start) throw badRequest('End must be on or after start', { end: 'is before start' })
   if (diffDays(query.end, query.start) > MAX_RANGE_DAYS) throw badRequest(`Ask for at most ${MAX_RANGE_DAYS} days`, { end: 'range too long' })
   await extendHorizons(userId, query.end)
   const items = await db.calendarItem.findMany({
-    where: { ownerId: userId, status: { not: 'CANCELLED' }, localDate: { gte: toDbDate(query.start), lte: toDbDate(query.end) } },
+    where: { ownerId: userId, status: { not: 'CANCELLED' }, localDate: { gte: toDbDate(query.start), lte: toDbDate(query.end) }, ...onCurrentSchedule(userId) },
     orderBy: [{ localDate: 'asc' }, { localTime: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
     include: itemInclude,
   })
@@ -155,7 +173,7 @@ async function extendHorizons(userId: string, through: LocalDate) {
     await db.$transaction((tx) => materializeRecurrence(tx, r, { from, through: target }))
   }
   const enrollments = await db.programEnrollment.findMany({
-    where: { userId, status: { in: ['ACTIVE', 'PAUSED'] }, version: { durationDays: null }, OR: [{ generatedThroughDate: null }, { generatedThroughDate: { lt: toDbDate(target) } }] },
+    where: { userId, status: 'ACTIVE', version: { durationDays: null }, OR: [{ generatedThroughDate: null }, { generatedThroughDate: { lt: toDbDate(target) } }] },
     include: { version: { include: { items: true } } },
   })
   for (const e of enrollments) {

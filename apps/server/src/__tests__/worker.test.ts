@@ -148,6 +148,50 @@ describe('horizons and statistics', () => {
     expect(await db.calendarItem.count({ where: { ownerId: testOtherUserId } })).toBe(180) // idempotent
   })
 
+  it('does not grow paused or library-archived runs back onto the calendar', async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const join = async (key: string) => {
+      let ws = (await req('POST', '/programs', { programTypeId: cat.workout.id })).json().data
+      ws = (await req('POST', `/programs/${ws.id}/draft/activities`, { activityIds: [cat.squats.activity.id], expectedRevision: ws.draftRevision })).json().data
+      ws = (await req('PATCH', `/programs/${ws.id}/draft`, { durationDays: 180, frequency: { kind: 'DAILY' }, expectedRevision: ws.draftRevision })).json().data
+      const v = (await req('POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })).json().data.latestPublishedVersionId
+      const e = (await req('POST', `/programs/${ws.id}/enrollments`, { programVersionId: v, startLocalDate: today, timezone: 'UTC', idempotencyKey: key }, testOtherUserId)).json().data
+      return { programId: ws.id as string, enrollmentId: e.id as string }
+    }
+    const paused = await join('paused-run')
+    const archived = await join('archived-run')
+    expect((await req('PATCH', `/enrollments/${paused.enrollmentId}`, { status: 'PAUSED' }, testOtherUserId)).statusCode).toBe(200)
+    expect((await req('POST', `/me/program-library/${archived.programId}`, { action: 'ARCHIVE' }, testOtherUserId)).statusCode).toBe(200)
+    const visible = { ownerId: testOtherUserId, status: { not: 'CANCELLED' as const } }
+    expect(await db.calendarItem.count({ where: visible })).toBe(0)
+    await extendHorizons(new Date(Date.now() + 120 * 86_400_000))
+    expect(await db.calendarItem.count({ where: visible })).toBe(0)
+  })
+
+  it('removes a Program item whose completion was undone when the Program is removed', async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    let ws = (await req('POST', '/programs', { programTypeId: cat.workout.id })).json().data
+    ws = (await req('POST', `/programs/${ws.id}/draft/activities`, { activityIds: [cat.squats.activity.id], expectedRevision: ws.draftRevision })).json().data
+    ws = (await req('PATCH', `/programs/${ws.id}/draft`, { durationDays: 7, frequency: { kind: 'DAILY' }, expectedRevision: ws.draftRevision })).json().data
+    const v = (await req('POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })).json().data.latestPublishedVersionId
+    const e = (await req('POST', `/programs/${ws.id}/enrollments`, { programVersionId: v, startLocalDate: today, timezone: 'UTC', idempotencyKey: 'undo-then-leave' }, testOtherUserId)).json().data
+    const [undone, done, inProgress] = await db.calendarItem.findMany({ where: { enrollmentId: e.id }, orderBy: { localDate: 'asc' } })
+    const start = async (itemId: string, key: string) => { const r = (await req('POST', '/sessions', { calendarItemId: itemId, idempotencyKey: key }, testOtherUserId)).json(); if (!r.data) throw new Error(JSON.stringify(r)); return r.data }
+    for (const [item, key] of [[undone, 'undo-session-a'], [done, 'undo-session-b']] as const) {
+      const s = await start(item!.id, key)
+      expect((await req('POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision }, testOtherUserId)).statusCode).toBe(200)
+    }
+    expect((await req('POST', `/calendar-items/${undone!.id}/undo-completion`, undefined, testOtherUserId)).statusCode).toBe(200)
+    const open = await start(inProgress!.id, 'undo-session-c')
+    await req('POST', `/sessions/${open.id}/actions`, { action: 'START', expectedRevision: open.revision }, testOtherUserId)
+    expect((await req('POST', `/enrollments/${e.id}/leave`, { futureItems: 'REMOVE' }, testOtherUserId)).statusCode).toBe(200)
+    const left = await db.calendarItem.findMany({ where: { enrollmentId: e.id, status: { not: 'CANCELLED' } }, include: { sessions: true } })
+    // Completed history and work genuinely in progress stay; the undone item leaves with the rest.
+    expect(left.map((i) => i.id).sort()).toEqual([done!.id, inProgress!.id].sort())
+    // Cancelling never deletes the undone item's recorded session.
+    expect(await db.activitySession.count({ where: { calendarItemId: undone!.id } })).toBe(1)
+  })
+
   it('computes program stats and suppresses small samples', async () => {
     let ws = (await req('POST', '/programs', { programTypeId: cat.workout.id })).json().data
     ws = (await req('POST', `/programs/${ws.id}/draft/activities`, { activityIds: [cat.squats.activity.id], expectedRevision: ws.draftRevision })).json().data

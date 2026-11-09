@@ -13,6 +13,13 @@ import { parseFrequency } from './schedule'
 import { toUserSummary } from '../users/mapper'
 
 const LIVE: ProgramEnrollment['status'][] = ['ACTIVE', 'PAUSED', 'PENDING_ACCESS']
+/**
+ * Leaving, pausing, archiving or restarting must clear a scheduled item unless a session is in
+ * progress. A finished session on a PLANNED item (completion undone) or an abandoned/unstarted one
+ * is not "started" work; letting it pin the item left removed Programs on the calendar. The rows
+ * are cancelled, never deleted, so any recorded session and results stay.
+ */
+export const notInProgress: Prisma.CalendarItemWhereInput = { sessions: { none: { status: { in: ['ACTIVE', 'PAUSED'] } } } }
 const activeKey = (userId: string, programId: string) => `${userId}:${programId}`
 
 async function toEnrollment(e: ProgramEnrollment) {
@@ -209,7 +216,7 @@ export async function setStatus(userId: string, enrollmentId: string, status: Pr
   await db.$transaction(async tx => {
     const today = toDbDate(todayIn(e.timezone))
     if (status === 'PAUSED') {
-      await tx.calendarItem.updateMany({ where: { enrollmentId: e.id, status: 'PLANNED', localDate: { gte: today }, sessions: { none: {} } }, data: { status: 'CANCELLED', pausedByEnrollment: true } })
+      await tx.calendarItem.updateMany({ where: { enrollmentId: e.id, status: 'PLANNED', localDate: { gte: today }, ...notInProgress }, data: { status: 'CANCELLED', pausedByEnrollment: true } })
     } else {
       await tx.calendarItem.updateMany({ where: { enrollmentId: e.id, status: 'CANCELLED', pausedByEnrollment: true, localDate: { gte: today } }, data: { status: 'PLANNED', pausedByEnrollment: false } })
       const version = await tx.programVersion.findUniqueOrThrow({ where: { id: e.programVersionId }, include: { items: true } })
@@ -225,7 +232,7 @@ export async function leave(userId: string, enrollmentId: string, futureItems: '
   const e = await ownEnrollment(userId, enrollmentId)
   if (!LIVE.includes(e.status)) return toEnrollment(e)
   const today = toDbDate(todayIn(e.timezone))
-  const future: Prisma.CalendarItemWhereInput = { enrollmentId: e.id, status: 'PLANNED', localDate: { gte: today }, sessions: { none: {} } }
+  const future: Prisma.CalendarItemWhereInput = { enrollmentId: e.id, status: 'PLANNED', localDate: { gte: today }, ...notInProgress }
   await db.$transaction([
     futureItems === 'REMOVE'
       ? db.calendarItem.updateMany({ where: future, data: { status: 'CANCELLED' } })
