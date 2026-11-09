@@ -132,7 +132,7 @@ export function ProgramCreatePage() {
         {!typeId ? (
           <Stack className="gap-5">
             <div>
-              <h2 className="add-program-question">What kind of Program?</h2>
+              <h2 className="add-program-question">Program Type</h2>
               <p className="mt-2 text-muted">
                 Choose a type, then name a new Program or start from an
                 existing one.
@@ -186,7 +186,7 @@ export function ProgramCreatePage() {
             </Row>
 
             <label className="field">
-              <span className="label">Program description (optional)</span>
+              <span className="label font-semibold">Description</span>
               <textarea
                 className="textarea min-h-28"
                 maxLength={5000}
@@ -197,16 +197,17 @@ export function ProgramCreatePage() {
               />
             </label>
 
-            <div className="add-program mb-64">
+            <div className="add-program mb-8">
               <Button
                 size="lg"
+                className="h-11 px-8 font-semibold rounded-lg"
                 disabled={!title.trim() || !online || busy}
                 loading={busy}
                 onClick={() => void continueToWorkspace()}
               >
                 {!me.data
                   ? 'Sign in to continue'
-                  : 'Continue to customize'}
+                  : 'Continue'}
               </Button>
             </div>
 

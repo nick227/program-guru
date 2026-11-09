@@ -73,8 +73,8 @@ test('Workspace Upload image sets the Program cover directly, without the picker
   await login(page, 'author@test.local', 'password')
   await page.goto(`/programs/${programId}/workspace`)
   const cover = page.getByRole('group', { name: 'Program cover' })
-  // Compact header: no image until one is chosen.
-  await expect(cover.getByRole('button', { name: 'Attach Program image' })).toBeVisible()
+  // 3/4 canvas cover dropzone
+  await expect(cover.getByRole('button', { name: 'Upload image' }).first()).toBeVisible()
 
   // Directly upload a file through the Change image file input
   await cover.locator('input[type="file"]').setInputFiles({
@@ -120,7 +120,7 @@ test('a new Activity gets an uploaded image as a COVER on its own revision', asy
   })
 })
 
-test('Workspace Attach Program image chooses an existing library photo, without capture', async ({
+test('Workspace cover chooses an existing library photo, without capture', async ({
   page,
 }) => {
   const { requests } = await mockApi(page)
@@ -128,7 +128,7 @@ test('Workspace Attach Program image chooses an existing library photo, without 
   await login(page, 'author@test.local', 'password')
   await page.goto(`/programs/${programId}/workspace`)
   const cover = page.getByRole('group', { name: 'Program cover' })
-  await cover.getByRole('button', { name: 'Attach Program image' }).click()
+  await cover.getByRole('button', { name: 'Choose from library' }).click()
   const picker = page.getByRole('dialog', { name: 'Choose program cover' })
   await expect(picker).toBeVisible()
   await expect(picker.getByRole('button', { name: 'Capture', exact: true })).toHaveCount(0)
@@ -149,7 +149,7 @@ test('a new Activity can use an existing library photo as its COVER', async ({ p
   await page.getByRole('button', { name: 'Create Activity' }).click()
   const image = page.getByRole('group', { name: 'Activity image' })
   await expect(image.locator('[data-hero-category="fitness"]')).toBeVisible()
-  await image.getByRole('button', { name: 'Change image' }).click()
+  await image.getByRole('button', { name: /Choose from library|Change image/ }).click()
   await page
     .getByRole('dialog', { name: 'Choose activity image' })
     .getByRole('button', { name: 'Trail photo · READY' })

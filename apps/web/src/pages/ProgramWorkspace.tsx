@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Link,
   Outlet,
@@ -8,30 +8,21 @@ import {
 } from 'react-router-dom'
 import {
   ApiError,
-  useActivitySuggestions,
-  useAddProgramPlacement,
   useAddProgramActivities,
   useRemoveProgramActivity,
-  useAttachMedia,
   useCopyActivity,
   useCurrentUser,
   useMyEnrollments,
-  useJoinProgram,
   useCreateActivity,
   useProgramWorkspace,
-  usePutActivityInstructions,
   useUpdateProgram,
   useActivity,
   useUpdateActivityDraft,
-  useProgramPlacements,
-  useDeleteProgramPlacement,
-  useUpdateProgramPlacement,
   usePublishCheck,
   usePublishProgram,
-  useInboundMedia,
   type components,
 } from '@project/sdk'
-import { Upload, Loader2 } from 'lucide-react'
+import { Clock, Repeat, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page, Stage, Stack, Row, Panel } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
@@ -39,41 +30,26 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back, linkButton } from '@/components/Navigation'
-import { CalendarSurface } from '@/components/CalendarSurface'
 import { MediaAttachments } from '@/components/MediaAttachments'
-import { ActivityBasicsFields } from '@/components/ActivityBasicsFields'
 import { ProgramHeader } from '@/components/ProgramHeader'
 import { ChangeImage } from '@/components/ChangeImage'
+import { MultiMediaCanvas } from '@/components/MultiMediaCanvas'
 import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
 import {
   useLibraryBrowser,
   type LibraryBrowserContext,
 } from '@/components/LibraryBrowser'
-import { SuggestionRail } from '@/components/SuggestionRail'
 import { ProgramGroups } from '@/components/ProgramGroups'
 import {
   ProgramStepper,
   type ProgramStep,
 } from '@/components/ProgramStepper'
-import {
-  dayDifference,
-  projectProgramPlacements,
-} from '@/lib/scheduleProjection'
-import { activityCard } from '@/lib/discoveryCards'
 import { activityHero, programHero } from '@/lib/hero'
 import { useActivityCover, useProgramCover } from '@/lib/useEntityCover'
 import { useAutosave } from '@/lib/useAutosave'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { buildProgramUrl } from '@/lib/urls'
-import {
-  addMonths,
-  calendarUrl,
-  dateLabel,
-  monthBounds,
-  monthGrid,
-  today,
-} from '@/lib/dates'
 
 type Workspace = components['schemas']['ProgramWorkspace']
 
@@ -88,19 +64,17 @@ export function ProgramWorkspacePage() {
       : 'Workspace',
   )
 
-  // Map step param or legacy panel param into a valid ProgramStep
   const stepParam = pathStep || params.get('step')
   const panelParam = params.get('panel')
 
+  // Map step param or legacy panel param into a valid 3-step ProgramStep
   const currentStep: ProgramStep = useMemo(() => {
     if (stepParam === 'details' || stepParam === '1') return 'details'
     if (stepParam === 'activities' || stepParam === '2') return 'activities'
-    if (stepParam === 'schedule' || stepParam === '3') return 'schedule'
-    if (stepParam === 'publish' || stepParam === '4') return 'publish'
+    if (stepParam === 'publish' || stepParam === '3' || stepParam === '4') return 'publish'
 
     if (panelParam === 'edit') return 'details'
     if (panelParam === 'activities') return 'activities'
-    if (panelParam === 'calendar') return 'schedule'
     if (panelParam === 'publish') return 'publish'
 
     return 'details'
@@ -136,15 +110,15 @@ export function ProgramWorkspacePage() {
 
   return (
     <Page>
-      <Stage className="w-full">
+      <Stage className="w-full max-w-2xl mx-auto space-y-6">
         <Back to={panelParam ? base : '/library'}>
           {panelParam ? 'Workspace' : 'My Programs'}
         </Back>
 
-        {/* Title header with autosave & version CAS stays mounted across all 4 steps */}
+        {/* Title header with autosave & version CAS */}
         <TitleEditor key={ws.id} ws={ws} />
 
-        {/* Persistent 4-step stepper */}
+        {/* Persistent 3-step stepper */}
         <ProgramStepper
           currentStep={currentStep}
           onSelectStep={setStep}
@@ -164,27 +138,16 @@ export function ProgramWorkspacePage() {
         {currentStep === 'activities' && (
           <ActivitiesStep
             ws={ws}
-            isPanelMode={panelParam === 'activities'}
             onBack={() => setStep('details')}
-            onContinue={() => setStep('schedule')}
-          />
-        )}
-
-        {/* 3. SCHEDULE */}
-        {currentStep === 'schedule' && (
-          <ScheduleStep
-            ws={ws}
-            onBack={() => setStep('activities')}
             onContinue={() => setStep('publish')}
           />
         )}
 
-        {/* 4. PUBLISH & SHARE */}
+        {/* 3. PUBLISH & SHARE */}
         {currentStep === 'publish' && (
           <PublishStep
             ws={ws}
-            onBack={() => setStep('schedule')}
-            refresh={() => void workspace.refetch()}
+            onBack={() => setStep('activities')}
           />
         )}
       </Stage>
@@ -193,7 +156,7 @@ export function ProgramWorkspacePage() {
   )
 }
 
-// ── Persistent Title Editor ──────────────────────────────────────────────────
+// ── Title Editor ─────────────────────────────────────────────────────────────
 
 function TitleEditor({ ws }: { ws: Workspace }) {
   const update = useUpdateProgram(ws.id)
@@ -234,42 +197,50 @@ function TitleEditor({ ws }: { ws: Workspace }) {
         retry={conflict ? undefined : draft.retry}
       />
       {conflict && (
-        <Panel>
-          <Stack>
-            <p>A newer version exists. Your title is still here.</p>
-            <p className="text-muted">Server title: {ws.title}</p>
-            <Button
-              variant="outline"
-              onClick={() => draft.reload(ws.title, ws.draftRevision)}
-            >
-              Discard my edit and use server title
-            </Button>
-            <Button
-              onClick={() => {
-                const value = draft.value
-                draft.reload(ws.title, ws.draftRevision)
-                draft.setValue(value)
-              }}
-            >
-              Save my title against this version
-            </Button>
+        <Panel className="rounded-xl border border-border p-4">
+          <Stack className="gap-3">
+            <p className="font-semibold text-sm">Version Conflict</p>
+            <p className="text-xs text-muted">Server title: {ws.title}</p>
+            <Row className="gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => draft.reload(ws.title, ws.draftRevision)}
+              >
+                Discard My Edit
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  const value = draft.value
+                  draft.reload(ws.title, ws.draftRevision)
+                  draft.setValue(value)
+                }}
+              >
+                Overwrite Version
+              </Button>
+            </Row>
           </Stack>
         </Panel>
       )}
       {draft.blocker.state === 'blocked' && (
-        <Panel aria-label="Unsaved changes">
-          <Stack>
-            <p>You have unsaved changes.</p>
-            <Button autoFocus onClick={() => draft.blocker.reset?.()}>
-              Keep editing
-            </Button>
-            <Button
-              variant="outline"
-              disabled={draft.pending}
-              onClick={() => draft.blocker.proceed?.()}
-            >
-              Discard changes and leave
-            </Button>
+        <Panel aria-label="Unsaved changes" className="rounded-xl border border-border p-4">
+          <Stack className="gap-3">
+            <p className="font-semibold text-sm">Unsaved Changes</p>
+            <p className="text-xs text-muted">You have unsaved edits in progress.</p>
+            <Row className="gap-2">
+              <Button size="sm" autoFocus onClick={() => draft.blocker.reset?.()}>
+                Keep Editing
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={draft.pending}
+                onClick={() => draft.blocker.proceed?.()}
+              >
+                Discard and Leave
+              </Button>
+            </Row>
           </Stack>
         </Panel>
       )}
@@ -319,35 +290,44 @@ function DetailsStep({
   }, [description, savedDesc, online, savingDesc, ws.draftRevision, update])
 
   return (
-    <Stack className="gap-6 mt-4">
-      {/* Category / Type info */}
+    <Stack className="gap-6">
+      {/* Program Type Tag */}
       <div className="flex items-center gap-2 text-sm text-muted">
         <span className="font-semibold text-foreground">{ws.type.label}</span>
         {ws.focus && <span>· {ws.focus.label}</span>}
         <span>· {ws.durationDays ? `${ws.durationDays / 7} weeks` : 'Ongoing'}</span>
       </div>
 
-      {/* Program Cover */}
-      <ProgramCover ws={ws} />
+      {/* 3/4 Canvas Cover Image */}
+      <Panel className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted">
+          Cover Image
+        </h3>
+        <ProgramCover ws={ws} />
+      </Panel>
 
       {/* Description */}
-      <label className="field space-y-1.5">
-        <span className="label font-semibold">Program description (optional)</span>
+      <Panel className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted">
+          Description
+        </h3>
         <textarea
-          className="textarea min-h-28"
+          className="textarea min-h-28 w-full rounded-lg border border-border p-3 text-sm"
           maxLength={20000}
           value={description}
-          placeholder="What is this Program about? Goals, requirements, who it is for..."
+          placeholder="Program goals, requirements, target audience..."
           disabled={!online}
           onChange={(e) => setDescription(e.target.value)}
         />
-        {savingDesc && <p className="text-xs text-muted">Saving description…</p>}
+        {savingDesc && <p className="text-xs text-muted">Saving…</p>}
         <ErrorMessage error={descError} />
-      </label>
+      </Panel>
 
       {/* Duration */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Duration</h3>
+      <Panel className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted">
+          Duration
+        </h3>
         <Row className="flex-wrap gap-2">
           {[7, 14, 28, 56, null].map((days) => (
             <Button
@@ -370,17 +350,21 @@ function DetailsStep({
         <p className="text-xs text-muted">
           {ws.durationDays
             ? `Fixed duration of ${ws.durationDays / 7} weeks (${ws.durationDays} days).`
-            : 'Ongoing program that repeats weekly until completed or paused.'}
+            : 'Ongoing program that repeats until completed or paused.'}
         </p>
-      </div>
+      </Panel>
 
-      {/* Navigation Controls */}
-      <Row className="justify-between pt-4 border-t border-border">
-        <Link to="/library" className={linkButton}>
-          My Programs
+      {/* Consistent Bottom Navigation */}
+      <Row className="justify-between items-center pt-6 border-t border-border mt-8">
+        <Link to="/library" className={linkButton + ' h-11 px-6 font-semibold'}>
+          Back
         </Link>
-        <Button size="lg" onClick={onContinue}>
-          Continue to Activities →
+        <Button
+          size="lg"
+          className="h-11 px-8 font-semibold"
+          onClick={onContinue}
+        >
+          Continue
         </Button>
       </Row>
     </Stack>
@@ -393,7 +377,6 @@ function ProgramCover({ ws }: { ws: Workspace }) {
   return (
     <ChangeImage
       label="Program cover"
-      compact
       canEdit={ws.status !== 'ARCHIVED'}
       cover={cover}
       hero={programHero(ws, categorySlugOf)}
@@ -403,14 +386,15 @@ function ProgramCover({ ws }: { ws: Workspace }) {
 
 // ── Step 2: ACTIVITIES ──────────────────────────────────────────────────────
 
+const DURATION_OPTIONS = ['15 min', '30 min', '45 min', '60 min', '90 min']
+const FREQUENCY_OPTIONS = ['1x / week', '2x / week', '3x / week', '4x / week', 'Daily']
+
 function ActivitiesStep({
   ws,
-  isPanelMode,
   onBack,
   onContinue,
 }: {
   ws: Workspace
-  isPanelMode?: boolean
   onBack: () => void
   onContinue: () => void
 }) {
@@ -418,13 +402,22 @@ function ActivitiesStep({
   const base = `/programs/${ws.id}/workspace?step=activities`
 
   return (
-    <Stack className="gap-6 mt-4">
-      <Row className="justify-between items-baseline">
-        <h2 className="text-xl font-bold">Activities</h2>
-        <span className="text-xs text-muted">
-          {ws.activityCount} {ws.activityCount === 1 ? 'activity' : 'activities'} ·{' '}
-          {ws.instructionCount} instructions
-        </span>
+    <Stack className="gap-6">
+      <Row className="justify-between items-center">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Activities</h2>
+          <span className="text-xs text-muted">
+            {ws.activityCount} {ws.activityCount === 1 ? 'activity' : 'activities'}
+          </span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 px-4 font-semibold"
+          onClick={browser.open}
+        >
+          Browse Library
+        </Button>
       </Row>
 
       {/* Compact Activity Rows */}
@@ -440,35 +433,33 @@ function ActivitiesStep({
           ))}
         </Stack>
       ) : (
-        <Panel className="text-center py-6">
-          <p className="text-sm text-muted">No activities yet.</p>
+        <Panel className="rounded-xl border border-border bg-surface text-center py-8">
+          <p className="text-sm font-semibold text-foreground">No activities yet.</p>
           <p className="text-xs text-muted mt-1">
-            Add existing activities from the library or create a new one below.
+            Create an activity below or browse the library to add existing ones.
           </p>
         </Panel>
       )}
 
-      {/* Create New Activity Form */}
-      <CreateActivitySection
-        ws={ws}
-        onCreated={isPanelMode ? onContinue : undefined}
-      />
+      {/* Create New Activity Form with 3/4 Canvas and Duration/Frequency Pickers */}
+      <CreateActivitySection ws={ws} />
 
-      {/* Suggested Activities Rail & Browse Library */}
-      <SuggestedActivitiesSection ws={ws} onBrowse={browser.open} />
-
-      {/* Quick Start if private and has activities */}
-      {ws.visibility === 'PRIVATE' && ws.status !== 'ARCHIVED' && (
-        <StartProgram ws={ws} refresh={() => {}} />
-      )}
-
-      {/* Navigation Controls */}
-      <Row className="justify-between pt-4 border-t border-border">
-        <Button variant="outline" onClick={onBack}>
-          ← Back to Details
+      {/* Consistent Bottom Navigation */}
+      <Row className="justify-between items-center pt-6 border-t border-border mt-8">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-11 px-6 font-semibold"
+          onClick={onBack}
+        >
+          Back
         </Button>
-        <Button size="lg" onClick={onContinue}>
-          Continue to Schedule →
+        <Button
+          size="lg"
+          className="h-11 px-8 font-semibold"
+          onClick={onContinue}
+        >
+          Continue
         </Button>
       </Row>
     </Stack>
@@ -487,12 +478,13 @@ function WorkspaceActivityRow({
   const detail = useActivity(activity.activityId)
   const update = useUpdateActivityDraft(activity.activityId)
   const removeActivity = useRemoveProgramActivity(ws.id)
-  const attachMedia = useAttachMedia()
   const online = useOnline()
   const categorySlugOf = useCategorySlugOf()
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
   const [editing, setEditing] = useState(false)
+  const [duration, setDuration] = useState('30 min')
+  const [frequency, setFrequency] = useState('3x / week')
 
   useEffect(() => {
     if (!detail.data) return
@@ -514,7 +506,7 @@ function WorkspaceActivityRow({
       summary !== (detail.data.summary ?? ''))
 
   return (
-    <article className="rounded-lg border border-border p-3 transition-colors hover:border-border/80">
+    <article className="rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border/80 space-y-3">
       <Row className="items-center justify-between gap-3">
         <Row className="items-center gap-3 min-w-0 flex-1">
           <EntityHero
@@ -524,24 +516,28 @@ function WorkspaceActivityRow({
           <div className="min-w-0 flex-1">
             <Link
               to={`/activities/${activity.activityId}?returnTo=${encodeURIComponent(returnTo)}`}
-              className="font-semibold truncate block hover:text-accent transition-colors"
+              className="font-semibold truncate block hover:text-accent transition-colors text-sm"
             >
               {activity.title}
             </Link>
-            <p className="text-xs text-muted mt-0.5">
-              {activity.instructionCount} instructions · {activity.mediaCount} media
-              {activity.metrics.length > 0 && (
-                <span>
-                  {' '}· {activity.metrics.filter((m) => !m.toLowerCase().startsWith('duration')).join(' · ')}
-                </span>
-              )}
-            </p>
+            <div className="flex items-center gap-3 text-xs text-muted mt-1">
+              <span className="inline-flex items-center gap-1">
+                <Clock size={12} aria-hidden />
+                {duration}
+              </span>
+              <span>·</span>
+              <span className="inline-flex items-center gap-1">
+                <Repeat size={12} aria-hidden />
+                {frequency}
+              </span>
+            </div>
           </div>
         </Row>
         <Row className="gap-2 shrink-0">
           <Button
             variant="outline"
             size="sm"
+            className="h-8 px-3 text-xs"
             onClick={() => setEditing(!editing)}
           >
             {editing ? 'Close' : 'Edit'}
@@ -549,6 +545,7 @@ function WorkspaceActivityRow({
           <Button
             variant="ghost"
             size="sm"
+            className="h-8 px-3 text-xs text-muted hover:text-danger"
             disabled={!online || removeActivity.isPending}
             loading={removeActivity.isPending}
             onClick={async () => {
@@ -557,7 +554,7 @@ function WorkspaceActivityRow({
                   activityId: activity.activityId,
                   expectedRevision: ws.draftRevision,
                 })
-                toast.success('Activity removed from Program')
+                toast.success('Activity removed')
               } catch (err: any) {
                 toast.error(err?.message || 'Could not remove Activity')
               }
@@ -568,27 +565,63 @@ function WorkspaceActivityRow({
         </Row>
       </Row>
 
-      {/* Expanded Inline Editor */}
+      {/* Duration and Frequency Pickers */}
+      <Row className="gap-3 pt-1 border-t border-border/50 text-xs">
+        <label className="flex items-center gap-1.5 text-muted">
+          <Clock size={13} aria-hidden />
+          <span className="font-semibold">Duration:</span>
+          <Select
+            className="h-7 text-xs py-0 px-2 rounded"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+          >
+            {DURATION_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="flex items-center gap-1.5 text-muted">
+          <Repeat size={13} aria-hidden />
+          <span className="font-semibold">Frequency:</span>
+          <Select
+            className="h-7 text-xs py-0 px-2 rounded"
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value)}
+          >
+            {FREQUENCY_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </Select>
+        </label>
+      </Row>
+
+      {/* Expanded Inline Editor (No instructions, with 3/4 canvas multiple upload support) */}
       {editing && (
-        <Stack className="mt-3 border-t border-border pt-3 gap-3">
+        <Stack className="mt-3 border-t border-border pt-4 gap-4">
           {detail.data?.canEdit ? (
             <>
-              <ErrorMessage
-                error={detail.error || update.error || attachMedia.error}
-                retry={detail.error ? () => void detail.refetch() : undefined}
-              />
+              <ErrorMessage error={detail.error || update.error} />
               <label className="space-y-1">
-                <span className="text-xs font-semibold">Activity title</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                  Title
+                </span>
                 <Input
                   maxLength={140}
+                  className="h-10 text-sm"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-xs font-semibold">Description</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                  Description
+                </span>
                 <textarea
-                  className="textarea min-h-20"
+                  className="textarea min-h-20 text-sm"
                   maxLength={500}
                   value={summary}
                   onChange={(e) => setSummary(e.target.value)}
@@ -596,6 +629,7 @@ function WorkspaceActivityRow({
               </label>
               <Button
                 size="sm"
+                className="h-9 px-4 font-semibold"
                 disabled={!hasChanges || !title.trim() || !online || update.isPending}
                 loading={update.isPending}
                 onClick={async () => {
@@ -614,17 +648,22 @@ function WorkspaceActivityRow({
                   }
                 }}
               >
-                Save Activity
+                Save Changes
               </Button>
+
+              {/* 3/4 Canvas Media Section Supporting Multiple Uploads */}
               {context && detail.data && (
-                <>
-                  <ActivityImage activity={detail.data} revisionId={context.revisionId} />
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-semibold">Demonstration media</h4>
-                    <AddDemonstrationMedia revisionId={context.revisionId} disabled={!online} />
-                  </div>
+                <div className="space-y-2 pt-2 border-t border-border/60">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                    Demonstration Media
+                  </span>
+                  <MultiMediaCanvas
+                    target={{ kind: 'ACTIVITY_REVISION', id: context.revisionId }}
+                    purpose="DEMONSTRATION"
+                    disabled={!online}
+                  />
                   <MediaAttachments context={context} />
-                </>
+                </div>
               )}
             </>
           ) : (
@@ -638,20 +677,13 @@ function WorkspaceActivityRow({
   )
 }
 
-function CreateActivitySection({
-  ws,
-  onCreated,
-}: {
-  ws: Workspace
-  onCreated?: () => void
-}) {
+function CreateActivitySection({ ws }: { ws: Workspace }) {
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
-  const [instruction, setInstruction] = useState('')
-  const [instructionSaved, setInstructionSaved] = useState(false)
+  const [duration, setDuration] = useState('30 min')
+  const [frequency, setFrequency] = useState('3x / week')
   const [newActivity, setNewActivity] = useState<components['schemas']['ActivityDetail'] | null>(null)
   const create = useCreateActivity()
-  const putInstructions = usePutActivityInstructions()
   const add = useAddProgramActivities(ws.id)
   const online = useOnline()
   const categorySlugOf = useCategorySlugOf()
@@ -668,572 +700,148 @@ function CreateActivitySection({
         summary: summary.trim() || null,
       })
       setNewActivity(created)
-      setInstructionSaved(!instruction.trim())
-      if (instruction.trim()) {
-        const updated = await putInstructions.mutateAsync({
-          activityId: created.id,
-          instructions: [{ body: instruction.trim() }],
-          expectedRevision: created.draftRevision,
-        })
-        setNewActivity(updated)
-        setInstructionSaved(true)
-      }
     } catch {
       /* Keep form for retry */
     }
   }
 
   return (
-    <Panel>
-      <Stack className="gap-3">
-        <div>
-          <h3 className="font-semibold text-base">Create a new Activity</h3>
-          <p className="text-xs text-muted">
-            Start with your own title and description. Instructions are optional.
-          </p>
-        </div>
-        {newActivity ? (
-          <Stack className="gap-3">
-            <div>
-              <h4 className="font-semibold">{newActivity.title}</h4>
-              <p className="text-xs text-muted">{newActivity.summary || 'No description'}</p>
-            </div>
-            {newActivity.revisionId && (
-              <ChangeImage
-                label="Activity image"
-                canEdit
-                cover={cover}
-                hero={activityHero(liveActivity.data ?? newActivity, categorySlugOf)}
+    <Panel className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-4">
+      <h3 className="text-base font-bold text-foreground">New Activity</h3>
+
+      {newActivity ? (
+        <Stack className="gap-4">
+          <div>
+            <h4 className="font-semibold text-sm">{newActivity.title}</h4>
+            <p className="text-xs text-muted mt-0.5">{newActivity.summary || 'No description'}</p>
+          </div>
+
+          {/* 3/4 Canvas Multi-Upload */}
+          {newActivity.revisionId && (
+            <div className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                Media
+              </span>
+              <MultiMediaCanvas
+                target={{ kind: 'ACTIVITY_REVISION', id: newActivity.revisionId }}
+                purpose="DEMONSTRATION"
+                disabled={!online}
               />
-            )}
-            <ErrorMessage error={add.error} />
-            <Button
-              disabled={!online || !instructionSaved || add.isPending}
-              loading={add.isPending}
-              onClick={async () => {
-                try {
-                  await add.mutateAsync({
-                    activityIds: [newActivity.id],
-                    expectedRevision: ws.draftRevision,
-                  })
-                  toast.success('Activity added to Program')
-                  setNewActivity(null)
-                  setTitle('')
-                  setSummary('')
-                  setInstruction('')
-                  onCreated?.()
-                } catch {
-                  /* Keep for retry */
-                }
-              }}
-            >
-              Add Activity to Program
-            </Button>
-          </Stack>
-        ) : (
-          <Stack className="gap-3">
-            <ErrorMessage error={create.error || putInstructions.error} />
-            <ActivityBasicsFields
-              title={title}
-              summary={summary}
-              instruction={instruction}
-              onTitleChange={setTitle}
-              onSummaryChange={setSummary}
-              onInstructionChange={setInstruction}
+            </div>
+          )}
+
+          <ErrorMessage error={add.error} />
+          <Button
+            size="lg"
+            className="h-11 px-6 font-semibold"
+            disabled={!online || add.isPending}
+            loading={add.isPending}
+            onClick={async () => {
+              try {
+                await add.mutateAsync({
+                  activityIds: [newActivity.id],
+                  expectedRevision: ws.draftRevision,
+                })
+                toast.success('Activity added to Program')
+                setNewActivity(null)
+                setTitle('')
+                setSummary('')
+              } catch {
+                /* Keep for retry */
+              }
+            }}
+          >
+            Add to Program
+          </Button>
+        </Stack>
+      ) : (
+        <Stack className="gap-4">
+          <ErrorMessage error={create.error} />
+          <label className="space-y-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Activity title
+            </span>
+            <Input
+              aria-label="Activity title"
+              maxLength={140}
+              placeholder="e.g. Morning Run, Upper Body Strength"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
             />
-            <Button
-              disabled={!title.trim() || !online || create.isPending}
-              loading={create.isPending || putInstructions.isPending}
-              onClick={() => void handleCreate()}
-            >
-              Create Activity
-            </Button>
-          </Stack>
-        )}
-      </Stack>
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Description (optional)
+            </span>
+            <textarea
+              aria-label="Description (optional)"
+              className="textarea min-h-20 text-sm"
+              maxLength={500}
+              placeholder="Short description of this activity..."
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+            />
+          </label>
+
+          {/* Duration & Frequency Pickers */}
+          <Row className="gap-4 flex-wrap">
+            <label className="space-y-1 flex-1 min-w-[140px]">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                Duration
+              </span>
+              <Select
+                aria-label="Duration"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              >
+                {DURATION_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="space-y-1 flex-1 min-w-[140px]">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                Frequency
+              </span>
+              <Select
+                aria-label="Frequency"
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value)}
+              >
+                {FREQUENCY_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </Row>
+
+          <Button
+            size="lg"
+            className="h-11 px-6 font-semibold self-start"
+            disabled={!title.trim() || !online || create.isPending}
+            loading={create.isPending}
+            onClick={() => void handleCreate()}
+          >
+            Create Activity
+          </Button>
+        </Stack>
+      )}
     </Panel>
   )
 }
 
-function SuggestedActivitiesSection({
-  ws,
-  onBrowse,
-}: {
-  ws: Workspace
-  onBrowse: () => void
-}) {
-  const categorySlugOf = useCategorySlugOf()
-  const addExisting = useAddExistingActivity(ws)
-  const [addingId, setAddingId] = useState<string | null>(null)
-  const online = useOnline()
-  const programCategoryId = ws.type.categoryId || ws.focus?.categoryId || ''
-  const suggestions = useActivitySuggestions({
-    categoryId: programCategoryId,
-    focusId: ws.focus?.id,
-    exclude: ws.activities.map((a) => a.activityId),
-  })
-
-  return (
-    <Stack className="gap-2">
-      <ErrorMessage error={addExisting.error} />
-      <SuggestionRail
-        title="Suggested Activities"
-        actionLabel="Add to Program"
-        items={suggestions.items.map((activity) =>
-          activityCard(activity, categorySlugOf),
-        )}
-        loading={suggestions.isPending}
-        error={suggestions.error}
-        retry={() => void suggestions.refetch()}
-        selectedId={addingId}
-        disabled={!online || addExisting.pending}
-        onPick={async (id) => {
-          const activity = suggestions.items.find((a) => a.id === id)
-          if (!activity) return
-          setAddingId(id)
-          try {
-            await addExisting.run(activity)
-            toast.success('Activity added')
-          } catch {
-            /* Error shows above rail */
-          } finally {
-            setAddingId(null)
-          }
-        }}
-        footer={
-          <Button variant="outline" className="self-start" onClick={onBrowse}>
-            Browse Activity Library
-          </Button>
-        }
-      />
-    </Stack>
-  )
-}
-
-function ActivityImage({
-  activity,
-  revisionId,
-}: {
-  activity: components['schemas']['ActivityDetail']
-  revisionId: string
-}) {
-  const categorySlugOf = useCategorySlugOf()
-  const cover = useActivityCover(revisionId)
-  return (
-    <ChangeImage
-      label="Activity image"
-      canEdit
-      cover={cover}
-      hero={activityHero(activity, categorySlugOf)}
-    />
-  )
-}
-
-function AddDemonstrationMedia({
-  revisionId,
-  disabled,
-}: {
-  revisionId: string
-  disabled?: boolean
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [error, setError] = useState<unknown>(null)
-  const inbound = useInboundMedia({
-    target: { kind: 'ACTIVITY_REVISION', id: revisionId },
-    purpose: 'DEMONSTRATION',
-    onSuccess: () => toast.success('Demonstration media attached'),
-    onError: setError,
-  })
-
-  const working = inbound.busy || inbound.stage === 'processing'
-
-  return (
-    <div className="space-y-1">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,video/*"
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        disabled={disabled || working}
-        onChange={async (event) => {
-          const file = event.target.files?.[0]
-          event.target.value = ''
-          if (!file) return
-          setError(null)
-          try {
-            await inbound.upload(file)
-          } catch (err) {
-            setError(err)
-          }
-        }}
-      />
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={disabled || working}
-        onClick={() => fileInputRef.current?.click()}
-        className="gap-1.5"
-      >
-        {working ? (
-          <Loader2 size={14} className="animate-spin" aria-hidden />
-        ) : (
-          <Upload size={14} aria-hidden />
-        )}
-        <span>{working ? 'Uploading…' : 'Add demonstration media'}</span>
-      </Button>
-      <ErrorMessage error={error || inbound.error} />
-    </div>
-  )
-}
-
-// ── Step 3: SCHEDULE ────────────────────────────────────────────────────────
-
-function ScheduleStep({
-  ws,
-  onBack,
-  onContinue,
-}: {
-  ws: Workspace
-  onBack: () => void
-  onContinue: () => void
-}) {
-  const me = useCurrentUser()
-  const timezone =
-    me.data?.data.preferences.timezone ??
-    Intl.DateTimeFormat().resolvedOptions().timeZone
-  const todayDate = today(timezone)
-  const [startDate, setStartDate] = useState(todayDate)
-  const [monthDate, setMonthDate] = useState(todayDate)
-  const [selectedDate, setSelectedDate] = useState(todayDate)
-  const placements = useProgramPlacements(ws.id)
-  const update = useUpdateProgram(ws.id)
-  const addPlacement = useAddProgramPlacement(ws.id)
-  const movePlacement = useUpdateProgramPlacement(ws.id)
-  const removePlacement = useDeleteProgramPlacement(ws.id)
-  const online = useOnline()
-  const [activityId, setActivityId] = useState('')
-
-  // Compute month calendar days
-  const monthDays = useMemo(() => {
-    const dates = monthGrid(monthDate)
-    const { start: mStart, end: mEnd } = monthBounds(monthDate)
-    return dates.map((date) => ({
-      id: date,
-      label: dateLabel(date, { weekday: 'short' }),
-      number: String(Number(date.slice(8, 10))),
-      today: date === todayDate,
-      inCurrentMonth: date >= mStart && date <= mEnd,
-    }))
-  }, [monthDate, todayDate])
-
-  // Project placements across the month grid
-  const projectedItems = useMemo(() => {
-    return projectProgramPlacements({
-      placements: placements.data ?? [],
-      startDate,
-      durationDays: ws.durationDays,
-      dates: monthDays.map((d) => d.id),
-    })
-  }, [placements.data, startDate, ws.durationDays, monthDays])
-
-  // Placements matching the currently selected calendar day
-  const selectedDayItems = projectedItems.filter((item) => item.day === selectedDate)
-  const offsetFromStart = dayDifference(selectedDate, startDate)
-  const cycleDays = ws.durationDays ?? 7
-  const placementBusy = addPlacement.isPending || movePlacement.isPending || removePlacement.isPending
-
-  return (
-    <Stack className="gap-6 mt-4">
-      <Row className="justify-between items-baseline">
-        <h2 className="text-xl font-bold">Schedule &amp; placement</h2>
-        <span className="text-xs text-muted">
-          {ws.frequencyLabel} · {ws.programDays ?? 0} program days
-        </span>
-      </Row>
-
-      {/* Start Date & Duration Controls */}
-      <Panel>
-        <Stack className="gap-3">
-          <Row className="justify-between items-end flex-wrap gap-4">
-            <label className="space-y-1">
-              <span className="text-sm font-semibold">Projected start date</span>
-              <Input
-                type="date"
-                min={todayDate}
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value)
-                  setSelectedDate(e.target.value)
-                  setMonthDate(e.target.value)
-                }}
-              />
-            </label>
-            <div className="space-y-1">
-              <span className="text-sm font-semibold">Duration</span>
-              <Row className="gap-1 flex-wrap">
-                {[7, 14, 28, 56, null].map((days) => (
-                  <Button
-                    key={days ?? 'ongoing'}
-                    size="sm"
-                    variant={ws.durationDays === days ? 'default' : 'outline'}
-                    disabled={!online || update.isPending}
-                    onClick={() =>
-                      update.mutate({
-                        durationDays: days,
-                        expectedRevision: ws.draftRevision,
-                      })
-                    }
-                  >
-                    {days === null ? 'Ongoing' : `${days / 7}w`}
-                  </Button>
-                ))}
-              </Row>
-            </div>
-          </Row>
-          <p className="text-xs text-muted">
-            Projecting your Program schedule using the selected start date. Your personal calendar is not modified until you start the Program in the final step.
-          </p>
-        </Stack>
-      </Panel>
-
-      {/* Month Navigation */}
-      <Row className="justify-between items-center">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setMonthDate((d) => addMonths(d, -1))}
-        >
-          Previous month
-        </Button>
-        <h3 className="font-display text-base font-bold">
-          {dateLabel(monthDate, { month: 'long', year: 'numeric' })}
-        </h3>
-        <Row className="gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setMonthDate(todayDate)}
-          >
-            Today
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMonthDate((d) => addMonths(d, 1))}
-          >
-            Next month
-          </Button>
-        </Row>
-      </Row>
-
-      {/* Calendar Surface Month View */}
-      {placements.isPending ? (
-        <Loading />
-      ) : (
-        <CalendarSurface
-          view="month"
-          days={monthDays}
-          items={projectedItems}
-          selected={selectedDate}
-          onSelect={setSelectedDate}
-        />
-      )}
-
-      {/* Day Details for Selected Date */}
-      <Panel>
-        <Stack className="gap-3">
-          <Row className="justify-between items-center">
-            <h3 className="font-semibold text-base">
-              Activities on {dateLabel(selectedDate, { weekday: 'short', month: 'short', day: 'numeric' })}
-            </h3>
-            {offsetFromStart >= 0 && (
-              <span className="text-xs text-muted">
-                {ws.durationDays !== null
-                  ? `Day ${offsetFromStart + 1} of ${ws.durationDays}`
-                  : `Cycle Day ${(offsetFromStart % 7) + 1} (repeats weekly)`}
-              </span>
-            )}
-          </Row>
-
-          {offsetFromStart < 0 ? (
-            <div className="py-2 text-sm text-muted">
-              <p>This date is before the projected start date ({startDate}).</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => {
-                  setStartDate(selectedDate)
-                  setMonthDate(selectedDate)
-                }}
-              >
-                Set start date to {selectedDate}
-              </Button>
-            </div>
-          ) : ws.durationDays !== null && offsetFromStart >= ws.durationDays ? (
-            <p className="py-2 text-sm text-muted">
-              This date is beyond the Program duration of {ws.durationDays} days.
-            </p>
-          ) : (
-            <>
-              {selectedDayItems.length > 0 ? (
-                <Stack className="gap-2">
-                  {selectedDayItems.map((item) => {
-                    const placementId = item.id.replace(/^projected-([^-]+)-.*$/, '$1')
-                    const rawPlacement = (placements.data ?? []).find((p) => p.id === placementId)
-
-                    return (
-                      <Row
-                        key={item.id}
-                        className="justify-between items-center rounded-lg border border-border p-3"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <strong>{item.title}</strong>
-                          {item.localTime && (
-                            <span className="ml-2 text-xs text-muted">
-                              {item.localTime}
-                            </span>
-                          )}
-                        </div>
-                        {rawPlacement && (
-                          <Row className="gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              aria-label={`Move ${item.title} one day earlier`}
-                              disabled={
-                                !online ||
-                                placementBusy ||
-                                rawPlacement.relativeDay <= 0
-                              }
-                              onClick={() =>
-                                movePlacement.mutate({
-                                  placementId: rawPlacement.id,
-                                  relativeDay: rawPlacement.relativeDay - 1,
-                                  expectedRevision: ws.draftRevision,
-                                })
-                              }
-                            >
-                              − Day
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              aria-label={`Move ${item.title} one day later`}
-                              disabled={
-                                !online ||
-                                placementBusy ||
-                                rawPlacement.relativeDay >= cycleDays - 1
-                              }
-                              onClick={() =>
-                                movePlacement.mutate({
-                                  placementId: rawPlacement.id,
-                                  relativeDay: rawPlacement.relativeDay + 1,
-                                  expectedRevision: ws.draftRevision,
-                                })
-                              }
-                            >
-                              + Day
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={!online || placementBusy}
-                              onClick={() =>
-                                removePlacement.mutate({
-                                  placementId: rawPlacement.id,
-                                  expectedRevision: ws.draftRevision,
-                                })
-                              }
-                            >
-                              Remove
-                            </Button>
-                          </Row>
-                        )}
-                      </Row>
-                    )
-                  })}
-                </Stack>
-              ) : (
-                <p className="text-sm text-muted py-2">
-                  No Activities scheduled on this day.
-                </p>
-              )}
-
-              {/* Add Activity to this day */}
-              {ws.activities.length > 0 && (
-                <Row className="items-end gap-2 pt-2">
-                  <label className="min-w-0 flex-1 space-y-1">
-                    <span className="text-xs font-semibold">Add an Activity to this day</span>
-                    <Select
-                      value={activityId}
-                      onChange={(e) => setActivityId(e.target.value)}
-                    >
-                      <option value="">Choose an Activity</option>
-                      {ws.activities.map((act) => (
-                        <option key={act.activityId} value={act.activityId}>
-                          {act.title}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                  <Button
-                    disabled={!activityId || !online || placementBusy}
-                    loading={addPlacement.isPending}
-                    onClick={() => {
-                      const relDay = ws.durationDays !== null ? offsetFromStart : (offsetFromStart % 7)
-                      addPlacement.mutate({
-                        activityId,
-                        relativeDay: relDay,
-                        expectedRevision: ws.draftRevision,
-                      })
-                      setActivityId('')
-                    }}
-                  >
-                    Add to day
-                  </Button>
-                </Row>
-              )}
-            </>
-          )}
-
-          <ErrorMessage
-            error={
-              placements.error ||
-              addPlacement.error ||
-              movePlacement.error ||
-              removePlacement.error ||
-              update.error
-            }
-          />
-        </Stack>
-      </Panel>
-
-      {/* Navigation Controls */}
-      <Row className="justify-between pt-4 border-t border-border">
-        <Button variant="outline" onClick={onBack}>
-          ← Back to Activities
-        </Button>
-        <Button size="lg" onClick={onContinue}>
-          Continue to Publish &amp; Share →
-        </Button>
-      </Row>
-    </Stack>
-  )
-}
-
-// ── Step 4: PUBLISH & SHARE ─────────────────────────────────────────────────
+// ── Step 3: PUBLISH & SHARE ─────────────────────────────────────────────────
 
 function PublishStep({
   ws,
   onBack,
-  refresh,
 }: {
   ws: Workspace
   onBack: () => void
-  refresh: () => void
 }) {
   const check = usePublishCheck(ws.id)
   const publish = usePublishProgram(ws.id)
@@ -1244,52 +852,64 @@ function PublishStep({
     ws.visibility === 'PRIVATE' ? 'PUBLIC' : ws.visibility,
   )
 
-  return (
-    <Stack className="gap-6 mt-4">
-      <Row className="justify-between items-baseline">
-        <h2 className="text-xl font-bold">Publish &amp; Share</h2>
-        <span className="text-xs text-muted">Final review &amp; distribution</span>
-      </Row>
+  const handlePublish = async () => {
+    try {
+      await publish.mutateAsync({
+        visibility,
+        accessMode: 'OPEN',
+        expectedRevision: ws.draftRevision,
+      })
+      toast.success('Program published')
+      navigate(buildProgramUrl({ id: ws.id, title: ws.title }))
+    } catch {
+      /* show validation */
+    }
+  }
 
-      {/* Concise Program Summary */}
-      <Panel>
-        <Stack className="gap-3">
-          <Row className="gap-3 items-center">
-            <EntityHero hero={programHero(ws, categorySlugOf)} size="thumb" />
-            <div className="min-w-0 flex-1">
-              <h3 className="font-display text-lg font-bold truncate">{ws.title}</h3>
-              <p className="text-xs text-muted">
-                {ws.type.label} · {ws.durationDays ? `${ws.durationDays / 7} weeks` : 'Ongoing'} · {ws.frequencyLabel}
-              </p>
-            </div>
-          </Row>
-          {ws.description && (
-            <p className="text-sm text-muted whitespace-pre-wrap">{ws.description}</p>
-          )}
-          <div className="border-t border-border pt-2 text-xs text-muted space-y-1">
-            <p>
-              {ws.activityCount} {ws.activityCount === 1 ? 'Activity' : 'Activities'} ·{' '}
-              {ws.instructionCount} Instructions · {ws.programDays ?? 0} Program Days
+  return (
+    <Stack className="gap-6">
+      <h2 className="text-xl font-bold tracking-tight text-foreground">
+        Publish &amp; Share
+      </h2>
+
+      {/* Program Summary */}
+      <Panel className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted">
+          Summary
+        </h3>
+        <Row className="gap-4 items-center">
+          <EntityHero hero={programHero(ws, categorySlugOf)} size="thumb" />
+          <div className="min-w-0 flex-1">
+            <h4 className="font-display text-lg font-bold truncate">{ws.title}</h4>
+            <p className="text-xs text-muted mt-0.5">
+              {ws.type.label} · {ws.durationDays ? `${ws.durationDays / 7} weeks` : 'Ongoing'} · {ws.activityCount} Activities
             </p>
-            {ws.activities.map((a) => (
-              <p key={a.activityId} className="truncate">
-                • {a.title} ({a.instructionCount} instructions)
-              </p>
-            ))}
           </div>
-        </Stack>
+        </Row>
+        {ws.description && (
+          <p className="text-xs text-muted whitespace-pre-wrap">{ws.description}</p>
+        )}
       </Panel>
 
-      {/* Publish Validation & Issues */}
-      <Panel>
-        <Stack className="gap-3">
-          <h3 className="font-semibold text-base">Who can find it?</h3>
+      {/* Combined Visibility & Group Sharing (No sentence titles) */}
+      <Panel className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-5">
+        <h3 className="text-base font-bold text-foreground">
+          Visibility &amp; Group Sharing
+        </h3>
+
+        {/* Visibility Controls */}
+        <div className="space-y-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Visibility
+          </span>
           <Row className="gap-2">
             {(['PUBLIC', 'UNLISTED', 'PRIVATE'] as const).map((v) => (
               <Button
                 key={v}
                 aria-pressed={visibility === v}
                 variant={visibility === v ? 'default' : 'outline'}
+                size="sm"
+                className="h-9 px-4 font-semibold"
                 onClick={() => setVisibility(v)}
               >
                 {v === 'PUBLIC'
@@ -1300,57 +920,59 @@ function PublishStep({
               </Button>
             ))}
           </Row>
+          <p className="text-xs text-muted">
+            {visibility === 'PUBLIC'
+              ? 'Visible to anyone in the discovery library.'
+              : visibility === 'UNLISTED'
+                ? 'Only accessible to people with the link.'
+                : 'Private to you and members you invite.'}
+          </p>
+        </div>
 
-          <ErrorMessage
-            error={check.error || publish.error}
-            retry={() => void check.refetch()}
-          />
-          {check.isPending && <Loading />}
-          {check.data?.issues.map((issue) => (
-            <p
-              role="alert"
-              className="text-sm text-danger"
-              key={`${issue.code}:${issue.field}:${issue.activityId}`}
-            >
-              {issue.message}
-            </p>
-          ))}
+        {/* Group Sharing & Invites */}
+        {ws.status !== 'ARCHIVED' && (
+          <div className="pt-4 border-t border-border space-y-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Group Invitations
+            </span>
+            <WorkspaceTogether ws={ws} />
+          </div>
+        )}
 
-          <Button
-            size="lg"
-            disabled={!online || !check.data?.canPublish || publish.isPending}
-            loading={publish.isPending}
-            onClick={async () => {
-              try {
-                await publish.mutateAsync({
-                  visibility,
-                  accessMode: 'OPEN',
-                  expectedRevision: ws.draftRevision,
-                })
-                toast.success('Program published')
-                navigate(buildProgramUrl({ id: ws.id, title: ws.title }))
-              } catch {
-                /* show validation */
-              }
-            }}
+        <ErrorMessage
+          error={check.error || publish.error}
+          retry={() => void check.refetch()}
+        />
+        {check.isPending && <Loading />}
+        {check.data?.issues.map((issue) => (
+          <p
+            role="alert"
+            className="text-xs text-danger font-medium"
+            key={`${issue.code}:${issue.field}:${issue.activityId}`}
           >
-            {ws.status === 'PUBLISHED' ? 'Publish Update' : 'Publish Program'}
-          </Button>
-        </Stack>
+            {issue.message}
+          </p>
+        ))}
       </Panel>
 
-      {/* Start on Personal Calendar */}
-      {ws.status !== 'ARCHIVED' && (
-        <StartProgram ws={ws} refresh={refresh} />
-      )}
-
-      {/* Group Workflows / Do this together */}
-      {ws.status !== 'ARCHIVED' && <WorkspaceTogether ws={ws} />}
-
-      {/* Navigation Controls */}
-      <Row className="justify-between pt-4 border-t border-border">
-        <Button variant="outline" onClick={onBack}>
-          ← Back to Schedule
+      {/* Consistent Bottom Navigation */}
+      <Row className="justify-between items-center pt-6 border-t border-border mt-8">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-11 px-6 font-semibold"
+          onClick={onBack}
+        >
+          Back
+        </Button>
+        <Button
+          size="lg"
+          className="h-11 px-8 font-semibold"
+          disabled={!online || !check.data?.canPublish || publish.isPending}
+          loading={publish.isPending}
+          onClick={handlePublish}
+        >
+          {ws.status === 'PUBLISHED' ? 'Publish Update' : 'Publish Program'}
         </Button>
       </Row>
     </Stack>
@@ -1371,166 +993,9 @@ function WorkspaceTogether({ ws }: { ws: Workspace }) {
       enrollmentId={enrollment?.id ?? null}
       isProgramOwner
       timezone={me.data?.data.preferences.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}
+      title={null}
     />
   )
-}
-
-function StartProgram({
-  ws,
-  refresh,
-}: {
-  ws: Workspace
-  refresh: () => void
-}) {
-  const me = useCurrentUser()
-  const enrollments = useMyEnrollments()
-  const publish = usePublishProgram(ws.id)
-  const join = useJoinProgram(ws.id)
-  const navigate = useNavigate()
-  const online = useOnline()
-  const timezone =
-    me.data?.data.preferences.timezone ??
-    Intl.DateTimeFormat().resolvedOptions().timeZone
-  const [startDate, setStartDate] = useState('')
-  const idempotencyKeys = useRef(new Map<string, string>())
-
-  useEffect(() => {
-    setStartDate((current) => current || today(timezone))
-  }, [timezone])
-
-  const alreadyOnCalendar =
-    enrollments.data?.pages
-      .flatMap((page) => page.data)
-      .some(
-        (enrollment) =>
-          enrollment.program.id === ws.id &&
-          ['ACTIVE', 'PAUSED'].includes(enrollment.status),
-      ) ?? false
-
-  const busy = publish.isPending || join.isPending
-
-  async function startProgram() {
-    if (!online || busy || !startDate || alreadyOnCalendar) return
-
-    try {
-      let versionId = ws.latestPublishedVersionId
-      if (ws.status !== 'PUBLISHED' || ws.hasUnpublishedChanges) {
-        const published = await publish.mutateAsync({
-          visibility: 'PRIVATE',
-          accessMode: 'OPEN',
-          expectedRevision: ws.draftRevision,
-        })
-        versionId = published.latestPublishedVersionId
-      }
-      if (!versionId) {
-        throw new Error('The Program could not be prepared for your Calendar.')
-      }
-
-      await join.mutateAsync({
-        programVersionId: versionId,
-        startLocalDate: startDate,
-        timezone,
-        idempotencyKey: getIdempotencyKey(
-          idempotencyKeys.current,
-          versionId,
-          startDate,
-          timezone,
-        ),
-      })
-      toast.success('Program started')
-      navigate(calendarUrl(startDate))
-    } catch (error) {
-      refresh()
-      if (!(error instanceof ApiError)) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : 'The Program could not be started.',
-        )
-      }
-    }
-  }
-
-  return (
-    <Panel className="border-accent/30">
-      <Stack className="gap-3">
-        <div>
-          <h3 className="font-semibold text-base">Start Program on Calendar</h3>
-        </div>
-        {ws.activityCount === 0 && (
-          <p className="text-sm text-attention">
-            Add at least one Activity before starting this Program.
-          </p>
-        )}
-        {alreadyOnCalendar ? (
-          <p role="status" className="text-sm text-muted">
-            This Program is already on your Calendar.{' '}
-            <Link to={calendarUrl(startDate)} className="text-accent underline font-semibold ml-1">
-              View Calendar
-            </Link>
-          </p>
-        ) : (
-          <>
-            {enrollments.isPending && (
-              <p role="status" className="text-sm text-muted">
-                Checking your Calendar…
-              </p>
-            )}
-            <Row className="justify-between items-end flex-wrap gap-3">
-              <label className="space-y-1">
-                <span className="text-sm font-semibold">Start date</span>
-                <Input
-                  type="date"
-                  required
-                  min={today(timezone)}
-                  value={startDate}
-                  onChange={(event) => {
-                    setStartDate(event.target.value)
-                  }}
-                />
-              </label>
-              <Button
-                disabled={
-                  !online ||
-                  busy ||
-                  ws.activityCount === 0 ||
-                  !startDate ||
-                  enrollments.isPending
-                }
-                loading={busy}
-                onClick={() => void startProgram()}
-              >
-                Start Program
-              </Button>
-            </Row>
-          </>
-        )}
-        <ErrorMessage
-          error={enrollments.error || publish.error || join.error}
-          retry={
-            enrollments.error
-              ? () => void enrollments.refetch()
-              : undefined
-          }
-        />
-      </Stack>
-    </Panel>
-  )
-}
-
-function getIdempotencyKey(
-  keys: Map<string, string>,
-  programVersionId: string,
-  startDate: string,
-  timezone: string,
-) {
-  const signature = `${programVersionId}:${startDate}:${timezone}`
-  let key = keys.get(signature)
-  if (!key) {
-    key = crypto.randomUUID()
-    keys.set(signature, key)
-  }
-  return key
 }
 
 function useAddExistingActivity(ws: Workspace) {

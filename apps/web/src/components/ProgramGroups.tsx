@@ -21,12 +21,14 @@ export function ProgramGroups({
   enrollmentId,
   isProgramOwner,
   timezone,
+  title = 'Do this together',
 }: {
   programId: string
   versionId: string | null
   enrollmentId: string | null
   isProgramOwner: boolean
   timezone: string
+  title?: string | null
 }) {
   const online = useOnline()
   const groups = useMyGroups()
@@ -65,7 +67,7 @@ export function ProgramGroups({
   return (
     <Panel>
       <Stack>
-        <h2>Do this together</h2>
+        {title && <h2>{title}</h2>}
         {groups.isPending && <Loading />}
         <ErrorMessage error={groups.error} retry={() => void groups.refetch()} />
         {matching.map((group) => <Participation key={group.id} groupId={group.id} programId={programId} />)}

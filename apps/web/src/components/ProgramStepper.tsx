@@ -1,7 +1,7 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
 
-export type ProgramStep = 'details' | 'activities' | 'schedule' | 'publish'
+export type ProgramStep = 'details' | 'activities' | 'publish'
 
 export const PROGRAM_STEPS: {
   id: ProgramStep
@@ -11,8 +11,7 @@ export const PROGRAM_STEPS: {
 }[] = [
   { id: 'details', number: 1, label: 'Details', shortLabel: 'Details' },
   { id: 'activities', number: 2, label: 'Activities', shortLabel: 'Activities' },
-  { id: 'schedule', number: 3, label: 'Schedule', shortLabel: 'Schedule' },
-  { id: 'publish', number: 4, label: 'Publish & Share', shortLabel: 'Publish' },
+  { id: 'publish', number: 3, label: 'Publish & Share', shortLabel: 'Publish' },
 ]
 
 export function ProgramStepper({
@@ -31,7 +30,7 @@ export function ProgramStepper({
       aria-label="Program editor steps"
       className="my-3 w-full rounded-xl border border-border bg-surface-raised p-1.5 sm:p-2"
     >
-      <ol className="grid grid-cols-4 gap-1 sm:gap-2">
+      <ol className="grid grid-cols-3 gap-1 sm:gap-2">
         {PROGRAM_STEPS.map((step, index) => {
           const isCurrent = step.id === currentStep
           const isPast = index < currentIndex
@@ -44,9 +43,9 @@ export function ProgramStepper({
                 aria-current={isCurrent ? 'step' : undefined}
                 onClick={() => onSelectStep(step.id)}
                 className={cn(
-                  'group flex w-full flex-col items-center justify-center rounded-lg px-1 py-1.5 text-center transition-colors sm:flex-row sm:gap-2 sm:px-2.5 sm:py-2',
+                  'group flex w-full flex-col items-center justify-center rounded-lg px-2 py-2 text-center transition-colors sm:flex-row sm:gap-2 sm:px-3 sm:py-2.5',
                   isCurrent
-                    ? 'bg-accent text-white shadow-sm'
+                    ? 'bg-accent text-white shadow-sm font-semibold'
                     : isPast
                       ? 'text-foreground hover:bg-surface'
                       : 'text-muted hover:bg-surface hover:text-foreground',
@@ -54,7 +53,7 @@ export function ProgramStepper({
               >
                 <span
                   className={cn(
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors',
+                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors',
                     isCurrent
                       ? 'bg-white text-accent'
                       : isPast
@@ -64,7 +63,7 @@ export function ProgramStepper({
                 >
                   {step.number}
                 </span>
-                <span className="truncate text-xs font-semibold sm:text-sm">
+                <span className="truncate text-xs sm:text-sm font-semibold">
                   {step.label}
                 </span>
               </button>
@@ -75,4 +74,3 @@ export function ProgramStepper({
     </nav>
   )
 }
-
