@@ -111,6 +111,22 @@ export async function buildApp(opts: BuildOptions = {}): Promise<FastifyInstance
     const body = (route.schema as any)?.body
     const isBinary = (s: any) => s?.format === 'binary'
     if (isBinary(body) || Object.values<any>(body?.content ?? {}).some((c) => isBinary(c?.schema))) delete (route.schema as any).body
+    // Fastify picks the body validator by Content-Type, so a request with no body at all skips
+    // validation and reaches the handler with `undefined`. Answer it like any missing field (400).
+    const jsonBody = (route.schema as any)?.body?.content?.['application/json']?.schema ?? (route.schema as any)?.body
+    const requiredFields: string[] = Array.isArray(jsonBody?.required) ? jsonBody.required : []
+    if (requiredFields.length) {
+      const existingPre = route.preValidation ? (Array.isArray(route.preValidation) ? route.preValidation : [route.preValidation]) : []
+      route.preValidation = [
+        async (request) => {
+          if (request.body !== undefined) return
+          const err: any = new Error('Request body is required')
+          err.validation = requiredFields.map((field) => ({ instancePath: '', params: { missingProperty: field }, message: `must have required property '${field}'` }))
+          throw err
+        },
+        ...existingPre,
+      ]
+    }
     const codes = Object.keys((route.schema as any)?.response ?? {}).filter((c) => /^2\d\d$/.test(c))
     if (codes.length !== 1 || codes[0] === '200') return
     const status = Number(codes[0])

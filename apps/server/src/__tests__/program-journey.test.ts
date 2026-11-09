@@ -390,9 +390,10 @@ describe('POC journey: publish → discover → join → group → share → upd
     // 8 joined; heidi left → 7 people; grace's restart is still one person.
     expect(p.participation).toMatchObject({ participantCount: 7, activeMemberCount: 1 })
     // Friends: fellow group members who share, linked to the group; followed first (dave).
-    // erin turned sharing off; grace's restarted run is not linked to the group; ivan only followed.
-    expect(p.participation.friends.map((f: any) => [f.handle, f.viewerFollows])).toEqual([['dave', true], ['carol', false], ['frank', false]])
-    expect(p.participation.friendCount).toBe(3)
+    // erin turned sharing off; grace restarted and stays in the group (10 §3); ivan only followed.
+    expect(p.participation.friends.map((f: any) => [f.handle, f.viewerFollows])).toEqual([['dave', true], ['carol', false], ['frank', false], ['grace', false]])
+    expect(p.participation.friendCount).toBe(4)
+    expect(await db.groupMember.count({ where: { groupId: group.id, userId: U.grace } })).toBe(1)
     expect(JSON.stringify(p.participation)).not.toContain('ivan')
     // ivan follows nobody in the group and is in no group: aggregates only.
     const ivanLib = (await ok(U.ivan, 'GET', '/me/program-library')).find((x: any) => x.program.id === programId)

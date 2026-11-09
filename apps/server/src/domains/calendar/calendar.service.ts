@@ -58,7 +58,13 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
     orderBy: { createdAt: 'desc' },
   })
   const shares = keys.length ? await db.completionShare.findMany({
-    where: { occurrenceKey: { in: keys }, groupId: { in: groupIds }, revokedAt: null },
+    where: {
+      occurrenceKey: { in: keys },
+      groupId: { in: groupIds },
+      revokedAt: null,
+      // Runs ended by leaving or restarting are history, not current participation (10 §3).
+      OR: [{ calendarItemId: { in: items.map((i) => i.id) } }, { calendarItem: { enrollment: { status: { not: 'LEFT' } } } }],
+    },
     select: { groupId: true, occurrenceKey: true, userId: true },
   }) : []
   // Timed items sharing a local date and time are flagged on both tiles (03 §5).

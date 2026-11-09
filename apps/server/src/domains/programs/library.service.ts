@@ -235,10 +235,20 @@ export async function manageLibrary(
           },
           data: { status: 'CANCELLED' },
         })
+        // A restart keeps the person in their Program Group: the existing membership (and its
+        // sharing preference) is reused, never duplicated, and the new run is linked to it. The
+        // group's own start date and other members' calendars are untouched. Leaving the group is
+        // a separate action.
+        const keepGroup = old.groupId
+          ? await tx.groupMember.findFirst({
+              where: { groupId: old.groupId, userId, status: 'ACTIVE', group: { status: 'ACTIVE' } },
+              select: { groupId: true },
+            })
+          : null
         await enrollInTx(tx, userId, program, version, {
           startLocalDate: todayIn(old.timezone),
           timezone: old.timezone,
-          groupId: null,
+          groupId: keepGroup?.groupId ?? null,
         })
         await tx.programLibraryState.updateMany({
           where: { userId, programId },

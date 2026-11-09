@@ -209,6 +209,6 @@ Done in `79bd86e` (server/API) and `5e9e7d7` (web). The dev database has `202611
 
 ### Open issues
 
-- **Restarting drops the group link.** `RESTART` re-enrolls with `groupId: null` (`docs/personal-program-library.md`: "does not inherit group membership"). The person stays a group member but disappears from every Activity row and from friends. This needs a product decision.
+- ~~Restarting drops the group link~~: resolved. A restart links the new run to the existing membership (10 §3); see `restart-group.test.ts`.
 - **`journey.spec.ts` is out of date.** It still uses the pre-redesign Program creation flow ("Continue to customize", "You have unsaved changes.") and fails in 6 tests on desktop and mobile. `program-editor.spec.ts` on mobile is flaky.
-- **Leaving without a body returns 500.** `POST /enrollments/{id}/leave` without a body gives a 500 instead of a 400.
+- ~~Leaving without a body returns 500~~: resolved. Any route whose JSON body has required fields now answers a missing body with `400 VALIDATION_ERROR` (`app.ts` `onRoute`).

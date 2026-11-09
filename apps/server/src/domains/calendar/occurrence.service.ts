@@ -127,13 +127,24 @@ export async function occurrence(userId: string, itemId: string) {
   if (groupId && item.groupOccurrenceKey) {
     const members = await db.groupMember.findMany({ where: { groupId, status: 'ACTIVE' }, include: { user: { include: { profile: true } } } })
     const shares = await db.completionShare.findMany({
-      where: { groupId, occurrenceKey: item.groupOccurrenceKey, revokedAt: null },
+      // A run that ended by leaving the Program or restarting it is history (still in the group
+      // feed), not current participation; the viewer's own item is always included.
+      where: {
+        groupId,
+        occurrenceKey: item.groupOccurrenceKey,
+        revokedAt: null,
+        OR: [{ calendarItemId: item.id }, { calendarItem: { enrollment: { status: { not: 'LEFT' } } } }],
+      },
       include: { reactions: true },
     })
     const unread = await db.notification.count({ where: { recipientId: userId, readAt: null, groupOccurrenceKey: item.groupOccurrenceKey } })
     // Each member's own item for this occurrence: dated before they joined means Not Participating (10 §3).
     const memberItems = await db.calendarItem.findMany({
-      where: { groupOccurrenceKey: item.groupOccurrenceKey, ownerId: { in: members.map((m) => m.userId) }, enrollment: { groupId } },
+      where: {
+        groupOccurrenceKey: item.groupOccurrenceKey,
+        ownerId: { in: members.map((m) => m.userId) },
+        OR: [{ id: item.id }, { enrollment: { groupId, status: { not: 'LEFT' } } }],
+      },
       select: {
         ownerId: true,
         status: true,
