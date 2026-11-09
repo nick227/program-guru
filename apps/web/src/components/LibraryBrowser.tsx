@@ -4,6 +4,7 @@ import {
   useNavigate,
   useOutletContext,
   useSearchParams,
+  Link,
 } from 'react-router-dom'
 import {
   useCategories,
@@ -14,7 +15,7 @@ import {
   useProgramPrefetch,
   type components,
 } from '@project/sdk'
-import { ChevronLeft, RotateCcw, Search, X } from 'lucide-react'
+import { Calendar, ChevronLeft, RotateCcw, Search, X, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
@@ -102,6 +103,7 @@ function LibraryBrowser({
   context: LibraryBrowserContext
   onClose: () => void
 }) {
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const categorySlugOf = useCategorySlugOf()
   const types = useProgramTypes()
@@ -221,15 +223,35 @@ function LibraryBrowser({
       className="fixed inset-x-0 bottom-0 top-16 z-30 flex flex-col overflow-hidden border-t border-border bg-background shadow-2xl"
     >
       <header className="border-b border-border bg-surface px-4 py-4 sm:px-6 lg:px-8">
-        <div className="mx-auto flex w-full max-w-content flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-start gap-3">
-            <Button variant="outline" size="sm" onClick={onClose} className="gap-1.5">
-              <ChevronLeft className="h-4 w-4" aria-hidden />
-              Back
-            </Button>
-            <h2 className="sheet-title">{title}</h2>
+        <div className="mx-auto flex w-full page--wide flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1>{title}</h1>
+            <div className="flex wrap-nowrap gap-2 library-browser-controls">
+              
+          <Button
+            onClick={() => navigate('/')}
+            variant="outline"
+          >
+            <Calendar size={16} /> Calendar
+          </Button>
+              <Link
+                to={`/library?returnTo=${encodeURIComponent(origin)}`}
+                className="calendar-toolbar__library"
+              >
+                <Plus size={16} aria-hidden />
+                My Programs
+              </Link>
+              <Link
+                to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
+                className="calendar-toolbar__add"
+              >
+                <Plus size={16} aria-hidden />
+                Add Program
+              </Link>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
+            <div className="flex wrap-nowrap gap-2 grow">
             <div className="relative min-w-[200px] flex-1 sm:max-w-md">
               <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted" />
               <Input
@@ -272,7 +294,7 @@ function LibraryBrowser({
               (value) => setParam(PARAM.creator, value, 'ALL'),
             )}
           </div>
-          {context.kind === 'programs' && !context.programTypeId && <label className="flex items-center gap-3 text-sm text-muted">Program type<Select aria-label="Program type" value={programTypeId} className="max-w-xs" onChange={event => { setParams(previous => { const next = new URLSearchParams(previous); next.delete(PARAM.facet); if(event.target.value) next.set(PARAM.type, event.target.value); else next.delete(PARAM.type); return next }, { replace: true, state: window.history.state?.usr }) }}><option value="">All Program types</option>{types.data?.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}</Select></label>}
+          {context.kind === 'programs' && !context.programTypeId && <label className="flex wrap-nowrap items-center gap-3 text-sm text-muted"><Select aria-label="Program type" value={programTypeId} className="max-w-xs min-w-64" onChange={event => { setParams(previous => { const next = new URLSearchParams(previous); next.delete(PARAM.facet); if(event.target.value) next.set(PARAM.type, event.target.value); else next.delete(PARAM.type); return next }, { replace: true, state: window.history.state?.usr }) }}><option value="">All Program types</option>{types.data?.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}</Select></label>}
           {facets.length > 0 && (
             <div
               role="group"
@@ -297,10 +319,11 @@ function LibraryBrowser({
             </div>
           )}
         </div>
+          </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-content">
+        <div className="mx-auto w-full page--wide">
           <div className="mb-4 flex items-center justify-between gap-2">
             <p role="status" className="text-sm font-medium text-muted">
               {results.isPending
