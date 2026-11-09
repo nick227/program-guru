@@ -222,7 +222,7 @@ function LibraryBrowser({
     >
       <header className="border-b border-border bg-surface px-4 py-4 sm:px-6 lg:px-8">
         <div className="mx-auto flex w-full max-w-content flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-start gap-3">
             <Button variant="outline" size="sm" onClick={onClose} className="gap-1.5">
               <ChevronLeft className="h-4 w-4" aria-hidden />
               Back

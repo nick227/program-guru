@@ -211,7 +211,7 @@ test('failed Finish stays on the Activity and never confirms completion', async 
   await page.goto(
     `/occurrences/${itemId}?returnTo=${encodeURIComponent('/?week=2026-11-09&day=2026-11-09')}`,
   )
-  await page.getByRole('button', { name: 'Start', exact: true }).click()
+  await page.getByRole('button', { name: 'Start timer', exact: true }).click()
   await page.getByRole('button', { name: /Finish/ }).click()
   await expect(page.getByRole('alert')).toContainText(
     'Could not confirm completion',

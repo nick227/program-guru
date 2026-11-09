@@ -9,7 +9,8 @@ import {
   type components,
 } from '@project/sdk'
 import { Check, Timer } from 'lucide-react'
-import { Panel, Row, Stack } from '@/components/ui/Layout'
+import { Row, Stack } from '@/components/ui/Layout'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { linkButton } from '@/components/Navigation'
@@ -53,22 +54,27 @@ export function ActivityTogether({
         ? 'Nobody else has started yet. You could be first.'
         : 'Invite someone to do this with you.'
   return (
-    <Panel aria-labelledby="together-heading" className="together">
-      <Stack className="gap-3">
-        <Row className="justify-between">
-          <Row className="gap-2">
-            <h2 id="together-heading">Doing this together</h2>
-            <UnreadDot count={c.unreadCount} inline />
-          </Row>
-          <Row className="gap-2">
-            <p className="text-xs text-muted" aria-label="Group progress">
+    <section aria-labelledby="together-heading" className="activity-together">
+      <Stack className="gap-4">
+        <SectionHeader
+          id="together-heading"
+          title={
+            <span className="inline-flex items-center gap-2">
+              Doing this together
+              <UnreadDot count={c.unreadCount} inline />
+            </span>
+          }
+          description={
+            <span aria-label="Group progress">
               {c.finishedCount} of {c.totalCount} finished
-            </p>
+            </span>
+          }
+          action={
             <Link to={buildGroupUrl(c.groupId)} className={linkButton}>
               Open Group
             </Link>
-          </Row>
-        </Row>
+          }
+        />
 
         {/* Faces first: who is in this Activity with you, with their permitted state. */}
         <ul className="flex flex-wrap gap-3" aria-label="Group members on this Activity">
@@ -80,18 +86,18 @@ export function ActivityTogether({
                   name={m.user.displayName}
                   size="lg"
                   className={cn(
-                    'ring-2 ring-offset-2 ring-offset-surface',
+                    'ring-2 ring-offset-2 ring-offset-[hsl(var(--color-surface))]',
                     m.status === 'DONE'
-                      ? 'ring-accent'
+                      ? 'ring-status-completed'
                       : m.status === 'IN_PROGRESS'
-                        ? 'ring-accent/40'
+                        ? 'ring-status-active'
                         : 'ring-transparent opacity-70',
                   )}
                 />
                 {m.status === 'IN_PROGRESS' && (
                   <span
                     aria-hidden
-                    className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-surface text-accent ring-2 ring-surface"
+                    className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-surface text-status-active ring-2 ring-surface"
                   >
                     <Timer size={12} strokeWidth={2.5} />
                   </span>
@@ -99,7 +105,7 @@ export function ActivityTogether({
                 {m.status === 'DONE' && (
                   <span
                     aria-hidden
-                    className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-white ring-2 ring-surface"
+                    className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-status-completed text-white ring-2 ring-surface"
                   >
                     <Check size={12} strokeWidth={3} />
                   </span>
@@ -123,7 +129,7 @@ export function ActivityTogether({
             {[...(me?.status === 'DONE' ? [me] : []), ...finishedOthers, ...startedOthers].map((m) => (
               <li
                 key={m.user.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-muted/60 px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-control)] bg-background/60 px-3 py-2"
               >
                 <span className="flex items-center gap-2 text-sm">
                   <Avatar src={m.user.avatarUrl} name={m.user.displayName} size="sm" />
@@ -209,6 +215,6 @@ export function ActivityTogether({
           <GroupInviteLink groupId={c.groupId} />
         </Row>
       </Stack>
-    </Panel>
+    </section>
   )
 }

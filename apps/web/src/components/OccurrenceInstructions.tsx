@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { components } from '@project/sdk'
-import { Stack, Row } from '@/components/ui/Layout'
+import { Row } from '@/components/ui/Layout'
+import { Play } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { ThumbnailGrid } from '@/components/ThumbnailGrid'
 import { MediaViewer, type ViewerItem } from '@/components/MediaViewer'
 
 type Instruction = components['schemas']['Instruction']
@@ -26,17 +26,20 @@ export function OccurrenceInstructions({
   if (!instructions.length) return null
   const current = instructions[Math.min(index, instructions.length - 1)]!
   const media = current.media ?? []
+  const items = media.map((m) => ({ id: m.id, thumbnailUrl: m.thumbnailUrl, type: m.type, alt: m.alt }))
   return (
-    <Stack className="gap-2">
-      <Row className="justify-between">
+    <div className="activity-instructions">
+      <Row className="justify-between gap-3">
         <h3>
-          Guidance
-          {instructions.length > 1
-            ? ` · ${index + 1}/${instructions.length}`
-            : ''}
+          How to do it
+          {instructions.length > 1 && (
+            <span className="activity-instructions__step">
+              {' '}· Step {index + 1} of {instructions.length}
+            </span>
+          )}
         </h3>
         {instructions.length > 1 && (
-          <Row>
+          <Row className="gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -56,28 +59,30 @@ export function OccurrenceInstructions({
           </Row>
         )}
       </Row>
-      {current.title && <p className="font-semibold">{current.title}</p>}
-      {current.body && <p className="text-muted">{current.body}</p>}
-      {media.length > 0 && (
-        <ThumbnailGrid
-          columns={5}
-          items={media.map((m) => ({
-            id: m.id,
-            thumbnailUrl: m.thumbnailUrl,
-            type: m.type,
-            alt: m.alt,
-          }))}
-          onSelect={(id) => {
-            const items = media.map((m) => ({
-              id: m.id,
-              thumbnailUrl: m.thumbnailUrl,
-              type: m.type,
-              alt: m.alt,
-            }))
-            setViewer(items)
-            setViewerIndex(items.findIndex((m) => m.id === id))
-          }}
-        />
+      {current.title && <p className="activity-instructions__title">{current.title}</p>}
+      {current.body && <p className="activity-instructions__body">{current.body}</p>}
+      {items.length > 0 && (
+        <ul className="activity-instructions__media" aria-label="Instruction media">
+          {items.map((item, i) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                aria-label={`Open ${item.alt || item.type || 'media'}`}
+                onClick={() => {
+                  setViewer(items)
+                  setViewerIndex(i)
+                }}
+              >
+                {item.thumbnailUrl ? (
+                  <img src={item.thumbnailUrl} alt="" loading="lazy" />
+                ) : (
+                  <span>{item.type === 'VIDEO' ? 'Video' : 'Media'}</span>
+                )}
+                {item.type === 'VIDEO' && <Play size={18} aria-hidden className="activity-instructions__play" />}
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
       {viewer && (
         <MediaViewer
@@ -87,6 +92,6 @@ export function OccurrenceInstructions({
           onIndex={setViewerIndex}
         />
       )}
-    </Stack>
+    </div>
   )
 }

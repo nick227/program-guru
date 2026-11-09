@@ -77,8 +77,9 @@ export async function journey(
   ).toBeVisible()
   await expect(page.getByLabel('Reps (reps)', { exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Increase Reps' }).click()
-  // READY → Start; FINISHED → Start again (becomes ACTIVE); already ACTIVE → continue.
-  const start = page.getByRole('button', { name: 'Start', exact: true })
+  // READY → Start (timer); FINISHED → Start again (becomes ACTIVE); already ACTIVE → continue.
+  // Untimed Activities lead with Mark complete; the optional timer is "Start timer".
+  const start = page.getByRole('button', { name: /^Start( timer)?$/ })
   const startAgain = page.getByRole('button', {
     name: 'Start again',
     exact: true,

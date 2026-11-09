@@ -294,6 +294,8 @@ export function ActivityMediaHistory({
     <Stack>
       <Button
         variant="outline"
+        size="sm"
+        className="self-start"
         aria-expanded={expanded}
         onClick={() => setExpanded((value) => !value)}
       >

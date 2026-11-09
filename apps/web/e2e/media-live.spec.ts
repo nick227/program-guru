@@ -166,7 +166,7 @@ test('live session upload: durable intent attaches after processing, session not
     }, { timeout: 90000, intervals: [2000] })
     .toBeGreaterThan(before)
   // Uploading never starts the session.
-  await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Start( timer)?$/ })).toBeVisible()
 })
 
 test('live Program cover: uploaded image becomes the cover once processed', async ({ page }) => {

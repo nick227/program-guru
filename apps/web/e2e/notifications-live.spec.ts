@@ -119,7 +119,7 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
     page.getByRole('heading', { name: "Today's Results" }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Increase Reps' }).click()
-  await page.getByRole('button', { name: 'Start', exact: true }).click()
+  await page.getByRole('button', { name: /^Start( timer)?$/ }).click()
   await page.getByRole('button', { name: 'Finish', exact: true }).click()
   await expect(page).toHaveURL(/completed=/)
 

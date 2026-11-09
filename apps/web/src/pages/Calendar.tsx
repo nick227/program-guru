@@ -355,18 +355,18 @@ export function CalendarPage() {
                   </div>
                 </details>
               <Link
+                to={`/library?returnTo=${encodeURIComponent(origin)}`}
+                className="calendar-toolbar__library"
+              >
+                <Plus size={16} aria-hidden />
+                My Programs
+              </Link>
+              <Link
                 to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
                 className="calendar-toolbar__add"
               >
                 <Plus size={16} aria-hidden />
                 Add Program
-              </Link>
-              <Link
-                to={`/add-activity?day=${selected}&returnTo=${encodeURIComponent(origin)}`}
-                className="calendar-toolbar__add calendar-toolbar__add--activity"
-              >
-                <Plus size={16} aria-hidden />
-                Activity
               </Link>
             </div>
           </div>

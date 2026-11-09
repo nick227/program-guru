@@ -608,7 +608,9 @@ test('occurrence rows follow the locked order with media after session controls'
   await page.goto(`/occurrences/${itemId}`)
   await expect(page.getByRole('heading', { name: 'Session', exact: true })).toBeVisible()
   const headings = await page.getByRole('heading', { level: 2 }).allInnerTexts()
-  const order = ["Today's Results", 'Session', 'My Metrics', 'Related Media']
+  // Personal progress (former My Metrics) now lives inside Today's Results.
+  expect(headings.map((text) => text.trim())).not.toContain('My Metrics')
+  const order = ["Today's Results", 'Session', 'Related Media']
     .map((name) => headings.findIndex((text) => text.trim() === name))
   expect(order.every((index) => index >= 0)).toBe(true)
   expect([...order].sort((a, b) => a - b)).toEqual(order)

@@ -675,16 +675,14 @@
   margin-left: auto;
 }
 
+.calendar-toolbar__library, 
 .calendar-toolbar__add {
   display: inline-flex;
   min-height: 2.5rem;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  border: 1px solid hsl(var(--color-accent));
   border-radius: var(--radius-control);
-  background: hsl(var(--color-accent));
-  color: hsl(var(--color-accent-fg));
   padding: 0.4rem 0.75rem;
   font-size: 0.8125rem;
   font-weight: 650;

@@ -4,7 +4,9 @@ import { ErrorMessage, Loading } from './ui/Feedback'
 import { Button } from './ui/Button'
 import { useState } from 'react'
 import { useMediaSession, type components } from '@project/sdk'
-import { Panel, Stack } from '@/components/ui/Layout'
+import { Stack } from '@/components/ui/Layout'
+import { SectionHeader } from '@/components/ui/SectionHeader'
+import { Plus } from 'lucide-react'
 import { ThumbnailGrid } from '@/components/ThumbnailGrid'
 import { MediaViewer, type ViewerItem } from '@/components/MediaViewer'
 import { MediaPicker } from './MediaPicker'
@@ -87,33 +89,54 @@ export function OccurrenceMedia({
   const communityCount = locked ? 0 : communityMedia.length
   return (
     <>
-      <Panel aria-label="Related Media" id="related-media" className="scroll-mt-4">
-        <Stack>
-          <div>
-            <h2>Related Media</h2>
-            <p className="text-sm text-muted">
-              {myMedia.length} yours (private)
-              {groupCount ? ` · ${groupCount} from your group` : ''}
-              {communityCount ? ` · ${communityCount} community` : ''}
-            </p>
-          </div>
+      <section aria-label="Related Media" id="related-media" className="activity-media scroll-mt-20">
+        <Stack className="gap-4">
+          <SectionHeader
+            title="Related Media"
+            description={
+              related.length
+                ? [
+                    myMedia.length ? `${myMedia.length} yours (private)` : null,
+                    groupCount ? `${groupCount} from your group` : null,
+                    communityCount ? `${communityCount} community` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : undefined
+            }
+          />
           <ErrorMessage
             error={session.error}
             retry={() => void session.refetch()}
           />
-          <ThumbnailGrid
-            items={related.map((item) => ({ ...item, id: item.publicationId ?? `private:${item.id}` }))}
-            empty="No media yet."
-            onAdd={() => setPicking(true)}
-            addLabel="Add media to this session"
-            columns={5}
-            onSelect={(id) =>
-              setViewer({
-                items: related,
-                index: related.findIndex((m) => (m.publicationId ?? `private:${m.id}`) === id),
-              })
-            }
-          />
+          {related.length ? (
+            <div className="activity-media__grid">
+              <ThumbnailGrid
+                items={related.map((item) => ({ ...item, id: item.publicationId ?? `private:${item.id}` }))}
+                onAdd={() => setPicking(true)}
+                addLabel="Add media to this session"
+                columns={6}
+                onSelect={(id) =>
+                  setViewer({
+                    items: related,
+                    index: related.findIndex((m) => (m.publicationId ?? `private:${m.id}`) === id),
+                  })
+                }
+              />
+            </div>
+          ) : (
+            <div className="activity-media__empty">
+              <p>No media yet. Add a photo or video of this attempt; it stays private unless you share it.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label="Add media to this session"
+                onClick={() => setPicking(true)}
+              >
+                <Plus size={16} aria-hidden /> Add media
+              </Button>
+            </div>
+          )}
           <div className="flex flex-wrap items-start gap-2">
             {sessionId && (
               <Button
@@ -149,7 +172,7 @@ export function OccurrenceMedia({
             currentSessionId={sessionId}
           />
         </Stack>
-      </Panel>
+      </section>
       {picking && (
         <MediaPicker
           context={

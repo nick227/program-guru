@@ -39,7 +39,7 @@ test('mixed-version group: presence, reactions, My Programs, Program page and Gr
   await together.screenshot({ path: test.info().outputPath('bob-activity-together.png') })
 
   // bob (v2) finishes the same Activity carol finished on v1.
-  await bob.getByRole('button', { name: 'Finish now' }).click()
+  await bob.getByRole('button', { name: 'Mark complete' }).click()
   await expect(bob.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible()
 
   // ── My Programs summarizes who you're doing it with (no counts below the sample) ────────────

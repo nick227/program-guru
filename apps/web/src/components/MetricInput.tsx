@@ -17,7 +17,7 @@ export function MetricInput({
   const id = `${metric.instructionId ?? 'activity'}-${metric.metricDefinitionId}`
   return (
     <Stack className="gap-2">
-      <label htmlFor={id} className="font-medium">
+      <label htmlFor={id} className="text-base font-semibold">
         {metric.label}
         {metric.unit ? ` (${metric.unit})` : ''}
       </label>
@@ -71,12 +71,22 @@ export function MetricInput({
           </>
         )}
       </Row>
-      {metric.target !== null && (
+      {(metric.target !== null || metric.previous !== null) && (
         <p className="text-xs text-muted">
-          Suggested target: {String(metric.target)}
-          {metric.unit ? ` ${metric.unit}` : ''} · not recorded
+          {[
+            metric.target !== null ? `Suggested target ${show(metric.target, metric.unit)}` : null,
+            metric.previous !== null ? `Last time ${show(metric.previous, metric.unit)}` : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
         </p>
       )}
     </Stack>
   )
+}
+
+/** A target or previous value for display; never written as a result. */
+function show(value: string | number | boolean, unit?: string | null) {
+  const text = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)
+  return unit ? `${text} ${unit}` : text
 }

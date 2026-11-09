@@ -16,10 +16,16 @@ import {
   useSaveResults,
   useSessionAction,
   useUndoCompletion,
+  useActivity,
   type components,
 } from '@project/sdk'
 import { toast } from 'sonner'
-import { Page, Stage, Panel, Stack, Row, Grid } from '@/components/ui/Layout'
+import { Users } from 'lucide-react'
+import { Page, Panel, Stack, Row } from '@/components/ui/Layout'
+import { SectionHeader } from '@/components/ui/SectionHeader'
+import { StatusText, type ParticipationStatus } from '@/components/ui/StatusText'
+import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
+import { activityHero } from '@/lib/hero'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back } from '@/components/Navigation'
@@ -58,8 +64,8 @@ export function OccurrencePage() {
         : 'Occurrence',
   )
   return (
-    <Page>
-      <Stage>
+    <Page className="page--content">
+      <div>
         <ErrorMessage
           error={occurrence.error}
           retry={() => void occurrence.refetch()}
@@ -75,7 +81,7 @@ export function OccurrencePage() {
         ) : (
           <Back to="/">Calendar</Back>
         )}
-      </Stage>
+      </div>
     </Page>
   )
 }
@@ -215,8 +221,31 @@ function OccurrenceContent({
       setBusy(false)
     }
   }
+  // One state for the whole page, so the header and the session never disagree.
+  const itemDone = o.item.status === 'DONE'
+  const phase: Phase = itemDone
+    ? 'completed'
+    : status === 'ACTIVE'
+      ? 'active'
+      : status === 'PAUSED'
+        ? 'paused'
+        : o.item.status === 'NOT_PARTICIPATING'
+          ? 'not-participating'
+          : 'ready'
+  const timed = o.resultInputs.some((metric) => metric.valueType === 'DURATION')
+  const finishedSession = session?.status === 'FINISHED' ? session : null
+  const community = o.communityStats
+  const communityLine = community
+    ? [
+        community.participants ? `${community.participants} participants` : null,
+        community.completions ? `${community.completions} completions` : null,
+        community.publicMediaCount ? `${community.publicMediaCount} public media` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : ''
   return (
-    <>
+    <div className="activity-page">
       <Back to={origin}>{origin.startsWith('/library') ? 'My Programs' : 'Calendar'}</Back>
       {blocker.state === 'blocked' && (
         <Panel aria-label="Unsaved results">
@@ -239,208 +268,246 @@ function OccurrenceContent({
           </Stack>
         </Panel>
       )}
-      <Stack className="gap-2">
-        <p className="text-xs text-muted">
-          {o.item.programTitle} · {dateLabel(o.item.localDate)}
-        </p>
-        <h1>{o.item.title}</h1>
-        <p role="status" className="text-muted">
-          {o.item.status === 'DONE'
-            ? 'Completed'
-            : status === 'ACTIVE'
-              ? 'In progress'
-              : status === 'PAUSED'
-                ? 'Paused'
-                : o.item.status === 'NOT_PARTICIPATING'
-                  ? 'Not participating'
-                  : 'Ready'}
-        </p>
-      </Stack>
-      <Panel>
-        <Stack>
-          <h2>Today&apos;s Results</h2>
-          <OccurrenceInstructions
-            instructions={o.instructions}
-            locked={o.item.locked}
-          />
-          {resultInputs.length ? (
-            resultInputs.map((m) => (
-              <MetricInput
-                key={metricKey(m)}
-                metric={m}
-                value={dirty[metricKey(m)] ?? m.recorded}
-                disabled={disabled || status === 'FINISHED'}
-                onChange={(value) =>
-                  setDirty((prev) => ({ ...prev, [metricKey(m)]: value }))
-                }
-              />
-            ))
+
+      {/* 1 · Identity */}
+      <ActivityIdentity occurrence={o} phase={phase} />
+
+      <div className="activity-layout">
+        {/* 2 · Today's Results: what to do, what you record, how you're doing */}
+        <section aria-labelledby="results-heading" className="activity-layout__main space-y-6">
+          <SectionHeader id="results-heading" title="Today's Results" />
+          <OccurrenceInstructions instructions={o.instructions} locked={o.item.locked} />
+          {resultInputs.length > 0 ? (
+            <div className="activity-metrics">
+              {resultInputs.map((m) => (
+                <MetricInput
+                  key={metricKey(m)}
+                  metric={m}
+                  value={dirty[metricKey(m)] ?? m.recorded}
+                  disabled={disabled || phase === 'completed'}
+                  onChange={(value) =>
+                    setDirty((prev) => ({ ...prev, [metricKey(m)]: value }))
+                  }
+                />
+              ))}
+            </div>
           ) : (
-            <p className="text-muted">
-              No results to record for this Activity.
+            <p className="text-sm text-muted">
+              Nothing to record. Mark it complete when you&apos;re done.
             </p>
           )}
-          {Object.keys(dirty).length > 0 && (
-            <Button
-              variant="outline"
-              disabled={disabled}
-              onClick={() => void perform()}
-            >
+          {unsaved && (
+            <Button variant="outline" disabled={disabled} onClick={() => void perform()}>
               Save results
             </Button>
           )}
-        </Stack>
-      </Panel>
-      {o.collaborators && (
-        <ActivityTogether
-          collaborators={o.collaborators}
-          viewerId={me.data?.data.id}
-          sharedMediaCount={o.sharedMedia.length}
-          sharedCommentCount={o.sharedMedia.reduce((n, m) => n + m.commentCount, 0)}
-          disabled={disabled}
-        />
-      )}
-      <Panel>
-        <Stack>
-          <Row className="justify-between">
-            <h2>Session</h2>
-            <span className="text-xs text-muted">
-              {status === 'READY' || status === 'ABANDONED'
-                ? 'Ready to start'
-                : status === 'ACTIVE'
-                  ? 'In progress'
-                  : status === 'PAUSED'
-                    ? 'Paused'
-                    : 'Completed'}
-            </span>
-          </Row>
-          <p className="text-sm text-muted">
-            Start when you begin. Pause for breaks; finish when you&apos;re done.
-            Active time is calculated automatically.
-          </p>
-          <ErrorMessage error={failure || undo.error} />
-          {!!failure && (
-            <Button variant="outline" onClick={refresh}>
-              Refresh Activity
-            </Button>
-          )}
-          <Row>
-            {(status === 'READY' || status === 'ABANDONED') && (
-              <>
-                <Button
-                  disabled={disabled}
-                  onClick={() => void perform('START')}
-                >
-                  Start
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={() => void perform('FINISH')}
-                >
-                  Finish now
-                </Button>
-              </>
-            )}
-            {status === 'ACTIVE' && (
-              <>
-                <Button
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={() => void perform('PAUSE')}
-                >
-                  Pause
-                </Button>
-                <Button
-                  disabled={disabled}
-                  onClick={() => void perform('FINISH')}
-                >
-                  Finish Activity
-                </Button>
-              </>
-            )}
-            {status === 'PAUSED' && (
-              <>
-                <Button
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={() => void perform('RESUME')}
-                >
-                  Resume
-                </Button>
-                <Button
-                  disabled={disabled}
-                  onClick={() => void perform('FINISH')}
-                >
-                  Finish Activity
-                </Button>
-              </>
-            )}
-            {status === 'FINISHED' && (
-              <>
-                <Button
-                  disabled={disabled}
-                  onClick={() => void perform('START')}
-                >
-                  Start again
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={disabled || undo.isPending}
-                  onClick={() => undo.mutate(o.item.id)}
-                >
-                  Undo completion
-                </Button>
-              </>
-            )}
-            <SessionUpload attach={attachToSession} disabled={disabled} />
-          </Row>
-          {busy && <p role="status">Saving…</p>}
-          {session?.status === 'FINISHED' && (
-            <p className="text-muted">
-              {session.isManualCompletion
-                ? 'Manually completed · no measured duration'
-                : `Active time · ${formatElapsed(session.activeSeconds)}`}
-            </p>
-          )}
-        </Stack>
-      </Panel>
-      <Panel>
-        <h2>My Metrics</h2>
-        <Grid className="mt-4 grid-cols-3">
-          {o.personalStats.slice(0, 3).map((stat) => (
-            <div key={stat.key}>
-              <p className="text-xs text-muted">{stat.label}</p>
-              <p className="mt-2 font-display text-lg">{stat.value}</p>
+          {o.personalStats.length > 0 && (
+            <div className="activity-progress">
+              <h3>Your progress</h3>
+              <dl>
+                {o.personalStats.slice(0, 3).map((stat) => (
+                  <div key={stat.key}>
+                    <dt>{stat.label}</dt>
+                    <dd>{stat.value}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-          ))}
-        </Grid>
-      </Panel>
-      <OccurrenceMedia
-        activityId={o.item.activityId}
-        sessionId={o.session?.id}
-        onAttach={(asset) => attachToSession(asset.id)}
-        myMedia={o.myMedia}
-        sharedMedia={o.sharedMedia}
-        communityMedia={o.communityMedia}
-        locked={o.item.locked}
-        group={
-          o.collaborators?.occurrenceKey
-            ? { groupId: o.collaborators.groupId, occurrenceKey: o.collaborators.occurrenceKey }
-            : null
-        }
-        onShared={refresh}
-      />
-      {o.communityStats && (
-        <Panel>
-          <h2>Community Stats</h2>
-          <p>
-            {o.communityStats.participants} participants ·{' '}
-            {o.communityStats.completions} completions ·{' '}
-            {o.communityStats.publicMediaCount} media
+          )}
+        </section>
+
+        {/* 3 · Doing this together (hidden when solo) */}
+        {o.collaborators && (
+          <div className="activity-layout__main">
+            <ActivityTogether
+              collaborators={o.collaborators}
+              viewerId={me.data?.data.id}
+              sharedMediaCount={o.sharedMedia.length}
+              sharedCommentCount={o.sharedMedia.reduce((n, m) => n + m.commentCount, 0)}
+              disabled={disabled}
+            />
+          </div>
+        )}
+
+        {/* 4 · Session: one primary action per state; sticky beside the content on desktop */}
+        <div className="activity-layout__rail">
+          <Panel aria-labelledby="session-heading" className="activity-session">
+            <Stack className="gap-4">
+              <Row className="justify-between">
+                <h2 id="session-heading">Session</h2>
+                <StatusText status={PHASE_TONE[phase]}>{sessionLabel(phase, finishedSession)}</StatusText>
+              </Row>
+              <ErrorMessage error={failure || undo.error} />
+              {!!failure && (
+                <Button variant="outline" onClick={refresh}>
+                  Refresh Activity
+                </Button>
+              )}
+              <div className="activity-session__actions">
+                {(phase === 'ready' || phase === 'not-participating') &&
+                  (timed ? (
+                    <>
+                      <Button size="lg" disabled={disabled} onClick={() => void perform('START')}>
+                        Start
+                      </Button>
+                      <Button variant="outline" disabled={disabled} onClick={() => void perform('FINISH')}>
+                        Mark complete
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button size="lg" disabled={disabled} onClick={() => void perform('FINISH')}>
+                        Mark complete
+                      </Button>
+                      <Button variant="outline" disabled={disabled} onClick={() => void perform('START')}>
+                        Start timer
+                      </Button>
+                    </>
+                  ))}
+                {phase === 'active' && (
+                  <>
+                    <Button size="lg" disabled={disabled} onClick={() => void perform('FINISH')}>
+                      Finish
+                    </Button>
+                    <Button variant="outline" disabled={disabled} onClick={() => void perform('PAUSE')}>
+                      Pause
+                    </Button>
+                  </>
+                )}
+                {phase === 'paused' && (
+                  <>
+                    <Button size="lg" disabled={disabled} onClick={() => void perform('FINISH')}>
+                      Finish
+                    </Button>
+                    <Button variant="outline" disabled={disabled} onClick={() => void perform('RESUME')}>
+                      Resume
+                    </Button>
+                  </>
+                )}
+                {phase === 'completed' && (
+                  <Button size="lg" disabled={disabled} onClick={() => void perform('START')}>
+                    Start again
+                  </Button>
+                )}
+              </div>
+              <p className="text-sm text-muted">
+                {phase === 'active' || phase === 'paused'
+                  ? 'Pause for breaks; only active time is counted.'
+                  : phase === 'completed'
+                    ? 'Starting again begins a new attempt and keeps this one.'
+                    : timed
+                      ? 'The timer records active time, never pauses.'
+                      : 'No timer needed. Use Start timer if you want to track time.'}
+              </p>
+              <Row className="flex-wrap gap-2">
+                <SessionUpload attach={attachToSession} disabled={disabled} />
+                {phase === 'completed' && (
+                  <Button
+                    variant="ghost"
+                    disabled={disabled || undo.isPending}
+                    onClick={() => undo.mutate(o.item.id)}
+                  >
+                    Undo completion
+                  </Button>
+                )}
+              </Row>
+              {busy && <p role="status" className="text-sm text-muted">Saving…</p>}
+            </Stack>
+          </Panel>
+        </div>
+
+        {/* 5 · Related Media: one compact section */}
+        <div className="activity-layout__main">
+          <OccurrenceMedia
+            activityId={o.item.activityId}
+            sessionId={o.session?.id}
+            onAttach={(asset) => attachToSession(asset.id)}
+            myMedia={o.myMedia}
+            sharedMedia={o.sharedMedia}
+            communityMedia={o.communityMedia}
+            locked={o.item.locked}
+            group={
+              o.collaborators?.occurrenceKey
+                ? { groupId: o.collaborators.groupId, occurrenceKey: o.collaborators.occurrenceKey }
+                : null
+            }
+            onShared={refresh}
+          />
+        </div>
+
+        {/* 6 · Community (only when there is something to say; small counts are withheld) */}
+        {communityLine && (
+          <p className="activity-layout__main activity-community">
+            <Users size={16} aria-hidden />
+            <span>
+              <span className="sr-only">Community: </span>
+              {communityLine}
+            </span>
           </p>
-        </Panel>
-      )}
-    </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+type Phase = 'ready' | 'active' | 'paused' | 'completed' | 'not-participating'
+
+const PHASE_TONE: Record<Phase, ParticipationStatus> = {
+  ready: 'planned',
+  active: 'active',
+  paused: 'paused',
+  completed: 'completed',
+  'not-participating': 'unavailable',
+}
+
+const PHASE_LABEL: Record<Phase, string> = {
+  ready: 'To do',
+  active: 'In progress',
+  paused: 'Paused',
+  completed: 'Completed',
+  'not-participating': 'Not participating',
+}
+
+function sessionLabel(phase: Phase, finished: S['ActivitySession'] | null) {
+  if (phase === 'ready') return 'Ready to start'
+  if (phase === 'completed' && finished)
+    return finished.isManualCompletion
+      ? 'Completed · no timer'
+      : `Completed · ${formatElapsed(finished.activeSeconds)}`
+  return PHASE_LABEL[phase]
+}
+
+/** Row 1: artwork, Program context, title, state and what the Activity is about. */
+function ActivityIdentity({ occurrence: o, phase }: { occurrence: S['ActivityOccurrence']; phase: Phase }) {
+  // The Activity summary and category come from the Activity itself; both are optional.
+  const activity = useActivity(o.item.locked ? '' : o.item.activityId)
+  const categorySlugOf = useCategorySlugOf()
+  const hero = activityHero(
+    {
+      title: o.item.title,
+      thumbnailUrl: o.item.thumbnailUrl,
+      categoryId: activity.data?.categoryId,
+    },
+    categorySlugOf,
+  )
+  const context = [
+    o.item.programTitle,
+    o.item.programDayIndex !== null ? `Day ${o.item.programDayIndex + 1}` : null,
+    dateLabel(o.item.localDate),
+  ].filter(Boolean)
+  return (
+    <header className="activity-identity">
+      <EntityHero hero={hero} size="card" className="activity-identity__art aspect-preview w-28 sm:w-44" />
+      <div className="activity-identity__text">
+        <p className="activity-identity__context">{context.join(' · ')}</p>
+        <h1>{o.item.title}</h1>
+        <p role="status">
+          <StatusText status={PHASE_TONE[phase]}>{PHASE_LABEL[phase]}</StatusText>
+        </p>
+        {activity.data?.summary && (
+          <p className="activity-identity__summary">{activity.data.summary}</p>
+        )}
+      </div>
+    </header>
   )
 }
