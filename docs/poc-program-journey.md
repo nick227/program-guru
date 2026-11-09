@@ -196,3 +196,19 @@ A second test rewrites keys back to the legacy format, runs the migration SQL tw
 - A SYNC group keeps one shared start date. A v2 joiner whose version has a different duration still starts on it; their Program Days line up and later days simply don't exist on the shorter side.
 - A participant who is already in a group for the Program, including the Program owner, can no longer create a second group on another version. Previously the version mismatch let that through. This matches the one-group-per-Program rule.
 - `apps/web/src/pages/Group.tsx:178` still has a branch for `ENROLLED_OTHER_VERSION`, which the server no longer returns (owner: web).
+
+## Frontend integration (2026-11-08)
+
+Done in `79bd86e` (server/API) and `5e9e7d7` (web). The dev database has `20261109000000_version_independent_occurrence_keys` applied (`pnpm db:deploy`, no reset).
+
+- **My Programs:** `PersonalProgram.participation` is live. The People column shows fellow group members who share completion (followed first, "with Carol +1") and "N participants · M active this week" once the Program has at least 5 participants. Counts are distinct people with a live run, so restarts and people who left are not counted.
+- **Activity page, row 3 "Doing this together":** member faces with permitted state (finished with time, started, not yet, not sharing), recent completions with 👏 🔥 💪, a link to group media in Related Media, and what sharing means. `IN_PROGRESS` means a session was started, never that someone is online. The page keeps its seven locked rows.
+- **Conversation:** comments on group-shared media, inside the Related Media viewer, plus an explicit "Share with group" for your own media. There is no free-standing chat (10 §1).
+- **Mixed versions in the UI:** `GroupSummary.programId` added. The Program page and Program Workspace match groups by Program, so a member who accepted v2 still sees the group created on v1. The `ENROLLED_OTHER_VERSION` branch in `Group.tsx` is removed.
+- **Live browser journey:** `pnpm --filter web test:e2e:together` runs a dedicated database (`programs_app_together_live`) with the real API and worker. bob on v2, carol and dave on v1: presence, a reaction, a cross-version finish, the My Programs cell, the Program page and the Group page, and a v1-only Activity where bob is absent rather than missing.
+
+### Open issues
+
+- **Restarting drops the group link.** `RESTART` re-enrolls with `groupId: null` (`docs/personal-program-library.md`: "does not inherit group membership"). The person stays a group member but disappears from every Activity row and from friends. This needs a product decision.
+- **`journey.spec.ts` is out of date.** It still uses the pre-redesign Program creation flow ("Continue to customize", "You have unsaved changes.") and fails in 6 tests on desktop and mobile. `program-editor.spec.ts` on mobile is flaky.
+- **Leaving without a body returns 500.** `POST /enrollments/{id}/leave` without a body gives a 500 instead of a 400.
