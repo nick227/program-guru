@@ -65,10 +65,10 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
       if (menu.current) menu.current.open = false
       const messages: Record<Action, string> = {
         REMOVE_LIBRARY:
-          'Program removed from your library. Completed results are preserved.',
+          'Program removed from your library and Calendar. Completed results are preserved.',
         RESTART: 'New run started',
         REMOVE:
-          'Future Activities removed. Your Program and history are preserved.',
+          'Removed from your Calendar. Your Program and history are preserved.',
         ACTIVE: 'Schedule resumed',
         PAUSED: 'Schedule paused',
       }
@@ -173,22 +173,22 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
                 ? 'Start a fresh run today?'
                 : confirm === 'REMOVE_LIBRARY'
                   ? 'Remove this Program from your library?'
-                  : 'Remove future Activities?'}
+                  : 'Remove from your Calendar?'}
             </h2>
             <p>
               {confirm === 'RESTART'
                 ? 'A new independent run will use the same published version. Personal schedule changes will remain with your earlier run.'
                 : confirm === 'REMOVE_LIBRARY'
-                  ? 'Future unstarted Activities will leave your Calendar and the Program will leave your library. The source Program is not deleted.'
-                  : 'Future unstarted Activities will leave your Calendar. Your Program stays in your library.'}{' '}
-              Completed results and earlier history are preserved.
+                  ? "All of this Program's Activities will leave your Calendar, including completed ones, and the Program will leave your library. The source Program is not deleted."
+                  : "All of this Program's Activities will leave your Calendar, including completed ones. Your Program stays in your library."}{' '}
+              Your completed results and history are kept in My Programs.
             </p>
             <Button disabled={busy} onClick={() => void run(confirm)}>
               {confirm === 'RESTART'
                 ? 'Start new run'
                 : confirm === 'REMOVE_LIBRARY'
                   ? 'Remove Program'
-                  : 'Remove future Activities'}
+                  : 'Remove from Calendar'}
             </Button>
             <Button
               variant="outline"
