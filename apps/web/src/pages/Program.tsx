@@ -11,13 +11,17 @@ import {
   useProgramPreview,
 } from '@project/sdk'
 import { toast } from 'sonner'
-import { Page, Stage, Stack, Panel, Row } from '@/components/ui/Layout'
+import { Page, Stage, Panel } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back, linkButton } from '@/components/Navigation'
+import { Back } from '@/components/Navigation'
+import { ProgramHero } from '@/components/ProgramHero'
+import { ProgramParticipationStrip } from '@/components/ProgramParticipationStrip'
+import { ProgramActivityCard } from '@/components/ProgramActivityCard'
+import { ProgramSchedulePreview } from '@/components/ProgramSchedulePreview'
 import { ProgramGroups } from '@/components/ProgramGroups'
+import { ProgramMediaGallery, type ProgramMediaItem } from '@/components/ProgramMediaGallery'
 import {
   calendarUrl,
   dateLabel,
@@ -29,10 +33,9 @@ import { hasSeenDailyEmailPrompt } from '@/lib/notifications'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { useResolveProgramTarget } from '@/lib/useResolveSlug'
-import { buildGroupUrl, buildProfileUrl, buildProgramUrl, buildWorkspaceUrl } from '@/lib/urls'
-import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
-import { programHero } from '@/lib/hero'
-import { RelatedMediaRiver, type RiverItem } from '@/components/RelatedMediaRiver'
+import { buildGroupUrl, buildProgramUrl, buildWorkspaceUrl } from '@/lib/urls'
+import { activityHero, programHero } from '@/lib/hero'
+import { useCategorySlugOf } from '@/components/EntityHero'
 
 export function ProgramPage() {
   const paramsFromRouter = useParams()
@@ -50,6 +53,9 @@ export function ProgramPage() {
   const me = useCurrentUser()
   const online = useOnline()
   const navigate = useNavigate()
+
+  const scheduleSectionRef = useRef<HTMLDivElement>(null)
+  const togetherSectionRef = useRef<HTMLDivElement>(null)
 
   useDocumentTitle(
     program.data?.title ??
@@ -69,6 +75,7 @@ export function ProgramPage() {
   const tz =
     me.data?.data.preferences.timezone ??
     Intl.DateTimeFormat().resolvedOptions().timeZone
+
   const [joining, setJoining] = useState(!!groupIdParam || params.get('start') === '1')
   const requestedStartDate = params.get('startDate')
   const [date, setDate] = useState(
@@ -98,13 +105,13 @@ export function ProgramPage() {
   if (resolved.notFound || (program.error instanceof ApiError && program.error.status === 404 && !p)) {
     return (
       <Page>
-        <Stage>
+        <Stage className="max-w-3xl mx-auto py-12">
           <Back to="/discover" />
-          <h1>Program not found</h1>
-          <p className="text-muted">
+          <h1 className="text-2xl font-bold font-display mt-4">Program not found</h1>
+          <p className="text-muted mt-2">
             The requested program does not exist or may have been unpublished.
           </p>
-          <Link to="/discover" className="text-accent underline">
+          <Link to="/discover" className="text-accent underline mt-4 inline-block">
             Return to Discovery
           </Link>
         </Stage>
@@ -115,22 +122,34 @@ export function ProgramPage() {
   if (!p) {
     return (
       <Page>
-        <Back to="/discover" />
-        <ErrorMessage
-          error={program.error}
-          retry={() => void program.refetch()}
-        />
-        {(resolved.isLoading || program.isPending) && <Loading />}
+        <Stage className="max-w-3xl mx-auto py-12">
+          <Back to="/discover" />
+          <ErrorMessage
+            error={program.error}
+            retry={() => void program.refetch()}
+          />
+          {(resolved.isLoading || program.isPending) && <Loading />}
+        </Stage>
       </Page>
     )
   }
+
+  const isEnrolled = !!p.myEnrollmentId
+  const isOwner = p.viewerAccess === 'OWNER'
+  const canonicalUrl = buildProgramUrl(p, { scoped: !!rawHandle })
+  const signedIn = !!me.data
+  const groupId = enrollment.data?.groupId ?? null
+  // Mirrors ProgramGroups: only participants and the owner can start a group.
+  const canStartGroup = signedIn && !!p.latestVersionId && (isEnrolled || isOwner)
 
   const body = {
     programVersionId: p.latestVersionId!,
     startLocalDate: start,
     timezone: tz,
   }
-  const cta =
+
+  // One primary action for the viewer's access state (13 §4).
+  const accessCta =
     p.canJoin && p.accessMode === 'OPEN'
       ? 'Start Program'
       : p.canRequestAccess
@@ -140,108 +159,73 @@ export function ProgramPage() {
             ? 'Subscribe'
             : 'Buy Program'
           : null
+  const primaryLabel = isEnrolled
+    ? 'Open Calendar'
+    : !signedIn
+      ? 'Sign in to join'
+      : p.canJoin && p.latestVersionId
+        ? (accessCta ?? 'Start Program')
+        : accessCta
 
-  const canonicalUrl = buildProgramUrl(p, { scoped: !!rawHandle })
+  const handlePrimary = () => {
+    if (isEnrolled) {
+      navigate('/')
+      return
+    }
+    if (!signedIn) {
+      navigate(`/login?returnTo=${encodeURIComponent(canonicalUrl)}`)
+      return
+    }
+    setJoining(true)
+    scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const scrollToTogether = () => {
+    togetherSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  // Preview-safe imagery the API returned for the outline: platform-licensed stills only.
+  const mediaGalleryItems: ProgramMediaItem[] = p.safeActivityOutline
+    .filter((a) => Boolean(a.mediaPreviewUrl))
+    .map((a, i) => ({
+      id: `${p.id}-media-${i}`,
+      thumbnailUrl: a.mediaPreviewUrl,
+      title: a.title,
+      type: 'PHOTO' as const,
+    }))
+
+  const sectionTitle = { fontSize: 'var(--type-section-title)' }
 
   return (
-    <Page>
-      <Stage>
-        <Back to={safeReturn(params.get('returnTo'), '/discover')} />
-        <EntityHero hero={programHero(p, categorySlugOf)} size="banner" />
-        <Stack className="gap-2">
-          <Row>
-            {p.creator && (
-              <Link
-                to={buildProfileUrl(p.creator.handle)}
-                className="flex items-center gap-2 text-muted hover:text-text"
-              >
-                <Avatar
-                  src={p.creator.avatarUrl}
-                  name={p.creator.displayName}
-                  size="sm"
-                />
-                <span>{p.creator.displayName}</span>
-              </Link>
-            )}
-            {!p.creator && p.isPlatform && (
-              <span className="text-xs text-muted">Platform library</span>
-            )}
-            <span className="text-xs text-muted">· {p.type.label}</span>
-          </Row>
-          <h1>{p.title}</h1>
-          <p className="text-muted">
-            {p.focus?.label ? `${p.focus.label} · ` : ''}
-            {p.frequencyLabel} ·{' '}
-            {p.durationDays ? `${p.durationDays} days` : 'Ongoing'}
-          </p>
-          {p.description && <p>{p.description}</p>}
-        </Stack>
-        <Panel>
-          <Stack>
-            <h2>Activities</h2>
-            {p.safeActivityOutline.map((a, i) => (
-              <Row key={i} className="justify-between">
-                <span>{a.title}</span>
-                {a.mediaPreviewUrl && (
-                  <img
-                    src={a.mediaPreviewUrl}
-                    alt=""
-                    className="h-8 w-8 rounded object-cover"
-                  />
-                )}
-              </Row>
-            ))}
-            {!p.safeActivityOutline.length && (
-              <p className="text-muted">Outline available after joining.</p>
-            )}
-          </Stack>
-        </Panel>
-        {p.safeActivityOutline.some((a) => a.mediaPreviewUrl) || p.coverUrl ? (
-          <Panel>
-            <RelatedMediaRiver
-              title="Related Program Media"
-              description="Visuals and activity demonstrations in this Program"
-              items={[
-                ...(p.coverUrl
-                  ? [
-                      {
-                        id: `${p.id}-cover`,
-                        thumbnailUrl: p.coverUrl,
-                        title: `${p.title} (Cover)`,
-                        type: 'PHOTO' as const,
-                      },
-                    ]
-                  : []),
-                ...p.safeActivityOutline
-                  .filter((a) => Boolean(a.mediaPreviewUrl))
-                  .map((a, i) => ({
-                    id: `${p.id}-act-${i}`,
-                    thumbnailUrl: a.mediaPreviewUrl,
-                    title: a.title,
-                    type: 'PHOTO' as const,
-                  })),
-              ]}
-            />
-          </Panel>
-        ) : null}
-        {((p.enrollmentCount ?? 0) > 0 || p.completionRate != null) && (
-          <p className="text-xs text-muted">
-            {p.enrollmentCount ?? 0} participants
-            {p.completionRate != null
-              ? ` · ${Math.round(p.completionRate * 100)}% completion`
-              : ''}
-          </p>
-        )}
-        {me.data && p.latestVersionId && (
-          <ProgramGroups
-            key={enrollment.data?.programVersionId ?? p.latestVersionId}
-            programId={id}
-            versionId={enrollment.data?.programVersionId ?? p.latestVersionId}
-            enrollmentId={p.myEnrollmentId}
-            isProgramOwner={p.viewerAccess === 'OWNER'}
-            timezone={tz}
-          />
-        )}
+    <Page className="page--content pb-16">
+      <div className="w-full space-y-6 sm:space-y-8">
+        <ProgramHero
+          title={p.title}
+          description={p.description}
+          hero={programHero(p, categorySlugOf)}
+          durationDays={p.durationDays}
+          frequencyLabel={p.frequencyLabel}
+          activityCount={p.safeActivityOutline.length}
+          categoryLabel={p.type.label}
+          creator={p.creator}
+          isPlatform={p.isPlatform}
+          isOwner={isOwner}
+          primaryLabel={primaryLabel}
+          backTo={safeReturn(params.get('returnTo'), '/discover')}
+          backLabel="Back"
+          onPrimary={handlePrimary}
+          onDoTogether={canStartGroup ? scrollToTogether : undefined}
+          onEditProgram={isOwner ? () => navigate(buildWorkspaceUrl(id)) : undefined}
+        />
+
+        <ProgramParticipationStrip
+          participantCount={p.enrollmentCount}
+          completionRate={p.completionRate}
+          completionMetricLabel="of enrolled participants completed all activities"
+          groupId={groupId}
+          onStartGroup={canStartGroup ? scrollToTogether : undefined}
+        />
+
         <ErrorMessage
           error={
             program.error ||
@@ -251,183 +235,260 @@ export function ProgramPage() {
             dismissUpdate.error
           }
         />
-        {p.myEnrollmentId ? (
-          <Stack className="gap-3">
-            {enrollment.data?.participationStartDate && (
-              <p className="text-xs text-muted">
-                Joined on {dateLabel(enrollment.data.participationStartDate)} (
-                {enrollment.data.participationStartDate})
-              </p>
-            )}
-            {enrollment.data?.pendingVersionId && (
-              <Panel className="border-accent bg-accent/5">
-                <Stack className="gap-2">
-                  <h2>Update available</h2>
-                  <p className="text-sm text-muted">
-                    The creator published a new version of this Program. Accept
-                    to update future scheduled Activities while keeping your
-                    past results and personal adjustments.
-                  </p>
-                  {enrollment.data?.status === 'PAUSED' && <p className="text-sm text-muted">Resume your Program from its management view before adopting an update.</p>}
-                  <Row>
-                    <Button
-                      disabled={!online || enrollment.data?.status !== 'ACTIVE'}
-                      loading={acceptUpdate.isPending}
-                      onClick={async () => {
-                        try {
-                          await acceptUpdate.mutateAsync()
-                          toast.success('Program updated to latest version')
-                        } catch {
-                          /* shown above */
-                        }
-                      }}
-                    >
-                      Accept update
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={!online}
-                      loading={dismissUpdate.isPending}
-                      onClick={async () => {
-                        try {
-                          await dismissUpdate.mutateAsync()
-                          toast.success('Update dismissed')
-                        } catch {
-                          /* shown above */
-                        }
-                      }}
-                    >
-                      Dismiss
-                    </Button>
-                  </Row>
-                </Stack>
-              </Panel>
-            )}
-            <Row>
-              <Link className={linkButton} to={`/library?program=${p.id}`}>Manage my Program</Link>
-              <Link className={linkButton} to="/">
-                Open Calendar
-              </Link>
-              {enrollment.data?.groupId && (
-                <Link
-                  className={linkButton}
-                  to={buildGroupUrl(enrollment.data.groupId)}
-                >
-                  Open Group
-                </Link>
-              )}
-            </Row>
-          </Stack>
-        ) : me.isPending ? (
-          <Loading />
-        ) : !me.data ? (
-          <Link
-            className={linkButton}
-            to={`/login?returnTo=${encodeURIComponent(canonicalUrl)}`}
-          >
-            Sign in to join
-          </Link>
-        ) : p.canJoin && p.latestVersionId ? (
-          <>
-            {!joining ? (
-              <Button onClick={() => setJoining(true)}>{cta ?? 'Start Program'}</Button>
-            ) : (
-              <Panel>
-                <Stack>
-                  <h2>When do you want to start?</h2>
-                  <label className="space-y-2">
-                    Start date
-                    <Input
-                      type="date"
-                      value={start}
-                      disabled={join.isPending || preview.isPending}
-                      onChange={(e) => {
-                        setDate(e.target.value)
-                        preview.reset()
-                        key.current = crypto.randomUUID()
-                      }}
+
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
+          <div className="space-y-8 lg:col-span-7">
+            <section aria-label="Program activities" className="space-y-4">
+              <h2 className="font-display font-bold tracking-tight text-foreground" style={sectionTitle}>
+                Activities
+              </h2>
+              {p.safeActivityOutline.length > 0 ? (
+                <div className="space-y-3">
+                  {p.safeActivityOutline.map((item, idx) => (
+                    <ProgramActivityCard
+                      key={idx}
+                      title={item.title}
+                      hero={activityHero(
+                        {
+                          title: item.title,
+                          thumbnailUrl: item.mediaPreviewUrl,
+                          categoryId: p.type?.categoryId,
+                        },
+                        categorySlugOf,
+                      )}
+                      meta={item.dayIndex != null ? `Starts day ${item.dayIndex + 1}` : null}
                     />
-                  </label>
-                  <p className="text-xs text-muted">{tz}</p>
-                  <Button
-                    variant="outline"
-                    disabled={!online || !isLocalDate(start)}
-                    loading={preview.isPending}
-                    onClick={() => preview.mutate(body)}
-                  >
-                    Preview my calendar
-                  </Button>
-                  {preview.data && (
-                    <>
-                      <p>
-                        {preview.data.itemCount} Activities will be scheduled
-                        automatically.
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted">Outline available after joining.</p>
+              )}
+            </section>
+
+            <ProgramMediaGallery
+              title="Related Media"
+              description="Previews of this Program's Activities."
+              items={mediaGalleryItems}
+              coverUrl={p.coverUrl}
+            />
+          </div>
+
+          <div className="space-y-6 lg:col-span-5">
+            {isEnrolled && (
+              <section
+                aria-label="Your participation"
+                className="space-y-3 rounded-[var(--radius-panel)] border border-accent/40 bg-accent/5 p-5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-accent">Enrolled</span>
+                  {enrollment.data?.participationStartDate && (
+                    <span className="text-xs text-muted">
+                      Joined {dateLabel(enrollment.data.participationStartDate)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-foreground">
+                  Your scheduled sessions appear on your Calendar.
+                </p>
+
+                {enrollment.data?.pendingVersionId && (
+                  <div className="mt-2 space-y-2 rounded-[var(--radius-control)] border border-border bg-surface p-3.5">
+                    <h3 className="text-sm font-semibold text-foreground">Update available</h3>
+                    <p className="text-sm text-muted">
+                      The creator published a new version of this Program. Accept to update future
+                      scheduled Activities while keeping your past results and personal adjustments.
+                    </p>
+                    {enrollment.data.status === 'PAUSED' && (
+                      <p className="text-sm text-muted">
+                        Resume your Program from its management view before adopting an update.
                       </p>
-                      <ul className="space-y-2 text-sm text-muted">
-                        {preview.data.items.slice(0, 7).map((item, i) => (
-                          <li key={i}>
-                            {dateLabel(item.localDate)} · {item.title}
-                            {item.conflict
-                              ? ' · Overlaps another Activity'
-                              : ''}
-                          </li>
-                        ))}
-                      </ul>
+                    )}
+                    <div className="flex items-center gap-2 pt-1">
                       <Button
-                        disabled={!online}
-                        loading={join.isPending}
+                        size="sm"
+                        disabled={!online || enrollment.data.status !== 'ACTIVE'}
+                        loading={acceptUpdate.isPending}
                         onClick={async () => {
                           try {
-                            await join.mutateAsync({
-                              ...body,
-                              ...(groupIdParam
-                                ? { groupId: groupIdParam }
-                                : {}),
-                              idempotencyKey: key.current,
-                            })
-                            toast.success('Program added to your calendar')
-                            const userId = me.data?.data.id ?? ''
-                            const dailyEmailEnabled =
-                              me.data?.data.preferences.notifications
-                                ?.dailyEmail ?? false
-                            const shouldOfferPrompt =
-                              userId &&
-                              !dailyEmailEnabled &&
-                              !hasSeenDailyEmailPrompt(userId)
-                            const nextUrl = shouldOfferPrompt
-                              ? `${calendarUrl(start)}&promptReminder=1`
-                              : calendarUrl(start)
-                            navigate(nextUrl)
+                            await acceptUpdate.mutateAsync()
+                            toast.success('Program updated to latest version')
                           } catch {
-                            /* keep key and date for safe retry */
+                            // shown in ErrorMessage
                           }
                         }}
                       >
-                        Confirm &amp; add to Calendar
+                        Accept update
                       </Button>
-                    </>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!online}
+                        loading={dismissUpdate.isPending}
+                        onClick={async () => {
+                          try {
+                            await dismissUpdate.mutateAsync()
+                            toast.success('Update dismissed')
+                          } catch {
+                            // shown in ErrorMessage
+                          }
+                        }}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Link className="btn btn--outline" to={`/library?program=${p.id}`}>
+                    Manage my Program
+                  </Link>
+                  {groupId && (
+                    <Link className="btn btn--outline" to={buildGroupUrl(groupId)}>
+                      Open Group
+                    </Link>
                   )}
-                </Stack>
-              </Panel>
+                </div>
+              </section>
             )}
-          </>
-        ) : (
-          <p className="text-muted">
-            {cta === 'Request Access'
-              ? 'Request access is not available in this browser slice yet.'
-              : cta === 'Buy Program' || cta === 'Subscribe'
-                ? 'Checkout opens when billing is enabled.'
-                : 'This Program requires access before joining.'}
-          </p>
-        )}
-        {p.viewerAccess === 'OWNER' && (
-          <Row>
-            <Link className={linkButton} to={buildWorkspaceUrl(id)}>
-              Edit Program
-            </Link>
-          </Row>
-        )}
-      </Stage>
+
+            <div ref={scheduleSectionRef} className="space-y-4">
+              <ProgramSchedulePreview
+                durationDays={p.durationDays}
+                frequencyLabel={p.frequencyLabel}
+                programDays={p.programDays}
+                placements={p.placements}
+                activities={p.safeActivityOutline}
+                onPreviewDates={
+                  !isEnrolled && signedIn && p.canJoin && p.latestVersionId
+                    ? () => setJoining(true)
+                    : undefined
+                }
+              />
+
+              {joining && !isEnrolled && signedIn && (
+                p.canJoin && p.latestVersionId ? (
+                  <Panel className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-display text-base font-bold text-foreground">
+                        When do you want to start?
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => setJoining(false)}
+                        className="text-sm text-muted hover:text-foreground"
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                    <label className="block space-y-1.5">
+                      <span className="text-sm font-semibold text-muted">Start date</span>
+                      <Input
+                        type="date"
+                        value={start}
+                        disabled={join.isPending || preview.isPending}
+                        onChange={(e) => {
+                          setDate(e.target.value)
+                          preview.reset()
+                          key.current = crypto.randomUUID()
+                        }}
+                      />
+                    </label>
+                    <p className="text-xs text-muted">{tz}</p>
+
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      disabled={!online || !isLocalDate(start)}
+                      loading={preview.isPending}
+                      onClick={() => preview.mutate(body)}
+                    >
+                      Preview my calendar
+                    </Button>
+
+                    {preview.data && (
+                      <div className="space-y-3 border-t border-border pt-3">
+                        <p className="text-sm font-semibold text-foreground">
+                          {preview.data.itemCount} Activities will be scheduled automatically.
+                        </p>
+                        <ul className="max-h-40 space-y-1.5 overflow-y-auto pr-1 text-sm text-muted">
+                          {preview.data.items.slice(0, 7).map((item, i) => (
+                            <li
+                              key={i}
+                              className="flex items-center justify-between gap-2 border-b border-border py-1 last:border-0"
+                            >
+                              <span className="truncate">
+                                {dateLabel(item.localDate)} · {item.title}
+                              </span>
+                              {item.conflict && (
+                                <span className="shrink-0 text-xs font-semibold text-attention">
+                                  Overlaps another Activity
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                        <Button
+                          size="lg"
+                          className="w-full"
+                          disabled={!online}
+                          loading={join.isPending}
+                          onClick={async () => {
+                            try {
+                              await join.mutateAsync({
+                                ...body,
+                                ...(groupIdParam ? { groupId: groupIdParam } : {}),
+                                idempotencyKey: key.current,
+                              })
+                              toast.success('Program added to your calendar')
+                              const userId = me.data?.data.id ?? ''
+                              const dailyEmailEnabled =
+                                me.data?.data.preferences.notifications?.dailyEmail ?? false
+                              const shouldOfferPrompt =
+                                userId && !dailyEmailEnabled && !hasSeenDailyEmailPrompt(userId)
+                              navigate(
+                                shouldOfferPrompt
+                                  ? `${calendarUrl(start)}&promptReminder=1`
+                                  : calendarUrl(start),
+                              )
+                            } catch {
+                              // keep key and date for safe retry
+                            }
+                          }}
+                        >
+                          Confirm &amp; add to Calendar
+                        </Button>
+                      </div>
+                    )}
+                  </Panel>
+                ) : (
+                  <p className="text-sm text-muted">
+                    {accessCta === 'Request Access'
+                      ? 'Request access is not available in this browser slice yet.'
+                      : accessCta === 'Buy Program' || accessCta === 'Subscribe'
+                        ? 'Checkout opens when billing is enabled.'
+                        : 'This Program requires access before joining.'}
+                  </p>
+                )
+              )}
+            </div>
+
+            {signedIn && p.latestVersionId && (
+              <div ref={togetherSectionRef}>
+                <ProgramGroups
+                  key={enrollment.data?.programVersionId ?? p.latestVersionId}
+                  programId={id}
+                  versionId={enrollment.data?.programVersionId ?? p.latestVersionId}
+                  enrollmentId={p.myEnrollmentId}
+                  isProgramOwner={isOwner}
+                  timezone={tz}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </Page>
   )
 }
