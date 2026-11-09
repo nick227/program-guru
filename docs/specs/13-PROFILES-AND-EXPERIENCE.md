@@ -153,7 +153,7 @@ Resolved for P1: no verified badges; no external profile links; no self-declared
 
 Still open, and not blocking implementation:
 
-- **Brand/name polish:** product naming and marketing surfaces may still refine; the editorial practice-studio palette and type system are defined in `04-UI.md` §4. Do not equate that direction with mandatory dark mode.
+- **Brand/name polish:** product naming and marketing surfaces may still refine; the editorial practice-studio palette and type system are defined in `04-UI.md` §4. Dark is the default design target; light mode stays fully supported.
 - **Loading art and sound:** any branded animation or sound must be optional, short, accessible and performance-safe.
 
 ## 12. Cross-document ownership
