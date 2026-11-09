@@ -56,10 +56,10 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
     await expect(page.getByLabel('Program name')).toBeVisible()
     const coverGroup = page.getByRole('group', { name: 'Program cover' })
     await expect(coverGroup).toBeVisible()
-    // "Attach Program image" button is removed, 3/4 canvas upload dropzone is present
-    await expect(coverGroup.getByRole('button', { name: 'Upload image' }).first()).toBeVisible()
+    // One add tile; no separate upload or library buttons
+    await expect(coverGroup.getByRole('button', { name: 'Add image' })).toBeVisible()
     await expect(
-      coverGroup.getByRole('button', { name: 'Attach Program image' }),
+      coverGroup.getByRole('button', { name: /Attach Program image|Upload image|Choose from library/ }),
     ).toHaveCount(0)
 
     // Test duration adjustment in Details
@@ -96,16 +96,22 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
     await expect(page.getByLabel('Duration')).toHaveCount(0)
     await expect(page.getByLabel('Frequency')).toHaveCount(0)
 
-    await page.getByRole('button', { name: 'Create Activity', exact: true }).click()
-
     // Suggested Activities section is cut per user instruction
     await expect(page.getByText('Suggested Activities')).toHaveCount(0)
 
-    // 3/4 Multi-media upload canvas is present on the created activity
-    await expect(page.locator('.aspect-\\[3\\/4\\]').first()).toBeVisible()
-
-    // Add newly created activity to program
+    // Media is chosen with the title, before the Activity exists; one action creates and adds it
+    const newMedia = page.getByRole('group', { name: 'Activity media' })
+    await newMedia.locator('input[type="file"]').setInputFiles([
+      { name: 'a.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('a') },
+      { name: 'b.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('b') },
+    ])
+    await expect(newMedia.getByRole('button', { name: /^Remove/ })).toHaveCount(2)
+    await expect(page.getByRole('button', { name: 'Create Activity', exact: true })).toHaveCount(0)
     await page.getByRole('button', { name: 'Add to Program' }).click()
+    await expect.poll(() =>
+      requests.filter((r) => r.path === '/media/uploads' && r.method === 'POST').length,
+    ).toBe(2)
+    await expect(newMedia.getByRole('button', { name: /^Remove/ })).toHaveCount(0)
 
     // Advance to Step 3 (Publish & Share) via consistent Continue button
     await page.getByRole('button', { name: 'Continue', exact: true }).click()
@@ -134,6 +140,11 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
     await expect(page.getByRole('button', { name: 'Public' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Link only' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Private' })).toBeVisible()
+
+    // Start now checkbox: visible and checked by default
+    const startNowCheckbox = page.getByLabel('Start now')
+    await expect(startNowCheckbox).toBeVisible()
+    await expect(startNowCheckbox).toBeChecked()
 
     // Publish Program
     // Wait for the request itself: checking the log right after the click raced the network.

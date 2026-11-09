@@ -116,7 +116,7 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
 
   // Complete the scheduled occurrence in the UI -> worker emits ACHIEVEMENT_EARNED (First step)
   await expect(
-    page.getByRole('heading', { name: "Today's Results" }),
+    page.getByRole('heading', { name: "Today's Activity" }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Increase Reps' }).click()
   await page.getByRole('button', { name: /^Start( timer)?$/ }).click()

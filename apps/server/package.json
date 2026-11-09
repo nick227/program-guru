@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "handlers:sync": "tsx scripts/sync-handlers.ts",
     "worker": "dotenv -e ../../.env -- tsx watch src/worker.ts",
+    "dev:worker": "dotenv -e ../../.env -- tsx watch src/worker.ts",
     "start:worker": "node dist/worker.js",
     "bootstrap:prod": "node dist/bootstrap.js",
     "media:e2e": "tsx scripts/media-e2e.ts",

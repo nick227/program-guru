@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { toast } from 'sonner'
 import {
   useActivity,
   useActivityPublicMedia,
@@ -12,7 +11,6 @@ import {
   useCurrentUser,
   usePutActivityInstructions,
   useUpdateActivityDraft,
-  useInboundMedia,
   type components,
 } from '@project/sdk'
 import { Page, Stage, Stack, Panel } from '@/components/ui/Layout'
@@ -22,17 +20,17 @@ import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back } from '@/components/Navigation'
 import { ActivityBasicsFields } from '@/components/ActivityBasicsFields'
-import { ChangeImage } from '@/components/ChangeImage'
+import { ActivityMediaTray } from '@/components/EntityMediaTray'
 import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
 import {
   useLibraryBrowser,
   type LibraryBrowserContext,
 } from '@/components/LibraryBrowser'
-import { RelatedMediaRiver, type RiverItem } from '@/components/RelatedMediaRiver'
+import { type RiverItem } from '@/components/RelatedMediaRiver'
+import { ActivityRelatedMedia } from '@/components/ActivityRelatedMedia'
 import { SuggestionRail } from '@/components/SuggestionRail'
 import { activityCard } from '@/lib/discoveryCards'
 import { activityHero } from '@/lib/hero'
-import { useActivityCover } from '@/lib/useEntityCover'
 import { calendarUrl, isLocalDate, safeReturn, today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
@@ -47,16 +45,6 @@ export function ActivityPage() {
   const resolved = useResolveActivityTarget(rawSlugOrId)
   const activity = useActivity(resolved.activityId)
   const publicMedia = useActivityPublicMedia(resolved.activityId, undefined, !resolved.notFound && !!resolved.activityId)
-  const inbound = useInboundMedia({
-    target: activity.data?.revisionId
-      ? { kind: 'ACTIVITY_REVISION', id: activity.data.revisionId }
-      : undefined,
-    purpose: 'DEMONSTRATION',
-    onSuccess: () => {
-      void activity.refetch()
-      toast.success('Media uploaded and attached')
-    },
-  })
 
   useDocumentTitle(
     activity.data?.title ??
@@ -138,17 +126,7 @@ export function ActivityPage() {
                   ))}
                 </Stack>
               </Panel>
-              <Panel>
-                <RelatedMediaRiver
-                  title="Related Media"
-                  description="Visual guides and demonstration media for this Activity"
-                  items={riverItems}
-                  canUpload={!!activity.data?.canEdit}
-                  onUpload={async (file) => {
-                    await inbound.upload(file)
-                  }}
-                />
-              </Panel>
+              <ActivityRelatedMedia activityId={activity.data.id} revisionId={activity.data.canEdit ? activity.data.revisionId : null} items={riverItems} />
               {!!activity.data.metricLabels.filter(
                 (label) => !label.toLowerCase().startsWith('duration'),
               ).length && (
@@ -207,9 +185,6 @@ export function AddActivityPage() {
   const [instructionSaved, setInstructionSaved] = useState(false)
   const key = useRef(crypto.randomUUID())
   const suggestions = useActivitySuggestions({ categoryId })
-  const cover = useActivityCover(createdActivity?.revisionId ?? null)
-  // The created draft is local state; read the live record so a new cover shows at once.
-  const liveActivity = useActivity(createdActivity?.id ?? '')
 
   /** A starting point prefills a private copy; the new-Activity path stays available. */
   function chooseStartingPoint(activity: components['schemas']['ActivitySummary']) {
@@ -341,15 +316,10 @@ export function AddActivityPage() {
                   </Button>
                 )}
                 {createdActivity.revisionId ? (
-                  <ChangeImage
-                    label="Activity image"
-                    canEdit
-                    cover={cover}
-                    hero={activityHero(liveActivity.data ?? createdActivity, categorySlugOf)}
-                  />
+                  <ActivityMediaTray revisionId={createdActivity.revisionId} />
                 ) : (
                   <p className="text-sm text-attention">
-                    This Activity has no editable image.
+                    This Activity has no editable media.
                   </p>
                 )}
                 <Button

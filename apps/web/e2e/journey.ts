@@ -44,6 +44,7 @@ export async function journey(
   await expect(
     page.getByRole('heading', { name: 'Publish & Share', exact: true }),
   ).toBeVisible()
+  await page.getByLabel('Start now').uncheck()
   await page
     .getByRole('button', { name: 'Publish Program', exact: true })
     .click()
@@ -73,22 +74,11 @@ export async function journey(
     page.getByRole('link', { name: new RegExp(`^Squats, ${escaped}, ${status}`) }).first()
   await tile('Pending').click()
   await expect(
-    page.getByRole('heading', { name: "Today's Results" }),
+    page.getByRole('heading', { name: "Today's Activity" }),
   ).toBeVisible()
   await expect(page.getByLabel('Reps (reps)', { exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Increase Reps' }).click()
-  // READY → Start (timer); FINISHED → Start again (becomes ACTIVE); already ACTIVE → continue.
-  // Untimed Activities lead with Mark complete; the optional timer is "Start timer".
-  const start = page.getByRole('button', { name: /^Start( timer)?$/ })
-  const startAgain = page.getByRole('button', {
-    name: 'Start again',
-    exact: true,
-  })
-  if (await startAgain.isVisible()) await startAgain.click()
-  else if (await start.isVisible()) await start.click()
-  await page.getByRole('button', { name: 'Pause', exact: true }).click()
-  await page.getByRole('button', { name: 'Resume', exact: true }).click()
-  await page.getByRole('button', { name: /Finish/ }).click()
+  await page.getByRole('button', { name: 'Complete', exact: true }).click()
   await expect(
     page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()

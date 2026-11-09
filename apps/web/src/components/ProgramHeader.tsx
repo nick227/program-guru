@@ -3,12 +3,14 @@ import { Pencil } from 'lucide-react'
 /** Shared identity for Program creation, customization, and confirmation. */
 export function ProgramHeader({
   title,
+  label,
   onTitleChange,
   autoFocus = false,
   disabled = false,
   onConfirm,
 }: {
   title: string
+  label?: string
   onTitleChange?: (title: string) => void
   autoFocus?: boolean
   disabled?: boolean
@@ -19,11 +21,11 @@ export function ProgramHeader({
       <header className="add-program-heading">
         {onTitleChange ? (
           <div className="program-header__editor">
-            <h1 className="sr-only">{title.trim() || 'Add a Program'}</h1>
+            <h1 className="sr-only">{title.trim() || `Add a ${label ?? 'Program'}`}</h1>
             <input
               className="program-header__name"
               aria-label="Program name"
-              placeholder="Name your Program"
+              placeholder={`Name your ${label ?? 'Program'}`}
               maxLength={140}
               required
               value={title}

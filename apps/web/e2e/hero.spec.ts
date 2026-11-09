@@ -43,119 +43,190 @@ test('a cover that fails to load falls back to the category art', async ({
   await expect(hero(page).locator('img')).toHaveCount(0)
 })
 
-const libraryPhoto = {
-  id: '00000000-0000-4000-8000-000000000777',
-  type: 'PHOTO',
-  state: 'READY',
-  thumbnailUrl: null,
-  mime: 'image/jpeg',
-  byteSize: 10,
-  width: 10,
-  height: 10,
-  durationMs: null,
-  alt: 'Trail photo',
-  license: null,
-  attribution: null,
-  attachmentCount: 0,
-  isOwner: true,
-  createdAt: '2026-11-07T12:00:00Z',
-}
-async function withLibraryPhoto(page: import('@playwright/test').Page) {
-  await page.route(/localhost:3001\/media\/mine(\?|$)/, (route) =>
-    route.fulfill({ json: { data: [libraryPhoto], meta: { nextCursor: null } } }),
-  )
-}
+// A real 1×1 PNG, so local previews actually render.
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
+const photo = (name: string) => ({ name, mimeType: 'image/png', buffer: PNG })
+const uploadBodies = (requests: { path: string; method: string; body: Record<string, unknown> }[]) =>
+  requests.filter((r) => r.path === '/media/uploads' && r.method === 'POST').map((r) => r.body)
 
-test('Workspace Upload image sets the Program cover directly, without the picker or capture', async ({
+test('Workspace cover uploads bound to the Program and sets it, with no picker buttons', async ({
   page,
 }) => {
   const { requests } = await mockApi(page)
   await login(page, 'author@test.local', 'password')
-  await page.goto(`/programs/${programId}/workspace`)
+  await page.goto(`/programs/${programId}/workspace?step=details`)
   const cover = page.getByRole('group', { name: 'Program cover' })
-  // 3/4 canvas cover dropzone
-  await expect(cover.getByRole('button', { name: 'Upload image' }).first()).toBeVisible()
+  await expect(cover.getByRole('button', { name: 'Add image' })).toBeVisible()
+  await expect(cover.getByRole('button', { name: /Upload image|Choose from library/ })).toHaveCount(0)
 
-  // Directly upload a file through the Change image file input
-  await cover.locator('input[type="file"]').setInputFiles({
-    name: 'cover.jpg',
-    mimeType: 'image/jpeg',
-    buffer: Buffer.from('fake image content'),
+  await cover.locator('input[type="file"]').setInputFiles(photo('cover.jpg'))
+
+  await expect.poll(() => uploadBodies(requests)[0]).toMatchObject({
+    target: { kind: 'PROGRAM', id: programId },
+    purpose: 'COVER',
   })
-
-  // Ensure no slideout picker dialog exists
-  await expect(page.getByRole('dialog', { name: 'Choose program cover' })).toHaveCount(0)
-
   await expect.poll(() =>
     requests.find((r) => r.path === `/programs/${programId}/draft` && r.method === 'PATCH')?.body,
   ).toMatchObject({ coverMediaId: 'media:user:uploaded' })
+  await expect(cover.getByRole('button', { name: 'Replace image' })).toBeVisible()
 })
 
-test('a new Activity gets an uploaded image as a COVER on its own revision', async ({ page }) => {
-  const { requests } = await mockApi(page)
-  await login(page, 'participant@test.local', 'password')
-  await page.goto('/add-activity?day=2026-11-12')
-  await page.getByLabel('Activity title').fill('Evening sketch')
-  await page.getByLabel('Category').selectOption({ label: 'Fitness' })
-  await page.getByRole('button', { name: 'Create Activity' }).click()
-  const image = page.getByRole('group', { name: 'Activity image' })
-  await expect(image.locator('[data-hero-category="fitness"]')).toBeVisible()
-
-  // Directly upload a file through the Activity image file input
-  await image.locator('input[type="file"]').setInputFiles({
-    name: 'cover.jpg',
-    mimeType: 'image/jpeg',
-    buffer: Buffer.from('fake image content'),
-  })
-
-  // Ensure no slideout picker dialog exists
-  await expect(page.getByRole('dialog', { name: 'Choose activity image' })).toHaveCount(0)
-
+test('Workspace cover is removed inline', async ({ page }) => {
+  const { requests } = await mockApi(page, { cover: '/existing-cover.jpg' })
+  await login(page, 'author@test.local', 'password')
+  await page.goto(`/programs/${programId}/workspace?step=details`)
+  const cover = page.getByRole('group', { name: 'Program cover' })
+  await cover.getByRole('button', { name: /^Remove/ }).click()
   await expect.poll(() =>
-    requests.find((r) => r.path === '/media-attachments' && r.method === 'POST')?.body,
-  ).toMatchObject({
-    mediaId: 'media:user:uploaded',
-    purpose: 'COVER',
-    target: { kind: 'ACTIVITY_REVISION' },
-  })
+    requests.find((r) => r.path === `/programs/${programId}/draft` && r.method === 'PATCH')?.body,
+  ).toMatchObject({ coverMediaId: null })
+  await expect(cover.getByRole('button', { name: /^Remove/ })).toHaveCount(0)
+  await expect(cover.getByRole('button', { name: 'Add image' })).toBeVisible()
 })
 
-test('Workspace cover chooses an existing library photo, without capture', async ({
+test('Add Program takes a cover on the first step and sends it once the draft exists', async ({
   page,
 }) => {
   const { requests } = await mockApi(page)
-  await withLibraryPhoto(page)
   await login(page, 'author@test.local', 'password')
-  await page.goto(`/programs/${programId}/workspace`)
+  await page.goto('/programs/new')
+  await page.getByRole('button', { name: /Workout/ }).click()
+  await page.getByLabel('Program name').fill('Cover first')
   const cover = page.getByRole('group', { name: 'Program cover' })
-  await cover.getByRole('button', { name: 'Choose from library' }).click()
-  const picker = page.getByRole('dialog', { name: 'Choose program cover' })
-  await expect(picker).toBeVisible()
-  await expect(picker.getByRole('button', { name: 'Capture', exact: true })).toHaveCount(0)
-  await picker.getByRole('button', { name: 'Trail photo · READY' }).click()
-  await expect(picker).toBeHidden()
-  expect(
-    requests.find((r) => r.path === `/programs/${programId}/draft` && r.method === 'PATCH')?.body,
-  ).toMatchObject({ coverMediaId: libraryPhoto.id })
+  await cover.locator('input[type="file"]').setInputFiles(photo('first.jpg'))
+  await expect(cover.getByRole('button', { name: /^Remove/ })).toHaveCount(1)
+  // Inline remove, then choose again: nothing is sent before the draft exists.
+  await cover.getByRole('button', { name: /^Remove/ }).click()
+  await expect(cover.getByRole('button', { name: /^Remove/ })).toHaveCount(0)
+  await cover.locator('input[type="file"]').setInputFiles(photo('second.jpg'))
+  expect(uploadBodies(requests)).toHaveLength(0)
+
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page).toHaveURL(new RegExp(`/programs/${programId}/workspace`))
+  expect(uploadBodies(requests)).toEqual([
+    expect.objectContaining({
+      filename: 'second.jpg',
+      target: { kind: 'PROGRAM', id: programId },
+      purpose: 'COVER',
+    }),
+  ])
 })
 
-test('a new Activity can use an existing library photo as its COVER', async ({ page }) => {
+test('a new Activity takes several files, each uploaded to its own revision', async ({ page }) => {
   const { requests } = await mockApi(page)
-  await withLibraryPhoto(page)
   await login(page, 'participant@test.local', 'password')
   await page.goto('/add-activity?day=2026-11-12')
   await page.getByLabel('Activity title').fill('Evening sketch')
   await page.getByLabel('Category').selectOption({ label: 'Fitness' })
   await page.getByRole('button', { name: 'Create Activity' }).click()
-  const image = page.getByRole('group', { name: 'Activity image' })
-  await expect(image.locator('[data-hero-category="fitness"]')).toBeVisible()
-  await image.getByRole('button', { name: /Choose from library|Change image/ }).click()
-  await page
-    .getByRole('dialog', { name: 'Choose activity image' })
-    .getByRole('button', { name: 'Trail photo · READY' })
-    .click()
-  await expect(page.getByRole('dialog', { name: 'Choose activity image' })).toBeHidden()
-  expect(
-    requests.find((r) => r.path === '/media-attachments' && r.method === 'POST')?.body,
-  ).toMatchObject({ mediaId: libraryPhoto.id, purpose: 'COVER', target: { kind: 'ACTIVITY_REVISION' } })
+  const media = page.getByRole('group', { name: 'Activity media' })
+  await expect(media.getByRole('button', { name: 'Add media' })).toBeVisible()
+  await expect(media.getByRole('button', { name: /Upload image|Choose from library/ })).toHaveCount(0)
+
+  await media.locator('input[type="file"]').setInputFiles([photo('one.jpg'), photo('two.jpg')])
+
+  await expect.poll(() => uploadBodies(requests).length).toBe(2)
+  for (const body of uploadBodies(requests))
+    expect(body).toMatchObject({
+      target: { kind: 'ACTIVITY_REVISION' },
+      purpose: 'DEMONSTRATION',
+    })
+  // The server attaches on processing; the client never posts a separate attachment.
+  expect(requests.some((r) => r.path === '/media-attachments' && r.method === 'POST')).toBe(false)
+})
+
+test('Workspace cover is replaced, never duplicated', async ({ page }) => {
+  const { requests } = await mockApi(page)
+  await login(page, 'author@test.local', 'password')
+  await page.goto(`/programs/${programId}/workspace?step=details`)
+  const cover = page.getByRole('group', { name: 'Program cover' })
+  const input = cover.locator('input[type="file"]')
+  const coverPatches = () =>
+    requests.filter((r) => r.path === `/programs/${programId}/draft` && r.method === 'PATCH' && 'coverMediaId' in r.body)
+
+  await input.setInputFiles(photo('first.jpg'))
+  await expect.poll(() => coverPatches().length).toBe(1)
+  await expect(cover.getByRole('button', { name: 'Replace image' })).toBeVisible()
+  await input.setInputFiles(photo('second.jpg'))
+  await expect.poll(() => coverPatches().length).toBe(2)
+  expect(uploadBodies(requests).map((b) => b.filename)).toEqual(['first.jpg', 'second.jpg'])
+  await expect(cover.getByRole('button', { name: /^Remove/ })).toHaveCount(1)
+})
+
+test('a cover still processing survives navigation and reload, then settles', async ({ page }) => {
+  await mockApi(page)
+  let processing = true
+  const asset = (state: string) => ({
+    id: 'media:user:uploaded', type: 'PHOTO', state, originalUrl: null, variants: [], alt: null,
+    aspectRatio: 1.5, isOwner: true, createdAt: '2026-11-08T00:00:00Z',
+  })
+  const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  await page.route('http://localhost:3001/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname.endsWith('/complete') || url.pathname === '/media/media:user:uploaded')
+      return route.fulfill(json({ data: asset(processing ? 'PROCESSING' : 'READY') }))
+    if (url.pathname === '/media-attachments' && url.searchParams.get('targetKind') === 'PROGRAM')
+      return route.fulfill(json({
+        data: processing
+          ? [{
+              id: 'intent-1', mediaId: 'media:user:uploaded', mediaState: 'PROCESSING', mediaDeleted: false,
+              target: { kind: 'PROGRAM', id: programId }, purpose: 'COVER', position: 0,
+              media: { id: 'media:user:uploaded', thumbnailUrl: null, type: 'PHOTO', durationMs: null, alt: '', canSelect: false },
+            }]
+          : [],
+        meta: { hasMore: false, nextCursor: null },
+      }))
+    return route.fallback()
+  })
+  await login(page, 'author@test.local', 'password')
+  await page.goto('/programs/new')
+  await page.getByRole('button', { name: /Workout/ }).click()
+  await page.getByLabel('Program name').fill('Slow cover')
+  await page.getByRole('group', { name: 'Program cover' }).locator('input[type="file"]').setInputFiles(photo('slow.jpg'))
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page).toHaveURL(new RegExp(`/programs/${programId}/workspace`))
+
+  // Navigation: the Workspace shows the same file, still processing, with its local preview.
+  await page.getByRole('navigation', { name: 'Program editor steps' }).getByRole('button', { name: /Details/ }).click()
+  const cover = page.getByRole('group', { name: 'Program cover' })
+  await expect(cover.getByRole('status')).toHaveText('Processing…')
+  await expect(cover.locator('img[src^="blob:"]')).toHaveCount(1)
+
+  // Reload: the durable attachment intent keeps the tile.
+  await page.reload()
+  await expect(cover.getByRole('status')).toHaveText('Processing…')
+
+  // The worker finishes: the tile settles without user action.
+  processing = false
+  await expect(cover.getByRole('status')).toHaveCount(0)
+})
+
+test('a failed upload shows its error and retries with the same file', async ({ page }) => {
+  const { requests } = await mockApi(page)
+  await page.route(
+    /localhost:3001\/media\/uploads\/[^/]+\/complete$/,
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 'UNAVAILABLE', message: 'Storage unavailable', requestId: 'r' }),
+      }),
+    { times: 1 },
+  )
+  await login(page, 'participant@test.local', 'password')
+  await page.goto('/add-activity?day=2026-11-12')
+  await page.getByLabel('Activity title').fill('Evening sketch')
+  await page.getByLabel('Category').selectOption({ label: 'Fitness' })
+  await page.getByRole('button', { name: 'Create Activity' }).click()
+  const media = page.getByRole('group', { name: 'Activity media' })
+  await media.locator('input[type="file"]').setInputFiles(photo('flaky.jpg'))
+
+  await expect(media.getByRole('status')).toContainText('Storage unavailable')
+  await media.getByRole('button', { name: 'Retry' }).click()
+  await expect.poll(() => uploadBodies(requests).length).toBe(2)
+  expect(uploadBodies(requests).every((b) => b.filename === 'flaky.jpg')).toBe(true)
+  await expect(media.getByRole('button', { name: 'Retry' })).toHaveCount(0)
 })

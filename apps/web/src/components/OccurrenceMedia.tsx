@@ -1,213 +1,86 @@
-import { ActivityMediaHistory } from './ActivityMediaHistory'
-import { MediaAttachments } from './MediaAttachments'
-import { ErrorMessage, Loading } from './ui/Feedback'
-import { Button } from './ui/Button'
-import { useState } from 'react'
-import { useMediaSession, type components } from '@project/sdk'
-import { Stack } from '@/components/ui/Layout'
-import { SectionHeader } from '@/components/ui/SectionHeader'
-import { Plus } from 'lucide-react'
-import { ThumbnailGrid } from '@/components/ThumbnailGrid'
-import { MediaViewer, type ViewerItem } from '@/components/MediaViewer'
-import { MediaPicker } from './MediaPicker'
-import { GroupMediaThread, ShareWithGroup } from './GroupMediaThread'
+import { useRef, useState } from 'react'
+import { useActivityRelatedMedia, type components } from '@project/sdk'
+import { RelatedMedia } from './RelatedMedia'
+import { RelatedMediaMenu } from './RelatedMediaMenu'
+import { GroupMediaThread } from './GroupMediaThread'
+import { ErrorMessage } from './ui/Feedback'
+import { SectionHeader } from './ui/SectionHeader'
+import { mergeRelatedMedia } from '@/lib/activityMediaHistory'
+import { useMediaUploads } from '@/lib/useMediaUploads'
+import { useOnline } from '@/lib/useOnline'
 
 type S = components['schemas']
+const FILTERS = ['All', 'Mine', 'Group', 'Public'] as const
 
-function toViewer(
-  items: {
-    id: string
-    thumbnailUrl?: string | null
-    type?: string
-    alt?: string | null
-    publicationId?: string
-  }[],
-  credit?: (i: number) => string | null,
-): ViewerItem[] {
-  return items.map((m, i) => ({
-    id: m.id,
-    publicationId: m.publicationId,
-    thumbnailUrl: m.thumbnailUrl,
-    type: m.type,
-    alt: m.alt,
-    credit: credit?.(i) ?? null,
-  }))
-}
-
-export function OccurrenceMedia({
-  activityId,
-  sessionId,
-  onAttach,
-  myMedia,
-  sharedMedia,
-  communityMedia,
-  locked,
-  group,
-  onShared,
-}: {
+export function OccurrenceMedia({ activityId, onAttach, prepareUpload, myMedia, sharedMedia, communityMedia, siteMedia = [], locked, group, onShared }: {
   activityId: string
   sessionId?: string
   onAttach: (asset: S['MediaAsset']) => Promise<void>
+  prepareUpload?: () => Promise<S['AttachmentTarget']>
   myMedia: S['MediaThumb'][]
   sharedMedia: S['GroupMediaThumb'][]
   communityMedia: S['PublicMediaThumb'][]
+  siteMedia?: S['MediaThumb'][]
   locked: boolean
-  /** The viewer's group for this occurrence: enables sharing own media and group comments. */
   group?: { groupId: string; occurrenceKey: string } | null
   onShared?: () => void
 }) {
-  const [viewer, setViewer] = useState<{
-    items: ViewerItem[]
-    index: number
-  } | null>(null)
-  const session = useMediaSession(sessionId)
-  const entry = session.data?.entries.find(
-    (entry) => entry.instructionId === null,
-  )
-  const [managing, setManaging] = useState(false)
-  const [picking, setPicking] = useState(false)
-  // One attributed strip: yours first, then group media, then public community
-  // examples (withheld while access is locked). Credits show in the viewer.
-  const related: (ViewerItem & { badge?: string })[] = [
-    ...toViewer(myMedia).map((item) => ({ ...item, badge: 'Private' })),
-    ...toViewer(sharedMedia, (i) => sharedMedia[i] ? `Shared by ${sharedMedia[i].owner.displayName} · Group only` : null).map(
-      (item) => ({ ...item, badge: 'Group' }),
-    ),
-    ...(locked
-      ? []
-      : toViewer(communityMedia, (i) =>
-          [
-            communityMedia[i]?.creator?.displayName,
-            communityMedia[i]?.attribution,
-            communityMedia[i]?.license,
-          ]
-            .filter(Boolean)
-            .join(' · '),
-        ).map((item) => ({ ...item, badge: 'Community' }))),
-  ]
-  const groupCount = sharedMedia.length
-  const communityCount = locked ? 0 : communityMedia.length
-  return (
-    <>
-      <section aria-label="Related Media" id="related-media" className="activity-media scroll-mt-20">
-        <Stack className="gap-4">
-          <SectionHeader
-            title="Related Media"
-            description={
-              related.length
-                ? [
-                    myMedia.length ? `${myMedia.length} yours (private)` : null,
-                    groupCount ? `${groupCount} from your group` : null,
-                    communityCount ? `${communityCount} community` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')
-                : undefined
-            }
-          />
-          <ErrorMessage
-            error={session.error}
-            retry={() => void session.refetch()}
-          />
-          {related.length ? (
-            <div className="activity-media__grid">
-              <ThumbnailGrid
-                items={related.map((item) => ({ ...item, id: item.publicationId ?? `private:${item.id}` }))}
-                onAdd={() => setPicking(true)}
-                addLabel="Add media to this session"
-                columns={6}
-                onSelect={(id) =>
-                  setViewer({
-                    items: related,
-                    index: related.findIndex((m) => (m.publicationId ?? `private:${m.id}`) === id),
-                  })
-                }
-              />
-            </div>
-          ) : (
-            <div className="activity-media__empty">
-              <p>No media yet. Add a photo or video of this attempt; it stays private unless you share it.</p>
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label="Add media to this session"
-                onClick={() => setPicking(true)}
-              >
-                <Plus size={16} aria-hidden /> Add media
-              </Button>
-            </div>
-          )}
-          <div className="flex flex-wrap items-start gap-2">
-            {sessionId && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setManaging((value) => !value)}
-                aria-expanded={managing}
-              >
-                Manage attachments
-              </Button>
-            )}
-          </div>
-          {managing && (
-            <Stack>
-              <p className="text-sm text-muted">Attachments for this attempt</p>
-              {session.isPending ? (
-                <Loading />
-              ) : !session.error && !session.data?.entries.length ? (
-                <p>No attachments yet.</p>
-              ) : null}
-              {!session.error &&
-                session.data?.entries.map((entry) => (
-                  <MediaAttachments
-                    key={entry.id}
-                    context={{ kind: 'Activity', resultEntryId: entry.id }}
-                  />
-                ))}
-            </Stack>
-          )}
-          <ActivityMediaHistory
-            key={activityId}
-            activityId={activityId}
-            currentSessionId={sessionId}
-          />
-        </Stack>
-      </section>
-      {picking && (
-        <MediaPicker
-          context={
-            entry ? { kind: 'Activity', resultEntryId: entry.id } : undefined
-          }
-          onClose={() => setPicking(false)}
-          onSelect={onAttach}
-          selected={myMedia.map((m) => m.id)}
-        />
-      )}
-      {viewer && viewer.index >= 0 && (
-        <MediaViewer
-          items={viewer.items}
-          index={viewer.index}
-          onClose={() => setViewer(null)}
-          onIndex={(i) => setViewer({ ...viewer, index: i })}
-        >
-          {(() => {
-            const current = viewer.items[viewer.index] as (typeof related)[number] | undefined
-            if (current?.badge === 'Group' && current.publicationId)
-              return <GroupMediaThread key={current.publicationId} publicationId={current.publicationId} />
-            if (current?.badge === 'Private' && group && !sharedMedia.some((m) => m.id === current.id))
-              return (
-                <ShareWithGroup
-                  key={current.id}
-                  mediaId={current.id}
-                  groupId={group.groupId}
-                  occurrenceKey={group.occurrenceKey}
-                  onShared={onShared}
-                />
-              )
-            return null
-          })()}
-        </MediaViewer>
-      )}
-    </>
-  )
+  const [filter, setFilter] = useState<typeof FILTERS[number]>('All')
+  const history = useActivityRelatedMedia(activityId)
+  const online = useOnline()
+  // Uploads can finish together; attach through the existing session's serialized save path.
+  const attaching = useRef<Promise<unknown>>(Promise.resolve())
+  const uploads = useMediaUploads({ onReady: asset => {
+    if (prepareUpload) return
+    const next = attaching.current.catch(() => {}).then(() => onAttach(asset))
+    attaching.current = next
+    return next
+  } })
+  const mine = [...myMedia, ...(history.data ?? []).filter(item => item.mediaState === 'READY')]
+  const owned = new Set(mine.map(m => m.id))
+  const publicItems = locked ? [] : communityMedia
+  const permittedSiteMedia = locked ? [] : siteMedia
+  const sources = filter === 'Mine' ? [mine]
+    : filter === 'Group' ? [sharedMedia]
+      : filter === 'Public' ? [permittedSiteMedia, publicItems]
+        : [mine, permittedSiteMedia, sharedMedia, publicItems]
+  const items = mergeRelatedMedia<S['MediaThumb'] & { publicationId?: string }>(...sources).map(item => {
+    const shared = sharedMedia.find(m => m.id === item.id)
+    const published = publicItems.find(m => m.id === item.id)
+    const groupPublication = filter === 'Group' ? shared?.publicationId : undefined
+    const credit = published?.creator?.displayName ?? shared?.owner.displayName
+    return {
+      ...item,
+      publicationId: groupPublication ?? item.publicationId,
+      credit,
+      attribution: published?.attribution,
+      license: published?.license,
+      menu: owned.has(item.id) ? <RelatedMediaMenu key={item.id} mediaId={item.id} activityId={activityId} group={group} onChanged={onShared} publications={[
+        ...sharedMedia.filter(m => m.id === item.id).map(m => ({ id: m.publicationId, audience: 'GROUP' as const })),
+        ...publicItems.filter(m => m.id === item.id).map(m => ({ id: m.publicationId, audience: 'PUBLIC' as const })),
+      ]} /> : undefined,
+    }
+  })
+  return <div id="related-media" className="activity-related scroll-mt-20">
+    <div className="activity-related__header">
+      <SectionHeader title="Related Media" />
+      <div role="group" aria-label="Filter related media" className="filter-tabs">
+        {FILTERS.map(value => <button type="button" key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value}</button>)}
+      </div>
+    </div>
+    <ErrorMessage error={history.error} retry={() => void history.refetch()} />
+    <RelatedMedia items={items} disabled={!online} onAdd={async files => { setFilter('All'); const target = await prepareUpload?.(); return uploads.sendAll(files, target ? { target, purpose: 'JOURNAL' } : undefined) }} pending={[
+      ...(history.data ?? []).filter(item => item.mediaState !== 'READY' && !uploads.uploads.some(upload => upload.mediaId === item.id)).map(item => ({
+        key: item.id, src: item.thumbnailUrl, alt: item.alt, type: item.type,
+        status: item.mediaState === 'FAILED' || item.mediaState === 'BLOCKED' ? 'failed' as const : 'processing' as const,
+      })),
+      ...uploads.uploads.map(upload => ({
+      key: upload.key, src: upload.previewUrl, alt: upload.file.name,
+      type: upload.file.type.startsWith('video/') ? 'VIDEO' as const : 'PHOTO' as const,
+      status: upload.stage, error: upload.error?.message,
+      retry: () => uploads.retry(upload.key),
+    }))]}>
+      {item => sharedMedia.some(m => m.publicationId === item.publicationId) && item.publicationId ? <GroupMediaThread publicationId={item.publicationId} /> : null}
+    </RelatedMedia>
+  </div>
 }

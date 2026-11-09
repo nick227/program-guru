@@ -47,7 +47,6 @@ export function EntityHero({
       style={
         !showImage
           ? ({
-              background: `linear-gradient(145deg, hsl(${tone} / .28), hsl(${tone} / .07))`,
               color: `hsl(${tone})`,
             } as CSSProperties)
           : undefined

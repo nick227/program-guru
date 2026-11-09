@@ -16,7 +16,7 @@ Goal-oriented platform: a personal weekly calendar for following structured Prog
 
 **Assumptions:** USD only. Moderation is a report queue and audited actions. Stripe Connect configuration is decided in an ADR before billing is built.
 
-**Locked, do not reinterpret:** Program Workspace layout (`03-UX.md` §4), locked Activity row order with one Related Media section (`03-UX.md` §6; My Metrics now lives in Today's Results), calendar-first with no primary navigation (`03-UX.md` §2).
+**Locked, do not reinterpret:** Program Workspace layout (`03-UX.md` §4), locked Activity row order with one Related Media gallery (`03-UX.md` §6), calendar-first with no primary navigation (`03-UX.md` §2).
 
 ## Stack
 
@@ -42,7 +42,7 @@ Phase 2 — Server, worker, billing: complete and gated (2026-11-07). Phase 3 (f
 | Process | Local | Railway |
 |---|---|---|
 | API | `pnpm --filter server dev` (port 3001) | `pnpm --filter server start` (esbuild bundle `dist/index.js`; pre-deploy `pnpm db:deploy && pnpm --filter server bootstrap:prod`) |
-| Worker | `pnpm --filter server worker` | separate service, `pnpm --filter server start:worker`, same build and env, `RAILPACK_DEPLOY_APT_PACKAGES=ffmpeg` |
+| Worker | started by root `pnpm dev` (`dev:worker`); alone: `pnpm --filter server worker`. Without it uploads stay PROCESSING forever | separate service, `pnpm --filter server start:worker`, same build and env, `RAILPACK_DEPLOY_APT_PACKAGES=ffmpeg` |
 | Web | `pnpm --filter web dev` (port 5173) | Vercel |
 
 The worker is safe to run as several copies (outbox claims use `FOR UPDATE SKIP LOCKED`; reminders claim `ReminderDispatch`). It needs `ffmpeg` and `ffprobe` on the PATH.

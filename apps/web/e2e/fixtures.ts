@@ -60,20 +60,29 @@ export async function mockApi(
     recurring?: boolean
     groupItem?: boolean
     added?: boolean
+    joined?: boolean
+    /** The Program draft starts with this cover image. */
+    cover?: string
   } = {},
 ) {
+  let cover: string | null = options.cover ?? null
   let user: 'author' | 'participant' | null = null,
     title = 'My Strength Workout',
     revision = 1,
     added = options.added ?? false,
     published = false,
     programVisibility: S['Visibility'] = 'PRIVATE',
-    joined = false,
     groupCreated = false,
     createdGroupName: string | null = null,
     done = false,
     start = options.calendarDate ?? '2026-11-09',
     cancelled = false
+  const joinedUsers = new Set<'author' | 'participant'>(
+    options.joined ? ['author', 'participant'] : [],
+  )
+  const isJoined = () => (user ? joinedUsers.has(user) : options.joined ?? false)
+  const userStartDates = new Map<'author' | 'participant', string>()
+  const getStart = () => (user && userStartDates.get(user)) || start
   let groupMode: S['GroupMode'] = 'ASYNC'
   let joinLinkEnabled = false
   let memberLinkSharingEnabled = false
@@ -101,7 +110,7 @@ export async function mockApi(
     type,
     focus,
     creator: null,
-    coverUrl: null,
+    coverUrl: seed ? null : cover,
     durationDays: 28,
     programDays: 12,
     placements: 12,
@@ -143,7 +152,7 @@ export async function mockApi(
   })
   const item = (): S['CalendarItem'] => ({
     id: itemId,
-    localDate: start,
+    localDate: getStart(),
     localTime: null,
     status: cancelled ? 'CANCELLED' : done ? 'DONE' : 'PLANNED',
     title: activeActivityTitle,
@@ -364,6 +373,7 @@ export async function mockApi(
       copied = true
       return send(activityDetail(), 201)
     }
+    if (path.includes('/my-attempts')) return send([], 200, true)
     if (path === '/activities') return send([activity], 200, true)
     if (path === `/activities/${activityId}/copy` && method === 'POST') {
       activeActivityId = uid(26)
@@ -517,10 +527,10 @@ export async function mockApi(
           },
         ],
         mySharedCompletion: false,
-        myEnrollment: joined
+        myEnrollment: isJoined()
           ? {
               enrollmentId: uid(40),
-              startLocalDate: start,
+              startLocalDate: getStart(),
               startDateDiffers: false,
             }
           : null,
@@ -579,6 +589,8 @@ export async function mockApi(
       if (body.expectedRevision !== revision)
         return error(409, 'VERSION_CONFLICT', 'Stale draft')
       if (body.title) title = body.title
+      if (body.coverMediaId === null) cover = null
+      else if (typeof body.coverMediaId === 'string') cover = '/uploaded.jpg'
       revision++
       return send(workspace())
     }
@@ -632,13 +644,16 @@ export async function mockApi(
         ],
       })
     if (path.endsWith('/enrollments') && method === 'POST') {
-      joined = true
+      if (user) {
+        joinedUsers.add(user)
+        userStartDates.set(user, body.startLocalDate)
+      }
       start = body.startLocalDate
       return send({ id: uid(40) }, 201)
     }
     if (path === '/enrollments' && method === 'GET')
       return send(
-        joined
+        isJoined()
           ? [
               {
                 id: uid(40),
@@ -646,7 +661,7 @@ export async function mockApi(
                 programVersionId: uid(12),
                 pendingVersionId: null,
                 groupId: null,
-                startLocalDate: start,
+                startLocalDate: getStart(),
                 timezone: 'America/Chicago',
                 status: 'ACTIVE',
                 calendarItemCount: 12,
@@ -697,7 +712,7 @@ export async function mockApi(
         canJoin: !!user,
         canRequestAccess: false,
         canPurchase: false,
-        myEnrollmentId: joined ? uid(40) : null,
+        myEnrollmentId: isJoined() ? uid(40) : null,
       })
     if (path === '/calendar/items' && method === 'POST')
       return send(
@@ -706,10 +721,10 @@ export async function mockApi(
       )
     if (path === '/calendar/items' && method === 'GET')
       return send(
-        (joined || options.calendarItem) &&
+        (isJoined() || options.calendarItem) &&
           !cancelled &&
-          start >= url.searchParams.get('start')! &&
-          start <= url.searchParams.get('end')!
+          getStart() >= url.searchParams.get('start')! &&
+          getStart() <= url.searchParams.get('end')!
           ? [item()]
           : [],
       )

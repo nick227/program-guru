@@ -137,6 +137,8 @@ async function setup(
         [asset, { ...asset, id: 'library-photo', alt: 'Library recording' }],
         { nextCursor: null },
       )
+    if (path === '/media/old-photo' && req.method() === 'GET') return send(asset)
+    if (path === '/media/old-photo' && req.method() === 'DELETE') { rows = []; return send({ ok: true }) }
     if (path === '/media/old-photo/url')
       return send({
         url: '/history.png',
@@ -198,11 +200,6 @@ async function setup(
   await page.goto(
     `/occurrences/${itemId}?returnTo=${encodeURIComponent('/?week=2026-11-09&day=2026-11-10')}`,
   )
-  await page.getByRole('button', { name: 'Media from all attempts' }).click()
-  await page
-    .getByLabel('Attempt session-new', { exact: true })
-    .getByRole('button', { name: 'Manage media', exact: true })
-    .click()
   return {
     calls,
     cursors,
@@ -211,305 +208,33 @@ async function setup(
     },
   }
 }
-test('older attempts paginate, view, detach, restore and refresh without changing results or calendar context', async ({
-  page,
-}, testInfo) => {
-  const api = await setup(page)
-  const history = page.getByRole('region', { name: 'Activity media history' })
-  await expect(history.getByText(/2026-11-06 · Earlier attempt/)).toBeVisible()
-  await history.getByRole('button', { name: 'Load older attempts' }).click()
-  await history
-    .getByLabel('Attempt session-old', { exact: true })
-    .getByRole('button', { name: 'Manage media', exact: true })
-    .click()
-  await expect(history.getByText(/2026-11-01 · Earlier attempt/)).toBeVisible()
-  expect(api.cursors).toContain('next')
-  await page.screenshot({
-    path: testInfo.outputPath('activity-media-history.png'),
-    fullPage: true,
-  })
-  await history
-    .getByRole('button', { name: 'Earlier recording · READY' })
-    .last()
-    .click()
-  await expect(page.getByRole('dialog').getByRole('img')).toHaveAttribute(
-    'src',
-    '/history.png',
-  )
-  await page.keyboard.press('Escape')
-  await history
-    .getByRole('button', { name: 'Detach', exact: true })
-    .last()
-    .click()
-  await expect(
-    history.getByRole('button', { name: 'Undo detach' }),
-  ).toBeVisible()
-  expect(
-    api.calls
-      .filter((call) => call.method === 'DELETE')
-      .map((call) => call.path),
-  ).toEqual(['/media-attachments/old-link'])
-  await history.getByRole('button', { name: 'Undo detach' }).click()
-  await expect(
-    history.getByRole('button', { name: 'Undo detach' }),
-  ).toHaveCount(0)
-  expect(api.calls.find((call) => call.method === 'POST')?.body).toEqual({
-    mediaId: 'old-photo',
-    target: { kind: 'RESULT_ENTRY', id: 'result-session-old' },
-    purpose: 'JOURNAL',
-    position: 0,
-  })
-  await page.reload()
-  await page.getByRole('button', { name: 'Media from all attempts' }).click()
-  await history.getByRole('button', { name: 'Load older attempts' }).click()
-  await history
-    .getByLabel('Attempt session-old', { exact: true })
-    .getByRole('button', { name: 'Manage media', exact: true })
-    .click()
-  await expect(history.getByText(/2026-11-01 · Earlier attempt/)).toBeVisible()
-  await history
-    .getByRole('button', { name: 'Attach to this attempt' })
-    .last()
-    .click()
-  await expect(
-    page
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Earlier recording · READY' }),
-  ).toBeDisabled()
-  await page.keyboard.press('Escape')
-  await history
-    .getByRole('button', { name: 'Detach', exact: true })
-    .last()
-    .click()
-  await expect(
-    history.getByRole('button', { name: 'Undo detach' }),
-  ).toBeVisible()
-  await page.reload()
-  await page.getByRole('button', { name: 'Media from all attempts' }).click()
-  await history.getByRole('button', { name: 'Load older attempts' }).click()
-  await history
-    .getByLabel('Attempt session-old', { exact: true })
-    .getByRole('button', { name: 'Manage media', exact: true })
-    .click()
-  const older = history.getByLabel('Attempt session-old', { exact: true })
-  await expect(
-    older.getByText('No media attached to this result.'),
-  ).toBeVisible()
-  await older.getByRole('button', { name: 'Attach to this attempt' }).click()
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Earlier recording · READY' })
-    .click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(
-    older.getByRole('button', { name: 'Earlier recording · READY' }),
-  ).toBeVisible()
-  expect(
-    api.calls.filter((call) => call.method === 'POST').at(-1)?.body,
-  ).toEqual({
-    mediaId: 'old-photo',
-    target: { kind: 'RESULT_ENTRY', id: 'result-session-old' },
-    purpose: 'JOURNAL',
-  })
-  await expect(
-    page.getByRole('heading', { name: "Today's Results" }),
-  ).toBeVisible()
-  await page.getByRole('link', { name: 'Calendar', exact: true }).click()
-  await expect(page).toHaveURL(/week=2026-11-09&day=2026-11-10/)
-  expect(
-    api.calls.filter((call) => /results|publications|uploads/.test(call.path)),
-  ).toHaveLength(0)
-})
-test('deleted media remains detachable; restricted Activities retain private history', async ({
-  page,
-}) => {
-  await setup(page, { deleted: true, locked: true })
-  const history = page.getByRole('region', { name: 'Activity media history' })
-  await expect(history.getByText('Earlier recording · deleted')).toBeVisible()
-  await expect(
-    history.getByRole('button', { name: 'Earlier recording · READY' }),
-  ).toBeDisabled()
-  await history.getByRole('button', { name: 'Detach', exact: true }).click()
-  await expect(
-    history.getByRole('button', { name: 'Undo detach' }),
-  ).toHaveCount(0)
-})
-for (const status of [401, 403, 404])
-  test(`history ${status} after refresh hides cached private rows and offers retry`, async ({
-    page,
-  }) => {
-    const api = await setup(page)
-    const history = page.getByRole('region', {
-      name: 'Activity media history',
-    })
-    await expect(
-      history.getByText(/2026-11-06 · Earlier attempt/),
-    ).toBeVisible()
-    api.deny(status)
-    await history.getByRole('button', { name: 'Refresh history' }).click()
-    await expect(history.getByRole('alert')).toContainText(
-      'History unavailable',
-    )
-    await expect(
-      history.getByRole('button', { name: 'Detach', exact: true }),
-    ).toHaveCount(0)
-    api.deny(0)
-    await history.getByRole('button', { name: 'Retry', exact: true }).click()
-    await expect(
-      history.getByText(/2026-11-06 · Earlier attempt/),
-    ).toBeVisible()
-  })
-
-test('reattaches library media to the selected older result and recovers from detach denial', async ({
-  page,
-}) => {
-  const api = await setup(page)
-  const history = page.getByRole('region', { name: 'Activity media history' })
-  await history.getByRole('button', { name: 'Load older attempts' }).click()
-  await history
-    .getByLabel('Attempt session-old', { exact: true })
-    .getByRole('button', { name: 'Manage media', exact: true })
-    .click()
-  await history
-    .getByLabel('Attempt session-old', { exact: true })
-    .getByRole('button', { name: 'Attach to this attempt' })
-    .click()
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Library recording · READY' })
-    .click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  expect(api.calls.find((call) => call.method === 'POST')?.body).toEqual({
-    mediaId: 'library-photo',
-    target: { kind: 'RESULT_ENTRY', id: 'result-session-old' },
-    purpose: 'JOURNAL',
-  })
-  await expect(
-    history.getByText('Library recording', { exact: true }),
-  ).toBeVisible()
-  await page.route(
-    '**/media-attachments/restored-2',
-    (route) =>
-      route.fulfill({
-        status: 403,
-        json: { code: 'FORBIDDEN', message: 'Detach denied' },
-      }),
-    { times: 1 },
-  )
-  await history
-    .getByRole('button', { name: 'Detach', exact: true })
-    .last()
-    .click()
-  await expect(history.getByRole('alert')).toContainText('Detach denied')
-  await expect(
-    history.getByText('Library recording', { exact: true }),
-  ).toBeVisible()
-  await history
-    .getByRole('button', { name: 'Detach', exact: true })
-    .last()
-    .click()
-  await expect(
-    history.getByRole('button', { name: 'Undo detach' }),
-  ).toBeVisible()
+test('all attempts appear automatically as one tile per asset with owner controls', async ({ page }) => {
+  const { cursors, calls } = await setup(page)
+  const media = page.getByRole('region', { name: 'Related Media', exact: true })
+  await expect(media.getByRole('button', { name: 'Earlier recording', exact: true })).toHaveCount(1)
+  await expect.poll(() => cursors.includes('next')).toBe(true)
+  await expect(page.getByRole('button', { name: 'Media from all attempts' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Manage attachments' })).toHaveCount(0)
+  await expect(media.getByRole('button', { name: 'Add media', exact: true })).toBeVisible()
+  await media.getByLabel('Media options', { exact: true }).click()
+  await expect(media.getByRole('button', { name: 'Share publicly', exact: true })).toBeDisabled()
+  await media.getByLabel('Public sharing licence').selectOption('CC BY 4.0')
+  await expect(media.getByRole('button', { name: 'Share publicly', exact: true })).toBeEnabled()
+  await media.getByRole('button', { name: 'Delete media', exact: true }).click()
+  await media.getByRole('button', { name: 'Confirm delete', exact: true }).click()
+  await expect(media.getByRole('button', { name: 'Earlier recording', exact: true })).toHaveCount(0)
+  expect(calls.some(call => call.path === '/media/old-photo' && call.method === 'DELETE')).toBe(true)
+  expect(calls.some(call => call.path.startsWith('/sessions') && call.method === 'POST')).toBe(false)
 })
 
-test('an attempt without results can attach to its original session without starting another', async ({
-  page,
-}) => {
-  const api = await setup(page, { noResults: true })
-  const history = page.getByRole('region', { name: 'Activity media history' })
-  await history.getByRole('button', { name: 'Load older attempts' }).click()
-  await history
-    .getByLabel('Attempt session-old', { exact: true })
-    .getByRole('button', { name: 'Manage media', exact: true })
-    .click()
-  const older = history.getByLabel('Attempt session-old', { exact: true })
-  await expect(
-    older.getByText('No results recorded for this attempt.'),
-  ).toBeVisible()
-  await older.getByRole('button', { name: 'Attach to this attempt' }).click()
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Earlier recording · READY' })
-    .click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(
-    older.getByRole('button', { name: 'Earlier recording · READY' }),
-  ).toBeVisible()
-  expect(api.calls.filter((call) => call.path === '/sessions')).toHaveLength(0)
-  expect(
-    api.calls.filter((call) => call.path.endsWith('/results')),
-  ).toHaveLength(1)
-  expect(
-    api.calls.find(
-      (call) => call.path === '/media-attachments' && call.method === 'POST',
-    )?.body.target,
-  ).toEqual({ kind: 'RESULT_ENTRY', id: 'result-session-old' })
+test('deleted recordings are omitted and locked activities retain personal recordings', async ({ page }) => {
+  await setup(page, { locked: true })
+  await expect(page.getByRole('button', { name: 'Earlier recording', exact: true })).toBeVisible()
 })
 
-test('an abandoned attempt without results is preserved but cannot create a result', async ({
-  page,
-}) => {
-  await setup(page, { noResults: true, abandoned: true })
-  const history = page.getByRole('region', { name: 'Activity media history' })
-  await history.getByRole('button', { name: 'Load older attempts' }).click()
-  await history
-    .getByLabel('Attempt session-old', { exact: true })
-    .getByRole('button', { name: 'Manage media', exact: true })
-    .click()
-  const older = history.getByLabel('Attempt session-old', { exact: true })
-  await expect(
-    older.getByText('No results recorded for this attempt.'),
-  ).toBeVisible()
-  await expect(
-    older.getByRole('button', { name: 'Attach to this attempt' }),
-  ).toHaveCount(0)
-})
-
-test('attachment pagination remains independent of attempt pagination', async ({
-  page,
-}) => {
-  await setup(page)
-  const cursors: (string | null)[] = []
-  await page.route('**/media-attachments?**', async (route) => {
-    const query = new URL(route.request().url()).searchParams
-    if (query.get('targetId') !== 'result-session-new') return route.fallback()
-    cursors.push(query.get('cursor'))
-    return route.fulfill({
-      json: {
-        data: query.get('cursor')
-          ? [
-              {
-                id: 'older-link',
-                mediaId: 'old-photo',
-                mediaState: 'READY',
-                mediaDeleted: false,
-                purpose: 'JOURNAL',
-                position: 1,
-                target: { kind: 'RESULT_ENTRY', id: 'result-session-new' },
-                media: {
-                  id: 'old-photo',
-                  type: 'PHOTO',
-                  alt: 'Paginated recording',
-                  thumbnailUrl: null,
-                  durationMs: null,
-                  canSelect: true,
-                },
-              },
-            ]
-          : [],
-        meta: {
-          hasMore: !query.get('cursor'),
-          nextCursor: query.get('cursor') ? null : 'links-next',
-        },
-      },
-    })
-  })
-  await page.getByRole('button', { name: 'Refresh history' }).click()
-  const newer = page.getByLabel('Attempt session-new', { exact: true })
-  await newer.getByRole('button', { name: 'More attachments' }).click()
-  await expect(
-    newer.getByRole('button', { name: 'Paginated recording · READY' }),
-  ).toBeVisible()
-  expect(cursors).toContain('links-next')
+test('deleted attachments do not produce tiles', async ({ page }) => {
+  const { cursors } = await setup(page, { deleted: true })
+  await expect.poll(() => cursors.includes('next')).toBe(true)
+  await expect(page.getByRole('button', { name: 'Earlier recording', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Add media', exact: true })).toBeVisible()
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attemptDate, type Attempt } from './activityMediaHistory'
+import { attemptDate, mergeRelatedMedia, type Attempt } from './activityMediaHistory'
 import { queryKeys } from '@project/sdk'
 const attempt: Attempt = {
   sessionId: 'session',
@@ -43,4 +43,12 @@ describe('Activity attempt history', () => {
       queryKeys.activityMyAttempts('a', 'item'),
     )
   })
+})
+
+it('combines personal, group and site media without losing publication access or duplicating an asset', () => {
+  expect(mergeRelatedMedia<{ id: string; publicationId?: string; alt?: string }>(
+    [{ id: 'one', alt: 'My photo' }],
+    [{ id: 'one', publicationId: 'shared' }],
+    [{ id: 'two' }],
+  )).toEqual([{ id: 'one', alt: 'My photo', publicationId: 'shared' }, { id: 'two' }])
 })

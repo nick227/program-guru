@@ -54,6 +54,8 @@ async function preflight() {
   storage()
 }
 
+let wake: (() => void) | null = null
+
 async function main() {
   await preflight()
   console.log(`[worker] started (storage: ${process.env.STORAGE_PROVIDER ?? 'local'}${process.env.STORAGE_DIR ? ` at ${process.env.STORAGE_DIR}` : ''})`)
@@ -63,7 +65,15 @@ async function main() {
     } catch (err) {
       console.error('[worker] tick failed:', err)
     }
-    await new Promise((r) => setTimeout(r, TICK_MS))
+    // A stop signal ends the wait at once, so dev watchers and deploys never force-kill.
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, TICK_MS)
+      wake = () => {
+        clearTimeout(timer)
+        resolve()
+      }
+    })
+    wake = null
   }
   await db.$disconnect()
   console.log('[worker] stopped')
@@ -72,6 +82,7 @@ async function main() {
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     stopping = true
+    wake?.()
   })
 }
 

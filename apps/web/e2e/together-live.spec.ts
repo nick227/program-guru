@@ -22,15 +22,15 @@ test('mixed-version group: presence, reactions, My Programs, Program page and Gr
 
   // ── The Activity is where the group shows up: faces, states, reactions ─────────────────────
   await bob.goto(`/occurrences/${env('TOGETHER_BOB_ITEM')}`)
-  const together = bob.getByRole('region', { name: 'Doing this together' })
+  const together = bob.getByRole('region', { name: 'Together' })
   await expect(together).toBeVisible()
   await expect(together.getByLabel('Group progress')).toHaveText('1 of 3 finished')
   const recent = together.getByRole('list', { name: 'Recent group activity' })
   await expect(recent.getByRole('listitem').filter({ hasText: 'Carol Chen' })).toContainText('finished just now')
   await expect(recent.getByRole('listitem').filter({ hasText: 'Dave Okafor' })).toContainText('started')
-  // Rows sit in the locked order: Today's Results → together → Session.
+  // Rows sit in the locked order: Today's Activity → together → Session.
   const headings = await bob.getByRole('heading', { level: 2 }).allTextContents()
-  expect(headings.slice(0, 3)).toEqual(["Today's Results", 'Doing this together', 'Session'])
+  expect(headings.slice(0, 3)).toEqual(["Today's Activity", 'My Metrics', 'Together'])
 
   const fire = together.getByRole('button', { name: 'React 🔥 to Carol Chen' })
   await fire.click()
@@ -39,7 +39,7 @@ test('mixed-version group: presence, reactions, My Programs, Program page and Gr
   await together.screenshot({ path: test.info().outputPath('bob-activity-together.png') })
 
   // bob (v2) finishes the same Activity carol finished on v1.
-  await bob.getByRole('button', { name: 'Mark complete' }).click()
+  await bob.getByRole('button', { name: 'Complete', exact: true }).click()
   await expect(bob.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible()
 
   // ── My Programs summarizes who you're doing it with (no counts below the sample) ────────────
@@ -63,7 +63,7 @@ test('mixed-version group: presence, reactions, My Programs, Program page and Gr
   // ── carol (still v1) sees bob's v2 completion and the reaction on her own ──────────────────
   const carol = await signedIn(browser, env('TOGETHER_CAROL_EMAIL'))
   await carol.goto(`/occurrences/${env('TOGETHER_CAROL_ITEM')}`)
-  const hers = carol.getByRole('region', { name: 'Doing this together' })
+  const hers = carol.getByRole('region', { name: 'Together' })
   await expect(hers.getByLabel('Group progress')).toHaveText('2 of 3 finished')
   const carolRecent = hers.getByRole('list', { name: 'Recent group activity' })
   await expect(carolRecent.getByRole('listitem').filter({ hasText: 'Bob Rivera' })).toContainText('finished just now')
@@ -73,7 +73,7 @@ test('mixed-version group: presence, reactions, My Programs, Program page and Gr
 
   // ── An Activity v2 dropped: bob is left out, not shown as missing it ───────────────────────
   await carol.goto(`/occurrences/${env('TOGETHER_CAROL_PLANK')}`)
-  const plank = carol.getByRole('region', { name: 'Doing this together' })
+  const plank = carol.getByRole('region', { name: 'Together' })
   await expect(plank.getByLabel('Group progress')).toHaveText('0 of 2 finished')
   await expect(plank.getByRole('list', { name: 'Group members on this Activity' })).not.toContainText('Bob')
   await expect(plank).toContainText('Nobody else has started yet. You could be first.')

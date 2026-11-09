@@ -1,129 +1,77 @@
 import { test, expect } from '@playwright/test'
 import { login } from './journey'
 
+/** Ready tiles in the one Related Media gallery: enabled, labelled, and not uploading or processing. */
+const readyTiles = (page: import('@playwright/test').Page) =>
+  page
+    .getByRole('region', { name: 'Related Media' })
+    .getByRole('listitem')
+    .filter({ has: page.locator('button[aria-label]:not([disabled])') })
+    .filter({ hasNot: page.getByRole('status') })
+    .filter({ hasNot: page.getByRole('button', { name: /^(Add|Replace) (media|image)$/ }) })
+
 for (const type of ['PHOTO', 'VIDEO'] as const) {
-  test(`live ${type}: Upload → READY → Attach → Refresh → View → Detach → Refresh`, async ({
+  test(`live ${type}: Upload → READY → Refresh → View → Delete → Refresh`, async ({
     page,
   }) => {
-    const api = process.env.MEDIA_TEST_API!
-    if (
-      !api ||
-      !process.env.MEDIA_TEST_EMAIL ||
-      !process.env.MEDIA_TEST_PASSWORD
-    )
-      throw new Error(
-        'Run apps/web/scripts/media-live.ts with an isolated database.',
-      )
-    await login(
-      page,
-      process.env.MEDIA_TEST_EMAIL,
-      process.env.MEDIA_TEST_PASSWORD,
-    )
+    const { api, email, password } = liveEnv()
+    await login(page, email, password)
     // Setup a real calendar occurrence through authenticated public APIs, not mocked requests.
     const activities = await page.request.get(`${api}/activities?limit=1`)
     expect(activities.ok()).toBe(true)
     const activity = (await activities.json()).data[0]
     const added = await page.request.post(`${api}/calendar/items`, {
-      data: {
-        activityId: activity.id,
-        localDate: '2026-11-09',
-        idempotencyKey: crypto.randomUUID(),
-      },
+      data: { activityId: activity.id, localDate: '2026-11-09', idempotencyKey: crypto.randomUUID() },
     })
     expect(added.ok()).toBe(true)
     const item = (await added.json()).data.item
     await page.goto(`/occurrences/${item.id}`)
-    await page.getByRole('button', { name: 'Add media to this session', exact: true }).click()
+    const related = page.getByRole('region', { name: 'Related Media' })
+    await page.waitForLoadState('networkidle')
+    const before = await readyTiles(page).count()
     const complete = page.waitForResponse(
-      (response) =>
-        response.url().includes('/complete') &&
-        response.request().method() === 'POST',
+      (response) => response.url().includes('/complete') && response.request().method() === 'POST',
     )
-    await page
-      .getByLabel('Upload private media')
-      .setInputFiles(
-        process.env[
-          type === 'PHOTO' ? 'MEDIA_TEST_PHOTO' : 'MEDIA_TEST_VIDEO'
-        ]!,
-      )
+    await related
+      .locator('input[type="file"]')
+      .setInputFiles(process.env[type === 'PHOTO' ? 'MEDIA_TEST_PHOTO' : 'MEDIA_TEST_VIDEO']!)
     const asset = (await (await complete).json()).data
-    // The inbound controller attaches the upload as soon as it is READY and closes the picker.
-    await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 60000 })
-    await expect(
-      page.getByRole('region', { name: 'Related Media' }).getByRole('button', { name: type, exact: true }).first(),
-    ).toBeVisible({ timeout: 60000 })
+    // The worker processes the file; the gallery shows it as ready without user action.
+    await expect(readyTiles(page)).toHaveCount(before + 1, { timeout: 60000 })
     await page.reload()
-    await page.getByRole('button', { name: 'Add media to this session', exact: true }).click()
-    await expect(
-      page
-        .getByRole('dialog')
-        .getByRole('button', { name: `${type} · READY`, exact: true }),
-    ).toBeDisabled()
-    await page.getByRole('button', { name: 'Close', exact: true }).click()
-    await page
-      .getByRole('button', { name: 'Manage attachments', exact: true })
-      .click()
-    await page.getByRole('button', { name: 'View', exact: true }).click()
+    await expect(readyTiles(page)).toHaveCount(before + 1)
+
+    // Owned tiles carry the media menu (a disclosure summary, not a button role).
+    const options = 'summary[aria-label="Media options"]'
+    const tile = readyTiles(page).filter({ has: page.locator(options) }).first()
+    await tile.locator('button[aria-label]:not([disabled])').first().click()
     const viewer = page.getByRole('dialog')
     if (type === 'PHOTO') {
       await expect
-        .poll(() =>
-          viewer
-            .locator('img')
-            .evaluate(
-              (image: HTMLImageElement) =>
-                image.complete && image.naturalWidth > 0,
-            ),
-        )
+        .poll(() => viewer.locator('img').first().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0))
         .toBe(true)
     } else {
       await expect
-        .poll(() =>
-          viewer
-            .locator('video')
-            .evaluate(
-              (video: HTMLVideoElement) =>
-                video.readyState >= 1 && video.duration > 0,
-            ),
-        )
+        .poll(() => viewer.locator('video').evaluate((video: HTMLVideoElement) => video.readyState >= 1 && video.duration > 0))
         .toBe(true)
-      await viewer
-        .locator('video')
-        .evaluate(async (video: HTMLVideoElement) => {
-          video.muted = true
-          await video.play()
-        })
+      await viewer.locator('video').evaluate(async (video: HTMLVideoElement) => {
+        video.muted = true
+        await video.play()
+      })
       await expect
-        .poll(() =>
-          viewer
-            .locator('video')
-            .evaluate((video: HTMLVideoElement) => video.currentTime),
-        )
+        .poll(() => viewer.locator('video').evaluate((video: HTMLVideoElement) => video.currentTime))
         .toBeGreaterThan(0)
     }
     await page.getByRole('button', { name: 'Close', exact: true }).click()
-    await page.getByRole('button', { name: 'Detach', exact: true }).click()
-    await expect(
-      page.getByText('No attachments for this result.'),
-    ).toBeVisible()
+
+    // The owner deletes through the tile menu, with confirmation; it is gone after a reload.
+    await tile.locator(options).click()
+    await tile.getByRole('button', { name: 'Delete media' }).click()
+    await tile.getByRole('button', { name: 'Confirm delete' }).click()
+    await expect(readyTiles(page)).toHaveCount(before)
     await page.reload()
-    await page
-      .getByRole('button', { name: 'Manage attachments', exact: true })
-      .click()
-    await expect(
-      page.getByText('No attachments for this result.'),
-    ).toBeVisible()
-    await expect(
-      page.getByRole('button', { name: 'Detach', exact: true }),
-    ).toHaveCount(0)
-    // Detach preserves the asset; it can be selected again without another upload.
-    expect((await page.request.get(`${api}/media/${asset.id}`)).ok()).toBe(true)
-    await page.getByRole('button', { name: 'Add media to this session', exact: true }).click()
-    await expect(
-      page
-        .getByRole('dialog')
-        .getByRole('button', { name: `${type} · READY`, exact: true }),
-    ).toBeEnabled()
+    await expect(readyTiles(page)).toHaveCount(before)
+    expect((await page.request.get(`${api}/media/${asset.id}/url`)).ok()).toBe(false)
   })
 }
 
@@ -144,29 +92,24 @@ test('live session upload: durable intent attaches after processing, session not
   expect(added.ok()).toBe(true)
   const item = (await added.json()).data.item
   await page.goto(`/occurrences/${item.id}`)
-  const related = page.getByRole('region', { name: 'Related Media' })
-  // "Yours" spans this Activity, so earlier uploads may already be listed: compare with a baseline.
-  const settledCount = async () => {
-    await expect(related.getByRole('heading', { name: 'Related Media' })).toBeVisible()
-    await page.waitForLoadState('networkidle')
-    return related.getByRole('button', { name: 'PHOTO', exact: true }).count()
-  }
-  const before = await settledCount()
+  // Earlier uploads to this Activity are listed too: compare with a baseline.
+  await page.waitForLoadState('networkidle')
+  const before = await readyTiles(page).count()
   const ticket = page.waitForRequest(
     (request) => request.url().endsWith('/media/uploads') && request.method() === 'POST',
   )
-  await page.getByRole('button', { name: 'Upload media' }).locator('xpath=preceding-sibling::input[@type="file"]').setInputFiles(process.env.MEDIA_TEST_PHOTO!)
+  await page
+    .getByRole('region', { name: 'Related Media' })
+    .locator('input[type="file"]')
+    .setInputFiles(process.env.MEDIA_TEST_PHOTO!)
   expect((await ticket).postDataJSON()).toMatchObject({ target: { kind: 'RESULT_ENTRY' }, purpose: 'JOURNAL' })
-  await expect(page.getByText('Media attached to this attempt.')).toBeVisible({ timeout: 60000 })
-  // The worker finishes processing and completes the intent; the media appears in Related Media.
-  await expect
-    .poll(async () => {
-      await page.reload()
-      return settledCount()
-    }, { timeout: 90000, intervals: [2000] })
-    .toBeGreaterThan(before)
-  // Uploading never starts the session.
-  await expect(page.getByRole('button', { name: /^Start( timer)?$/ })).toBeVisible()
+  // The worker finishes processing and completes the durable intent (the gallery polls while
+  // processing); it survives a reload.
+  await expect(readyTiles(page)).toHaveCount(before + 1, { timeout: 90000 })
+  await page.reload()
+  await expect(readyTiles(page)).toHaveCount(before + 1)
+  // Uploading never starts or completes the session.
+  await expect(page.getByRole('button', { name: /^(Start|Complete)$/ })).toBeVisible()
 })
 
 test('live Program cover: uploaded image becomes the cover once processed', async ({ page }) => {
@@ -186,8 +129,13 @@ test('live Program cover: uploaded image becomes the cover once processed', asyn
     }, { timeout: 90000, intervals: [2000] })
     .toBe(true)
   await page.reload()
-  await expect(cover.getByRole('button', { name: 'Change image' })).toBeVisible()
+  await expect(cover.getByRole('button', { name: 'Replace image' })).toBeVisible()
   await expect(cover.locator('img')).toBeVisible()
+  // Inline removal clears the persisted cover.
+  await cover.getByRole('button', { name: /^Remove/ }).click()
+  await expect
+    .poll(async () => (await (await page.request.get(`${api}/programs/${program.id}/workspace`)).json()).data.coverUrl)
+    .toBeNull()
 })
 
 test('live Activity demonstration media: upload on the Activity page attaches after processing', async ({ page }) => {
@@ -201,19 +149,35 @@ test('live Activity demonstration media: upload on the Activity page attaches af
   const activity = (await created.json()).data
   expect(activity.mediaCount).toBe(0)
   await page.goto(`/activities/${activity.id}`)
-  const related = page.getByRole('region', { name: 'Related Media' })
-  const ticket = page.waitForRequest(
-    (request) => request.url().endsWith('/media/uploads') && request.method() === 'POST',
-  )
-  await related.locator('input[type="file"]').first().setInputFiles(process.env.MEDIA_TEST_PHOTO!)
-  expect((await ticket).postDataJSON()).toMatchObject({
-    target: { kind: 'ACTIVITY_REVISION', id: activity.revisionId },
-    purpose: 'DEMONSTRATION',
+  // The owner adds to the one Related Media gallery on the Activity page.
+  const media = page.getByRole('region', { name: 'Related Media' })
+  const tickets: Record<string, unknown>[] = []
+  page.on('request', (request) => {
+    if (request.url().endsWith('/media/uploads') && request.method() === 'POST')
+      tickets.push(request.postDataJSON())
   })
+  // Several files in one pick; each attaches through its own durable intent.
+  await media
+    .locator('input[type="file"]')
+    .setInputFiles([process.env.MEDIA_TEST_PHOTO!, process.env.MEDIA_TEST_PHOTO!])
+  await expect.poll(() => tickets.length).toBe(2)
+  for (const ticket of tickets)
+    expect(ticket).toMatchObject({
+      target: { kind: 'ACTIVITY_REVISION', id: activity.revisionId },
+      purpose: 'DEMONSTRATION',
+    })
   await expect
-    .poll(async () => (await (await page.request.get(`${api}/activities/${activity.id}`)).json()).data.mediaCount, {
+    .poll(async () => {
+      // A transient non-OK response (e.g. rate limiting) is "not yet", not a failure.
+      const res = await page.request.get(`${api}/activities/${activity.id}`)
+      return res.ok() ? (await res.json()).data.mediaCount : -1
+    }, {
       timeout: 90000,
       intervals: [2000],
     })
-    .toBeGreaterThan(0)
+    .toBe(2)
+  // After a reload both files are listed as ready tiles with inline removal.
+  await page.reload()
+  await expect(readyTiles(page)).toHaveCount(2)
+  await expect(media.getByRole('status')).toHaveCount(0)
 })

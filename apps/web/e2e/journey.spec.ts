@@ -211,8 +211,7 @@ test('failed Finish stays on the Activity and never confirms completion', async 
   await page.goto(
     `/occurrences/${itemId}?returnTo=${encodeURIComponent('/?week=2026-11-09&day=2026-11-09')}`,
   )
-  await page.getByRole('button', { name: 'Start timer', exact: true }).click()
-  await page.getByRole('button', { name: /Finish/ }).click()
+  await page.getByRole('button', { name: 'Complete', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText(
     'Could not confirm completion',
   )
@@ -483,9 +482,10 @@ test('Program Activity creation keeps the description and adds the Activity to t
   await page.getByLabel('Description (optional)').fill('Walk around the neighborhood.')
   // Instructions are added later from the Activity editor, not this inline form.
   await expect(page.getByLabel('Instructions (optional)')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Create Activity', exact: true }).click()
-  // Demonstration media can be added right after creation.
-  await expect(page.getByRole('button', { name: 'Upload demonstration media' })).toBeVisible()
+  // Media is chosen on the same form; one action creates the Activity and adds it.
+  await expect(
+    page.getByRole('group', { name: 'Activity media' }).getByRole('button', { name: 'Add media' }),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Add to Program', exact: true }).click()
   await expect(page.getByLabel('Activity title')).toHaveValue('')
   expect(
@@ -524,7 +524,7 @@ test('Calendar Activity creation starts blank and adds the new Activity on the s
     .getByRole('button', { name: 'Create Activity' })
     .click()
   await expect(
-    page.getByRole('group', { name: 'Activity image' }).getByRole('button', { name: 'Upload image' }).first(),
+    page.getByRole('group', { name: 'Activity media' }).getByRole('button', { name: 'Add media' }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Add to Calendar', exact: true }).click()
 

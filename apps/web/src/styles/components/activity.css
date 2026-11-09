@@ -1,208 +1,56 @@
 @layer components {
-  /*
-    Activity occurrence (03-UX §6). Source order is the locked row order; on desktop the
-    Session card sits in a sticky right column so the primary action stays in reach.
-  */
-  .activity-page {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-6);
-  }
-
-  /* 1 · Identity: 4:3 artwork beside the title; no full-width hero */
-  .activity-identity {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: var(--space-4) var(--space-6);
-  }
-  .activity-identity__art {
-    border-radius: var(--radius-panel);
-  }
-  .activity-identity__text {
-    display: flex;
-    min-width: 0;
-    flex: 1 1 16rem;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-  .activity-identity__context {
-    margin: 0;
-    color: hsl(var(--color-muted));
-    font-size: var(--type-meta);
-  }
-  .activity-identity__summary {
-    max-width: 60ch;
-    margin: 0;
-    color: hsl(var(--color-muted));
-    font-size: var(--text-base);
-    line-height: var(--leading-normal);
-  }
-
-  /* Layout: one column on phones (locked order), two columns from 1024px */
-  .activity-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-8);
-    align-items: start;
+  .activity-page { display: flex; flex-direction: column; gap: var(--space-6); }
+  .activity-identity { position: relative; overflow: hidden; border-radius: var(--radius-panel); background: hsl(var(--color-surface)); }
+  .activity-identity .activity-identity__art { width: 100%; height: clamp(8rem, 19vw, 14rem); aspect-ratio: auto; border-radius: 0; }
+  .activity-identity__text { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-6); }
+  .activity-identity__context { margin: 0; color: hsl(var(--color-muted)); font-size: var(--type-meta); }
+  .activity-identity__summary { max-width: 65ch; margin: 0; color: hsl(var(--color-muted)); line-height: var(--leading-normal); }
+  .activity-identity__progress { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-8); padding: var(--space-4) var(--space-6); border-top: 1px solid hsl(var(--color-border)); font-size: var(--type-meta); background: hsl(var(--color-surface)); }
+  .activity-identity__progress strong { margin-right: .35rem; font-variant-numeric: tabular-nums; }
+  .activity-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-8); align-items: start; }
+  .activity-today, .activity-my-metrics, .activity-related { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+  .activity-my-metrics { padding: var(--space-5); border-radius: var(--radius-panel); background: hsl(var(--color-surface)); }
+  .activity-gallery, .activity-social { min-width: 0; }
+  .activity-metrics { display: grid; gap: var(--space-4); }
+  .activity-stat-list { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-6); margin: 0; }
+  .activity-stat-list dt { color: hsl(var(--color-muted)); font-size: var(--type-caption); }
+  .activity-stat-list dd { margin: .25rem 0 0; font-family: var(--font-display); font-size: var(--text-xl); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .activity-actions { display: flex; flex-direction: column; gap: var(--space-3); }
+  .activity-session__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .activity-session__actions > :first-child { min-width: 10rem; }
+  .activity-timer { display: flex; gap: var(--space-3); color: hsl(var(--color-muted)); font-size: var(--type-meta); }
+  .activity-timer time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .activity-community { display: flex; align-items: center; gap: var(--space-2); color: hsl(var(--color-muted)); font-size: var(--type-meta); }
+  .activity-instructions { display: flex; flex-direction: column; gap: var(--space-3); }
+  .activity-instructions__step { color: hsl(var(--color-muted)); font-weight: 500; }
+  .activity-instructions__title { margin: 0; font-size: var(--text-lg); font-weight: 600; }
+  .activity-instructions__body { max-width: 65ch; margin: 0; line-height: var(--leading-normal); white-space: pre-line; }
+  .activity-together { padding: var(--space-5); border-radius: var(--radius-panel); background: hsl(var(--color-surface)); }
+  .activity-group-progress { width: 100%; height: .35rem; overflow: hidden; border: 0; border-radius: var(--radius-full); background: hsl(var(--color-surface-muted)); accent-color: hsl(var(--color-status-completed)); }
+  .activity-group-progress::-webkit-progress-bar { background: hsl(var(--color-surface-muted)); }
+  .activity-group-progress::-webkit-progress-value { background: hsl(var(--color-status-completed)); }
+  .activity-group-progress::-moz-progress-bar { background: hsl(var(--color-status-completed)); }
+  .activity-related__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+  .related-media-tray > ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr)); gap: var(--space-3); }
+  .related-media-tray > ul > li { width: 100%; min-width: 0; }
+  .activity-together .section-header__text { flex-basis: 10rem; }
+  .related-media-tray li:has(details[open]) { z-index: 30; }
+  @media (min-width: 768px) {
+    .activity-identity--photo .activity-identity__art { position: absolute; inset: 0 0 auto auto; width: 50%; height: calc(100% - 4rem); }
+    .activity-identity--photo .activity-identity__art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, hsl(var(--color-surface)), transparent 65%); }
+    .activity-identity--photo .activity-identity__text { position: relative; min-height: 12rem; justify-content: center; max-width: 65%; }
   }
   @media (min-width: 1024px) {
-    .activity-layout {
-      grid-template-columns: minmax(0, 1fr) 20rem;
-      column-gap: var(--space-10);
-    }
-    .activity-layout__main {
-      grid-column: 1;
-    }
-    .activity-layout__rail {
-      position: sticky;
-      top: calc(4rem + var(--space-6));
-      grid-column: 2;
-      grid-row: 1 / span 6;
-    }
+    .activity-layout { grid-template-columns: minmax(0, 1.35fr) minmax(19rem, 1fr); column-gap: var(--space-8); }
+    .activity-today { grid-column: 1; grid-row: 1; }
+    .activity-my-metrics { grid-column: 1; grid-row: 2; }
+    .activity-metrics { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+    .activity-social { grid-column: 2; grid-row: 1 / span 2; }
+    .activity-gallery, .activity-community { grid-column: 1 / -1; }
   }
-
-  /* 2 · Today's Results */
-  .activity-metrics {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-    gap: var(--space-6);
-  }
-  .activity-progress {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    padding-top: var(--space-5);
-    border-top: 1px solid hsl(var(--color-border));
-  }
-  .activity-progress dl {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3) var(--space-10);
-    margin: 0;
-  }
-  .activity-progress dt {
-    color: hsl(var(--color-muted));
-    font-size: var(--type-caption);
-  }
-  .activity-progress dd {
-    margin: var(--space-1) 0 0;
-    font-family: var(--font-display);
-    font-size: var(--text-lg);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* 4 · Session */
-  .activity-session__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-  }
-  .activity-session__actions > :first-child {
-    flex: 1 1 10rem;
-  }
-
-  /* 6 · Community */
-  .activity-community {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin: 0;
-    color: hsl(var(--color-muted));
-    font-size: var(--type-meta);
-  }
-}
-
-@layer components {
-  /* Instructions inside Today's Results: readable first, media as 4:3 previews */
-  .activity-instructions {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    padding: var(--space-5);
-    border-radius: var(--radius-panel);
-    background: hsl(var(--color-surface));
-  }
-  .activity-instructions__step {
-    color: hsl(var(--color-muted));
-    font-weight: 500;
-  }
-  .activity-instructions__title {
-    margin: 0;
-    font-size: var(--text-lg);
-    font-weight: 600;
-  }
-  .activity-instructions__body {
-    max-width: 65ch;
-    margin: 0;
-    font-size: var(--text-base);
-    line-height: var(--leading-normal);
-    white-space: pre-line;
-  }
-  .activity-instructions__media {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-    gap: var(--space-3);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .activity-instructions__media button {
-    position: relative;
-    display: flex;
-    width: 100%;
-    aspect-ratio: var(--ratio-preview);
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-radius: var(--radius-media);
-    background: hsl(var(--color-surface-muted));
-    color: hsl(var(--color-muted));
-  }
-  .activity-instructions__media img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .activity-instructions__play {
-    position: absolute;
-    padding: 0.5rem;
-    border-radius: var(--radius-full);
-    background: hsl(0 0% 0% / 0.6);
-    color: #fff;
-    box-sizing: content-box;
-  }
-}
-
-@layer components {
-  /* 3 · Doing this together: a soft surface, not another bordered box */
-  .activity-together {
-    padding: var(--space-5);
-    border-radius: var(--radius-panel);
-    background: hsl(var(--color-surface));
-  }
-}
-
-@layer components {
-  /* 5 · Related Media: small tiles; an empty strip is one line and one action */
-  .activity-media__grid {
-    max-width: 36rem;
-  }
-  .activity-media__empty {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-4) var(--space-5);
-    border: 1px dashed hsl(var(--color-border));
-    border-radius: var(--radius-panel);
-  }
-  .activity-media__empty p {
-    max-width: 48ch;
-    margin: 0;
-    color: hsl(var(--color-muted));
-    font-size: var(--type-meta);
+  @media (max-width: 639px) {
+    .activity-identity__text { padding: var(--space-4); }
+    .activity-session__actions > :first-child { flex-grow: 1; }
+    .activity-related__header { align-items: flex-start; }
   }
 }

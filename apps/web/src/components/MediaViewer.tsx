@@ -32,7 +32,7 @@ export function MediaViewer({
   onIndex: (i: number) => void
 }) {
   const item = items[index]
-  const delivery = useMediaUrl(item?.id ?? '', item?.publicationId)
+  const delivery = useMediaUrl(item?.url ? '' : (item?.id ?? ''), item?.publicationId)
   const dialog = useMediaDialog()
   const [failed, setFailed] = useState(false)
   useEffect(() => {
@@ -54,7 +54,7 @@ export function MediaViewer({
   }, [index, items.length, onClose, onIndex])
   if (!item) return null
   const src =
-    delivery.isError || delivery.isFetching ? undefined : delivery.data?.url
+    item.url ?? (delivery.isError || delivery.isFetching ? undefined : delivery.data?.url)
   return (
     <dialog
       ref={dialog}

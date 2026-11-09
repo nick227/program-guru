@@ -70,6 +70,46 @@ export async function putUploadContent(
   if (!res.ok) throw new Error(`Upload failed (${res.status}). Try again.`)
 }
 
+/**
+ * Send one file: request a ticket (optionally bound to a target, which the server attaches
+ * once processing finishes), PUT the bytes, then complete. Resolves with the asset as the
+ * server reports it after completion, usually still PROCESSING.
+ */
+export async function sendMediaFile(
+  file: File,
+  options: { target?: S['AttachmentTarget']; purpose?: S['MediaPurpose'] } = {},
+): Promise<S['MediaAsset']> {
+  const ticket = apiData(
+    await getApiClient().POST('/media/uploads', {
+      body: {
+        filename: file.name,
+        mime: file.type,
+        sizeBytes: file.size,
+        ...(options.target && options.purpose
+          ? { target: options.target, purpose: options.purpose }
+          : {}),
+      },
+    }),
+  ).data
+  if (file.size > ticket.maxBytes)
+    throw new Error('File exceeds the upload limit. Choose a smaller file.')
+  await putUploadContent(ticket, file)
+  return apiData(
+    await getApiClient().POST('/media/uploads/{uploadId}/complete', {
+      params: { path: { uploadId: ticket.uploadId } },
+    }),
+  ).data
+}
+
+/** Read one asset's current state (no cache), for callers that wait on processing. */
+export async function fetchMediaAsset(mediaId: string): Promise<S['MediaAsset']> {
+  return apiData(
+    await getApiClient().GET('/media/{mediaId}', {
+      params: { path: { mediaId } },
+    }),
+  ).data
+}
+
 /** One library, filtered projections. Poll only while assets are unfinished. */
 export function useMediaLibrary(filters: MediaLibraryFilters = {}) {
   const { source = 'mine', q: search, type } = filters
@@ -355,6 +395,16 @@ export function useMediaAttachments(context?: MediaContext) {
       )
     },
     getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+    // Uploads attach when the worker finishes processing: keep the list live until then.
+    refetchInterval: (query) =>
+      query.state.data?.pages.some((page) =>
+        page.data.some(
+          (link) =>
+            link.mediaState === 'PROCESSING' || link.mediaState === 'UPLOADING',
+        ),
+      )
+        ? 2000
+        : false,
   })
 }
 export function useMediaSession(sessionId?: string) {
@@ -466,5 +516,37 @@ export function useActivityPublicMedia(
         }),
       ),
     getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+
+/** Flatten every permitted result attachment, without a separate history UI. */
+export function useActivityRelatedMedia(activityId: string) {
+  return useQuery<(S['MediaThumb'] & { mediaState: S['MediaState'] })[]>({
+    queryKey: useViewerKey([...keys.media, 'activity-related', activityId]),
+    enabled: !!activityId,
+    refetchInterval: query => query.state.data?.some(item => item.mediaState === 'PROCESSING' || item.mediaState === 'UPLOADING') ? 2000 : false,
+    queryFn: async ({ signal }) => {
+      const media: (S['MediaThumb'] & { mediaState: S['MediaState'] })[] = []
+      let cursor: string | undefined
+      do {
+        const attempts = apiData(await getApiClient().GET('/activities/{activityId}/my-attempts', {
+          signal, params: { path: { activityId }, query: { cursor } },
+        }))
+        for (const attempt of attempts.data) {
+          for (const entry of attempt.entries) {
+            let attachmentCursor: string | undefined
+            do {
+              const links = apiData(await getApiClient().GET('/media-attachments', {
+                signal, params: { query: { targetKind: 'RESULT_ENTRY', targetId: entry.resultEntryId, cursor: attachmentCursor, limit: 100 } },
+              }))
+              media.push(...links.data.filter(link => !link.mediaDeleted).map(link => ({ ...link.media, mediaState: link.mediaState })))
+              attachmentCursor = links.meta.nextCursor ?? undefined
+            } while (attachmentCursor)
+          }
+        }
+        cursor = attempts.meta.nextCursor ?? undefined
+      } while (cursor)
+      return Array.from(new Map(media.map(item => [item.id, item])).values())
+    },
   })
 }

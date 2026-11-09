@@ -13,7 +13,6 @@ import { Page, Stage, Stack, Row, Grid } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ProgramHeader } from '@/components/ProgramHeader'
 import { ProgramStepper } from '@/components/ProgramStepper'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back } from '@/components/Navigation'
 import {
@@ -21,6 +20,8 @@ import {
   type LibraryBrowserContext,
 } from '@/components/LibraryBrowser'
 import { SuggestionRail } from '@/components/SuggestionRail'
+import { MediaTray } from '@/components/MediaTray'
+import { useDraftMedia } from '@/lib/useEntityMedia'
 import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
 import { programCard } from '@/lib/discoveryCards'
 import { programHero } from '@/lib/hero'
@@ -61,12 +62,17 @@ export function ProgramCreatePage() {
   const [description, setDescription] = useState('')
   const [startingPoint, setStartingPoint] = useState<Program | null>(null)
   const [createdDraft, setCreatedDraft] = useState<ProgramWorkspace | null>(null)
+  // Chosen before the draft exists; sent bound to it as soon as it is created.
+  const cover = useDraftMedia({ multiple: false })
+  const [coverError, setCoverError] = useState<unknown>(null)
+  const [sendingCover, setSendingCover] = useState(false)
   const type = types.data?.find((item) => item.id === typeId)
   const suggestions = useProgramSuggestions({
     programTypeId: typeId,
     enabled: !!typeId,
   })
-  const busy = create.isPending || copy.isPending || rename.isPending
+  const busy =
+    create.isPending || copy.isPending || rename.isPending || sendingCover
   function chooseStartingPoint(program: Program) {
     setStartingPoint(program)
     setTitle(program.title)
@@ -78,7 +84,8 @@ export function ProgramCreatePage() {
     actionLabel: 'Use as starting point',
     onPick: chooseStartingPoint,
   }
-  const error = types.error || create.error || copy.error || rename.error
+  const error =
+    types.error || create.error || copy.error || rename.error || coverError
 
   async function continueToWorkspace() {
     if (!type || !title.trim() || !online || busy) return
@@ -105,6 +112,22 @@ export function ProgramCreatePage() {
         expectedRevision: workspace.draftRevision,
       })
 
+      if (cover.files.length) {
+        setCoverError(null)
+        setSendingCover(true)
+        try {
+          await cover.commit({
+            target: { kind: 'PROGRAM', id: renamed.id },
+            purpose: 'COVER',
+          })
+        } catch (err) {
+          setCoverError(err)
+          return
+        } finally {
+          setSendingCover(false)
+        }
+      }
+
       navigate(buildWorkspaceUrl(renamed.id, { step: 'activities' }), { replace: true })
     } catch {
       // Mutation errors remain visible below; keep the selection for retry.
@@ -120,6 +143,7 @@ export function ProgramCreatePage() {
           onTitleChange={typeId ? setTitle : undefined}
           autoFocus={!!typeId}
           disabled={busy}
+          label={type?.label}
           onConfirm={() => void continueToWorkspace()}
         />
         <ProgramStepper currentStep="details" onSelectStep={() => {}} disabled />
@@ -131,10 +155,6 @@ export function ProgramCreatePage() {
 
         {!typeId ? (
           <Stack className="gap-5">
-            <SectionHeader
-              title="Program Type"
-              description="Choose a type, then name a new Program or start from an existing one."
-            />
             {types.isPending ? (
               <Loading />
             ) : (
@@ -165,22 +185,18 @@ export function ProgramCreatePage() {
           </Stack>
         ) : (
           <Stack className="gap-5">
-            <Row className="justify-between">
-              <span className="add-program-title__type">{type?.label}</span>
-              <Button
-                variant="ghost"
-                disabled={busy || !!createdDraft}
-                onClick={() => {
-                  setTypeId('')
-                  setTitle('')
-                  setDescription('')
-                  setStartingPoint(null)
-                  setCreatedDraft(null)
-                }}
-              >
-                Change type
-              </Button>
-            </Row>
+
+            <div className="field">
+              <span className="label font-semibold">Cover image</span>
+              <MediaTray
+                label="Program cover"
+                accept="image"
+                multiple={false}
+                items={cover.items}
+                onAdd={cover.add}
+                disabled={busy}
+              />
+            </div>
 
             <label className="field">
               <span className="label font-semibold">Description</span>

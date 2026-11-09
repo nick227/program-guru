@@ -51,16 +51,16 @@ export function ActivityTogether({
     finishedOthers.length || startedOthers.length
       ? null
       : others.length
-        ? 'Nobody else has started yet. You could be first.'
+        ? waiting.length === others.length ? 'Nobody else has started yet. You could be first.' : null
         : 'Invite someone to do this with you.'
   return (
-    <section aria-labelledby="together-heading" className="activity-together">
+    <section id="together" aria-labelledby="together-heading" className="activity-together">
       <Stack className="gap-4">
         <SectionHeader
           id="together-heading"
           title={
             <span className="inline-flex items-center gap-2">
-              Doing this together
+              Together
               <UnreadDot count={c.unreadCount} inline />
             </span>
           }
@@ -75,6 +75,8 @@ export function ActivityTogether({
             </Link>
           }
         />
+
+        {c.totalCount > 0 && <progress className="activity-group-progress" aria-label="Shared group completions" value={c.finishedCount} max={c.totalCount} />}
 
         {/* Faces first: who is in this Activity with you, with their permitted state. */}
         <ul className="flex flex-wrap gap-3" aria-label="Group members on this Activity">
@@ -152,7 +154,7 @@ export function ActivityTogether({
                         <button
                           key={emoji}
                           type="button"
-                          disabled={disabled || own}
+                          disabled={disabled || own || addReaction.isPending || removeReaction.isPending}
                           aria-pressed={active}
                           aria-label={
                             own
@@ -206,7 +208,7 @@ export function ActivityTogether({
 
         <Row className="justify-between gap-2">
           <p className="text-xs text-muted">
-            {me?.status === 'UNKNOWN'
+            {!me || me.status === 'UNKNOWN'
               ? 'You are not sharing completions with this group.'
               : me?.status === 'DONE'
                 ? 'The group can see that you finished — never your results.'

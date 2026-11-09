@@ -13,3 +13,12 @@ export function attemptDate(attempt: Attempt, timezone: string) {
     }).format(new Date(attempt.startedAt ?? attempt.createdAt))
   )
 }
+
+/** One tile per asset, retaining publication metadata when an asset is also shared. */
+export function mergeRelatedMedia<T extends { id: string }>(...sources: T[][]): T[] {
+  const items = new Map<string, T>()
+  for (const source of sources) for (const item of source) {
+    items.set(item.id, { ...items.get(item.id), ...item })
+  }
+  return [...items.values()]
+}
