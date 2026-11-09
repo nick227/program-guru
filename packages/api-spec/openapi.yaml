@@ -6292,8 +6292,11 @@ components:
       type: string
       description: NOT_PARTICIPATING when the occurrence is dated before that member joined; excluded from
         finishedCount and totalCount.
+        IN_PROGRESS when the member started a session for this occurrence and shares completion; it never
+        means they are online now.
       enum:
       - DONE
+      - IN_PROGRESS
       - PENDING
       - UNKNOWN
       - NOT_PARTICIPATING
@@ -8335,6 +8338,31 @@ components:
             $ref: '#/components/schemas/PersonalProgramActivity'
         customizedCount:
           type: integer
+    ProgramParticipation:
+      type: object
+      description: Privacy-safe participation signals. Counts are distinct people with a live run (restarts and
+        departed users are not counted) and are null below the minimum public sample. Friends are fellow members
+        of the viewer's own group for this Program who share completion; a follow alone never reveals participation.
+      required: [participantCount, activeMemberCount, friends, friendCount]
+      properties:
+        participantCount:
+          type: [integer, 'null']
+        activeMemberCount:
+          type: [integer, 'null']
+          description: Participants who finished an Activity in the last 7 days.
+        friends:
+          type: array
+          maxItems: 4
+          items:
+            allOf:
+              - $ref: '#/components/schemas/UserSummary'
+              - type: object
+                required: [viewerFollows]
+                properties:
+                  viewerFollows:
+                    type: boolean
+        friendCount:
+          type: integer
     PersonalProgram:
       type: object
       required:
@@ -8346,7 +8374,10 @@ components:
         - status
         - current
         - runs
+        - participation
       properties:
+        participation:
+          $ref: '#/components/schemas/ProgramParticipation'
         program:
           $ref: '#/components/schemas/ProgramSummary'
         owned:
@@ -9034,6 +9065,7 @@ components:
       - user
       - status
       - completionShareId
+      - completedAt
       - reactions
       properties:
         user:
@@ -9045,6 +9077,12 @@ components:
           - string
           - 'null'
           format: uuid
+        completedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: When the shared completion happened; null unless status is DONE.
         reactions:
           type: array
           items:

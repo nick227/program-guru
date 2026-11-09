@@ -2575,10 +2575,10 @@ export interface components {
         /** @enum {string} */
         InviteStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "REVOKED" | "EXPIRED";
         /**
-         * @description NOT_PARTICIPATING when the occurrence is dated before that member joined; excluded from finishedCount and totalCount.
+         * @description NOT_PARTICIPATING when the occurrence is dated before that member joined; excluded from finishedCount and totalCount. IN_PROGRESS when the member started a session for this occurrence and shares completion; it never means they are online now.
          * @enum {string}
          */
-        MemberDayStatus: "DONE" | "PENDING" | "UNKNOWN" | "NOT_PARTICIPATING";
+        MemberDayStatus: "DONE" | "IN_PROGRESS" | "PENDING" | "UNKNOWN" | "NOT_PARTICIPATING";
         /** @enum {string} */
         MediaType: "PHOTO" | "VIDEO" | "AUDIO";
         /** @enum {string} */
@@ -3255,7 +3255,18 @@ export interface components {
             history: components["schemas"]["PersonalProgramActivity"][];
             customizedCount: number;
         };
+        /** @description Privacy-safe participation signals. Counts are distinct people with a live run (restarts and departed users are not counted) and are null below the minimum public sample. Friends are fellow members of the viewer's own group for this Program who share completion; a follow alone never reveals participation. */
+        ProgramParticipation: {
+            participantCount: number | null;
+            /** @description Participants who finished an Activity in the last 7 days. */
+            activeMemberCount: number | null;
+            friends: (components["schemas"]["UserSummary"] & {
+                viewerFollows: boolean;
+            })[];
+            friendCount: number;
+        };
         PersonalProgram: {
+            participation: components["schemas"]["ProgramParticipation"];
             program: components["schemas"]["ProgramSummary"];
             owned: boolean;
             publicationStatus: string;
@@ -3522,6 +3533,11 @@ export interface components {
             status: components["schemas"]["MemberDayStatus"];
             /** Format: uuid */
             completionShareId: string | null;
+            /**
+             * Format: date-time
+             * @description When the shared completion happened; null unless status is DONE.
+             */
+            completedAt: string | null;
             reactions: components["schemas"]["ReactionCount"][];
         };
         ReactionCount: {

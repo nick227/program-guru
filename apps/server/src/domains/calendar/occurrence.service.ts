@@ -134,8 +134,17 @@ export async function occurrence(userId: string, itemId: string) {
     // Each member's own item for this occurrence: dated before they joined means Not Participating (10 §3).
     const memberItems = await db.calendarItem.findMany({
       where: { groupOccurrenceKey: item.groupOccurrenceKey, ownerId: { in: members.map((m) => m.userId) }, enrollment: { groupId } },
-      select: { ownerId: true, status: true, localDate: true, enrollment: { select: { participationStartDate: true } } },
+      select: {
+        ownerId: true,
+        status: true,
+        localDate: true,
+        enrollment: { select: { participationStartDate: true } },
+        // Started-not-finished is shared under the same consent as completion (10 §4). It means a
+        // session exists, never that the member is online right now.
+        sessions: { where: { status: { in: ['ACTIVE', 'PAUSED'] } }, select: { id: true }, take: 1 },
+      },
     })
+    const started = new Set(memberItems.filter((i) => i.status === 'PLANNED' && i.sessions.length).map((i) => i.ownerId))
     const preJoin = new Set(
       memberItems.filter((i) => i.status === 'NOT_PARTICIPATING' || (i.enrollment?.participationStartDate && i.localDate < i.enrollment.participationStartDate)).map((i) => i.ownerId),
     )
@@ -153,9 +162,18 @@ export async function occurrence(userId: string, itemId: string) {
       return {
         user: toUserSummary(m.user.profile!),
         // Members who turned sharing off read as UNKNOWN, never as "not done".
-        status: share ? ('DONE' as const) : preJoin.has(m.userId) ? ('NOT_PARTICIPATING' as const) : m.sharedCompletionEnabled ? ('PENDING' as const) : ('UNKNOWN' as const),
+        status: share
+          ? ('DONE' as const)
+          : preJoin.has(m.userId)
+            ? ('NOT_PARTICIPATING' as const)
+            : !m.sharedCompletionEnabled
+              ? ('UNKNOWN' as const)
+              : started.has(m.userId)
+                ? ('IN_PROGRESS' as const)
+                : ('PENDING' as const),
         counted: !preJoin.has(m.userId),
         completionShareId: share?.id ?? null,
+        completedAt: share?.completedAt.toISOString() ?? null,
         reactions: [...counts].map(([emoji, c]) => ({ emoji, count: c.count, reactedByMe: c.mine })),
       }
     })

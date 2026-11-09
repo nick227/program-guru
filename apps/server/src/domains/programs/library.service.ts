@@ -4,6 +4,7 @@ import { addDays, fromDbDate, toDbDate, todayIn } from '../../lib/time'
 import { resolveAccess } from './access'
 import { programInclude, toProgramSummary } from './mapper'
 import { enrollInTx, joinableVersion } from './enrollment.service'
+import { participationSummaries } from './participation.service'
 
 const live = ['ACTIVE', 'PAUSED', 'PENDING_ACCESS'] as const
 export async function library(userId: string, programId?: string) {
@@ -40,6 +41,7 @@ export async function library(userId: string, programId?: string) {
     orderBy: { updatedAt: 'desc' },
   })
   if (programId && !programs.length) throw notFound('Personal Program')
+  const participation = await participationSummaries(userId, programs.map((p) => p.id))
   return Promise.all(
     programs.map(async (p) => {
       const runs = p.enrollments.map((e) => {
@@ -156,6 +158,7 @@ export async function library(userId: string, programId?: string) {
         status,
         current,
         runs,
+        participation: participation.get(p.id)!,
       }
     }),
   )

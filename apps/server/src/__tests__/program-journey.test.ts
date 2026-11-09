@@ -337,6 +337,68 @@ describe('POC journey: publish → discover → join → group → share → upd
     expect(await db.programScheduleItem.findMany({ where: { programVersionId: v1 }, orderBy: { id: 'asc' } })).toEqual(templateBefore)
   })
 
+  it('doing an Activity together: started and finished states, sharing consent, counts of people not runs', async () => {
+    const today = todayIn(TZ)
+    let ws = await ok(alice, 'POST', '/programs', { programTypeId: cat.workout.id })
+    ws = await ok(alice, 'POST', `/programs/${ws.id}/draft/activities`, { activityIds: [cat.squats.activity.id], expectedRevision: ws.draftRevision })
+    ws = await ok(alice, 'PATCH', `/programs/${ws.id}/draft`, { title: 'Together Squats', durationDays: 7, frequency: { kind: 'DAILY' }, expectedRevision: ws.draftRevision })
+    const v = (await ok(alice, 'POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })).latestPublishedVersionId
+    const programId = ws.id as string
+    journeyProgramId = programId
+    const crew = [bob, U.carol, U.dave, U.erin, U.frank, U.grace]
+    const enrollment: Record<string, string> = {}
+    for (const userId of [...crew, U.heidi, U.ivan]) {
+      enrollment[userId] = (await ok(userId, 'POST', `/programs/${programId}/enrollments`, { programVersionId: v, startLocalDate: today, timezone: TZ, idempotencyKey: key() })).id
+    }
+    const group = await ok(bob, 'POST', '/groups', { programVersionId: v, mode: 'ASYNC', name: 'Squad' })
+    const link = await ok(bob, 'POST', `/groups/${group.id}/invitations`, { kind: 'LINK' })
+    for (const userId of crew.slice(1)) await ok(userId, 'POST', `/group-invitations/${tokenOf(link)}/accept`)
+    // bob follows ivan, who is NOT in the group: following never reveals participation.
+    await ok(bob, 'POST', `/follow-users/${U.ivan}`)
+    await ok(bob, 'POST', `/follow-users/${U.dave}`)
+
+    // carol starts and pauses (started, not finished); dave finishes; erin turns sharing off, then starts.
+    const day0 = (userId: string) => dayItem(userId, 0, cat.squats.activity.id)
+    const carolSession = await ok(U.carol, 'POST', '/sessions', { calendarItemId: (await day0(U.carol)).id, idempotencyKey: key() })
+    const started = await ok(U.carol, 'POST', `/sessions/${carolSession.id}/actions`, { action: 'START', expectedRevision: carolSession.revision })
+    await ok(U.carol, 'POST', `/sessions/${carolSession.id}/actions`, { action: 'PAUSE', expectedRevision: started.session.revision })
+    await finish(U.dave, (await day0(U.dave)).id, 20)
+    await ok(U.erin, 'PATCH', `/groups/${group.id}/members/me`, { sharedCompletion: false })
+    const erinSession = await ok(U.erin, 'POST', '/sessions', { calendarItemId: (await day0(U.erin)).id, idempotencyKey: key() })
+    await ok(U.erin, 'POST', `/sessions/${erinSession.id}/actions`, { action: 'START', expectedRevision: erinSession.revision })
+    // frank creates an unstarted session (Upload media before starting): not "started".
+    await ok(U.frank, 'POST', '/sessions', { calendarItemId: (await day0(U.frank)).id, idempotencyKey: key() })
+
+    const res = await call(bob, 'GET', `/calendar-items/${(await day0(bob)).id}/occurrence`)
+    await validateResponse('getActivityOccurrence', 200, res.body)
+    const row = Object.fromEntries(res.body.data.collaborators.members.map((m: any) => [m.user.handle, m]))
+    expect(Object.fromEntries(Object.entries(row).map(([h, m]: any) => [h, m.status]))).toEqual({
+      bob: 'PENDING', carol: 'IN_PROGRESS', dave: 'DONE', erin: 'UNKNOWN', frank: 'PENDING', grace: 'PENDING',
+    })
+    expect(row.dave.completedAt).toEqual(expect.any(String))
+    expect(Date.now() - Date.parse(row.dave.completedAt)).toBeLessThan(60_000)
+    expect(row.carol.completedAt).toBeNull()
+    expect(res.body.data.collaborators).toMatchObject({ finishedCount: 1, totalCount: 6 })
+
+    // My Programs over HTTP: people, not runs. heidi leaves; grace restarts (one person, two runs).
+    await ok(U.heidi, 'POST', `/enrollments/${enrollment[U.heidi]}/leave`, { futureItems: 'REMOVE' })
+    await ok(U.grace, 'POST', `/me/program-library/${programId}`, { action: 'RESTART', expectedRunId: enrollment[U.grace] })
+    expect(await db.programEnrollment.count({ where: { programId, userId: U.grace } })).toBe(2)
+    const lib = await call(bob, 'GET', '/me/program-library')
+    await validateResponse('getPersonalProgramLibrary', 200, lib.body)
+    const p = lib.body.data.find((x: any) => x.program.id === programId)
+    // 8 joined; heidi left → 7 people; grace's restart is still one person.
+    expect(p.participation).toMatchObject({ participantCount: 7, activeMemberCount: 1 })
+    // Friends: fellow group members who share, linked to the group; followed first (dave).
+    // erin turned sharing off; grace's restarted run is not linked to the group; ivan only followed.
+    expect(p.participation.friends.map((f: any) => [f.handle, f.viewerFollows])).toEqual([['dave', true], ['carol', false], ['frank', false]])
+    expect(p.participation.friendCount).toBe(3)
+    expect(JSON.stringify(p.participation)).not.toContain('ivan')
+    // ivan follows nobody in the group and is in no group: aggregates only.
+    const ivanLib = (await ok(U.ivan, 'GET', '/me/program-library')).find((x: any) => x.program.id === programId)
+    expect(ivanLib.participation).toEqual({ participantCount: 7, activeMemberCount: 1, friends: [], friendCount: 0 })
+  })
+
   it('the data migration turns legacy version-bound keys into the same keys the server now writes', async () => {
     // A Program with a repeated placement (Squats twice on day 1) and a group with a share and media.
     let ws = await ok(alice, 'POST', '/programs', { programTypeId: cat.workout.id })

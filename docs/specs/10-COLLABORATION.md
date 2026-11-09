@@ -62,6 +62,8 @@ When enrollment is needed, membership, entitlement, enrollment and calendar item
 |---|---|---|---|---|
 | Own calendar dates/results | Full | No | No | No |
 | Other member completed status | N/A | If shared | No | No |
+| Other member started (in progress) on this occurrence | N/A | If shared (same `sharedCompletionEnabled` setting); means a session was started, never that they are online now | No | No |
+| Other member is participating (avatar on My Programs) | N/A | If shared | No (aggregate counts only) | Aggregate counts only, suppressed below the minimum sample |
 | Other member reps/amounts/notes | N/A | No, unless specifically shared | No | No |
 | Completion reactions | Yes | Yes | No | No |
 | Group-shared media and its comments | Yes | Yes | No | No |
@@ -71,7 +73,7 @@ A creator/follower relationship by itself does not grant group membership. User 
 
 ## 5. UI contract
 
-On Activity occurrence: **Collaborators row is third**, after Today's Results and before Session Controls. It is the visually prominent social element on the page: 1–4 avatars, `2 of 3 finished`, and reaction controls on permitted completions. The user can finish and log without touching it. No group means the row is absent, not disabled. `Shared Media` is the separate seventh row, with no tab switch required; comments open in the viewer.
+On Activity occurrence: **Collaborators row is third**, after Today's Results and before Session Controls. It is the visually prominent social element on the page: 1–4 avatars, `2 of 3 finished`, each permitted member's state (`Finished 2h ago`, `Started`, `Not yet`), and reaction controls on permitted completions. It may summarise group media shared for this occurrence (`3 shared · 2 comments`) as a link to the Related Media row; thumbnails and comments stay there, so there is still one media section. It never claims live presence. The user can finish and log without touching it. No group means the row is absent, not disabled. `Shared Media` is the separate seventh row, with no tab switch required; comments open in the viewer.
 
 `Program Group` view, accessed from participant avatars or Program Detail, shows members, invitation control, recent permitted completions, and shared media. Keep icon/photo UI compact, no large group dashboard or leaderboards. For asynchronous participants, label comparable `Program Day 7` instead of claiming the same calendar date.
 

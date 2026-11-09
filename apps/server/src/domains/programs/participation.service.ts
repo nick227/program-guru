@@ -4,8 +4,8 @@
 // - Aggregates (participants, active members): coarse counts, suppressed below MIN_PUBLIC_SAMPLE so
 //   no individual can be inferred (12 §10). Identical for every viewer, including the creator.
 // - Participating friends: only people the viewer can already see participating — fellow active
-//   members of a group the viewer belongs to for this Program (10 §4: membership is visible to
-//   members). A follow alone never reveals someone's participation (10 §4 "Follower not in group:
+//   members of a group the viewer belongs to for this Program who share completion with it (10 §4
+//   "If shared"). A follow alone never reveals someone's participation (10 §4 "Follower not in group:
 //   No"; 12 §2 "Follow never implies enrollment"). Blocks either way hide the person.
 //
 // Computed live from existing tables; no new aggregation infrastructure (POC scope).
@@ -88,6 +88,8 @@ async function groupFriends(viewerId: string, programIds: string[]) {
       where: {
         groupId: { in: [...groupProgram.keys()] },
         status: 'ACTIVE',
+        // Only members who share their participation with the group (10 §4 "If shared").
+        sharedCompletionEnabled: true,
         userId: { not: viewerId },
         user: { status: 'ACTIVE' },
       },
