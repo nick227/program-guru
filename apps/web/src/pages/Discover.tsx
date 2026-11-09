@@ -315,20 +315,10 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
                 : 'Created by you'
               : (p.creator?.displayName ?? 'Programs')}
           </strong>
-          <span>
-            {entry.owned ? p.visibility.toLowerCase() : 'Joined Program'}
-          </span>
         </div>
       </td>
       <td data-label="Privacy">
-        <div className="library-source">
-          <strong>
-            {entry.owned
-              ? entry.sourceVersionId
-                ? 'Customized by you'
-                : 'Created by you'
-              : (p.creator?.displayName ?? 'Programs')}
-          </strong>
+        <div className="library-privacy">
           <span>
             {entry.owned ? p.visibility.toLowerCase() : 'Joined Program'}
           </span>
