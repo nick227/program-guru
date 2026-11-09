@@ -4,7 +4,8 @@ import { db, type Program, type ProgramAccessPolicy } from '@project/db'
 
 export type ViewerAccess = 'OWNER' | 'GRANTED' | 'PREVIEW' | 'REQUESTED' | 'LAPSED'
 
-export const isProgramOwner = (p: Pick<Program, 'creatorId'>, viewerId: string | null) => !!viewerId && p.creatorId === viewerId
+/** A deleted Program (tombstone, 07 §6) has no owner controls left. */
+export const isProgramOwner = (p: Pick<Program, 'creatorId' | 'deletedAt'>, viewerId: string | null) => !!viewerId && p.creatorId === viewerId && !p.deletedAt
 
 export const activeGrantWhere = (now = new Date()) => ({ revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] })
 
@@ -33,7 +34,8 @@ export async function resolveAccess(viewerId: string | null, program: Program): 
 export async function canSeeProgram(viewerId: string | null, program: Program) {
   if (isProgramOwner(program, viewerId)) return true
   if (program.status === 'DRAFT' || program.moderatedAt || !program.latestPublishedVersionId) return false
-  if (program.visibility !== 'PRIVATE') return true
+  // A tombstoned Program stays readable only to people tied to it, like a PRIVATE one.
+  if (program.visibility !== 'PRIVATE' && !program.deletedAt) return true
   if (!viewerId) return false
   const tie = await db.programEnrollment.findFirst({ where: { userId: viewerId, programId: program.id }, select: { id: true } })
   return !!tie || (await hasActiveGrant(viewerId, program.id))
@@ -44,6 +46,7 @@ export const discoverableProgramWhere = {
   status: 'PUBLISHED' as const,
   visibility: 'PUBLIC' as const,
   moderatedAt: null,
+  deletedAt: null,
   latestPublishedVersionId: { not: null },
 }
 

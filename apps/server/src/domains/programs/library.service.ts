@@ -11,7 +11,7 @@ export async function library(userId: string, programId?: string) {
   const programs = await db.program.findMany({
     where: {
       ...(programId ? { id: programId } : {}),
-      OR: [{ creatorId: userId }, { enrollments: { some: { userId } } }],
+      OR: [{ creatorId: userId, deletedAt: null }, { enrollments: { some: { userId } } }],
     },
     include: {
       ...programInclude,

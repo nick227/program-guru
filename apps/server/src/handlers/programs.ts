@@ -3,6 +3,7 @@ import * as authoring from '../domains/programs/authoring.service'
 import * as browse from '../domains/programs/browse.service'
 import * as enrollment from '../domains/programs/enrollment.service'
 import * as slugService from '../domains/programs/slug.service'
+import * as programDeletion from '../domains/programs/delete.service'
 
 const uid = (request: any) => requireUser(request).id
 
@@ -67,6 +68,9 @@ export async function publishProgram(request: any) {
 }
 export async function archiveProgram(request: any) {
   return { data: await authoring.archive(uid(request), request.params.programId) }
+}
+export async function deleteProgram(request: any) {
+  return { data: await programDeletion.deleteProgram(uid(request), request.params.programId) }
 }
 export async function copyProgram(request: any) {
   return { data: await authoring.copy(uid(request), request.params.programId) }

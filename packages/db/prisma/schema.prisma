@@ -597,6 +597,8 @@ model Program {
   latestPublishedVersionId String?       @unique @db.Char(36)
   draftRevision            Int           @default(0)
   moderatedAt              DateTime?
+  // Owner-deleted but kept for other participants' records (07 §6); hidden from owner and discovery
+  deletedAt                DateTime?
   createdAt                DateTime      @default(now())
   updatedAt                DateTime      @updatedAt
 

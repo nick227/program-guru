@@ -29,8 +29,8 @@ Phase 2 — Server, worker, billing: complete and gated (2026-11-07). Phase 3 (f
 ## Modules Built
 
 - [x] Schema: 62 models, migrations `0001_init` and `0002_rate_limit_bucket`, 4 CHECK constraints, 2 FULLTEXT indexes, verified on MySQL 8.4.13
-- [x] OpenAPI: 148 operations across 14 tags; SDK types generated
-- [x] Server (`apps/server`): **148 of 148 operations implemented**
+- [x] OpenAPI: 159 operations across 14 tags; SDK types generated
+- [x] Server (`apps/server`): **159 of 159 operations implemented**
 - [x] Worker (`apps/server/src/worker.ts`, a second process from the same build): outbox delivery, ffmpeg media pipeline, email, timed reminders and daily summaries, calendar horizons, ranking statistics, cleanup
 - [x] Billing: Stripe Connect per `docs/adr/0001-billing-stripe-connect.md`, behind `MARKETPLACE_ENABLED` (default off)
 - [x] Seed data (`packages/db/prisma/seed.ts`): 6 Categories, 20 Focuses, 17 ProgramTypes, 11 metrics, 6 tools, 7 achievements, 81 Activities with CC0 platform media, 5 starter Programs

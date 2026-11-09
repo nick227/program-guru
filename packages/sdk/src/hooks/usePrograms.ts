@@ -466,6 +466,18 @@ export function useArchiveProgram() {
     [keys.programs, keys.discover, keys.mine],
   )
 }
+/** Permanent owner delete (07 §6); clears Studio, My Programs, Calendar and discovery caches. */
+export function useDeleteProgram() {
+  return useApiMutation(
+    async (programId: string) =>
+      apiData(
+        await getApiClient().DELETE('/programs/{programId}', {
+          params: { path: { programId } },
+        }),
+      ).data,
+    [keys.programs, keys.discover, keys.calendar, ['enrollments'], keys.occurrences],
+  )
+}
 export function usePublishActivity(activityId: string) {
   return useApiMutation(
     async (body: S['PublishActivityInput']) =>

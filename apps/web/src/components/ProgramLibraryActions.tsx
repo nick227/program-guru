@@ -9,6 +9,7 @@ import {
 import { ArrowUpRight, MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from './ui/Button'
+import { DeleteProgramDialog } from './DeleteProgramDialog'
 import {
   programPrimaryAction,
   libraryProgramUrl,
@@ -34,6 +35,7 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
   const [confirm, setConfirm] = useState<
     'RESTART' | 'REMOVE' | 'REMOVE_LIBRARY' | null
   >(null)
+  const [deleting, setDeleting] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
   const menu = useRef<HTMLDetailsElement>(null)
   useEffect(() => {
@@ -152,8 +154,33 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
           >
             Remove from Programs
           </button>
+          {entry.owned && (
+            <button
+              className="text-danger"
+              disabled={busy}
+              onClick={() => {
+                if (menu.current) menu.current.open = false
+                setDeleting(true)
+              }}
+            >
+              Delete Program…
+            </button>
+          )}
         </div>
       </details>
+      {deleting && (
+        <DeleteProgramDialog
+          program={p}
+          onClose={() => setDeleting(false)}
+          onDeleted={() => {
+            // Leave a detail view of the Program that no longer exists.
+            if (params.get('program') !== p.id) return
+            const next = new URLSearchParams(params)
+            next.delete('program')
+            navigate({ search: next.toString() })
+          }}
+        />
+      )}
       {confirm && (
         <dialog
           ref={dialog}

@@ -148,7 +148,7 @@ export async function workspace(userId: string, programId: string) {
 export async function listMine(userId: string, query: { status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'; cursor?: string; limit?: number }) {
   const { limit, take } = pageArgs(query)
   const rows = await db.program.findMany({
-    where: { creatorId: userId, ...(query.status ? { status: query.status } : {}), ...afterCursor(query.cursor) },
+    where: { creatorId: userId, deletedAt: null, ...(query.status ? { status: query.status } : {}), ...afterCursor(query.cursor) },
     orderBy: pageOrder,
     take,
     include: programInclude,
@@ -524,7 +524,7 @@ export async function archive(userId: string, programId: string) {
 /** Copy and customize someone's Program (or your own) into a new private draft with provenance. */
 export async function copy(userId: string, programId: string) {
   const src = await db.program.findUnique({ where: { id: programId } })
-  if (!src || !(await canSeeProgram(userId, src))) throw notFound('Program')
+  if (!src || src.deletedAt || !(await canSeeProgram(userId, src))) throw notFound('Program')
   const owner = isProgramOwner(src, userId)
   const from = owner
     ? (await draftVersion(db, programId)) ?? (await db.programVersion.findUnique({ where: { id: src.latestPublishedVersionId ?? '' } }))

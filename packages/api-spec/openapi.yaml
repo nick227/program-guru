@@ -1842,6 +1842,45 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteProgram
+      summary: Delete program
+      description: Owner only, permanent (07-PROGRAMS.md §6). Deletes the owner's own runs with their Calendar Items,
+        sessions and results. With nobody else involved the Program is deleted; otherwise it is tombstoned and other
+        participants keep their records.
+      tags:
+      - programs
+      parameters:
+      - in: path
+        name: programId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProgramDeletion'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /programs/{programId}/workspace:
     get:
       operationId: getProgramWorkspace
@@ -6761,6 +6800,18 @@ components:
           format: date-time
         status:
           $ref: '#/components/schemas/FollowRequestStatus'
+    ProgramDeletion:
+      type: object
+      required:
+      - programId
+      - retainedForParticipants
+      properties:
+        programId:
+          type: string
+          format: uuid
+        retainedForParticipants:
+          type: boolean
+          description: True when other people's records keep a hidden tombstone; false when fully deleted.
     Ack:
       type: object
       required:

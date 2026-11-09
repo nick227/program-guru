@@ -11,6 +11,7 @@ import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { linkButton } from '@/components/Navigation'
 import { buildWorkspaceUrl } from '@/lib/urls'
 import { useState } from 'react'
+import { DeleteProgramDialog } from '@/components/DeleteProgramDialog'
 
 type Kind = 'programs' | 'activities' | 'media' | 'posts'
 
@@ -63,6 +64,7 @@ export function LibraryPanel() {
 
 function ProgramsList() {
   const programs = useMyPrograms()
+  const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(null)
   const rows =
     programs.data?.pages.flatMap((page) => page.data) ??
     ([] as components['schemas']['ProgramSummary'][])
@@ -91,12 +93,21 @@ function ProgramsList() {
                 {program.visibility} · {program.accessMode}
               </span>
             </Stack>
-            <Link
-              to={buildWorkspaceUrl(program.id)}
-              className={linkButton}
-            >
-              Open
-            </Link>
+            <Row>
+              <Link
+                to={buildWorkspaceUrl(program.id)}
+                className={linkButton}
+              >
+                Open
+              </Link>
+              <Button
+                variant="ghost"
+                className="text-danger"
+                onClick={() => setDeleting(program)}
+              >
+                Delete
+              </Button>
+            </Row>
           </Row>
         ))}
         {programs.hasNextPage && (
@@ -109,6 +120,12 @@ function ProgramsList() {
           </Button>
         )}
       </Stack>
+      {deleting && (
+        <DeleteProgramDialog
+          program={deleting}
+          onClose={() => setDeleting(null)}
+        />
+      )}
     </Panel>
   )
 }

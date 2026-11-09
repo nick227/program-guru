@@ -805,7 +805,11 @@ export interface paths {
         get: operations["getProgramPreview"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete program
+         * @description Owner only, permanent (07-PROGRAMS.md §6). Deletes the owner's own runs with their Calendar Items, sessions and results. With nobody else involved the Program is deleted; otherwise it is tombstoned and other participants keep their records.
+         */
+        delete: operations["deleteProgram"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2733,6 +2737,12 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             status: components["schemas"]["FollowRequestStatus"];
+        };
+        ProgramDeletion: {
+            /** Format: uuid */
+            programId: string;
+            /** @description True when other people's records keep a hidden tombstone; false when fully deleted. */
+            retainedForParticipants: boolean;
         };
         Ack: {
             ok: boolean;
@@ -5684,6 +5694,36 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    deleteProgram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProgramDeletion"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
         };
     };
     getProgramWorkspace: {

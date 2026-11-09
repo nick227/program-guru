@@ -112,7 +112,7 @@ A user's Calendar can contain **several Programs and standalone activities**. Pr
 ## 5. States, expressed where they belong
 
 - User: `ACTIVE`, `SUSPENDED`, `DEACTIVATED`.
-- Program: `DRAFT`, `PUBLISHED`, `ARCHIVED`; published Versions immutable.
+- Program: `DRAFT`, `PUBLISHED`, `ARCHIVED`; published Versions immutable. `deletedAt` marks an owner-deleted Program kept only because other people's records depend on it (`07-PROGRAMS.md` §6); it is never shown to the owner or in discovery.
 - Activity: `DRAFT`, `PUBLISHED`, `ARCHIVED` with versioned instructional content.
 - Enrollment: `PENDING_ACCESS`, `ACTIVE`, `PAUSED`, `LEFT`, `COMPLETED` (separate from version and billing).
 - Calendar Item: `PLANNED`, `CANCELLED`, `SKIPPED`, `DONE` (derived from chosen completion/session policy), `NOT_PARTICIPATING` (dated before the participant joined; `10-COLLABORATION.md` §3).

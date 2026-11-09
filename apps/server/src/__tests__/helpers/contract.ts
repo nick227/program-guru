@@ -286,6 +286,7 @@ export const cases: Record<string, Case> = {
   getProgramPublishCheck: { as: 'alice', protected: true, request: async (w) => ({ method: 'GET', url: `/programs/${(await w.draft()).id}/publish-check` }) },
   publishProgram: { as: 'alice', protected: true, request: async (w) => { const d = await w.draft(); return { method: 'POST', url: `/programs/${d.id}/publish`, payload: { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: d.draftRevision } } } },
   archiveProgram: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: `/programs/${(await w.program()).id}/archive` }) },
+  deleteProgram: { as: 'alice', protected: true, request: async (w) => ({ method: 'DELETE', url: `/programs/${(await w.draft()).id}` }) },
   getProgramVersion: { as: 'alice', protected: true, request: async (w) => ({ method: 'GET', url: `/program-versions/${(await w.program()).versionId}` }) },
   previewEnrollment: { as: 'bob', protected: true, request: async (w) => { const p = await w.program(); return { method: 'POST', url: `/programs/${p.id}/enrollments/preview`, payload: { programVersionId: p.versionId, startLocalDate: START, timezone: 'America/Chicago' } } } },
   joinProgram: { as: 'bob', protected: true, request: async (w) => { const p = await w.program(); return { method: 'POST', url: `/programs/${p.id}/enrollments`, payload: { programVersionId: p.versionId, startLocalDate: START, timezone: 'America/Chicago', idempotencyKey: 'contract-join' } } } },
