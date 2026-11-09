@@ -1,7 +1,6 @@
 // 08-ACTIVITIES.md §6: drafts are edited in place on an unpublished revision; publishing freezes it.
 // Editing after publish starts a new draft revision copied from the latest published one, keeping
 // instructionKey stable so contributions and media survive revisions.
-import { passesEmailVerification } from '../../lib/verification'
 import { randomUUID } from 'crypto'
 import { db, type Activity, type Prisma } from '@project/db'
 import { badRequest, forbidden, notFound, versionConflict } from '../../lib/errors'
@@ -362,8 +361,6 @@ export async function publish(tx: Tx, userId: string, activityId: string, visibi
   if (!latest) throw notFound('Activity')
   if (!latest.titleSnapshot.trim()) throw badRequest('Name the activity before publishing', { title: 'is required' })
   if (visibility !== 'PRIVATE') {
-    const user = await tx.user.findUniqueOrThrow({ where: { id: userId } })
-    if (!passesEmailVerification(user)) throw forbidden('Verify your email before publishing publicly')
     if (await isPublishingRestricted(userId)) throw forbidden('Publishing is restricted on this account')
   }
   const publishedId = latest.publishedAt ? latest.id : (await tx.activityRevision.update({ where: { id: latest.id }, data: { publishedAt: new Date() } })).id

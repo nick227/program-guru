@@ -83,7 +83,7 @@ interface FollowDao {
 }
 ```
 
-`AuthService`: local/Google login, session, verify, reset; `UserService`: status/email/deactivate; `ProfileService`: handle/profile/edit; `PreferenceService`: settings; `FollowService`: approval graph/blocks; `PublishingPolicy`: active+verified+not restricted+correct content rights, plus ACTIVE payout account for paid access. DAO does not enforce HTTP/session semantics.
+`AuthService`: local/Google login, session, verify, reset; `UserService`: status/email/deactivate; `ProfileService`: handle/profile/edit; `PreferenceService`: settings; `FollowService`: approval graph/blocks; `PublishingPolicy`: active+not restricted+correct content rights (email verification is not required to publish), plus ACTIVE payout account for paid access (payout onboarding requires a verified email). DAO does not enforce HTTP/session semantics.
 
 ## 5. Lifecycle and follow privacy
 
@@ -102,7 +102,7 @@ Routes: `POST /auth/register|login|logout|google|verify-email|forgot-password|re
 
 - Normalize email; handle lowercase ASCII (suggest `^[a-z0-9][a-z0-9._-]{2,29}$` with reserved list), enforce collation + unique index; race conflicts return `CONFLICT`.
 - Keep one profile/preferences record created transactionally, not lazy on public route.
-- Bcrypt cost 12, hashed session tokens, httpOnly Secure cookies with `SameSite=Lax` across sibling subdomains, rate limits, token rotation, email verification for publication.
-- `REQUIRE_EMAIL_VERIFICATION=false` (UAT only) relaxes the verification gates: publishing to others and payout onboarding. Absent or any other value keeps them. Verification still works (tokens, emails, endpoints); nobody is marked verified automatically; password reset is unchanged. Matching EMAIL group invitations by address stays verified-only, because it proves ownership of that address. `UserMeDto.emailVerificationRequired` tells clients which state applies.
+- Bcrypt cost 12, hashed session tokens, httpOnly Secure cookies with `SameSite=Lax` across sibling subdomains, rate limits, token rotation, email verification for payout onboarding (not for publishing).
+- `REQUIRE_EMAIL_VERIFICATION=false` (UAT only) relaxes the verification gate on payout onboarding. Absent or any other value keeps them. Verification still works (tokens, emails, endpoints); nobody is marked verified automatically; password reset is unchanged. Matching EMAIL group invitations by address stays verified-only, because it proves ownership of that address. `UserMeDto.emailVerificationRequired` tells clients which state applies.
 - Permissions cover anonymous, signed-in unrelated, accepted follower, pending follower, owner, blocked, suspended.
 - Tests: duplicate/parallel registration; self-follow blocked; private approval; block overrides; privacy toggle; deletion preserves authorized adopted snapshot but removes identity as retention rules require; username changes do not break stable ID references.

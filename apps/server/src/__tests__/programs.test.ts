@@ -90,11 +90,13 @@ describe('Program authoring (01 §6 required test 2)', () => {
     await validateResponse('getProgramPublishCheck', 200, check.json())
     expect(check.json().data.canPublish).toBe(false)
     expect(check.json().data.issues.map((i: any) => i.code)).toContain('NO_ACTIVITIES')
+  })
+
+  it('publishes to others without a verified email', async () => {
     await db.user.update({ where: { id: testUserId }, data: { emailVerifiedAt: null } })
     const { ws } = await buildProgram()
     const res = await publish(ws.id)
-    expect(res.statusCode).toBe(400)
-    expect(res.json().message).toMatch(/Verify your email/)
+    expect(res.statusCode).toBe(200)
   })
 })
 

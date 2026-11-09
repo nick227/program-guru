@@ -68,7 +68,7 @@ Favor plain functions + focused DAO/service modules. Data hooks live in `package
 | View public Program preview | published, visible, not moderated; preview-safe fields only |
 | View full program | owner or valid AccessGrant/OPEN + enrollment policy; object visibility |
 | Edit Program or Activity | original creator or authorized editor; personal copy otherwise |
-| Publish Program/Activity | active+verified user, policy, content validation, rights to public media |
+| Publish Program/Activity | active user (email verification not required), policy, content validation, rights to public media |
 | Publish with PAID access | above + ACTIVE Creator Payout Account + marketplace flag enabled |
 | Moderate | `MODERATOR` or `ADMIN` role via `adminAuth`-style security handler |
 | Read personal Session/Entry | owner or explicitly scoped sharing policy |

@@ -1,4 +1,5 @@
-// REQUIRE_EMAIL_VERIFICATION: enforced by default; `false` (UAT) relaxes the publishing gates without
+// Publishing never requires a verified email. REQUIRE_EMAIL_VERIFICATION: enforced by default for payout
+// onboarding; `false` (UAT) relaxes that gate without
 // marking anyone verified or touching verification, password reset, or email-invitation ownership.
 import { describe, it, expect, beforeEach, afterAll } from 'vitest'
 import { db } from '@project/db'
@@ -56,7 +57,7 @@ describe('emailVerificationRequired', () => {
 })
 
 describe('enforced (default)', () => {
-  it('an unverified user can sign in and draft, but not publish to others', async () => {
+  it('an unverified user can sign in, draft, and publish to others', async () => {
     const u = await newUnverifiedUser()
     const me = await u.call('GET', '/auth/me')
     await validateResponse('getCurrentUser', 200, me.json())
@@ -64,13 +65,11 @@ describe('enforced (default)', () => {
 
     const ws = await draftProgram(u.call)
     const pub = await u.call('POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })
-    expect(pub.statusCode).toBeGreaterThanOrEqual(400)
-    expect(pub.body).toMatch(/EMAIL_NOT_VERIFIED|Verify your email/)
-    // Private publishing never needed verification.
-    expect((await u.call('POST', `/programs/${ws.id}/publish`, { visibility: 'PRIVATE', accessMode: 'OPEN', expectedRevision: ws.draftRevision })).statusCode).toBe(200)
+    expect(pub.statusCode).toBe(200)
 
     const act = (await u.call('POST', '/activities', { title: 'My drill', categoryId: cat.fitness.id })).json().data
-    expect((await u.call('POST', `/activities/${act.id}/publish`, { visibility: 'PUBLIC', expectedRevision: 0 })).statusCode).toBe(403)
+    expect((await u.call('POST', `/activities/${act.id}/publish`, { visibility: 'PUBLIC', expectedRevision: 0 })).statusCode).toBe(200)
+    expect((await db.user.findUniqueOrThrow({ where: { id: u.userId } })).emailVerifiedAt).toBeNull()
   })
 })
 
