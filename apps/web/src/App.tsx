@@ -47,7 +47,8 @@ function Root() {
     previousPath.current = location.pathname
     // Opening or closing a nested library browser keeps the page beneath in place.
     const browse = (path: string) => path.endsWith('/browse')
-    if (browse(location.pathname) || browse(before)) return
+    const base = (path: string) => path.replace(/\/browse$/, '')
+    if (base(location.pathname) === base(before) && (browse(location.pathname) || browse(before))) return
     window.scrollTo(0, 0)
     const main = document.querySelector<HTMLElement>('main')
     main?.setAttribute('tabindex', '-1')
@@ -176,7 +177,7 @@ const router = createBrowserRouter([
         element: <AuthGuard />,
         children: [
           { path: '/', element: <CalendarPage /> },
-          { path: '/library', element: <LibraryPage /> },
+          { path: '/library', element: <LibraryPage />, children: [{ path: 'browse', element: <LibraryBrowserRoute /> }] },
           {
             path: '/programs/new',
             element: <ProgramCreatePage />,

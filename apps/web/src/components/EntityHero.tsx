@@ -7,6 +7,7 @@ import { CategoryIcon } from './CategoryIcon'
 const SIZES = {
   /** list rows, rails */
   thumb: 'h-12 w-12 rounded-lg',
+  row: 'h-16 w-20 rounded-lg sm:w-24',
   /** browser and storefront cards */
   card: 'aspect-video w-full rounded-lg',
   /** compact Workspace/editor header */
@@ -15,7 +16,13 @@ const SIZES = {
   banner: 'aspect-[2/1] w-full rounded-xl',
 } as const
 
-const ICON_SIZES = { thumb: 18, card: 32, header: 28, banner: 44 } as const
+const ICON_SIZES = {
+  row: 24,
+  thumb: 18,
+  card: 32,
+  header: 28,
+  banner: 44,
+} as const
 
 /**
  * Render-only identity image. Missing or failing images show the category
@@ -37,20 +44,30 @@ export function EntityHero({
   return (
     <div
       aria-hidden
+      style={
+        !showImage
+          ? ({
+              background: `linear-gradient(145deg, hsl(${tone} / .28), hsl(${tone} / .07))`,
+              color: `hsl(${tone})`,
+            } as CSSProperties)
+          : undefined
+      }
       data-hero-category={hero.category}
       data-hero-fallback={showImage ? undefined : 'true'}
       className={cn(
-        'relative isolate flex shrink-0 items-center justify-center overflow-visible',
+        'relative isolate flex shrink-0 items-center justify-center overflow-hidden',
         SIZES[size],
         className,
       )}
     >
-      <CategoryIcon
-        category={hero.category}
-        size={ICON_SIZES[size]}
-        strokeWidth={1.75}
-        className="text-white/90"
-      />
+      {!showImage && (
+        <CategoryIcon
+          category={hero.category}
+          size={ICON_SIZES[size]}
+          strokeWidth={1.75}
+          className="opacity-90"
+        />
+      )}
       {showImage && (
         <img
           src={hero.src!}

@@ -1,20 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import {
-  useProgramLibrary,
-  useManagePersonalProgram,
-  usePersonalEnrollmentAction,
-  useCopyProgram,
-} from '@project/sdk'
-import {
-  Search,
-  Plus,
-  ArrowUpRight,
-  MoreHorizontal,
-  BookOpen,
-  ArrowLeft,
-} from 'lucide-react'
-import { toast } from 'sonner'
+import { useState } from 'react'
+import { Link, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
+import { useProgramLibrary } from '@project/sdk'
+import { Search, Plus, ArrowUpRight, BookOpen, ArrowLeft } from 'lucide-react'
+import { ProgramLibraryActions as Actions } from '@/components/ProgramLibraryActions'
 import { Page } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -24,6 +12,11 @@ import { linkButton } from '@/components/Navigation'
 import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
 import { programHero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
+import {
+  useLibraryBrowser,
+  type LibraryBrowserContext,
+} from '@/components/LibraryBrowser'
+import { libraryProgramUrl } from '@/lib/programNavigation'
 import { buildWorkspaceUrl } from '@/lib/urls'
 import {
   selectPrograms,
@@ -36,11 +29,38 @@ export function LibraryPage() {
   useDocumentTitle('My Programs')
   const library = useProgramLibrary()
   const [params, setParams] = useSearchParams()
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('All')
-  const [owned, setOwned] = useState(false)
-  const [sort, setSort] = useState('recent')
+  const browser = useLibraryBrowser()
+  const navigate = useNavigate()
+  const query = params.get('q') ?? ''
+  const status = params.get('status') ?? 'All'
+  const owned = params.get('mine') === '1'
+  const sort = params.get('sort') ?? 'recent'
+  const filter = (key: string, value: string, fallback = '') =>
+    setParams(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        if (value === fallback) next.delete(key)
+        else next.set(key, value)
+        return next
+      },
+      { replace: true },
+    )
+  const setQuery = (value: string) => filter('q', value)
+  const setStatus = (value: string) => filter('status', value, 'All')
+  const setOwned = (value: boolean) => filter('mine', value ? '1' : '')
+  const setSort = (value: string) => filter('sort', value, 'recent')
+  const browserContext: LibraryBrowserContext = {
+    kind: 'programs',
+    actionLabel: 'View Program',
+    closeOnPick: false,
+    onPick: (program) =>
+      navigate(
+        `/programs/${program.id}?returnTo=${encodeURIComponent(`/library/browse?${params}`)}`,
+      ),
+  }
+
   const rows = library.data ?? []
+  const archivedCount = rows.filter((r) => r.status === 'Archived').length
   const selected = rows.find((r) => r.program.id === params.get('program'))
   const filtered = selectPrograms(rows, query, status, owned, sort)
   return (
@@ -58,9 +78,17 @@ export function LibraryPage() {
             Make room for what you want to keep doing.
           </p>
         </div>
-        <Link to="/programs/new?returnTo=%2Flibrary" className={linkButton}>
-          <Plus size={16} /> Add a Program
-        </Link>
+        <div className="library-heading-actions">
+          <Button onClick={browser.open}>
+            <Search size={16} /> Browse Programs
+          </Button>
+          <Link
+            to={`/programs/new?returnTo=${encodeURIComponent(`/library?${params}`)}`}
+            className="library-open"
+          >
+            <Plus size={16} /> Create a Program
+          </Link>
+        </div>
       </header>
       <ErrorMessage
         error={library.error}
@@ -68,8 +96,18 @@ export function LibraryPage() {
       />
       {library.isPending ? (
         <Loading />
-      ) : library.error ? null : selected ? (
-        <ProgramDetails entry={selected} back={() => setParams({})} />
+      ) : !library.data ? null : selected ? (
+        <ProgramDetails
+          key={selected.program.id}
+          entry={selected}
+          back={() =>
+            setParams((previous) => {
+              const next = new URLSearchParams(previous)
+              next.delete('program')
+              return next
+            })
+          }
+        />
       ) : (
         <>
           <div className="library-toolbar">
@@ -110,7 +148,7 @@ export function LibraryPage() {
                 {s}
                 <span>
                   {s === 'All'
-                    ? rows.length
+                    ? rows.length - archivedCount
                     : rows.filter((r) => r.status === s).length}
                 </span>
               </button>
@@ -127,10 +165,9 @@ export function LibraryPage() {
                       'Progress',
                       'Next Activity',
                       'Source',
-                      'Updates',
                       'Actions',
                     ].map((h) => (
-                      <th key={h} scope="col">
+                      <th key={h} scope="col" data-label={h}>
                         {h}
                       </th>
                     ))}
@@ -160,19 +197,27 @@ export function LibraryPage() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setQuery('')
-                    setStatus('All')
-                    setOwned(false)
+                    setParams({})
                   }}
                 >
                   Clear filters
                 </Button>
               ) : (
-                <Link to="/programs/new" className={linkButton}>
-                  Create a Program
-                </Link>
+                <Button onClick={browser.open}>Browse Programs</Button>
               )}
             </div>
+          )}
+          {archivedCount > 0 && (
+            <button
+              className="library-archive-link"
+              onClick={() =>
+                setStatus(status === 'Archived' ? 'All' : 'Archived')
+              }
+            >
+              {status === 'Archived'
+                ? 'Back to current Programs'
+                : `Archived Programs (${archivedCount})`}
+            </button>
           )}
           <p className="library-footnote">
             {filtered.length} {filtered.length === 1 ? 'Program' : 'Programs'} ·
@@ -181,6 +226,7 @@ export function LibraryPage() {
           </p>
         </>
       )}
+      <Outlet context={browserContext} />
     </Page>
   )
 }
@@ -219,6 +265,7 @@ function Progress({ entry }: { entry: PersonalProgram }) {
 }
 function ProgramRow({ entry }: { entry: PersonalProgram }) {
   const category = useCategorySlugOf()
+  const [params] = useSearchParams()
   const p = entry.program
   const r = entry.current
   const next =
@@ -228,18 +275,28 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
   return (
     <tr>
       <td data-label="Program">
-        <Link className="library-identity" to={`?program=${p.id}`}>
+        <Link
+          className="library-identity"
+          to={libraryProgramUrl(p.id, params.toString())}
+        >
           <EntityHero
             hero={programHero(p, category)}
-            size="thumb"
-            className="library-art !h-16 !w-16"
+            size="row"
+            className="library-art"
           />
           <div>
-            <strong>{p.title}</strong>
-            <span>
-              {p.type.label} ·{' '}
-              {p.durationDays ? `${p.durationDays} days` : 'Ongoing'}
-            </span>
+            <strong>
+              {p.title}
+              {r?.pendingVersionId && (
+                <span
+                  className="library-update-dot"
+                  role="img"
+                  aria-label="Update available"
+                  title="Update available"
+                />
+              )}
+            </strong>
+            <span>{p.type.label} · {p.durationDays ? `${p.durationDays} days` : 'Ongoing'}</span>
             <small>
               {p.frequencyLabel ?? 'Schedule not set'}
               {r?.status === 'ACTIVE' ? ` · Week ${r.week}` : ''}
@@ -264,7 +321,7 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
           </Link>
         ) : (
           <span className="text-muted">
-            {entry.status === 'Paused'
+            {entry.status === 'Paused' || entry.status === 'Archived'
               ? 'Schedule paused'
               : 'Nothing scheduled'}
           </span>
@@ -284,175 +341,10 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
           </span>
         </div>
       </td>
-      <td data-label="Updates">
-        {r?.pendingVersionId ? (
-          <Link className="library-update" to={`?program=${p.id}`}>
-            Review update
-          </Link>
-        ) : (
-          <span className="text-muted" aria-label="No pending update">
-            —
-          </span>
-        )}
-      </td>
       <td data-label="Actions">
         <Actions entry={entry} />
       </td>
     </tr>
-  )
-}
-function Actions({ entry }: { entry: PersonalProgram }) {
-  const manage = useManagePersonalProgram()
-  const enrollment = usePersonalEnrollmentAction()
-  const copy = useCopyProgram()
-  const navigate = useNavigate()
-  const [confirm, setConfirm] = useState<'RESTART' | 'REMOVE' | null>(null)
-  const dialog = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    if (confirm) dialog.current?.showModal()
-  }, [confirm])
-  const p = entry.program
-  const r = entry.current
-  const busy = manage.isPending || enrollment.isPending || copy.isPending
-  async function run(
-    action: 'ARCHIVE' | 'RESTORE' | 'RESTART' | 'REMOVE' | 'ACTIVE' | 'PAUSED',
-  ) {
-    try {
-      if (['ACTIVE', 'PAUSED', 'REMOVE'].includes(action) && r)
-        await enrollment.mutateAsync({
-          id: r.id,
-          action: action as 'ACTIVE' | 'PAUSED' | 'REMOVE',
-        })
-      else
-        await manage.mutateAsync({
-          programId: p.id,
-          expectedRunId: r?.id,
-          action: action as 'ARCHIVE' | 'RESTORE' | 'RESTART',
-        })
-      setConfirm(null)
-      toast.success(
-        action === 'RESTART' ? 'New run started' : 'Program updated',
-      )
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not update Program')
-    }
-  }
-  return (
-    <div className="library-actions">
-      {entry.status === 'Archived' ? (
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => void run('RESTORE')}
-        >
-          Restore
-        </Button>
-      ) : entry.status === 'Paused' ? (
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => void run('ACTIVE')}
-        >
-          Resume
-        </Button>
-      ) : (
-        <Link
-          className="library-open"
-          to={
-            entry.status === 'Active' && r?.upcoming[0]
-              ? `/occurrences/${r.upcoming[0].id}`
-              : `?program=${p.id}`
-          }
-        >
-          {entry.status === 'Active' ? 'Continue' : 'Open'}
-          <ArrowUpRight size={14} />
-        </Link>
-      )}
-      <details className="library-menu">
-        <summary aria-label={`Manage ${p.title}`}>
-          <MoreHorizontal size={19} />
-        </summary>
-        <div>
-          <Link to={`?program=${p.id}`}>Details & insights</Link>
-          {entry.owned ? (
-            <Link to={buildWorkspaceUrl(p.id)}>Edit Program</Link>
-          ) : (
-            <button
-              disabled={busy}
-              onClick={() =>
-                void copy
-                  .mutateAsync(p.id)
-                  .then((c) => navigate(buildWorkspaceUrl(c.id)))
-                  .catch((e) => toast.error(e.message))
-              }
-            >
-              Customize a copy
-            </button>
-          )}
-          {r?.status === 'ACTIVE' && (
-            <button disabled={busy} onClick={() => void run('PAUSED')}>
-              Pause schedule
-            </button>
-          )}
-          {r && ['ACTIVE', 'PAUSED'].includes(r.status) && (
-            <button disabled={busy} onClick={() => setConfirm('REMOVE')}>
-              Remove from Calendar
-            </button>
-          )}
-          {r && entry.publicationStatus === 'PUBLISHED' && (
-            <button disabled={busy} onClick={() => setConfirm('RESTART')}>
-              Restart as a new run
-            </button>
-          )}
-          <button
-            disabled={busy}
-            onClick={() =>
-              void run(entry.status === 'Archived' ? 'RESTORE' : 'ARCHIVE')
-            }
-          >
-            {entry.status === 'Archived'
-              ? 'Restore to library'
-              : 'Archive personally'}
-          </button>
-        </div>
-      </details>
-      {confirm && (
-        <dialog
-          ref={dialog}
-          onCancel={() => setConfirm(null)}
-          className="library-confirm"
-          aria-label={
-            confirm === 'RESTART' ? 'Restart Program' : 'Remove from Calendar'
-          }
-        >
-          <div>
-            <h2>
-              {confirm === 'RESTART'
-                ? 'Start a fresh run today?'
-                : 'Remove future Activities?'}
-            </h2>
-            <p>
-              {confirm === 'RESTART'
-                ? 'A new independent run will use the same published version. Personal schedule changes will remain with your earlier run.'
-                : 'Future unstarted Activities will leave your Calendar. Your Program stays in your library.'}{' '}
-              Completed results and earlier history are preserved.
-            </p>
-            <Button disabled={busy} onClick={() => void run(confirm)}>
-              {confirm === 'RESTART'
-                ? 'Start new run'
-                : 'Remove future Activities'}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() => setConfirm(null)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </dialog>
-      )}
-    </div>
   )
 }
 function ProgramDetails({
@@ -480,6 +372,15 @@ function ProgramDetails({
         </div>
         <Actions entry={entry} />
       </div>
+      {entry.status === 'Archived' && (
+        <p className="library-lifecycle-note" role="status">
+          This Program is archived. Restore it from the management menu to
+          return it to your library.
+          {entry.current?.status === 'PAUSED'
+            ? ' Its schedule will stay paused until you choose Resume.'
+            : ''}
+        </p>
+      )}
       {entry.runs.length > 1 && (
         <label className="library-run-selector">
           <span>Viewing run</span>

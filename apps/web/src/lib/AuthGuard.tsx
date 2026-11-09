@@ -18,7 +18,7 @@ export function AuthGuard() {
         to={`/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`}
       />
     )
-  if (me.error)
+  if (me.error && !me.data)
     return (
       <Page>
         <ErrorMessage error={me.error} retry={() => void me.refetch()} />

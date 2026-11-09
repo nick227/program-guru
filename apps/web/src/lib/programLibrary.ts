@@ -6,7 +6,6 @@ export const statuses = [
   'Not Started',
   'Paused',
   'Completed',
-  'Archived',
 ] as const
 export function selectPrograms(
   rows: PersonalProgram[],
@@ -18,6 +17,7 @@ export function selectPrograms(
   return rows
     .filter(
       (r) =>
+        (status === 'Archived' || r.status !== 'Archived') &&
         (status === 'All' || r.status === status) &&
         (!owned || (r.owned && !r.sourceVersionId)) &&
         `${r.program.title} ${r.program.type.label} ${r.program.creator?.displayName ?? ''}`

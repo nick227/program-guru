@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
+  ApiError,
   useAcceptEnrollmentUpdate,
   useCurrentUser,
   useDismissEnrollmentUpdate,
@@ -42,6 +43,7 @@ export function ProgramPage() {
   const id = resolved.programId
 
   const [params] = useSearchParams()
+  const queryString = params.toString()
   const groupIdParam = params.get('groupId')?.trim() || undefined
   const program = useProgramPreview(id)
   const categorySlugOf = useCategorySlugOf()
@@ -60,14 +62,14 @@ export function ProgramPage() {
 
   useEffect(() => {
     if (resolved.isAlias && resolved.canonicalUrl) {
-      navigate(resolved.canonicalUrl, { replace: true })
+      navigate(`${resolved.canonicalUrl}${queryString ? `?${queryString}` : ''}`, { replace: true })
     }
-  }, [resolved.isAlias, resolved.canonicalUrl, navigate])
+  }, [resolved.isAlias, resolved.canonicalUrl, queryString, navigate])
 
   const tz =
     me.data?.data.preferences.timezone ??
     Intl.DateTimeFormat().resolvedOptions().timeZone
-  const [joining, setJoining] = useState(!!groupIdParam)
+  const [joining, setJoining] = useState(!!groupIdParam || params.get('start') === '1')
   const requestedStartDate = params.get('startDate')
   const [date, setDate] = useState(
     requestedStartDate && isLocalDate(requestedStartDate)
@@ -93,7 +95,7 @@ export function ProgramPage() {
   const key = useRef(crypto.randomUUID())
   const p = program.data
 
-  if (resolved.notFound) {
+  if (resolved.notFound || (program.error instanceof ApiError && program.error.status === 404 && !p)) {
     return (
       <Page>
         <Stage>
@@ -130,7 +132,7 @@ export function ProgramPage() {
   }
   const cta =
     p.canJoin && p.accessMode === 'OPEN'
-      ? 'Join Free'
+      ? 'Start Program'
       : p.canRequestAccess
         ? 'Request Access'
         : p.canPurchase
@@ -266,9 +268,10 @@ export function ProgramPage() {
                     to update future scheduled Activities while keeping your
                     past results and personal adjustments.
                   </p>
+                  {enrollment.data?.status === 'PAUSED' && <p className="text-sm text-muted">Resume your Program from its management view before adopting an update.</p>}
                   <Row>
                     <Button
-                      disabled={!online}
+                      disabled={!online || enrollment.data?.status !== 'ACTIVE'}
                       loading={acceptUpdate.isPending}
                       onClick={async () => {
                         try {
@@ -301,6 +304,7 @@ export function ProgramPage() {
               </Panel>
             )}
             <Row>
+              <Link className={linkButton} to={`/library?program=${p.id}`}>Manage my Program</Link>
               <Link className={linkButton} to="/">
                 Open Calendar
               </Link>
@@ -326,7 +330,7 @@ export function ProgramPage() {
         ) : p.canJoin && p.latestVersionId ? (
           <>
             {!joining ? (
-              <Button onClick={() => setJoining(true)}>{cta ?? 'Join Free'}</Button>
+              <Button onClick={() => setJoining(true)}>{cta ?? 'Start Program'}</Button>
             ) : (
               <Panel>
                 <Stack>

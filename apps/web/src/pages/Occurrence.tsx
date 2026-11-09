@@ -223,7 +223,7 @@ function OccurrenceContent({
   }
   return (
     <>
-      <Back to={origin}>Calendar</Back>
+      <Back to={origin}>{origin.startsWith('/library') ? 'My Programs' : 'Calendar'}</Back>
       {blocker.state === 'blocked' && (
         <Panel aria-label="Unsaved results">
           <Stack>

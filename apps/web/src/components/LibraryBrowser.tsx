@@ -11,10 +11,12 @@ import {
   useDiscoverPrograms,
   useFocuses,
   useProgramTypes,
+  useProgramPrefetch,
   type components,
 } from '@project/sdk'
 import { ChevronLeft, RotateCcw, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -34,7 +36,8 @@ type Creator = 'ALL' | 'PLATFORM' | 'COMMUNITY'
 export type LibraryBrowserContext =
   | {
       kind: 'programs'
-      programTypeId: string
+      programTypeId?: string
+      closeOnPick?: boolean
       actionLabel: string
       onPick: (program: S['ProgramSummary']) => void
     }
@@ -48,7 +51,7 @@ export type LibraryBrowserContext =
 
 const BROWSE = '/browse'
 /** Browser filters live in the URL beside the page's own parameters. */
-const PARAM = { q: 'bq', sort: 'bsort', creator: 'bcreator', facet: 'bfacet' }
+const PARAM = { q: 'bq', sort: 'bsort', creator: 'bcreator', facet: 'bfacet', type: 'btype' }
 
 /** Open/close the nested browser route without unmounting the page. */
 export function useLibraryBrowser() {
@@ -102,7 +105,8 @@ function LibraryBrowser({
   const categorySlugOf = useCategorySlugOf()
   const types = useProgramTypes()
   const categories = useCategories()
-  const programTypeId = context.kind === 'programs' ? context.programTypeId : ''
+  const prefetch = useProgramPrefetch()
+  const programTypeId = context.kind === 'programs' ? (context.programTypeId ?? params.get(PARAM.type) ?? '') : ''
   const focuses = useFocuses(programTypeId)
   const typeLabel = types.data?.find((t) => t.id === programTypeId)?.label
 
@@ -154,7 +158,7 @@ function LibraryBrowser({
     programTypeId,
     focusId: facet || undefined,
     sort,
-    enabled: context.kind === 'programs' && !!programTypeId,
+    enabled: context.kind === 'programs',
   })
   const activities = useDiscoverActivities({
     q: search,
@@ -172,7 +176,7 @@ function LibraryBrowser({
       ? (programs.data?.pages ?? [])
           .flatMap((page) => page.data.flatMap((d) => (d.program ? [d.program] : [])))
           .filter(keep)
-          .map((program) => ({ card: programCard(program, categorySlugOf), pick: () => { context.onPick(program); onClose() } }))
+          .map((program) => ({ card: programCard(program, categorySlugOf), pick: () => { context.onPick(program); if (context.closeOnPick !== false) onClose() } }))
       : (activities.data?.pages ?? [])
           .flatMap((page) => page.data.flatMap((d) => (d.activity ? [d.activity] : [])))
           .filter(keep)
@@ -187,7 +191,7 @@ function LibraryBrowser({
     context.kind === 'programs'
       ? `${typeLabel ?? 'Program'} Library`
       : 'Activity Library'
-  const filtered = !!search || !!params.get(PARAM.facet) || sort !== 'POPULAR' || creator !== 'ALL'
+  const filtered = !!params.get(PARAM.type) || !!search || !!params.get(PARAM.facet) || sort !== 'POPULAR' || creator !== 'ALL'
   const reset = () => {
     setQuery('')
     setParams(
@@ -285,6 +289,7 @@ function LibraryBrowser({
               (value) => setParam(PARAM.creator, value, 'ALL'),
             )}
           </div>
+          {context.kind === 'programs' && !context.programTypeId && <label className="flex items-center gap-3 text-xs text-muted">Program type<Select aria-label="Program type" value={programTypeId} className="max-w-xs" onChange={event => { setParams(previous => { const next = new URLSearchParams(previous); next.delete(PARAM.facet); if(event.target.value) next.set(PARAM.type, event.target.value); else next.delete(PARAM.type); return next }, { replace: true, state: window.history.state?.usr }) }}><option value="">All Program types</option>{types.data?.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}</Select></label>}
           {facets.length > 0 && (
             <div
               role="group"
@@ -336,7 +341,7 @@ function LibraryBrowser({
           ) : cards.length ? (
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {cards.map(({ card, pick }) => (
-                <li key={card.id}>
+                <li key={card.id} onPointerEnter={() => { if(context.kind === 'programs' && context.closeOnPick === false) prefetch(card.id) }} onFocus={() => { if(context.kind === 'programs' && context.closeOnPick === false) prefetch(card.id) }}>
                   <DiscoveryCard item={card} actionLabel={context.actionLabel} onPick={pick} />
                 </li>
               ))}
