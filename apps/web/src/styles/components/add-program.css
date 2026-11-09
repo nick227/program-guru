@@ -48,36 +48,6 @@
     gap: var(--space-4);
   }
 
-  .add-program-step {
-    margin: 0;
-    color: hsl(var(--color-muted));
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    letter-spacing: 0.06em;
-  }
-
-  .add-program-step span {
-    color: hsl(var(--color-accent));
-  }
-
-  .add-program-progress {
-    height: 3px;
-    overflow: hidden;
-    background: hsl(var(--color-border));
-  }
-
-  .add-program-progress__fill {
-    display: block;
-    width: 33.333%;
-    height: 100%;
-    background: hsl(var(--color-accent));
-    transition: width 180ms ease-out;
-  }
-
-  .add-program-progress__fill.is-wide {
-    width: 66.667%;
-  }
-
   .add-program-question {
     margin-top: 0.25rem;
     font-family: var(--font-display);

@@ -117,7 +117,6 @@ export function ProgramCreatePage() {
         <ProgramHeader
           title={title}
           onTitleChange={typeId ? setTitle : undefined}
-          step={1}
           autoFocus={!!typeId}
           disabled={busy}
           onConfirm={() => void continueToWorkspace()}

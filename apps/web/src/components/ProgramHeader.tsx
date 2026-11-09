@@ -4,14 +4,12 @@ import { Pencil } from 'lucide-react'
 export function ProgramHeader({
   title,
   onTitleChange,
-  step,
   autoFocus = false,
   disabled = false,
   onConfirm,
 }: {
   title: string
   onTitleChange?: (title: string) => void
-  step?: 1 | 2 | 3 | 4
   autoFocus?: boolean
   disabled?: boolean
   onConfirm?: () => void
@@ -44,24 +42,7 @@ export function ProgramHeader({
         ) : (
           <h1 className="page-title">{title || 'Add a Program'}</h1>
         )}
-        {step && (
-          <p className="add-program-step shrink-0" aria-live="polite">
-            <span>{String(step).padStart(2, '0')}</span> / 04
-          </p>
-        )}
       </header>
-      {step && (
-        <div
-          className="add-program-progress"
-          role="progressbar"
-          aria-label="Add a Program"
-          aria-valuemin={1}
-          aria-valuemax={4}
-          aria-valuenow={step}
-        >
-          <span className="add-program-progress__fill" style={{ width: `${(step / 4) * 100}%` }} />
-        </div>
-      )}
     </div>
   )
 }
