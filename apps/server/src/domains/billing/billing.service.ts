@@ -1,5 +1,6 @@
 // Billing (docs/adr/0001-billing-stripe-connect.md, 05-ARCHITECTURE.md §12).
 // Money state changes only through verified webhooks; this module never trusts the client.
+import { passesEmailVerification } from '../../lib/verification'
 import { db, type Prisma } from '@project/db'
 import { AppError, badRequest, conflict, forbidden, notFound } from '../../lib/errors'
 import { withIdempotency } from '../../lib/idempotency'
@@ -32,7 +33,7 @@ export async function getPayoutAccount(userId: string) {
 export async function startOnboarding(userId: string) {
   assertMarketplace()
   const user = await db.user.findUniqueOrThrow({ where: { id: userId }, include: { profile: true } })
-  if (!user.emailVerifiedAt) throw forbidden('Verify your email before setting up payouts')
+  if (!passesEmailVerification(user)) throw forbidden('Verify your email before setting up payouts')
   let account = await db.creatorPayoutAccount.findUnique({ where: { userId } })
   if (!account) {
     const created = await billingGateway().createRecipientAccount({ email: user.email, displayName: user.profile?.displayName ?? user.email })

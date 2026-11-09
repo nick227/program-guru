@@ -259,7 +259,7 @@ export async function mockApi(
       return send({
         id: uid(user === 'author' ? 1 : 5),
         email: `${user}@test.local`,
-        emailVerified: true,
+        emailVerified: true, emailVerificationRequired: true,
         status: 'ACTIVE',
         role: 'USER',
         profile: {

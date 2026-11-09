@@ -6545,6 +6545,7 @@ components:
       - id
       - email
       - emailVerified
+      - emailVerificationRequired
       - status
       - role
       - profile
@@ -6558,6 +6559,10 @@ components:
           type: string
         emailVerified:
           type: boolean
+        emailVerificationRequired:
+          type: boolean
+          description: Whether an unverified address is currently held back from publishing and payouts
+            (REQUIRE_EMAIL_VERIFICATION). When false, show confirmation as optional.
         status:
           $ref: '#/components/schemas/UserStatus'
         role:

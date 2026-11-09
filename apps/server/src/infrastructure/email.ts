@@ -43,6 +43,21 @@ export class CapturingProvider implements EmailProvider {
   }
 }
 
+/**
+ * EMAIL_PROVIDER=disabled: an explicit opt-out (UAT without an email provider). Messages are dropped
+ * and only the subject is logged: never the recipient, body, or the links (verification and reset
+ * tokens) inside it. Unlike capture, this is safe in production logs; the outbox still completes, so the
+ * worker's other jobs (media processing, notifications, reminders) are not held up by email.
+ */
+export class DisabledProvider implements EmailProvider {
+  readonly kind = 'disabled'
+  dropped = 0
+  async send(m: EmailMessage) {
+    this.dropped++
+    console.log(`[email] delivery disabled; dropped "${m.subject}"`)
+  }
+}
+
 let provider: EmailProvider | null = null
 
 export function email(): EmailProvider {
@@ -50,6 +65,8 @@ export function email(): EmailProvider {
   if (process.env.EMAIL_PROVIDER === 'resend') {
     if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) throw new Error('RESEND_API_KEY and EMAIL_FROM are required when EMAIL_PROVIDER=resend')
     provider = new ResendProvider(process.env.RESEND_API_KEY, process.env.EMAIL_FROM)
+  } else if (process.env.EMAIL_PROVIDER === 'disabled') {
+    provider = new DisabledProvider()
   } else {
     provider = new CapturingProvider()
   }

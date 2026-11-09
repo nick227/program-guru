@@ -41,9 +41,13 @@ export function productionConfigProblems(role: ProcessRole, env: NodeJS.ProcessE
     need('CLIENT_IP_HEADER', ['x-real-ip', 'none'].includes(env.CLIENT_IP_HEADER ?? ''), 'must be x-real-ip (behind Railway) or none')
   }
   if (role === 'worker') {
-    need('EMAIL_PROVIDER', env.EMAIL_PROVIDER === 'resend', 'must be resend (capture never delivers)')
-    need('RESEND_API_KEY')
-    need('EMAIL_FROM')
+    // resend, or an explicit `disabled` (UAT without email: messages dropped, contents never logged).
+    // Never capture: it prints whole messages, including verification and reset links, to the logs.
+    need('EMAIL_PROVIDER', ['resend', 'disabled'].includes(env.EMAIL_PROVIDER ?? ''), 'must be resend, or disabled to run without email (capture logs message contents)')
+    if (env.EMAIL_PROVIDER !== 'disabled') {
+      need('RESEND_API_KEY')
+      need('EMAIL_FROM')
+    }
   }
   if (env.MARKETPLACE_ENABLED === 'true') {
     need('STRIPE_API_KEY', !!(env.STRIPE_API_KEY ?? env.STRIPE_SECRET_KEY))

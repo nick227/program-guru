@@ -39,6 +39,18 @@ describe('production configuration gate', () => {
     expect(productionConfigProblems('api', { ...complete, R2_ACCOUNT_ID: undefined })).toEqual(['R2_ACCOUNT_ID is required'])
   })
 
+  it('lets the worker run without email only through an explicit disabled provider', () => {
+    const disabled = { ...complete, EMAIL_PROVIDER: 'disabled', RESEND_API_KEY: undefined, EMAIL_FROM: undefined }
+    expect(productionConfigProblems('worker', disabled)).toEqual([])
+    expect(productionConfigProblems('worker', { ...disabled, EMAIL_PROVIDER: undefined })).toEqual([
+      'EMAIL_PROVIDER must be resend, or disabled to run without email (capture logs message contents)',
+      'RESEND_API_KEY is required',
+      'EMAIL_FROM is required',
+    ])
+    expect(productionConfigProblems('worker', { ...disabled, EMAIL_PROVIDER: 'capture' })[0]).toMatch(/^EMAIL_PROVIDER must be resend/)
+    expect(productionConfigProblems('worker', { ...complete, RESEND_API_KEY: undefined })).toEqual(['RESEND_API_KEY is required'])
+  })
+
   it('never applies outside production', () => {
     expect(productionConfigProblems('api', { NODE_ENV: 'development' })).toEqual([])
   })
@@ -50,7 +62,7 @@ describe('production configuration gate', () => {
         'MEDIA_URL_SECRET must be set to a random value of at least 32 characters',
         'EMAIL_LINK_SECRET must be set to a random value of at least 32 characters',
         'STORAGE_PROVIDER must be r2',
-        'EMAIL_PROVIDER must be resend (capture never delivers)',
+        'EMAIL_PROVIDER must be resend, or disabled to run without email (capture logs message contents)',
       ]),
     )
   })

@@ -103,11 +103,12 @@ Migrations are additive and run only via `prisma migrate deploy`. Bootstrap fail
 | `COOKIE_DOMAIN` | ✓ | | Leave unset (host-only cookie on the API host) unless deliberately sharing |
 | `STORAGE_PROVIDER` | ✓ | ✓ | `r2` |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | ✓ | ✓ | R2 API token scoped to the one bucket (object read/write) |
-| `EMAIL_PROVIDER` | | ✓ | `resend` |
+| `EMAIL_PROVIDER` | | ✓ | `resend`; hosted UAT uses `disabled` until a sending domain exists (messages dropped, contents never logged) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | | ✓ | Sending-only key; `EMAIL_FROM` on the verified domain |
 | `RAILPACK_DEPLOY_APT_PACKAGES` | | ✓ | `ffmpeg` |
 | `GOOGLE_CLIENT_ID` | ✓ | | Optional; only if Google sign-in UI ships |
 | `MARKETPLACE_ENABLED` | ✓ | ✓ | `false` (Stripe variables not needed while false) |
+| `REQUIRE_EMAIL_VERIFICATION` | ✓ | | Unset in production (required). Hosted UAT sets `false` until email exists |
 | Vercel: `VITE_API_URL` | | | `https://api.<domain>` (build time) |
 
 The startup gate enforces every required row: a missing value fails the deploy with a list, rather than running insecurely.
