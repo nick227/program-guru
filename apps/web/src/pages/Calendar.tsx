@@ -271,63 +271,63 @@ export function CalendarPage() {
   return (
     <Page className="page--wide page--calendar mx-auto">
       <h1 className="sr-only">Calendar</h1>
-      <Stack className="gap-6">
 
-        <section className="calendar-toolbar" aria-label="Calendar controls">
-          <div className="calendar-toolbar__main">
-            <div className="calendar-toolbar__navigation">
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label={`Previous ${view}`}
-                onClick={() => step(-1)}
-              >
-                <ChevronLeft size={18} />
-              </Button>
-              <h2 className="calendar-toolbar__period">
-                {title}
-              </h2>
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label={`Next ${view}`}
-                onClick={() => step(1)}
-              >
-                <ChevronRight size={18} />
-              </Button>
-              <Button
-                variant="ghost"
-                className="calendar-toolbar__today"
-                onClick={() => updateCalendarParams(view, current)}
-              >
-                Today
-              </Button>
-            </div>
+      <header className="sub-header" aria-label="Calendar controls">
+        <div className="sub-header__title">
+          <div className="calendar-toolbar__navigation">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={`Previous ${view}`}
+              onClick={() => step(-1)}
+            >
+              <ChevronLeft size={18} />
+            </Button>
+            <h2 className="sub-header__heading calendar-toolbar__period">
+              {title}
+            </h2>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={`Next ${view}`}
+              onClick={() => step(1)}
+            >
+              <ChevronRight size={18} />
+            </Button>
+            <Button
+              variant="ghost"
+              className="calendar-toolbar__today"
+              onClick={() => updateCalendarParams(view, current)}
+            >
+              Today
+            </Button>
+          </div>
 
-            <SegmentedControl
-              ariaLabel="Calendar view"
-              className="calendar-toolbar__views"
-              value={view}
-              onChange={(nextView) => updateCalendarParams(nextView as View)}
-              options={[
-                { value: 'day', label: 'Day' },
-                { value: 'week', label: 'Week' },
-                { value: 'month', label: 'Month' },
-                { value: 'year', label: 'Year' },
-              ]}
-            />
+          <SegmentedControl
+            ariaLabel="Calendar view"
+            className="calendar-toolbar__views"
+            value={view}
+            onChange={(nextView) => updateCalendarParams(nextView as View)}
+            options={[
+              { value: 'day', label: 'Day' },
+              { value: 'week', label: 'Week' },
+              { value: 'month', label: 'Month' },
+              { value: 'year', label: 'Year' },
+            ]}
+          />
+        </div>
 
-            <div className="calendar-toolbar__actions">
-                <details className="calendar-filter">
-                  <summary className="calendar-filter__trigger">
-                    <Filter size={15} aria-hidden />
-                    <span>Filters</span>
-                    {categoryFilter !== 'all' && (
-                      <span className="calendar-filter__active" aria-hidden />
-                    )}
-                  </summary>
-                  <div className="calendar-filter__menu" aria-label="Filter activities">
-                    {[
+        <div className="sub-header__actions">
+          <details className="calendar-filter">
+            <summary className="calendar-filter__trigger sub-header__btn">
+              <Filter size={15} aria-hidden />
+              <span>Filters</span>
+              {categoryFilter !== 'all' && (
+                <span className="calendar-filter__active" aria-hidden />
+              )}
+            </summary>
+            <div className="calendar-filter__menu" aria-label="Filter activities">
+              {[
                 { id: 'all', label: 'All Activities' },
                 { id: 'fitness', label: 'Fitness' },
                 { id: 'wellness', label: 'Wellness' },
@@ -335,43 +335,43 @@ export function CalendarPage() {
                 { id: 'finance', label: 'Finance' },
                 { id: 'relationships', label: 'Relationships' },
                 { id: 'group', label: 'Group' },
-                    ].map((chip) => {
-                      const isSelected = categoryFilter === chip.id
-                      return (
-                        <button
-                          key={chip.id}
-                          type="button"
-                          aria-pressed={isSelected}
-                          onClick={() => setCategoryFilter(chip.id)}
-                          className={cn(
-                            'calendar-filter__option',
-                            isSelected && 'calendar-filter__option--selected',
-                          )}
-                        >
-                          {chip.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </details>
-              <Link
-                to={`/library?returnTo=${encodeURIComponent(origin)}`}
-                className="calendar-toolbar__library"
-              >
-                <Plus size={16} aria-hidden />
-                My Programs
-              </Link>
-              <Link
-                to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
-                className="calendar-toolbar__add"
-              >
-                <Plus size={16} aria-hidden />
-                Add Program
-              </Link>
+              ].map((chip) => {
+                const isSelected = categoryFilter === chip.id
+                return (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => setCategoryFilter(chip.id)}
+                    className={cn(
+                      'calendar-filter__option',
+                      isSelected && 'calendar-filter__option--selected',
+                    )}
+                  >
+                    {chip.label}
+                  </button>
+                )
+              })}
             </div>
-          </div>
-          
-        </section>
+          </details>
+          <Link
+            to={`/library?returnTo=${encodeURIComponent(origin)}`}
+            className="sub-header__btn"
+          >
+            <Plus size={16} aria-hidden />
+            <span>My Programs</span>
+          </Link>
+          <Link
+            to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
+            className="sub-header__btn sub-header__btn--primary"
+          >
+            <Plus size={16} aria-hidden />
+            <span>Add Program</span>
+          </Link>
+        </div>
+      </header>
+
+      <Stack className="gap-6 mt-6">
 
         {params.get('promptReminder') === '1' && (
           <Panel aria-label="Daily reminder prompt" className="panel--accent">

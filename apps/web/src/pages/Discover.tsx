@@ -67,34 +67,38 @@ export function LibraryPage() {
   const filtered = selectPrograms(rows, query, status, owned, sort)
   return (
     <Page className="page--wide program-library">
-      <header className="library-heading">
-        <div className="flex gap-3">
-          <h1>
+      <header className="sub-header">
+        <div className="sub-header__title">
+          <h1 className="sub-header__heading">
             My Programs
-            <span className="library-count">
+            <span className="sub-header__count">
               {library.data ? rows.length : '—'}
             </span>
           </h1>
         </div>
-        <div className="library-heading-actions">
-          
-          <Button
+        <div className="sub-header__actions">
+          <button
+            type="button"
             onClick={() => navigate('/')}
-            variant="outline"
+            className="sub-header__btn"
           >
-            <Calendar size={16} /> Calendar
-          </Button>
-          <Button onClick={browser.open}
-            variant="outline"
+            <Calendar size={16} aria-hidden />
+            <span>Calendar</span>
+          </button>
+          <button
+            type="button"
+            onClick={browser.open}
+            className="sub-header__btn"
           >
-            <Search size={16} /> Browse Programs
-          </Button>
+            <Search size={16} aria-hidden />
+            <span>Browse Programs</span>
+          </button>
           <Link
             to={`/programs/new?returnTo=${encodeURIComponent(`/library?${params}`)}`}
-            className="library-open"
+            className="sub-header__btn sub-header__btn--primary"
           >
-                <Plus size={16} aria-hidden />
-                Add Program
+            <Plus size={16} aria-hidden />
+            <span>Add Program</span>
           </Link>
         </div>
       </header>

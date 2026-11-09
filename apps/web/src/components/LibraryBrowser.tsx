@@ -222,35 +222,43 @@ function LibraryBrowser({
       aria-label={title}
       className="fixed inset-x-0 bottom-0 top-16 z-30 flex flex-col overflow-hidden border-t border-border bg-background shadow-2xl"
     >
-      <header className="border-b border-border bg-surface px-4 py-4 sm:px-6 lg:px-8">
+      <header className="sub-header-dialog-header">
         <div className="mx-auto flex w-full page--wide flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1>{title}</h1>
-            <div className="flex wrap-nowrap gap-2 library-browser-controls">
-              
-          <Button
-            onClick={() => navigate('/')}
-            variant="outline"
-          >
-            <Calendar size={16} /> Calendar
-          </Button>
+          <div className="sub-header">
+            <div className="sub-header__title">
+              <h1 className="sub-header__heading">{title}</h1>
+            </div>
+            <div className="sub-header__actions">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose()
+                  navigate('/')
+                }}
+                className="sub-header__btn"
+              >
+                <Calendar size={16} aria-hidden />
+                <span>Calendar</span>
+              </button>
               <Link
                 to={`/library?returnTo=${encodeURIComponent(origin)}`}
-                className="calendar-toolbar__library"
+                onClick={onClose}
+                className="sub-header__btn"
               >
                 <Plus size={16} aria-hidden />
-                My Programs
+                <span>My Programs</span>
               </Link>
               <Link
                 to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
-                className="calendar-toolbar__add"
+                onClick={onClose}
+                className="sub-header__btn sub-header__btn--primary"
               >
                 <Plus size={16} aria-hidden />
-                Add Program
+                <span>Add Program</span>
               </Link>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-between pt-1">
             <div className="flex wrap-nowrap gap-2 grow">
             <div className="relative min-w-[200px] flex-1 sm:max-w-md">
               <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted" />

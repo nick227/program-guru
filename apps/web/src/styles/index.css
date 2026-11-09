@@ -7,6 +7,7 @@
 @import './tokens/semantic.css';
 @import './base/typography.css';
 @import './components/page.css';
+@import './components/sub-header.css';
 @import './components/panel.css';
 @import './components/section.css';
 @import './components/activity.css';
