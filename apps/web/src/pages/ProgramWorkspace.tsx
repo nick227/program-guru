@@ -22,7 +22,7 @@ import {
   usePublishProgram,
   type components,
 } from '@project/sdk'
-import { Clock, Repeat, Upload } from 'lucide-react'
+import { Clock, ExternalLink, Repeat, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page, Stage, Stack, Row, Panel } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
@@ -111,9 +111,18 @@ export function ProgramWorkspacePage() {
   return (
     <Page>
       <Stage className="w-full max-w-2xl mx-auto space-y-6">
-        <Back to={panelParam ? base : '/library'}>
-          {panelParam ? 'Workspace' : 'My Programs'}
-        </Back>
+        <Row className="justify-between items-center">
+          <Back to={panelParam ? base : '/library'}>
+            {panelParam ? 'Workspace' : 'My Programs'}
+          </Back>
+          <Link
+            to={buildProgramUrl({ id: ws.id, title: ws.title })}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:opacity-90"
+          >
+            <ExternalLink size={13} />
+            <span>View Program Page</span>
+          </Link>
+        </Row>
 
         {/* Title header with autosave & version CAS */}
         <TitleEditor key={ws.id} ws={ws} />
@@ -506,21 +515,36 @@ function WorkspaceActivityRow({
       summary !== (detail.data.summary ?? ''))
 
   return (
-    <article className="rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border/80 space-y-3">
-      <Row className="items-center justify-between gap-3">
-        <Row className="items-center gap-3 min-w-0 flex-1">
-          <EntityHero
-            hero={activityHero(detail.data ?? activity, categorySlugOf)}
-            size="thumb"
-          />
+    <article className="rounded-2xl border border-border bg-surface p-4 transition-all hover:border-accent hover:shadow-sm space-y-3">
+      <Row className="items-center justify-between gap-4">
+        <Row className="items-center gap-4 min-w-0 flex-1">
+          <div className="w-24 shrink-0 sm:w-28">
+            <EntityHero
+              hero={activityHero(
+                {
+                  title: detail.data?.title ?? title,
+                  thumbnailUrl: detail.data?.thumbnailUrl,
+                  categoryId: detail.data?.categoryId,
+                },
+                categorySlugOf,
+              )}
+              size="card"
+              className="aspect-preview rounded-[var(--radius-media)]"
+            />
+          </div>
           <div className="min-w-0 flex-1">
             <Link
               to={`/activities/${activity.activityId}?returnTo=${encodeURIComponent(returnTo)}`}
-              className="font-semibold truncate block hover:text-accent transition-colors text-sm"
+              className="font-semibold truncate block hover:text-accent transition-colors text-sm sm:text-base leading-snug"
             >
               {activity.title}
             </Link>
-            <div className="flex items-center gap-3 text-xs text-muted mt-1">
+            {detail.data?.summary && (
+              <p className="text-xs text-muted line-clamp-1 mt-0.5">
+                {detail.data.summary}
+              </p>
+            )}
+            <div className="flex items-center gap-3 text-xs text-muted mt-1.5 font-medium">
               <span className="inline-flex items-center gap-1">
                 <Clock size={12} aria-hidden />
                 {duration}
