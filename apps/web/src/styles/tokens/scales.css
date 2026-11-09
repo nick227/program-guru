@@ -23,14 +23,6 @@
   --text-2xl: 1.75rem;
   --text-3xl: 2rem;
   --text-4xl: 2.5rem;
-  --text-5xl: 3rem;
-  --text-6xl: 4rem;
-  --text-7xl: 5rem;
-  --text-8xl: 6rem;
-  --text-9xl: 8rem;
-  --text-10xl: 10rem;
-  --text-11xl: 12rem;
-  --text-12xl: 14rem;
 
   --leading-tight: 1.25;
   --leading-snug: 1.375;
@@ -48,7 +40,34 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   --control-min: 2.75rem;
+
+  /* Type roles (04-UI §4). Moderate: the largest text on any screen is a hero title. */
+  --type-hero-title: clamp(var(--text-2xl), 1.2rem + 2.4vw, var(--text-4xl));
+  --type-page-title: var(--text-2xl);
+  --type-section-title: var(--text-xl);
+  --type-content-title: var(--text-base);
+  --type-meta: var(--text-sm);
+  --type-caption: var(--text-xs);
+
+  /* Page width presets (04-UI §4). Pages pick one; no page-specific max-width values. */
+  --width-focused: 42rem;  /* forms, the Program editor, single-task stages */
+  --width-content: 72rem;  /* Program page, Activity, Group, Profile, Discover */
+  --width-wide: 1920px;    /* Calendar and management tables */
+
+  /* Legacy names, kept until the migration moves pages onto the presets */
   --page-max: 80rem;
-  --page-wide-max: 1920px;
+  --page-wide-max: var(--width-wide);
   --stage-max: 100%;
+
+  /* Media ratios (04-UI §4) */
+  --ratio-hero: 16 / 9;
+  --ratio-preview: 4 / 3;
+  --ratio-thumb: 1 / 1;
+  --ratio-profile-cover: 3 / 1;
+
+  /*
+    Breakpoints cannot be custom properties inside @media. The only allowed values
+    are Tailwind's: sm 640px, md 768px, lg 1024px, xl 1280px.
+    Hand-written CSS uses (min-width: 640px) or (max-width: 639.98px), etc.
+  */
 }

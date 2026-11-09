@@ -14,8 +14,17 @@
   }
 }
 
+/* Width presets (04-UI §4). New and migrated pages use exactly one. */
+.page--focused {
+  max-width: var(--width-focused);
+}
+
+.page--content {
+  max-width: var(--width-content);
+}
+
 .page--wide {
-  max-width: var(--page-wide-max);
+  max-width: var(--width-wide);
 }
 
 .page--calendar {

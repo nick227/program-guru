@@ -95,7 +95,7 @@
 
 **Reference principles, not a game skin or generic dashboard:**
 
-- **Editorial framing:** ink typography, cool stone canvas, restrained elevation, purposeful negative space, Program imagery as quiet hero on content cards.
+- **Editorial framing:** confident type on a deep charcoal canvas (light mode fully supported), restrained elevation, purposeful negative space, Program imagery as the hero where it informs.
 - **Confident controls:** large hit areas, visibly selected buttons, obvious single primary action per stage, clear focus rings without requiring gamepad support.
 - **Hierarchy over decoration:** minimal copy, compact metadata, strong emphasis on active status and next action; no gratuitous gradients, faux HUD, purple theme defaults, or dense status walls.
 - **Progress feedback:** subtle completion confirmation, tasteful achievement reveal from real milestones, no manipulative streak pressure.

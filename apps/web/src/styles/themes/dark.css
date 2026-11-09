@@ -15,6 +15,13 @@
   --color-success: 156 50% 58%;
   --color-attention: 38 85% 62%;
 
+  /* Participation states (04-UI §4). Pair with text or an icon: never color alone. */
+  --color-status-planned: 214 16% 72%;
+  --color-status-active: 199 85% 62%;
+  --color-status-completed: 156 50% 58%;
+  --color-status-paused: 38 85% 62%;
+  --color-status-unavailable: 215 10% 46%;
+
   --background: var(--color-bg);
   --text: var(--color-text);
   --surface: var(--color-surface);

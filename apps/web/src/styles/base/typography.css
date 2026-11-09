@@ -5,6 +5,11 @@
     border-color: hsl(var(--color-border));
   }
 
+  /* Route changes focus <main> for screen readers; it is not a control, so no ring. */
+  main[tabindex='-1']:focus {
+    outline: none;
+  }
+
   body {
     margin: 0;
     min-height: 100vh;

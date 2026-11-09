@@ -1,0 +1,195 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program Guru Comparison Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: one column of screens; each screen = 3 scrollable device frames + findings. Palette mirrors the app's own dark/light tokens. */
+:root{
+  color-scheme:dark;
+  --bg:hsl(222 22% 9%);--surface:hsl(220 18% 14%);--raised:hsl(220 16% 17%);
+  --text:hsl(210 20% 94%);--muted:hsl(214 12% 68%);--border:hsl(215 12% 26%);
+  --accent:hsl(220 85% 62%);--danger:hsl(0 78% 68%);--attention:hsl(38 85% 62%);--ok:hsl(156 50% 58%);
+  --sans:'Source Sans 3','Segoe UI',system-ui,sans-serif;
+  --display:Helvetica,'Source Sans 3',system-ui,sans-serif;
+  --mono:ui-monospace,'Cascadia Code',monospace;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;
+  --bg:hsl(210 18% 94%);--surface:hsl(0 0% 100%);--raised:hsl(210 25% 98%);
+  --text:hsl(222 28% 12%);--muted:hsl(215 12% 40%);--border:hsl(214 16% 82%);
+  --accent:hsl(224 78% 42%);--danger:hsl(0 68% 42%);--attention:hsl(36 80% 36%);--ok:hsl(158 55% 28%)}}
+:root[data-theme="light"]{color-scheme:light;
+  --bg:hsl(210 18% 94%);--surface:hsl(0 0% 100%);--raised:hsl(210 25% 98%);
+  --text:hsl(222 28% 12%);--muted:hsl(215 12% 40%);--border:hsl(214 16% 82%);
+  --accent:hsl(224 78% 42%);--danger:hsl(0 68% 42%);--attention:hsl(36 80% 36%);--ok:hsl(158 55% 28%)}
+body{background:var(--bg);color:var(--text);font:15px/1.5 var(--sans);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 64px}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:48px}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+h1{font-size:2rem}h2{font-size:1.375rem}h3{font-size:1rem}
+p{margin:0}.muted{color:var(--muted)}
+header{display:flex;flex-direction:column;gap:8px;max-width:72ch}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px}
+nav.toc a{color:var(--text);text-decoration:none;border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:.875rem}
+nav.toc a:hover{border-color:var(--accent)}
+section{display:flex;flex-direction:column;gap:16px;scroll-margin-top:16px}
+.route{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+.shots{display:grid;grid-template-columns:minmax(0,1280fr) minmax(0,768fr) minmax(0,390fr);gap:12px;align-items:start}
+figure{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+figcaption{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);font-family:var(--mono)}
+figcaption a{color:var(--accent)}
+.frame{height:560px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:#000}
+.frame img{display:block;width:100%;height:auto;max-width:100%}
+@media (max-width:900px){.shots{grid-template-columns:1fr}.frame{height:440px}}
+ul.find{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:8px 24px}
+ul.find li{padding-left:18px;position:relative;font-size:.9rem}
+ul.find li::before{content:"";position:absolute;left:0;top:.55em;width:8px;height:8px;border-radius:50%;background:var(--muted)}
+ul.find li.bug::before{background:var(--danger)}ul.find li.inc::before{background:var(--attention)}ul.find li.good::before{background:var(--ok)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.legend .b::before{background:var(--danger)}.legend .i::before{background:var(--attention)}.legend .g::before{background:var(--ok)}
+.tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.875rem;min-width:720px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+th{background:var(--surface);font-weight:600}
+tr:last-child td{border-bottom:0}
+code{font-family:var(--mono);font-size:.82em;background:var(--raised);padding:1px 4px;border-radius:4px}
+ol.order{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+hr{border:0;border-top:1px solid var(--border);margin:0}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Program Guru comparison board</h1>
+  <p class="muted">Screenshots from the running app (local dev, dark theme), 9 Nov 2026, at 1280, 768 and 390px. Program page = Antigravity's redesign. Scroll inside each frame; open full size from the caption.</p>
+  <p class="muted">Data caveat: the participant account holds 14 E2E-run Programs named “Browser strength &lt;timestamp&gt;”, so My Programs, Calendar and the editor show test data. Reseed a demo account before a design review.</p>
+  <div class="legend"><span class="b">bug or untruthful content</span><span class="i">visual inconsistency</span><span class="g">keep</span></div>
+</header>
+<nav class="toc" id="toc"></nav>
+<div id="screens" style="display:flex;flex-direction:column;gap:48px"></div>
+
+<hr>
+<section id="cross">
+  <h2>Across screens</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Dimension</th><th>Program</th><th>Add a Program / Library</th><th>My Programs</th><th>Activity</th><th>Calendar</th><th>Editor</th></tr></thead>
+    <tbody>
+      <tr><td>Content width</td><td>1104px (<code>max-w-6xl</code>)</td><td>1232px full</td><td>1232px full</td><td>1232px full</td><td>1232px full</td><td>672px (step 1: 1232px)</td></tr>
+      <tr><td>h1 size</td><td>48px hero</td><td>28px, h2 36px</td><td>~44px</td><td>28px</td><td>24px range label</td><td>36px</td></tr>
+      <tr><td>Section title</td><td>24px bold</td><td>36px</td><td>table header 11px caps</td><td>18px</td><td>16px</td><td>18px / 11px caps labels</td></tr>
+      <tr><td>Primary button</td><td><code>blue-600</code>, 12px radius, 44px</td><td>accent, 8px</td><td>accent, 8px</td><td>accent, 8px</td><td>accent, 8px</td><td>accent, 8px, 44px</td></tr>
+      <tr><td>Sections</td><td>bordered boxes, 16–24px radius</td><td>bordered tiles</td><td>open table rows</td><td>4 stacked panels</td><td>panel strip + columns</td><td>panel per field group</td></tr>
+      <tr><td>Image fallback</td><td>Unsplash photos (<code>photography.ts</code>)</td><td>title cards</td><td>category icon tile</td><td>none</td><td>title cards</td><td>category icon / Unsplash</td></tr>
+      <tr><td>Media ratio</td><td>hero ~3.3:1, rows 16:11, media 16:11</td><td>~16:9 title card</td><td>3:2 thumb</td><td>1:1 add tile</td><td>1:1 thumb</td><td>3:4 cover upload, 16:9 rows</td></tr>
+      <tr><td>Blues in use</td><td colspan="6">App accent <code>hsl(220 85% 62%)</code>, Tailwind <code>blue-600</code>, <code>blue-500</code> and <code>blue-400</code> on the Program page: four blues for one action color.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="audit">
+  <h2>Component audit: Antigravity's new files</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>New</th><th>Overlaps with</th><th>Verdict</th><th>Before it is shared</th></tr></thead>
+    <tbody>
+      <tr><td><code>photography.ts</code></td><td><code>resolveHero</code> + <code>EntityHero</code></td><td>Real duplication: a second fallback chain that bypasses the category-token fallback and <code>onError</code>. Also used by <code>ProgramWorkspace</code>.</td><td>Remove the stock lists; keep <code>formatMediaDuration</code> (move to <code>lib/media.ts</code>). Hotlinked Unsplash URLs are not the rights-cleared platform media the spec requires.</td></tr>
+      <tr><td><code>ProgramHero</code></td><td><code>EntityHero size="banner"</code>, <code>ProgramHeader</code></td><td>Worth generalizing to <code>MediaHero</code>; the layout is good. Image layer should be <code>EntityHero</code>.</td><td>Tokens in place of <code>blue-600</code>/<code>neutral-950</code>; drop the bookmark (local state only, toasts "saved"), the always-on verified check, and defaults <code>'5 days/week'</code> and <code>'Education'</code>.</td></tr>
+      <tr><td><code>ProgramActivityCard</code></td><td><code>ActivityTile</code>, Workspace activity rows, <code>EntityHero size="row"</code></td><td>Generalize to <code>ContentRow</code> (4:3 preview, title, meta, trailing).</td><td>Use <code>EntityHero</code>; remove the <code>'15 min'</code> and "Guided session" defaults.</td></tr>
+      <tr><td><code>ProgramMediaGallery</code></td><td><code>RelatedMediaRiver</code> (same <code>RiverItem</code> type, same <code>MediaViewer</code> wiring)</td><td>Real duplication. Merge into one <code>MediaGallery</code> (grid on desktop, rail on mobile, upload optional).</td><td>Remove the four invented fallback items. Program.tsx also invents VIDEO/PHOTO types and durations for Activity previews.</td></tr>
+      <tr><td><code>ProgramParticipationStrip</code></td><td><code>AvatarStack</code>, <code>ProgramPeople</code></td><td>Program-specific; keep, uses <code>AvatarStack</code> correctly.</td><td>Remove the three stock-photo "participants" (Alex M., Marcus K., Elena R.) shown next to the real count.</td></tr>
+      <tr><td><code>ProgramTogetherCard</code></td><td><code>ProgramGroups</code>, <code>GroupInviteLink</code>, <code>ActivityTogether</code></td><td>Partial overlap: invite logic duplicates <code>GroupInviteLink</code>. Keep the component, reuse the invite control.</td><td>Remove stock faces "James / Sarah / Devon".</td></tr>
+      <tr><td><code>ProgramSchedulePreview</code></td><td><code>CalendarSurface</code> (different job)</td><td>Program-specific; no duplication.</td><td>It does not use the real schedule: activities are spread by index, only Mon–Fri render, and the session count is wrong. The screenshot shows Monday as a rest day and all three activities on Tuesday. Needs the published placements or should be hidden.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted">Program.tsx also passes invented values: instruction counts <code>(idx % 3) + 2</code>, durations from a fixed list, and the description “Structured daily session for …” on every Activity.</p>
+</section>
+
+<section id="system">
+  <h2>System recommendations</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Retain as is</th><th>Generalize</th><th>Merge or remove</th><th>Added in this pass</th></tr></thead>
+    <tbody><tr>
+      <td><code>Page / Stage / Panel / Row / Grid / Stack</code>, <code>Button</code>, <code>Input</code>, <code>Select</code>, <code>SegmentedControl</code>, <code>Avatar</code>, <code>AvatarStack</code>, <code>EntityHero</code> + <code>resolveHero</code>, <code>MediaViewer</code>, <code>ThumbnailGrid</code>/<code>MediaItem</code>, <code>CalendarSurface</code>, <code>Feedback</code>/<code>EmptyState</code></td>
+      <td><code>ProgramHero</code> → <code>MediaHero</code><br><code>ProgramActivityCard</code> → <code>ContentRow</code><br>section heading markup (repeated in 5 places) → <code>SectionHeader</code><br>status dots → <code>StatusText</code></td>
+      <td><code>photography.ts</code> stock lists → <code>resolveHero</code><br><code>ProgramMediaGallery</code> + <code>RelatedMediaRiver</code> → <code>MediaGallery</code><br>Together invite button → <code>GroupInviteLink</code></td>
+      <td>Width presets <code>--width-focused/content/wide</code> + <code>.page--*</code> + <code>max-w-*</code><br>Ratios <code>aspect-hero/preview/thumb/profile-cover</code><br>Status tokens <code>--color-status-*</code>, both themes<br>Type roles <code>--type-*</code>; removed unused <code>--text-5xl…12xl</code><br>Breakpoint rule: Tailwind's four only<br>Fixed <code>&lt;main&gt;</code> focus frame</td>
+    </tr></tbody>
+  </table></div>
+  <h3>Proposed migration order</h3>
+  <ol class="order">
+    <li><b>Program page truthfulness pass</b> (small, before anything is shared): remove stock people, invented media, counts, durations and schedule; tokens in place of Tailwind blues.</li>
+    <li><b>Extract</b> <code>MediaHero</code>, <code>ContentRow</code>, <code>SectionHeader</code>, <code>MediaGallery</code>, <code>StatusText</code>; Program page consumes them with no visual change.</li>
+    <li><b>Discover + My Programs</b>: <code>page--content</code> / <code>page--wide</code>, ContentRow on mobile My Programs, status tokens, one type scale. Replaces <code>program-library.css</code> breakpoints 680/850/1150.</li>
+    <li><b>Activity + Group</b>: content width, MediaHero-lite header, fewer panels, MediaGallery for Related Media.</li>
+    <li><b>Calendar + Editor</b>: status tokens on tiles, fix the overhanging More button, editor on <code>page--focused</code> for all four steps, 16:9 cover upload.</li>
+  </ol>
+</section>
+</div>
+
+<script>
+const W=[['desktop',1280],['tablet',768],['mobile',390]];
+const screens=[
+ {id:'program',name:'Program page',route:'/programs/c48a96c6… (Daily Language & Study Habit, participant)',shots:['program'],find:[
+  ['bug','Stock-photo avatars beside the participant count, and three more stock faces in Do This Together, presented as people.'],
+  ['bug','Related Media tiles are Activity title cards relabelled as videos with invented durations (2:50, 4:15, 5:40).'],
+  ['bug','Schedule shows Monday as a rest day, all activities on Tuesday, and "3 planned sessions" for 21 days at 5 days/week.'],
+  ['bug','Instruction counts, durations and the description line on every Activity row are generated, not from the API.'],
+  ['bug','Bookmark keeps local state only but toasts "saved"; verified check appears on every creator.'],
+  ['inc','The platform cover is a text title card, so "Vocabulary Review" sits behind the Program title: two titles in one hero.'],
+  ['inc','48px hero title; 16–24px radii; Tailwind blues instead of the accent token; every section is a bordered box.'],
+  ['inc','Mobile: hero actions take three rows; the overflow button wraps on its own.'],
+  ['good','Hero composition, metadata line, single primary action, two-column body on desktop.'],
+ ]},
+ {id:'discover',name:'Discover',route:'/discover (Add a Program type picker) and /discover/browse (Program Library sheet)',shots:['discover','browse'],find:[
+  ['inc','/discover is the "Add a Program" type picker, with "01 / 04" progress and the Details step highlighted while choosing a type.'],
+  ['inc','The "Program Type" section title (36px) is larger than the page title (28px).'],
+  ['inc','The 01–17 numbering is decorative; the types have no order.'],
+  ['inc','Library covers use an Activity title card ("Morning Routine" for Daily Mindfulness & Reflection), with saturated full-bleed category color and a clipped category tab.'],
+  ['inc','Library filter segments are boxed and 11px; Calendar segments are pills. Two segmented-control styles.'],
+  ['good','Library sheet over the picker keeps origin; filters are compact.'],
+ ]},
+ {id:'my-programs',name:'My Programs',route:'/library (participant)',shots:['my-programs'],find:[
+  ['inc','~44px page title: the largest page h1 on the site, next to 11px caps column headers.'],
+  ['inc','Mobile turns each row into a ~200px labelled stack; tabs overflow and "Completed" is cut off.'],
+  ['inc','Category icon tiles here, Unsplash photos on the Program page, title cards in Discover: three image treatments for the same Programs.'],
+  ['inc','"Active" uses the success green; becomes --color-status-active.'],
+  ['good','Dense desktop table is the right density for management.'],
+ ]},
+ {id:'activity',name:'Activity',route:'/occurrences/23d485bd… (Squats occurrence, participant)',shots:['activity'],find:[
+  ['bug','Header says "Ready" while the Session panel says "Completed".'],
+  ['inc','Four stacked full-width panels at 1232px; steppers 40px wide inside a 1200px box. Needs the content width and fewer boxes.'],
+  ['inc','Section titles 18px here vs 24px on the Program page.'],
+  ['inc','Empty Related Media is one 230px dashed tile plus a full-width "Media from all attempts" button.'],
+  ['inc','No identity image; the Program page uses a large hero for the same content family.'],
+ ]},
+ {id:'calendar',name:'Calendar',route:'/?view=week (participant)',shots:['calendar'],find:[
+  ['bug','The "More" button overhangs the right edge of every Activity tile, at all widths.'],
+  ['inc','Planned tiles are filled teal-green, close to the completed hue; state needs the new status tokens.'],
+  ['inc','The date appears twice: day strip ("TODAY 9") and column header ("Today · Mon 9").'],
+  ['inc','Toolbar mixes three button styles in one row (icon square, pill segment, filled accent).'],
+  ['good','Mono day numbers, seven columns on desktop, day stack on mobile per spec.'],
+ ]},
+ {id:'editor',name:'Program editor (4 steps)',route:'/programs/new, then /programs/26c9ae20…/workspace?step=details|activities|publish (author)',shots:['editor-1-new','editor-2-details','editor-3-activities','editor-4-publish'],find:[
+  ['inc','Width jumps: step 1 is 1232px, steps 2–4 are 672px.'],
+  ['inc','Step 1 says "01 / 04"; the stepper on steps 2–4 shows three steps.'],
+  ['inc','Cover upload frame is 3:4 portrait; the approved hero ratio is 16:9.'],
+  ['bug','Inline Duration/Frequency selects: the chevron overlaps the value ("30 mi▾").'],
+  ['inc','"There are no unpublished changes" is shown in danger red; it is information.'],
+  ['inc','Two full-width primaries on Publish (Invite people, Publish Update); nested box inside a panel.'],
+  ['inc','11px uppercase field labels here; sentence case elsewhere.'],
+ ]},
+];
+const toc=document.getElementById('toc'),root=document.getElementById('screens');
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+for(const s of screens){
+  toc.insertAdjacentHTML('beforeend',`<a href="#${s.id}">${esc(s.name)}</a>`);
+  let html=`<section id="${s.id}"><div><h2>${esc(s.name)}</h2><p class="route">${esc(s.route)}</p></div>`;
+  for(const shot of s.shots){
+    if(s.shots.length>1) html+=`<h3 class="route" style="font-size:.85rem">${shot.replace(/^editor-\d-/,'step: ')}</h3>`;
+    html+='<div class="shots">'+W.map(([w,px])=>`<figure><figcaption><span>${w} · ${px}px</span><a href="shots/${shot}-${w}.jpg" target="_blank" rel="noopener">full size</a></figcaption><div class="frame"><img loading="lazy" src="shots/${shot}-${w}.jpg" alt="${esc(s.name)} at ${px}px"></div></figure>`).join('')+'</div>';
+  }
+  html+='<ul class="find">'+s.find.map(([k,t])=>`<li class="${k}">${esc(t)}</li>`).join('')+'</ul></section>';
+  root.insertAdjacentHTML('beforeend',html);
+}
+['cross','audit','system'].forEach((id,i)=>toc.insertAdjacentHTML('beforeend',`<a href="#${id}">${['Across screens','Component audit','Recommendations'][i]}</a>`));
+</script>

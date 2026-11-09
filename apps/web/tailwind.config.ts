@@ -34,6 +34,13 @@ export default {
         },
         success: token('color-success'),
         attention: token('color-attention'),
+        status: {
+          planned: token('color-status-planned'),
+          active: token('color-status-active'),
+          completed: token('color-status-completed'),
+          paused: token('color-status-paused'),
+          unavailable: token('color-status-unavailable'),
+        },
         cat: {
           fitness: token('cat-fitness'),
           'fitness-fg': token('cat-fitness-fg'),
@@ -53,6 +60,17 @@ export default {
         sans: ['var(--font-sans)'],
         display: ['var(--font-display)'],
         mono: ['var(--font-mono)'],
+      },
+      maxWidth: {
+        focused: 'var(--width-focused)',
+        content: 'var(--width-content)',
+        wide: 'var(--width-wide)',
+      },
+      aspectRatio: {
+        hero: '16 / 9',
+        preview: '4 / 3',
+        thumb: '1 / 1',
+        'profile-cover': '3 / 1',
       },
       transitionDuration: {
         fast: 'var(--duration-fast)',

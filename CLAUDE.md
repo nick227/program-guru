@@ -1,6 +1,6 @@
 # Project State
 
-Goal-oriented platform: a personal weekly calendar for following structured Programs, a Program authoring workspace, and a creator marketplace. Working name: Programs App.
+Goal-oriented platform: a personal weekly calendar for following structured Programs, a Program authoring workspace, and a creator marketplace. Product name: Program Guru.
 
 **Requirements live only in `docs/specs/01–13`.** `schema.prisma` and `openapi.yaml` implement them and must not contradict them. Change the spec first.
 
@@ -66,7 +66,7 @@ The worker is safe to run as several copies (outbox claims use `FOR UPDATE SKIP 
 | Cookies | `SameSite=None` in production | `SameSite=Lax` on sibling subdomains | CSRF. Needs a custom domain before deploy |
 | Server layout | `services/` | `handlers/` then `domains/*/{service,dao,mapper}` | Transactions share a DB client |
 | adminAuth | ADMIN only | MODERATOR or ADMIN | `12-SOCIAL.md` |
-| UI | `Shell`, `Card` | No `Shell` or `Card`; `Page/Stage/Panel/Row/Grid/Stack` | `03-UX.md` §2, `04-UI.md` |
+| UI | `Shell`, `Card` | No `Shell` or `Card`; `Page/Stage/Panel/Row/Grid/Stack` plus the shared visual patterns in `04-UI.md` §4a | `03-UX.md` §2, `04-UI.md` |
 | Page generator | Stubs for every operation | Auth and routing only: **extend `SKIP_OP_IDS` before running** or it emits 100+ wrong pages | Sparse routes |
 | Plugins | Catalog | Custom: Stripe, email, signed upload + ffmpeg worker, rate limiting. `file-upload` is reference only | Not in the factory catalog |
 
