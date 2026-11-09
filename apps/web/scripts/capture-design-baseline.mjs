@@ -47,8 +47,14 @@ for (const [who, pages] of Object.entries(plans)) {
     await page.waitForURL((url) => !url.pathname.startsWith('/login'))
     for (const [name, path, fullPage] of pages) {
       await page.goto(base + path, { waitUntil: 'networkidle' }).catch(() => {})
-      await page.waitForTimeout(1800)
-      const scrollHeight = await page.evaluate(() => document.documentElement.scrollHeight)
+      // Wait for the layout to settle: a page still rendering reports only the viewport height.
+      let scrollHeight = 0
+      for (let attempt = 0; attempt < 20; attempt++) {
+        await page.waitForTimeout(attempt === 0 ? 1200 : 400)
+        const next = await page.evaluate(() => document.documentElement.scrollHeight)
+        if (next === scrollHeight && next > 0) break
+        scrollHeight = next
+      }
       await page.screenshot({
         path: `${out}/${name}-${label}.jpg`,
         type: 'jpeg',
