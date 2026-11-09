@@ -33,7 +33,7 @@ export function programPrimaryAction(
     return { label: 'View', href: detail }
   return {
     label: 'Start',
-    href: entry.owned
+    href: entry.owned && entry.publicationStatus !== 'PUBLISHED'
       ? buildWorkspaceUrl(entry.program.id, { step: 'publish' })
       : `/programs/${entry.program.id}?start=1&returnTo=${encodeURIComponent(detail)}`,
   }

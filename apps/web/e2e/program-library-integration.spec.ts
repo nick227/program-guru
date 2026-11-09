@@ -166,3 +166,21 @@ test('shared hero renders covers and recovers from failed images', async ({
       .getByRole('link', { name: 'Start', exact: true }),
   ).toBeVisible()
 })
+
+test('published owned Programs start through enrollment and fit tablet widths', async ({ page }) => {
+  const { requests } = await mockApi(page)
+  const rows = libraryRows()
+  rows[0]!.status = 'Not Started'
+  rows[0]!.current = null
+  rows[0]!.runs = []
+  await page.route('**/me/program-library', route => route.fulfill({ json: { data: rows } }))
+  await login(page, 'author@test.local', 'password')
+  await page.setViewportSize({ width: 820, height: 1000 })
+  await page.goto('/library')
+  await expect(page.locator('tbody tr')).toHaveCount(3)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  const own = page.locator('tbody tr').filter({ hasText: 'Strength, with intention' })
+  await own.getByRole('link', { name: 'Start', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'When do you want to start?' })).toBeVisible()
+  expect(requests.some(r => r.path.endsWith('/publish') && r.method === 'POST')).toBe(false)
+})

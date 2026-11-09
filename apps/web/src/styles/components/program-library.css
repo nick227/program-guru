@@ -143,6 +143,12 @@
   font-size: 11px;
   opacity: 0.8;
 }
+.library-type {
+  display: inline-block;
+  font-size: 13px;
+  color: hsl(var(--color-muted));
+  white-space: nowrap;
+}
 .library-status {
   display: inline-flex;
   align-items: center;
@@ -270,6 +276,12 @@
 }
 .library-menu button:disabled {
   opacity: 0.5;
+}
+.library-menu button.text-danger {
+  color: hsl(var(--color-danger));
+}
+.library-menu button.text-danger:hover {
+  background: hsl(var(--color-danger) / 0.1);
 }
 .library-footnote {
   color: hsl(var(--color-muted));

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
-import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
+import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, testAdminId } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 import { contractCase } from './helpers/contract'
 
@@ -444,5 +444,96 @@ describe('Personal Program library', () => {
     expect((await bob.get('/me/program-library')).json().data[0]).toMatchObject({ status: 'Not Started', current: { id: future.id, completed: 0, activeSeconds: null, lastParticipation: null } })
     await db.calendarItem.updateMany({ where: { enrollmentId: future.id }, data: { status: 'DONE' } })
     expect((await bob.get('/me/program-library')).json().data[0].status).toBe('Completed')
+  })
+
+  it('enforces required removal semantics across owned, joined, paused and completed Programs with multiple participants', async () => {
+    const { ws } = await buildProgram()
+    const pub = (await publish(ws.id)).json().data
+    const { todayIn } = await import('../lib/time')
+    const start = todayIn('America/Chicago')
+    const carol = as(testAdminId)
+
+    // 1. Two participants join the same published Program: Bob and Carol
+    const bobEnrollment = (await bob.post(`/programs/${ws.id}/enrollments`, {
+      programVersionId: pub.latestPublishedVersionId,
+      startLocalDate: start,
+      timezone: 'America/Chicago',
+      idempotencyKey: 'bob-library-removal-test',
+    })).json().data
+
+    const carolEnrollment = (await carol.post(`/programs/${ws.id}/enrollments`, {
+      programVersionId: pub.latestPublishedVersionId,
+      startLocalDate: start,
+      timezone: 'America/Chicago',
+      idempotencyKey: 'carol-library-removal-test',
+    })).json().data
+
+    // Bob completes occurrence 0 and records activity session / metrics
+    const bobItems = await db.calendarItem.findMany({ where: { enrollmentId: bobEnrollment.id }, orderBy: { localDate: 'asc' } })
+    await db.calendarItem.update({ where: { id: bobItems[0]!.id }, data: { status: 'DONE' } })
+    await db.activitySession.create({
+      data: {
+        calendarItemId: bobItems[0]!.id,
+        activityRevisionId: bobItems[0]!.activityRevisionId,
+        userId: testOtherUserId,
+        status: 'FINISHED',
+        startedAt: new Date(),
+        endedAt: new Date(),
+        activeSeconds: 240,
+      },
+    })
+
+    // Carol has planned occurrences
+    const carolItemsBefore = await db.calendarItem.findMany({ where: { enrollmentId: carolEnrollment.id }, orderBy: { localDate: 'asc' } })
+    expect(carolItemsBefore.length).toBeGreaterThan(0)
+
+    // 2. Bob removes the Program (leaves run and archives personal library state)
+    expect((await bob.post(`/enrollments/${bobEnrollment.id}/leave`, { futureItems: 'REMOVE' })).statusCode).toBe(200)
+    expect((await bob.post(`/me/program-library/${ws.id}`, { action: 'ARCHIVE' })).statusCode).toBe(200)
+
+    // Semantics verified for Bob:
+    // - Future planned activities removed from Bob's calendar
+    expect(await db.calendarItem.count({ where: { enrollmentId: bobEnrollment.id, status: 'PLANNED' } })).toBe(0)
+    // - Completed Activity results and session history are preserved
+    expect(await db.calendarItem.findUnique({ where: { id: bobItems[0]!.id } })).toMatchObject({ status: 'DONE' })
+    expect(await db.activitySession.count({ where: { calendarItemId: bobItems[0]!.id } })).toBe(1)
+    // - Bob's library state is marked Archived (excluded from active library in client)
+    const bobLib = (await bob.get('/me/program-library')).json().data.find((r: any) => r.program.id === ws.id)
+    expect(bobLib.status).toBe('Archived')
+
+    // Semantics verified for Carol & canonical Program:
+    // - Carol's enrollment and calendar items are COMPLETELY UNAFFECTED
+    const carolItemsAfter = await db.calendarItem.findMany({ where: { enrollmentId: carolEnrollment.id, status: 'PLANNED' } })
+    expect(carolItemsAfter.length).toBe(carolItemsBefore.length)
+    const carolLib = (await carol.get('/me/program-library')).json().data.find((r: any) => r.program.id === ws.id)
+    expect(carolLib.status).toBe('Active')
+    // - Canonical Program definition is NOT deleted and remains published
+    const canonical = await db.program.findUniqueOrThrow({ where: { id: ws.id } })
+    expect(canonical.status).toBe('PUBLISHED')
+    expect(canonical.creatorId).toBe(testUserId) // Alice remains owner
+
+    // 3. Paused Program removal: Carol pauses, then removes
+    expect((await carol.patch(`/enrollments/${carolEnrollment.id}`, { status: 'PAUSED' })).statusCode).toBe(200)
+    expect((await carol.post(`/enrollments/${carolEnrollment.id}/leave`, { futureItems: 'REMOVE' })).statusCode).toBe(200)
+    expect((await carol.post(`/me/program-library/${ws.id}`, { action: 'ARCHIVE' })).statusCode).toBe(200)
+    expect(await db.calendarItem.count({ where: { enrollmentId: carolEnrollment.id, status: 'PLANNED' } })).toBe(0)
+
+    // 4. Start again as a fresh new run: Bob can restart the Program from scratch
+    const bobNewRun = (await bob.post(`/programs/${ws.id}/enrollments`, {
+      programVersionId: pub.latestPublishedVersionId,
+      startLocalDate: todayIn('America/Chicago'),
+      timezone: 'America/Chicago',
+      idempotencyKey: 'bob-fresh-new-run',
+    })).json().data
+    expect(bobNewRun.id).not.toBe(bobEnrollment.id)
+    expect(await db.calendarItem.count({ where: { enrollmentId: bobNewRun.id, status: 'PLANNED' } })).toBeGreaterThan(0)
+
+    // 5. Owned never-started Program removal: Alice removes her own program from her library
+    const { ws: aliceDraft } = await buildProgram()
+    expect((await alice.post(`/me/program-library/${aliceDraft.id}`, { action: 'ARCHIVE' })).statusCode).toBe(200)
+    // Canonical program definition is preserved; Alice can still edit or republish it
+    const draftInDb = await db.program.findUniqueOrThrow({ where: { id: aliceDraft.id } })
+    expect(draftInDb.creatorId).toBe(testUserId)
+    expect(draftInDb.status).toBe('DRAFT')
   })
 })

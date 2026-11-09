@@ -17,6 +17,10 @@ describe('Program navigation', () => {
     expect(programPrimaryAction(entry('Not Started')).href).toBe('/programs/id/workspace?step=publish')
     expect(programPrimaryAction(entry('Not Started', null, false)).href).toContain('/programs/id?start=1')
   })
+  it('starts a published owned Program through enrollment without republishing', () => {
+    const published = { ...entry('Not Started'), publicationStatus: 'PUBLISHED' }
+    expect(programPrimaryAction(published).href).toContain('/programs/id?start=1')
+  })
   it('preserves Library filters across management and occurrence navigation', () => {
     expect(libraryProgramUrl('id', '?q=morning&status=Active&bq=other')).toBe('/library?q=morning&status=Active&program=id')
     const action = programPrimaryAction(entry('Active', { upcoming: [{ id: 'next' }] }), 'sort=name')

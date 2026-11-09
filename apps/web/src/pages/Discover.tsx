@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Link, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import { useProgramLibrary } from '@project/sdk'
 import { Search, Plus, ArrowUpRight, BookOpen, ArrowLeft } from 'lucide-react'
-import { ProgramPeople } from '@/components/ProgramPeople'
 import { ProgramLibraryActions as Actions } from '@/components/ProgramLibraryActions'
+import { ProgramPeople } from '@/components/ProgramPeople'
 import { Page } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -17,8 +17,7 @@ import {
   useLibraryBrowser,
   type LibraryBrowserContext,
 } from '@/components/LibraryBrowser'
-import { libraryProgramUrl } from '@/lib/programNavigation'
-import { buildWorkspaceUrl } from '@/lib/urls'
+import { libraryProgramUrl, programPrimaryAction } from '@/lib/programNavigation'
 import {
   selectPrograms,
   statuses,
@@ -162,6 +161,7 @@ export function LibraryPage() {
                   <tr>
                     {[
                       'Program',
+                      'Type',
                       'Status',
                       'Progress',
                       'People',
@@ -298,13 +298,16 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
                 />
               )}
             </strong>
-            <span>{p.type.label} · {p.durationDays ? `${p.durationDays} days` : 'Ongoing'}</span>
+            <span>{p.durationDays ? `${p.durationDays} days` : 'Ongoing'}</span>
             <small>
               {p.frequencyLabel ?? 'Schedule not set'}
               {r?.status === 'ACTIVE' ? ` · Week ${r.week}` : ''}
             </small>
           </div>
         </Link>
+      </td>
+      <td data-label="Type">
+        <span className="library-type">{p.type.label}</span>
       </td>
       <td data-label="Status">
         <Status status={entry.status} />
@@ -471,9 +474,7 @@ function ProgramDetails({
             <Link
               className={linkButton}
               to={
-                entry.owned
-                  ? `${buildWorkspaceUrl(p.id)}?step=publish`
-                  : `/programs/${p.id}`
+                programPrimaryAction(entry).href ?? `/programs/${p.id}`
               }
             >
               Set up your schedule

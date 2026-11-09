@@ -88,7 +88,7 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
   }
   const warmStart = () => {
     if (primary.label === 'Start')
-      prefetch(p.id, entry.owned ? 'workspace' : 'preview')
+      prefetch(p.id, primary.href?.includes('/workspace') ? 'workspace' : 'preview')
   }
   return (
     <div className="library-actions">

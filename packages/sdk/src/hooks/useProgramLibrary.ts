@@ -8,6 +8,7 @@ export function useProgramLibrary() {
     queryKey: useViewerKey(['programs', 'personal-library']),
     queryFn: async ({ signal }) =>
       apiData(await getApiClient().GET('/me/program-library', { signal })).data,
+    staleTime: 60_000,
   })
 }
 export function useManagePersonalProgram() {
