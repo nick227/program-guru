@@ -18,8 +18,8 @@
 
   /* Participation states (04-UI §4). Pair with text or an icon: never color alone. */
   --color-status-planned: 215 16% 42%;
-  --color-status-active: 199 89% 32%;
-  --color-status-completed: 158 55% 28%;
+  --color-status-active: 182 72% 27%;
+  --color-status-completed: 142 58% 30%;
   --color-status-paused: 36 80% 36%;
   --color-status-unavailable: 215 10% 55%;
 

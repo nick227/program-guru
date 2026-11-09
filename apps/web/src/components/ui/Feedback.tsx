@@ -1,3 +1,4 @@
+import type React from 'react'
 import { ApiError } from '@project/sdk'
 import { Button } from './Button'
 import { Skeleton } from './Skeleton'
@@ -41,6 +42,34 @@ export function Loading() {
       <Skeleton className="h-8 w-1/2" />
       <Skeleton className="h-24 w-full" />
       <Skeleton className="h-24 w-full" />
+    </div>
+  )
+}
+
+/**
+ * Empty state (13 §8): one sentence of context and one focused next action. The heading level
+ * defaults to h2; pass `level={3}` inside a section that already has an h2.
+ */
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+  level = 2,
+}: {
+  icon?: React.ReactNode
+  title: React.ReactNode
+  description?: React.ReactNode
+  action?: React.ReactNode
+  level?: 2 | 3
+}) {
+  const Heading = level === 2 ? 'h2' : 'h3'
+  return (
+    <div className="empty-state">
+      {icon && <span className="empty-state__icon" aria-hidden>{icon}</span>}
+      <Heading className="empty-state__title">{title}</Heading>
+      {description && <p className="empty-state__description">{description}</p>}
+      {action}
     </div>
   )
 }

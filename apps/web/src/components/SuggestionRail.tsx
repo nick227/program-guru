@@ -9,6 +9,8 @@ export type DiscoveryCardModel = {
   title: string
   meta: string
   hero: Hero
+  /** Who made it, e.g. "by Program Guru"; Programs only. */
+  byline?: string | null
 }
 
 /**
@@ -35,12 +37,13 @@ export function DiscoveryCard({
       aria-pressed={selected || undefined}
       disabled={disabled}
       onClick={onPick}
-      className={`group flex w-full min-w-0 flex-col overflow-hidden rounded-lg border bg-surface text-left transition-colors hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60 ${selected ? 'border-accent ring-1 ring-accent' : 'border-border'}`}
+      className={`group flex w-full min-w-0 flex-col overflow-hidden rounded-[var(--radius-panel)] border bg-surface text-left transition-colors hover:border-accent hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60 ${selected ? 'border-accent ring-1 ring-accent' : 'border-border'}`}
     >
-      <EntityHero hero={item.hero} size="card" className="rounded-none" />
-      <span className="flex min-w-0 flex-col gap-1 p-3">
-        <span className="line-clamp-2 text-sm font-semibold">{item.title}</span>
-        <span className="truncate text-xs text-muted">{item.meta}</span>
+      <EntityHero hero={item.hero} size="card" className="aspect-hero rounded-none" />
+      <span className="flex min-w-0 flex-col gap-1 p-3 sm:p-4">
+        <span className="line-clamp-2 text-base font-semibold leading-snug text-foreground">{item.title}</span>
+        {item.byline && <span className="truncate text-sm text-muted">{item.byline}</span>}
+        <span className="truncate text-sm text-muted">{item.meta}</span>
       </span>
     </button>
   )

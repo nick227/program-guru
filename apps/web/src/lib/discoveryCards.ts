@@ -19,6 +19,11 @@ export function programCard(
       .filter(Boolean)
       .join(' · '),
     hero: programHero(program, categorySlugOf),
+    byline: program.creator
+      ? `by ${program.creator.displayName}`
+      : program.isPlatform
+        ? 'by Program Guru'
+        : null,
   }
 }
 

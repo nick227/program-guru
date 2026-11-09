@@ -18,7 +18,8 @@ import { ChevronLeft, RotateCcw, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
-import { ErrorMessage } from '@/components/ui/Feedback'
+import { EmptyState, ErrorMessage } from '@/components/ui/Feedback'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { DiscoveryCard } from '@/components/SuggestionRail'
 import { useCategorySlugOf } from '@/components/EntityHero'
@@ -204,31 +205,13 @@ function LibraryBrowser({
     )
   }
 
-  const toggle = (
+  // Same single-choice control as the Calendar's Day/Week switch.
+  const toggle = <T extends string>(
     label: string,
-    options: { value: string; label: string }[],
-    value: string,
-    onChange: (value: string) => void,
-  ) => (
-    <div
-      role="group"
-      aria-label={label}
-      className="flex items-center gap-1 rounded-lg border border-border bg-surface-muted/40 p-1"
-    >
-      {options.map((option) => (
-        <Button
-          key={option.value}
-          size="sm"
-          variant={value === option.value ? 'default' : 'ghost'}
-          aria-pressed={value === option.value}
-          className="h-8 px-2.5 text-xs font-medium"
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </div>
-  )
+    options: { value: T; label: string }[],
+    value: T,
+    onChange: (value: T) => void,
+  ) => <SegmentedControl ariaLabel={label} options={options} value={value} onChange={onChange} />
 
   return (
     <div
@@ -238,17 +221,17 @@ function LibraryBrowser({
       className="fixed inset-x-0 bottom-0 top-16 z-30 flex flex-col overflow-hidden border-t border-border bg-background shadow-2xl"
     >
       <header className="border-b border-border bg-surface px-4 py-4 sm:px-6 lg:px-8">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3">
+        <div className="mx-auto flex w-full max-w-content flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Button variant="outline" size="sm" onClick={onClose} className="gap-1.5">
               <ChevronLeft className="h-4 w-4" aria-hidden />
               Back
             </Button>
-            <h2 className="text-lg font-semibold">{title}</h2>
+            <h2 className="sheet-title">{title}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <div className="relative min-w-[200px] flex-1 sm:max-w-md">
-              <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted" />
               <Input
                 autoFocus
                 aria-label={`Search ${noun === 'Program' ? 'Programs' : 'Activities'}`}
@@ -268,7 +251,7 @@ function LibraryBrowser({
                 </button>
               )}
             </div>
-            {toggle(
+            {toggle<Sort>(
               'Sort by',
               [
                 { value: 'POPULAR', label: 'Popular' },
@@ -278,7 +261,7 @@ function LibraryBrowser({
               sort,
               (value) => setParam(PARAM.sort, value, 'POPULAR'),
             )}
-            {toggle(
+            {toggle<Creator>(
               'Filter by creator',
               [
                 { value: 'ALL', label: 'All creators' },
@@ -289,7 +272,7 @@ function LibraryBrowser({
               (value) => setParam(PARAM.creator, value, 'ALL'),
             )}
           </div>
-          {context.kind === 'programs' && !context.programTypeId && <label className="flex items-center gap-3 text-xs text-muted">Program type<Select aria-label="Program type" value={programTypeId} className="max-w-xs" onChange={event => { setParams(previous => { const next = new URLSearchParams(previous); next.delete(PARAM.facet); if(event.target.value) next.set(PARAM.type, event.target.value); else next.delete(PARAM.type); return next }, { replace: true, state: window.history.state?.usr }) }}><option value="">All Program types</option>{types.data?.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}</Select></label>}
+          {context.kind === 'programs' && !context.programTypeId && <label className="flex items-center gap-3 text-sm text-muted">Program type<Select aria-label="Program type" value={programTypeId} className="max-w-xs" onChange={event => { setParams(previous => { const next = new URLSearchParams(previous); next.delete(PARAM.facet); if(event.target.value) next.set(PARAM.type, event.target.value); else next.delete(PARAM.type); return next }, { replace: true, state: window.history.state?.usr }) }}><option value="">All Program types</option>{types.data?.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}</Select></label>}
           {facets.length > 0 && (
             <div
               role="group"
@@ -317,7 +300,7 @@ function LibraryBrowser({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-7xl">
+        <div className="mx-auto w-full max-w-content">
           <div className="mb-4 flex items-center justify-between gap-2">
             <p role="status" className="text-sm font-medium text-muted">
               {results.isPending
@@ -333,9 +316,13 @@ function LibraryBrowser({
           </div>
           <ErrorMessage error={results.error} retry={() => void results.refetch()} />
           {results.isPending ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {Array.from({ length: 8 }, (_, i) => (
-                <Skeleton key={i} className="aspect-[4/3] w-full rounded-lg" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-label={`Loading ${noun === 'Program' ? 'Programs' : 'Activities'}`}>
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="aspect-hero w-full rounded-[var(--radius-panel)]" />
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
               ))}
             </div>
           ) : cards.length ? (
@@ -348,14 +335,18 @@ function LibraryBrowser({
             </ul>
           ) : (
             !results.error && (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-10 text-center">
-                <p className="font-semibold">No {noun === 'Program' ? 'Programs' : 'Activities'} match these filters</p>
-                {filtered && (
-                  <Button variant="outline" size="sm" onClick={reset}>
-                    Reset filters
-                  </Button>
-                )}
-              </div>
+              <EmptyState
+                level={3}
+                title={`No ${noun === 'Program' ? 'Programs' : 'Activities'} match these filters`}
+                description={filtered ? 'Try another search, sort or creator.' : undefined}
+                action={
+                  filtered && (
+                    <Button variant="outline" size="sm" onClick={reset}>
+                      Reset filters
+                    </Button>
+                  )
+                }
+              />
             )
           )}
           {results.hasNextPage && (

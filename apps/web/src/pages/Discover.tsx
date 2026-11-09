@@ -9,7 +9,7 @@ import { StatusText, libraryStatusTone } from '@/components/ui/StatusText'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import { ErrorMessage, Loading } from '@/components/ui/Feedback'
+import { EmptyState, ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { linkButton } from '@/components/Navigation'
 import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
 import { programHero } from '@/lib/hero'
@@ -65,17 +65,16 @@ export function LibraryPage() {
   const selected = rows.find((r) => r.program.id === params.get('program'))
   const filtered = selectPrograms(rows, query, status, owned, sort)
   return (
-    <Page className="program-library">
+    <Page className="page--wide program-library">
       <header className="library-heading">
         <div>
-          <p className="library-eyebrow">YOUR PERSONAL LIBRARY</p>
           <h1>
             My Programs
             <span className="library-count">
               {library.data ? rows.length : '—'}
             </span>
           </h1>
-          <p className="text-muted">
+          <p className="library-lede">
             Make room for what you want to keep doing.
           </p>
         </div>
@@ -139,15 +138,16 @@ export function LibraryPage() {
               <option value="progress">Most progress</option>
             </Select>
           </div>
-          <div className="library-tabs" aria-label="Filter by status">
+          <div className="filter-tabs library-tabs" role="group" aria-label="Filter by status">
             {statuses.map((s) => (
               <button
                 key={s}
+                type="button"
                 aria-pressed={s === status}
                 onClick={() => setStatus(s)}
               >
                 {s}
-                <span>
+                <span className="filter-tabs__count">
                   {s === 'All'
                     ? rows.length - archivedCount
                     : rows.filter((r) => r.status === s).length}
@@ -184,31 +184,28 @@ export function LibraryPage() {
               </table>
             </div>
           ) : (
-            <div className="library-empty">
-              <BookOpen size={36} strokeWidth={1} />
-              <h2>
-                {rows.length
+            <EmptyState
+              icon={<BookOpen size={32} strokeWidth={1.5} />}
+              title={
+                rows.length
                   ? 'No Programs match this view'
-                  : 'A little structure. A lot of possibility.'}
-              </h2>
-              <p className="text-muted">
-                {rows.length
+                  : 'A little structure. A lot of possibility.'
+              }
+              description={
+                rows.length
                   ? 'Try another status or search, or show all creators.'
-                  : 'Build your first Program around something you want to practice.'}
-              </p>
-              {rows.length ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setParams({})
-                  }}
-                >
-                  Clear filters
-                </Button>
-              ) : (
-                <Button onClick={browser.open}>Browse Programs</Button>
-              )}
-            </div>
+                  : 'Build your first Program around something you want to practice.'
+              }
+              action={
+                rows.length ? (
+                  <Button variant="outline" onClick={() => setParams({})}>
+                    Clear filters
+                  </Button>
+                ) : (
+                  <Button onClick={browser.open}>Browse Programs</Button>
+                )
+              }
+            />
           )}
           {archivedCount > 0 && (
             <button
@@ -279,8 +276,8 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
         >
           <EntityHero
             hero={programHero(p, category)}
-            size="row"
-            className="library-art"
+            size="card"
+            className="library-art aspect-preview w-20 rounded-[var(--radius-media)]"
           />
           <div>
             <strong>
@@ -294,11 +291,16 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
                 />
               )}
             </strong>
-            <span>{p.durationDays ? `${p.durationDays} days` : 'Ongoing'}</span>
-            <small>
-              {p.frequencyLabel ?? 'Schedule not set'}
-              {r?.status === 'ACTIVE' ? ` · Week ${r.week}` : ''}
-            </small>
+            <span>
+              <span className="library-meta-type">{p.type.label} · </span>
+              {[
+                p.durationDays ? `${p.durationDays} days` : 'Ongoing',
+                p.frequencyLabel ?? 'Schedule not set',
+                r?.status === 'ACTIVE' ? `Week ${r.week}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
           </div>
         </Link>
       </td>
