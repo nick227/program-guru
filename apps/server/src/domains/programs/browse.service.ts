@@ -8,7 +8,7 @@ import { canSeeProgram, isProgramOwner, marketplaceEnabled, resolveAccess } from
 import { programInclude, toPlacement, toProgramSummary } from './mapper'
 import { parseFrequency } from './schedule'
 
-const MIN_PUBLIC_SAMPLE = 5 // 12 §10: suppress small-group statistics
+export const MIN_PUBLIC_SAMPLE = 5 // 12 §10: suppress small-group statistics
 
 /** `invited`: a valid group invitation lets its holder preview a private Program (07 §5). */
 export async function preview(viewerId: string | null, programId: string, opts: { invited?: boolean } = {}) {
