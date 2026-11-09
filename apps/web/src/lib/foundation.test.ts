@@ -64,3 +64,11 @@ describe('frontend boundary contracts', () => {
     expect(safeReturn('/?week=2026-11-09')).toBe('/?week=2026-11-09')
   })
 })
+
+describe('cn merges project utilities', () => {
+  it('lets a caller ratio or width replace the default', async () => {
+    const { cn } = await import('./utils')
+    expect(cn('aspect-video w-full', 'aspect-preview')).toBe('w-full aspect-preview')
+    expect(cn('max-w-7xl', 'max-w-content')).toBe('max-w-content')
+  })
+})
