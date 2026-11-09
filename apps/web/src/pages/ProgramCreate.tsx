@@ -12,6 +12,7 @@ import {
 import { Page, Stage, Stack, Row, Grid } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ProgramHeader } from '@/components/ProgramHeader'
+import { ProgramStepper } from '@/components/ProgramStepper'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back } from '@/components/Navigation'
 import {
@@ -103,7 +104,7 @@ export function ProgramCreatePage() {
         expectedRevision: workspace.draftRevision,
       })
 
-      navigate(buildWorkspaceUrl(renamed.id), { replace: true })
+      navigate(buildWorkspaceUrl(renamed.id, { step: 'activities' }), { replace: true })
     } catch {
       // Mutation errors remain visible below; keep the selection for retry.
     }
@@ -116,11 +117,12 @@ export function ProgramCreatePage() {
         <ProgramHeader
           title={title}
           onTitleChange={typeId ? setTitle : undefined}
-          step={typeId ? 2 : 1}
+          step={1}
           autoFocus={!!typeId}
           disabled={busy}
           onConfirm={() => void continueToWorkspace()}
         />
+        <ProgramStepper currentStep="details" onSelectStep={() => {}} disabled />
 
         <ErrorMessage
           error={error}

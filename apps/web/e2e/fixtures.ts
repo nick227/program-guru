@@ -59,12 +59,13 @@ export async function mockApi(
     calendarDate?: string
     recurring?: boolean
     groupItem?: boolean
+    added?: boolean
   } = {},
 ) {
   let user: 'author' | 'participant' | null = null,
     title = 'My Strength Workout',
     revision = 1,
-    added = false,
+    added = options.added ?? false,
     published = false,
     programVisibility: S['Visibility'] = 'PRIVATE',
     joined = false,
@@ -555,6 +556,11 @@ export async function mockApi(
     if (path.endsWith('/workspace')) return send(workspace())
     if (path.endsWith('/draft/activities')) {
       added = true
+      revision++
+      return send(workspace())
+    }
+    if (path.includes('/draft/activities/') && method === 'DELETE') {
+      added = false
       revision++
       return send(workspace())
     }

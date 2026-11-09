@@ -187,6 +187,11 @@ const router = createBrowserRouter([
             element: <ProgramWorkspacePage />,
             children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
           },
+          {
+            path: '/programs/:id/workspace/:step',
+            element: <ProgramWorkspacePage />,
+            children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
+          },
           { path: '/occurrences/:id', element: <OccurrencePage /> },
           {
             path: '/add-activity',

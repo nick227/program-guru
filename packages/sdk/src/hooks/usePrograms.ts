@@ -418,6 +418,30 @@ export function useAddProgramActivities(programId: string) {
     `draft:${programId}`,
   )
 }
+export function useRemoveProgramActivity(programId: string) {
+  return useApiMutation(
+    async ({
+      activityId,
+      expectedRevision,
+    }: {
+      activityId: string
+      expectedRevision: number
+    }) =>
+      apiData(
+        await getApiClient().DELETE(
+          '/programs/{programId}/draft/activities/{activityId}',
+          {
+            params: {
+              path: { programId, activityId },
+              query: { expectedRevision },
+            },
+          },
+        ),
+      ).data,
+    [keys.programs],
+    `draft:${programId}`,
+  )
+}
 export function usePublishProgram(programId: string) {
   return useApiMutation(
     async (body: S['PublishProgramInput']) =>

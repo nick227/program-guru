@@ -11,7 +11,7 @@ export function ProgramHeader({
 }: {
   title: string
   onTitleChange?: (title: string) => void
-  step?: 1 | 2 | 3
+  step?: 1 | 2 | 3 | 4
   autoFocus?: boolean
   disabled?: boolean
   onConfirm?: () => void
@@ -46,7 +46,7 @@ export function ProgramHeader({
         )}
         {step && (
           <p className="add-program-step shrink-0" aria-live="polite">
-            <span>{String(step).padStart(2, '0')}</span> / 03
+            <span>{String(step).padStart(2, '0')}</span> / 04
           </p>
         )}
       </header>
@@ -56,10 +56,10 @@ export function ProgramHeader({
           role="progressbar"
           aria-label="Add a Program"
           aria-valuemin={1}
-          aria-valuemax={3}
+          aria-valuemax={4}
           aria-valuenow={step}
         >
-          <span className="add-program-progress__fill" style={{ width: `${step / 3 * 100}%` }} />
+          <span className="add-program-progress__fill" style={{ width: `${(step / 4) * 100}%` }} />
         </div>
       )}
     </div>

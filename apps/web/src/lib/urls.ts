@@ -110,9 +110,12 @@ export function buildActivityUrl(
  */
 export function buildWorkspaceUrl(
   programId: string,
-  options: { panel?: string } = {},
+  options: { panel?: string; step?: string } = {},
 ): string {
   const base = `/programs/${programId}/workspace`
+  if (options.step) {
+    return `${base}?step=${encodeURIComponent(options.step)}`
+  }
   if (options.panel) {
     return `${base}?panel=${encodeURIComponent(options.panel)}`
   }

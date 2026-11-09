@@ -100,6 +100,9 @@ describe('url builders', () => {
   it('builds workspace, occurrence, and group URLs with UUIDs', () => {
     const uuid = 'e1b6f0e2-632b-426c-85d7-ecf8595cb640'
     expect(buildWorkspaceUrl(uuid)).toBe(`/programs/${uuid}/workspace`)
+    expect(buildWorkspaceUrl(uuid, { step: 'activities' })).toBe(
+      `/programs/${uuid}/workspace?step=activities`,
+    )
     expect(buildWorkspaceUrl(uuid, { panel: 'activities' })).toBe(
       `/programs/${uuid}/workspace?panel=activities`,
     )
