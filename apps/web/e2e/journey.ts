@@ -18,40 +18,32 @@ export async function journey(
   await expect(
     page.getByRole('heading', { name: 'Add a Program', exact: true }),
   ).toBeVisible()
+  // Step 1 · Details: type, name, then Continue into the workspace.
   await page.getByRole('button', { name: /Workout/ }).click()
   const title = `Browser strength ${Date.now()}`
   await page.getByLabel('Program name').fill(title)
-  await page
-    .getByRole('button', { name: 'Continue to customize', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  // Step 2 · Activities: add Squats from the Activity Library.
   await expect(
     page.getByRole('heading', { name: 'Activities', exact: true }),
   ).toBeVisible()
-  await page.getByRole('link', { name: 'New Activity', exact: true }).click()
-  await page.getByRole('button', { name: 'Browse Activity Library' }).click()
+  await page.getByRole('button', { name: 'Browse Library', exact: true }).click()
   const library = page.getByRole('dialog', { name: 'Activity Library' })
   await library.getByLabel('Search Activities').fill('Squats')
   // Exact name: avoid matching "Chair Squats".
   await library
     .getByRole('button', { name: 'Add to Program: Squats', exact: true })
     .click()
-  await expect(
-    page.getByRole('heading', { name: 'Activities', exact: true }),
-  ).toBeVisible()
-  await expect(
-    page.getByRole('status').filter({ hasText: /^Saved$/ }),
-  ).toBeVisible()
-  await expect(page.getByRole('heading', { name: title })).toBeVisible()
-  await expect(
-    page.getByRole('heading', { name: 'Schedule & placement' }),
-  ).toBeVisible()
+  await expect(library).toBeHidden()
+  await expect(page.getByRole('link', { name: 'Squats', exact: true })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
   await page.reload()
+  await expect(page.getByRole('link', { name: 'Squats', exact: true })).toBeVisible()
+  // Step 3 · Publish & Share.
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(
-    page.getByRole('heading', { name: 'Schedule & placement' }),
+    page.getByRole('heading', { name: 'Publish & Share', exact: true }),
   ).toBeVisible()
-  await page
-    .getByRole('link', { name: 'Preview & Publish', exact: true })
-    .click()
   await page
     .getByRole('button', { name: 'Publish Program', exact: true })
     .click()
@@ -67,7 +59,7 @@ export async function journey(
   ).toBeVisible()
   await login(page, ...credentials.participant)
   await page.goto(publishedPath)
-  await page.getByRole('button', { name: 'Join Free' }).click()
+  await page.getByRole('button', { name: 'Start Program', exact: true }).click()
   await page.getByLabel('Start date').fill('2026-11-09')
   await page.getByRole('button', { name: 'Preview my calendar' }).click()
   await page.getByRole('button', { name: 'Confirm & add to Calendar' }).click()

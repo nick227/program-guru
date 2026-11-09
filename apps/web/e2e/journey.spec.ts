@@ -91,9 +91,7 @@ test('Add Program filters by type and copies a selected starting point', async (
   await expect(page).toHaveURL(/\/programs\/new\?type=/)
   await expect(page.getByLabel('Program name')).toHaveValue('Beginner Strength')
   await expect(page.getByText('Starting point:')).toContainText('Beginner Strength')
-  await page
-    .getByRole('button', { name: 'Continue to customize', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(
     page.getByRole('heading', { name: 'Activities', exact: true }),
   ).toBeVisible()
@@ -112,27 +110,8 @@ test('Add Program filters by type and copies a selected starting point', async (
     ),
   ).toBeDefined()
 
-  await page
-    .getByRole('button', { name: /Start Program|Add to Calendar/ })
-    .click()
-  await expect(
-    page.getByRole('heading', { name: 'Calendar', exact: true }),
-  ).toBeVisible()
-  const privatePublish = requests.find(
-    (request) =>
-      request.path === '/programs/00000000-0000-4000-8000-000000000010/publish',
-  )
-  const personalJoinIndex = requests.findIndex(
-    (request) =>
-      request.path ===
-        '/programs/00000000-0000-4000-8000-000000000010/enrollments' &&
-      request.method === 'POST',
-  )
-  expect(privatePublish).toBeDefined()
-  expect(privatePublish?.body.visibility).toBe('PRIVATE')
-  expect(personalJoinIndex).toBeGreaterThan(
-    privatePublish ? requests.indexOf(privatePublish) : -1,
-  )
+  // The copy lands on step 2 of the three-step editor.
+  await expect(page).toHaveURL(/\/workspace\?step=activities/)
 })
 
 test('Add Program continues with a blank structure without choosing a starting point', async ({
@@ -143,9 +122,7 @@ test('Add Program continues with a blank structure without choosing a starting p
   await page.goto('/programs/new')
   await page.getByRole('button', { name: /Workout/ }).click()
   await page.getByLabel('Program name').fill('My own practice')
-  await page
-    .getByRole('button', { name: 'Continue to customize', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
 
   await expect(
     page.getByRole('heading', { name: 'Activities', exact: true }),
@@ -178,8 +155,8 @@ test('draft conflicts preserve the local title and require explicit resolution',
   await expect(page.getByRole('alert')).toContainText('This draft changed')
   await expect(page.getByLabel('Program name')).toHaveValue('My local title')
   await page.getByRole('link', { name: 'Workspace', exact: true }).click()
-  await expect(page.getByText('You have unsaved changes.')).toBeVisible()
-  await page.getByRole('button', { name: 'Keep editing' }).click()
+  await expect(page.getByText('You have unsaved edits in progress.')).toBeVisible()
+  await page.getByRole('button', { name: 'Keep Editing' }).click()
   await expect(page.getByLabel('Program name')).toHaveValue('My local title')
 })
 test('server validation retains field errors and request reference', async ({
@@ -496,24 +473,21 @@ test('mobile calendar exposes selected-day items and confirms recurring removal 
   await expect(page.locator('.calendar-tile')).toHaveCount(0)
 })
 
-test('Program Activity creation keeps description and optional instructions in context', async ({
+test('Program Activity creation keeps the description and adds the Activity to the Program', async ({
   page,
 }) => {
   const { requests } = await mockApi(page)
   await login(page, 'author@test.local', 'password')
-  await page.goto(`/programs/${programId}/workspace?panel=activities`)
+  await page.goto(`/programs/${programId}/workspace?step=activities`)
   await page.getByLabel('Activity title').fill('Evening walk')
-  await page.getByLabel('Description').fill('Walk around the neighborhood.')
-  await page
-    .getByLabel('Instructions (optional)')
-    .fill('Choose a comfortable pace.')
+  await page.getByLabel('Description (optional)').fill('Walk around the neighborhood.')
+  // Instructions are added later from the Activity editor, not this inline form.
+  await expect(page.getByLabel('Instructions (optional)')).toHaveCount(0)
   await page.getByRole('button', { name: 'Create Activity', exact: true }).click()
-  // Identity image follows creation; capture is not offered here.
-  await expect(
-    page.getByRole('group', { name: 'Activity image' }).getByRole('button', { name: 'Change image' }),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Add Activity to Program' }).click()
-  await expect(page.getByRole('heading', { name: 'Schedule & placement' })).toBeVisible()
+  // Demonstration media can be added right after creation.
+  await expect(page.getByRole('button', { name: 'Upload demonstration media' })).toBeVisible()
+  await page.getByRole('button', { name: 'Add to Program', exact: true }).click()
+  await expect(page.getByLabel('Activity title')).toHaveValue('')
   expect(
     requests.find((request) => request.path === '/activities' && request.method === 'POST')
       ?.body,
@@ -522,9 +496,10 @@ test('Program Activity creation keeps description and optional instructions in c
     summary: 'Walk around the neighborhood.',
   })
   expect(
-    requests.find((request) => request.path.endsWith('/draft/instructions'))?.body
-      .instructions,
-  ).toEqual([{ body: 'Choose a comfortable pace.' }])
+    requests.find(
+      (request) => request.path === `/programs/${programId}/draft/activities` && request.method === 'POST',
+    )?.body,
+  ).toMatchObject({ activityIds: ['00000000-0000-4000-8000-000000000022'] })
 })
 
 test('Calendar Activity creation starts blank and adds the new Activity on the selected date', async ({
@@ -548,10 +523,10 @@ test('Calendar Activity creation starts blank and adds the new Activity on the s
   await page
     .getByRole('button', { name: 'Create Activity' })
     .click()
-  await expect(page.getByRole('button', { name: 'Change image' })).toBeVisible()
-  await page
-    .getByRole('button', { name: /Start Program|Add to Calendar/ })
-    .click()
+  await expect(
+    page.getByRole('group', { name: 'Activity image' }).getByRole('button', { name: 'Upload image' }).first(),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Add to Calendar', exact: true }).click()
 
   await expect(page).toHaveURL(/\/\?week=.*day=2026-11-12/)
   await expect(

@@ -22,12 +22,11 @@ import {
   usePublishProgram,
   type components,
 } from '@project/sdk'
-import { Clock, ExternalLink, Repeat, Upload } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page, Stage, Stack, Row, Panel } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back, linkButton } from '@/components/Navigation'
 import { MediaAttachments } from '@/components/MediaAttachments'
@@ -395,9 +394,6 @@ function ProgramCover({ ws }: { ws: Workspace }) {
 
 // ── Step 2: ACTIVITIES ──────────────────────────────────────────────────────
 
-const DURATION_OPTIONS = ['15 min', '30 min', '45 min', '60 min', '90 min']
-const FREQUENCY_OPTIONS = ['1x / week', '2x / week', '3x / week', '4x / week', 'Daily']
-
 function ActivitiesStep({
   ws,
   onBack,
@@ -450,7 +446,7 @@ function ActivitiesStep({
         </Panel>
       )}
 
-      {/* Create New Activity Form with 3/4 Canvas and Duration/Frequency Pickers */}
+      {/* Create a new Activity inline */}
       <CreateActivitySection ws={ws} />
 
       {/* Consistent Bottom Navigation */}
@@ -492,8 +488,6 @@ function WorkspaceActivityRow({
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
   const [editing, setEditing] = useState(false)
-  const [duration, setDuration] = useState('30 min')
-  const [frequency, setFrequency] = useState('3x / week')
 
   useEffect(() => {
     if (!detail.data) return
@@ -544,17 +538,6 @@ function WorkspaceActivityRow({
                 {detail.data.summary}
               </p>
             )}
-            <div className="flex items-center gap-3 text-xs text-muted mt-1.5 font-medium">
-              <span className="inline-flex items-center gap-1">
-                <Clock size={12} aria-hidden />
-                {duration}
-              </span>
-              <span>·</span>
-              <span className="inline-flex items-center gap-1">
-                <Repeat size={12} aria-hidden />
-                {frequency}
-              </span>
-            </div>
           </div>
         </Row>
         <Row className="gap-2 shrink-0">
@@ -587,40 +570,6 @@ function WorkspaceActivityRow({
             Remove
           </Button>
         </Row>
-      </Row>
-
-      {/* Duration and Frequency Pickers */}
-      <Row className="gap-3 pt-1 border-t border-border/50 text-xs">
-        <label className="flex items-center gap-1.5 text-muted">
-          <Clock size={13} aria-hidden />
-          <span className="font-semibold">Duration:</span>
-          <Select
-            className="h-7 text-xs py-0 px-2 rounded"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-          >
-            {DURATION_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex items-center gap-1.5 text-muted">
-          <Repeat size={13} aria-hidden />
-          <span className="font-semibold">Frequency:</span>
-          <Select
-            className="h-7 text-xs py-0 px-2 rounded"
-            value={frequency}
-            onChange={(e) => setFrequency(e.target.value)}
-          >
-            {FREQUENCY_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </Select>
-        </label>
       </Row>
 
       {/* Expanded Inline Editor (No instructions, with 3/4 canvas multiple upload support) */}
@@ -704,8 +653,6 @@ function WorkspaceActivityRow({
 function CreateActivitySection({ ws }: { ws: Workspace }) {
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
-  const [duration, setDuration] = useState('30 min')
-  const [frequency, setFrequency] = useState('3x / week')
   const [newActivity, setNewActivity] = useState<components['schemas']['ActivityDetail'] | null>(null)
   const create = useCreateActivity()
   const add = useAddProgramActivities(ws.id)
@@ -806,42 +753,6 @@ function CreateActivitySection({ ws }: { ws: Workspace }) {
               onChange={(e) => setSummary(e.target.value)}
             />
           </label>
-
-          {/* Duration & Frequency Pickers */}
-          <Row className="gap-4 flex-wrap">
-            <label className="space-y-1 flex-1 min-w-[140px]">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-                Duration
-              </span>
-              <Select
-                aria-label="Duration"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-              >
-                {DURATION_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="space-y-1 flex-1 min-w-[140px]">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-                Frequency
-              </span>
-              <Select
-                aria-label="Frequency"
-                value={frequency}
-                onChange={(e) => setFrequency(e.target.value)}
-              >
-                {FREQUENCY_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          </Row>
 
           <Button
             size="lg"

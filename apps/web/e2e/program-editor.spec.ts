@@ -3,7 +3,7 @@ import { mockApi, programId } from './fixtures'
 import { login } from './journey'
 
 test.describe('Unified Program Editor (Details → Activities → Publish & Share)', () => {
-  test('full lifecycle: create → details with 3/4 canvas → activities with duration/frequency → publish & share → reopen and edit', async ({
+  test('full lifecycle: create → details with 3/4 canvas → activities → publish & share → reopen and edit', async ({
     page,
   }) => {
     const { requests } = await mockApi(page)
@@ -91,11 +91,10 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
     await page.getByLabel('Description (optional)').fill('Chest and triceps strength.')
     await expect(page.getByLabel('Instructions (optional)')).toHaveCount(0)
 
-    // Duration and frequency pickers are available
-    await expect(page.getByLabel('Duration')).toBeVisible()
-    await expect(page.getByLabel('Frequency')).toBeVisible()
-    await page.getByLabel('Duration').selectOption({ label: '30 min' })
-    await page.getByLabel('Frequency').selectOption({ label: '3x / week' })
+    // No per-Activity duration or frequency: Program scheduling owns frequency, and these
+    // values were never saved.
+    await expect(page.getByLabel('Duration')).toHaveCount(0)
+    await expect(page.getByLabel('Frequency')).toHaveCount(0)
 
     await page.getByRole('button', { name: 'Create Activity', exact: true }).click()
 
