@@ -7,6 +7,8 @@ export default defineConfig({
     ? 'test-results/live-media'
     : process.env.E2E_NOTIFICATIONS_LIVE
       ? 'test-results/live-notifications'
+      : process.env.E2E_TOGETHER_LIVE
+      ? 'test-results/live-together'
       : 'test-results/browser',
   timeout: 90_000,
   expect: { timeout: 15_000 },
@@ -30,6 +32,14 @@ export default defineConfig({
           use: { ...devices['Desktop Chrome'] },
         },
       ]
+    : process.env.E2E_TOGETHER_LIVE
+      ? [
+          {
+            name: 'together-live',
+            testMatch: 'together-live.spec.ts',
+            use: { ...devices['Desktop Chrome'] },
+          },
+        ]
     : process.env.E2E_NOTIFICATIONS_LIVE
       ? [
           {
@@ -49,7 +59,7 @@ export default defineConfig({
       : [
           {
             name: 'desktop',
-            testIgnore: ['live.spec.ts', 'media-live.spec.ts', 'notifications-live.spec.ts'],
+            testIgnore: ['live.spec.ts', 'media-live.spec.ts', 'notifications-live.spec.ts', 'together-live.spec.ts'],
             use: {
               ...devices['Desktop Chrome'],
               viewport: { width: 1280, height: 900 },
@@ -57,7 +67,7 @@ export default defineConfig({
           },
           {
             name: 'mobile',
-            testIgnore: ['live.spec.ts', 'media-live.spec.ts', 'notifications-live.spec.ts'],
+            testIgnore: ['live.spec.ts', 'media-live.spec.ts', 'notifications-live.spec.ts', 'together-live.spec.ts'],
             use: {
               ...devices['iPhone 13'],
               defaultBrowserType: 'chromium',

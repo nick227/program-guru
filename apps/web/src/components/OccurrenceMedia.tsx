@@ -8,6 +8,7 @@ import { Panel, Stack } from '@/components/ui/Layout'
 import { ThumbnailGrid } from '@/components/ThumbnailGrid'
 import { MediaViewer, type ViewerItem } from '@/components/MediaViewer'
 import { MediaPicker } from './MediaPicker'
+import { GroupMediaThread, ShareWithGroup } from './GroupMediaThread'
 
 type S = components['schemas']
 
@@ -39,6 +40,8 @@ export function OccurrenceMedia({
   sharedMedia,
   communityMedia,
   locked,
+  group,
+  onShared,
 }: {
   activityId: string
   sessionId?: string
@@ -47,6 +50,9 @@ export function OccurrenceMedia({
   sharedMedia: S['GroupMediaThumb'][]
   communityMedia: S['PublicMediaThumb'][]
   locked: boolean
+  /** The viewer's group for this occurrence: enables sharing own media and group comments. */
+  group?: { groupId: string; occurrenceKey: string } | null
+  onShared?: () => void
 }) {
   const [viewer, setViewer] = useState<{
     items: ViewerItem[]
@@ -81,7 +87,7 @@ export function OccurrenceMedia({
   const communityCount = locked ? 0 : communityMedia.length
   return (
     <>
-      <Panel aria-label="Related Media">
+      <Panel aria-label="Related Media" id="related-media" className="scroll-mt-4">
         <Stack>
           <div>
             <h2>Related Media</h2>
@@ -160,7 +166,24 @@ export function OccurrenceMedia({
           index={viewer.index}
           onClose={() => setViewer(null)}
           onIndex={(i) => setViewer({ ...viewer, index: i })}
-        />
+        >
+          {(() => {
+            const current = viewer.items[viewer.index] as (typeof related)[number] | undefined
+            if (current?.badge === 'Group' && current.publicationId)
+              return <GroupMediaThread key={current.publicationId} publicationId={current.publicationId} />
+            if (current?.badge === 'Private' && group && !sharedMedia.some((m) => m.id === current.id))
+              return (
+                <ShareWithGroup
+                  key={current.id}
+                  mediaId={current.id}
+                  groupId={group.groupId}
+                  occurrenceKey={group.occurrenceKey}
+                  onShared={onShared}
+                />
+              )
+            return null
+          })()}
+        </MediaViewer>
       )}
     </>
   )

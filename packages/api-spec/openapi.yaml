@@ -9420,6 +9420,7 @@ components:
       type: object
       required:
       - id
+      - programId
       - programVersionId
       - programTitle
       - name
@@ -9430,9 +9431,14 @@ components:
         id:
           type: string
           format: uuid
+        programId:
+          type: string
+          format: uuid
+          description: The Program this group belongs to. Members may follow different versions of it.
         programVersionId:
           type: string
           format: uuid
+          description: The version the group was created on; not a membership constraint.
         programTitle:
           type: string
         name:

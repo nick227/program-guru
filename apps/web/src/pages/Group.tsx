@@ -175,31 +175,6 @@ function InvitationDecisionPanel({
               )}
             </Row>
           </Stack>
-        ) : joinStatus === 'ENROLLED_OTHER_VERSION' ? (
-          <Stack className="gap-2">
-            <p className="text-sm text-attention">
-              You are following a different version of this Program. Update or
-              leave that enrollment first, then accept this invitation.
-            </p>
-            <Row>
-              <Link
-                to={buildProgramUrl(preview.program)}
-                className={linkButton}
-              >
-                Open Program
-              </Link>
-              {canDecline && onDecline && (
-                <Button
-                  variant="outline"
-                  disabled={!online || declining}
-                  loading={declining}
-                  onClick={() => void onDecline()}
-                >
-                  Decline invitation
-                </Button>
-              )}
-            </Row>
-          </Stack>
         ) : joinStatus === 'LEAVE_OTHER_GROUP' ? (
           <Stack className="gap-2">
             <p className="text-sm text-attention">

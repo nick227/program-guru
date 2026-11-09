@@ -42,8 +42,9 @@ export function ProgramGroups({
     if (groups.hasNextPage && !groups.isFetchingNextPage && !groups.isFetchNextPageError) void groups.fetchNextPage()
   }, [groups.hasNextPage, groups.isFetchingNextPage, groups.isFetchNextPageError, groups.fetchNextPage])
   const canCreate = !!enrollmentId || isProgramOwner
+  // A group belongs to the Program, not a version: members on v1 and v2 share it (10 §2).
   const matching = (groups.data?.pages.flatMap((page) => page.data) ?? []).filter(
-    (group: GroupSummary) => group.programVersionId === versionId,
+    (group: GroupSummary) => group.programId === programId,
   )
 
   async function createGroup() {

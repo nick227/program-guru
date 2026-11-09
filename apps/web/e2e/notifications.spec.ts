@@ -387,6 +387,7 @@ async function setupNotificationsMock(
               user: coach,
               status: 'DONE',
               completionShareId: shareId,
+              completedAt: null,
               reactions: reacted
                 ? [{ emoji: '👏', count: 1, reactedByMe: true }]
                 : [],
@@ -569,6 +570,7 @@ async function setupNotificationsMock(
         [
           {
             id: groupId,
+            programId,
             programVersionId: uid(19),
             programTitle: 'Strength Foundation',
             name: 'Morning Crew',

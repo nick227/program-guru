@@ -3650,7 +3650,15 @@ export interface components {
         GroupSummary: {
             /** Format: uuid */
             id: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The Program this group belongs to. Members may follow different versions of it.
+             */
+            programId: string;
+            /**
+             * Format: uuid
+             * @description The version the group was created on; not a membership constraint.
+             */
             programVersionId: string;
             programTitle: string;
             name: string | null;

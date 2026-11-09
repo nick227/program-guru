@@ -1,7 +1,5 @@
-import { GroupInviteLink } from '@/components/GroupInviteLink'
 import { useRef, useState } from 'react'
 import {
-  Link,
   useBeforeUnload,
   useBlocker,
   useNavigate,
@@ -9,13 +7,12 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import {
-  useAddCompletionReaction,
   useCreateSession,
+  useCurrentUser,
   useAttachSessionMedia,
   useInboundMedia,
   getOrCreateSessionResultEntry,
   useOccurrence,
-  useRemoveCompletionReaction,
   useSaveResults,
   useSessionAction,
   useUndoCompletion,
@@ -25,17 +22,15 @@ import { toast } from 'sonner'
 import { Page, Stage, Panel, Stack, Row, Grid } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back, linkButton } from '@/components/Navigation'
+import { Back } from '@/components/Navigation'
 import { MetricInput } from '@/components/MetricInput'
-import { AvatarStack } from '@/components/AvatarStack'
-import { UnreadDot } from '@/components/UnreadDot'
+import { ActivityTogether } from '@/components/ActivityTogether'
 import { OccurrenceInstructions } from '@/components/OccurrenceInstructions'
 import { OccurrenceMedia } from '@/components/OccurrenceMedia'
 import { SessionUpload } from '@/components/SessionUpload'
 import { calendarUrl, dateLabel, safeReturn } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
-import { buildGroupUrl } from '@/lib/urls'
 type S = components['schemas']
 const metricKey = (m: S['MetricInput']) =>
   `${m.instructionId ?? ''}:${m.metricDefinitionId}`
@@ -104,8 +99,7 @@ function OccurrenceContent({
   const undo = useUndoCompletion()
   const attach = useAttachSessionMedia()
   const inbound = useInboundMedia({ purpose: 'JOURNAL' })
-  const addReaction = useAddCompletionReaction()
-  const removeReaction = useRemoveCompletionReaction()
+  const me = useCurrentUser()
   const [dirty, setDirty] = useState<Record<string, string | number | boolean>>(
     {},
   )
@@ -298,96 +292,13 @@ function OccurrenceContent({
         </Stack>
       </Panel>
       {o.collaborators && (
-        <Panel>
-          <Stack>
-            <Row className="justify-between">
-              <Row className="gap-2">
-                <h2>Do this together</h2>
-                <UnreadDot count={o.collaborators.unreadCount} inline />
-              </Row>
-              <Row className="gap-2">
-                <p className="text-xs text-muted">
-                  {o.collaborators.finishedCount}/{o.collaborators.totalCount}{' '}
-                  finished
-                </p>
-                <Link
-                  to={buildGroupUrl(o.collaborators.groupId)}
-                  className={linkButton}
-                >
-                  Open Group
-                </Link>
-              </Row>
-            </Row>
-            <GroupInviteLink groupId={o.collaborators.groupId} />
-            <ErrorMessage error={addReaction.error || removeReaction.error} />
-            <AvatarStack
-              people={o.collaborators.members.map((m) => ({
-                id: m.user.id,
-                name: m.user.displayName,
-                avatarUrl: m.user.avatarUrl,
-              }))}
-              max={6}
-            />
-            <Stack className="gap-2">
-              {o.collaborators.members.map((member) => (
-                <div
-                  key={member.user.id}
-                  className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted"
-                >
-                  <span>
-                    {member.user.displayName} ·{' '}
-                    {member.status === 'DONE'
-                      ? 'Completed'
-                      : member.status === 'NOT_PARTICIPATING'
-                        ? 'Not participating'
-                        : member.status === 'UNKNOWN'
-                          ? 'Private'
-                          : 'Planned'}
-                  </span>
-                  {member.completionShareId && (
-                    <Row className="gap-1">
-                      {(['👏', '🔥'] as const).map((emoji) => {
-                        const existing = member.reactions.find(
-                          (r) => r.emoji === emoji,
-                        )
-                        const active = existing?.reactedByMe ?? false
-                        const count = existing?.count ?? 0
-                        return (
-                          <button
-                            key={emoji}
-                            type="button"
-                            disabled={disabled}
-                            aria-pressed={active}
-                            aria-label={`React ${emoji} to ${member.user.displayName}`}
-                            onClick={() =>
-                              active
-                                ? removeReaction.mutate({
-                                    shareId: member.completionShareId!,
-                                    emoji,
-                                  })
-                                : addReaction.mutate({
-                                    shareId: member.completionShareId!,
-                                    emoji,
-                                    idempotencyKey: crypto.randomUUID(),
-                                  })
-                            }
-                            className={`min-h-11 rounded-full border px-2.5 py-1 text-xs ${
-                              active
-                                ? 'border-accent bg-accent/15 text-accent'
-                                : 'bg-surface text-muted hover:bg-surface-muted'
-                            }`}
-                          >
-                            {emoji} {count > 0 ? count : ''}
-                          </button>
-                        )
-                      })}
-                    </Row>
-                  )}
-                </div>
-              ))}
-            </Stack>
-          </Stack>
-        </Panel>
+        <ActivityTogether
+          collaborators={o.collaborators}
+          viewerId={me.data?.data.id}
+          sharedMediaCount={o.sharedMedia.length}
+          sharedCommentCount={o.sharedMedia.reduce((n, m) => n + m.commentCount, 0)}
+          disabled={disabled}
+        />
       )}
       <Panel>
         <Stack>
@@ -513,6 +424,12 @@ function OccurrenceContent({
         sharedMedia={o.sharedMedia}
         communityMedia={o.communityMedia}
         locked={o.item.locked}
+        group={
+          o.collaborators?.occurrenceKey
+            ? { groupId: o.collaborators.groupId, occurrenceKey: o.collaborators.occurrenceKey }
+            : null
+        }
+        onShared={refresh}
       />
       {o.communityStats && (
         <Panel>

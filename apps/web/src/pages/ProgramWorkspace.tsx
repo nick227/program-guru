@@ -983,7 +983,7 @@ function WorkspaceTogether({ ws }: { ws: Workspace }) {
   const me = useCurrentUser()
   const enrollments = useMyEnrollments()
   const enrollment = enrollments.data?.pages.flatMap((page) => page.data).find(
-    (entry) => entry.program.id === ws.id && entry.programVersionId === ws.latestPublishedVersionId && ['ACTIVE', 'PAUSED'].includes(entry.status),
+    (entry) => entry.program.id === ws.id && ['ACTIVE', 'PAUSED'].includes(entry.status),
   )
   return (
     <ProgramGroups

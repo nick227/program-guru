@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import { useProgramLibrary } from '@project/sdk'
 import { Search, Plus, ArrowUpRight, BookOpen, ArrowLeft } from 'lucide-react'
+import { ProgramPeople } from '@/components/ProgramPeople'
 import { ProgramLibraryActions as Actions } from '@/components/ProgramLibraryActions'
 import { Page } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
@@ -163,6 +164,7 @@ export function LibraryPage() {
                       'Program',
                       'Status',
                       'Progress',
+                      'People',
                       'Next Activity',
                       'Source',
                       'Actions',
@@ -309,6 +311,9 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
       </td>
       <td data-label="Progress">
         <Progress entry={entry} />
+      </td>
+      <td data-label="People">
+        <ProgramPeople participation={entry.participation} />
       </td>
       <td data-label="Next Activity">
         {next ? (

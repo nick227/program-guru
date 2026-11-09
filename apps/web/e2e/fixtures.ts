@@ -465,6 +465,7 @@ export async function mockApi(
           ? [
               {
                 id: groupId,
+                programId,
                 programVersionId: uid(12),
                 programTitle: title,
                 name: createdGroupName,

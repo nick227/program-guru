@@ -33,12 +33,12 @@ async function ownedGroup(userId: string, groupId: string) {
   return m.group
 }
 
-async function toSummary(g: ProgramGroup & { version: { title: string } }, userId: string) {
+async function toSummary(g: ProgramGroup & { version: { title: string; programId: string } }, userId: string) {
   const [memberCount, me] = await Promise.all([
     db.groupMember.count({ where: { groupId: g.id, status: 'ACTIVE' } }),
     db.groupMember.findUnique({ where: { groupId_userId: { groupId: g.id, userId } } }),
   ])
-  return { id: g.id, programVersionId: g.programVersionId, programTitle: g.version.title, name: g.name, mode: g.mode, memberCount, myRole: me?.role ?? 'MEMBER' }
+  return { id: g.id, programId: g.version.programId, programVersionId: g.programVersionId, programTitle: g.version.title, name: g.name, mode: g.mode, memberCount, myRole: me?.role ?? 'MEMBER' }
 }
 
 async function toDetail(groupId: string, userId: string) {
