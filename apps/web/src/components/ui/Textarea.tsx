@@ -1,4 +1,5 @@
-import { forwardRef } from 'react'
+import { forwardRef, useState } from 'react'
+import { usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { cn } from '@/lib/utils'
 import { useSpeechRecognition } from './voice/useSpeechRecognition'
 import { VoiceButton } from './voice/VoiceButton'
@@ -25,9 +26,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     },
     ref,
   ) => {
+    const [voiceEdited, setVoiceEdited] = useState(false)
     const speech = useSpeechRecognition({
       continuous: true,
       onResult: (transcript) => {
+        setVoiceEdited(true)
         const nextValue =
           voiceMode === 'append' && typeof value === 'string' && value.trim()
             ? `${value.trimEnd()} ${transcript}`
@@ -39,6 +42,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       },
       onError: onVoiceError,
     })
+
+    usePwaReloadBlocker(voiceEdited || speech.listening)
 
     return (
       <div className="relative">

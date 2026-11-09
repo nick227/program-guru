@@ -1,3 +1,4 @@
+import { beginPwaWork, usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -44,6 +45,7 @@ export function useMediaUploads({
 }: { onReady?: (asset: S['MediaAsset']) => void | Promise<void> } = {}) {
   const cache = useQueryClient()
   const [uploads, setUploads] = useState<LocalUpload[]>([])
+  usePwaReloadBlocker(uploads.some(upload => upload.stage !== 'failed'))
   const live = useRef(true)
   const dropped = useRef(new Set<string>())
   const onReadyRef = useRef(onReady)
@@ -126,6 +128,7 @@ export function useMediaUploads({
     options: UploadOptions,
     previewUrl: string,
   ) {
+    const finishWork = beginPwaWork()
     try {
       const asset = await sendMediaFile(file, options)
       previews.set(asset.id, previewUrl)
@@ -141,6 +144,8 @@ export function useMediaUploads({
         error: error instanceof Error ? error : new Error('Upload failed'),
       })
       return undefined
+    } finally {
+      finishWork()
     }
   }
 

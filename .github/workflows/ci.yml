@@ -70,3 +70,15 @@ jobs:
 
       - name: Production build (bundle must start without workspace TypeScript)
         run: pnpm --filter server build
+
+      - name: Frontend production build (including PWA)
+        run: pnpm --filter web build
+        env:
+          NODE_ENV: production
+          VITE_API_URL: /api
+
+      - name: Install Chromium for PWA lifecycle checks
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: PWA production lifecycle (two builds, real worker)
+        run: pnpm --filter web test:e2e:pwa

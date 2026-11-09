@@ -1,3 +1,4 @@
+import { usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { useEffect, useRef, useState } from 'react'
 import { useBeforeUnload, useBlocker } from 'react-router-dom'
 /** Single-field draft controller: one request in flight, latest edit wins locally, CAS on server. */
@@ -15,6 +16,7 @@ export function useAutosave(
   const saveRef = useRef(save)
   saveRef.current = save
   const dirty = value !== saved
+  usePwaReloadBlocker(dirty || pending)
   useEffect(() => {
     if (dirty || pending || error) return
     revision.current = initialRevision

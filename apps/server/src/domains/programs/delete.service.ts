@@ -1,6 +1,7 @@
 // Owner Program deletion (07-PROGRAMS.md §6). Permanent for the owner; other people's records stay.
 import { db, type Prisma } from '@project/db'
 import { notFound } from '../../lib/errors'
+import { enqueue } from '../../lib/outbox'
 import { isProgramOwner } from './access'
 
 type Tx = Prisma.TransactionClient
@@ -48,6 +49,10 @@ export async function deleteProgram(userId: string, programId: string) {
       if (retained) {
         // Tombstone: no discovery, joins, purchases or copies, and no owner controls; participants keep everything.
         await tx.program.update({ where: { id: programId }, data: { deletedAt: new Date(), status: program.status === 'DRAFT' ? 'DRAFT' : 'ARCHIVED' } })
+        // A deleted offering stops renewing; paid-through access and payment history stay (07 §6).
+        if (await tx.billingSubscription.count({ where: { programId, status: { in: ['INCOMPLETE', 'ACTIVE', 'PAST_DUE'] } } })) {
+          await enqueue(tx, 'ProgramSubscriptionsCancel', { programId })
+        }
       } else {
         const groupIds = (await tx.programGroup.findMany({ where: { programVersionId: { in: versionIds } }, select: { id: true } })).map((g) => g.id)
         await tx.completionShare.deleteMany({ where: { groupId: { in: groupIds } } })

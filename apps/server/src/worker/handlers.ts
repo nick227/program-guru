@@ -4,6 +4,7 @@ import { db } from '@project/db'
 import { email, layout } from '../infrastructure/email'
 import { activeGroupMembers, displayName, notify } from './notify'
 import { processMedia } from './media'
+import { billingGateway } from '../infrastructure/stripe'
 
 export type OutboxEvent = { id: string; type: string; payload: Record<string, any> }
 type Handler = (e: OutboxEvent) => Promise<void>
@@ -24,6 +25,17 @@ async function emailFor(userId: string) {
 }
 
 export const handlers: Record<string, Handler> = {
+  /** A deleted Program stops renewing (07 §6). Idempotent: re-setting cancel-at-period-end is a no-op. */
+  async ProgramSubscriptionsCancel(e) {
+    const subs = await db.billingSubscription.findMany({
+      where: { programId: e.payload.programId, status: { in: ['INCOMPLETE', 'ACTIVE', 'PAST_DUE'] }, providerSubscriptionId: { not: null }, cancelAtPeriodEnd: false },
+    })
+    for (const s of subs) {
+      await billingGateway().setCancelAtPeriodEnd(s.providerSubscriptionId!, true)
+      await db.billingSubscription.update({ where: { id: s.id }, data: { cancelAtPeriodEnd: true } })
+    }
+  },
+
   async EmailVerificationRequested(e) {
     const to = await emailFor(e.payload.userId)
     if (!to || !e.payload.token) return

@@ -1,3 +1,4 @@
+import { InstallApp } from '@/components/PwaControls'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Bell, X } from 'lucide-react'
@@ -213,6 +214,7 @@ export function AccountMenu() {
             <Link to="/settings" className={linkButton}>
               Settings
             </Link>
+            <InstallApp />
             <Button variant="ghost" onClick={toggleTheme}>
               Change theme
             </Button>

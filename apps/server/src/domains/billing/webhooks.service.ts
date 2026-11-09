@@ -81,6 +81,9 @@ async function checkoutCompleted(tx: Tx, session: any) {
     if (!sub || !providerId) return
     // Link only; access starts on invoice.paid.
     if (!sub.providerSubscriptionId) await tx.billingSubscription.update({ where: { id: sub.id }, data: { providerSubscriptionId: providerId } })
+    // The Program was deleted while this checkout was open: never renew it (07 §6).
+    const program = await tx.program.findUnique({ where: { id: sub.programId }, select: { deletedAt: true } })
+    if (program?.deletedAt) await tx.outboxEvent.create({ data: { type: 'ProgramSubscriptionsCancel', payload: { programId: sub.programId } } })
   }
 }
 

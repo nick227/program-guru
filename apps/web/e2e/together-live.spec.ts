@@ -53,7 +53,7 @@ test('mixed-version group: presence, reactions, My Programs, Program page and Gr
   await bob.goto(`/programs/${env('TOGETHER_PROGRAM_ID')}`)
   await expect(bob.getByRole('link', { name: 'View group' })).toBeVisible()
   // The "no group yet" prompt (which would create a second group) is not offered.
-  await expect(bob.getByText('Invite people to follow this Program with you.')).toHaveCount(0)
+  await expect(bob.getByText('Invite people')).toHaveCount(0)
 
   // ── Group page loads for everyone, whatever their version ──────────────────────────────────
   await bob.goto(`/groups/${env('TOGETHER_GROUP_ID')}`)

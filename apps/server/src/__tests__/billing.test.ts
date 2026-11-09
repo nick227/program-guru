@@ -8,6 +8,7 @@ import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, se
 import { seedCatalog } from './helpers/fixtures'
 import { setBillingGateway, type BillingGateway, type CheckoutRequest } from '../infrastructure/stripe'
 import { contractCase } from './helpers/contract'
+import { drain } from '../worker/outbox'
 
 const app = buildTestApp()
 const SECRET = 'whsec_test_snapshot'
@@ -228,6 +229,38 @@ describe('monthly subscription (required test 5)', () => {
     const item = await db.calendarItem.findFirstOrThrow({ where: { ownerId: carolId } })
     expect((await req('GET', `/calendar-items/${item.id}/occurrence`, undefined, carolId)).json().data.item.locked).toBe(true)
     expect(await db.calendarItem.count({ where: { ownerId: carolId } })).toBeGreaterThan(0)
+  })
+
+  it('deleting the Program stops renewals but keeps paid-through access and payment history (07 §6)', async () => {
+    const { programId, prices } = await paidProgram()
+    const monthly = prices.find((p) => p.kind === 'MONTHLY')!
+    await req('POST', `/programs/${programId}/checkout`, { priceId: monthly.id, idempotencyKey: 'checkout-before-delete' }, carolId)
+    await webhook('checkout.session.completed', { id: 'cs_test_1', mode: 'subscription', payment_status: 'paid', subscription: 'sub_d' })
+    const periodEnd = Math.floor(Date.now() / 1000) + 30 * 86400
+    await webhook('invoice.paid', { id: 'in_d', amount_paid: 500, parent: { subscription_details: { subscription: 'sub_d' } }, lines: { data: [{ period: { start: Math.floor(Date.now() / 1000), end: periodEnd } }] } })
+    // A second subscriber is still in Checkout when the Program is deleted.
+    await req('POST', `/programs/${programId}/checkout`, { priceId: monthly.id, idempotencyKey: 'checkout-open-at-delete' }, testOtherUserId)
+    const grantBefore = await db.programAccessGrant.findFirstOrThrow({ where: { userId: carolId, source: 'SUBSCRIPTION' } })
+
+    const deleted = await req('DELETE', `/programs/${programId}`)
+    expect(deleted.json().data).toEqual({ programId, retainedForParticipants: true })
+    expect(gw.cancels).toEqual([]) // never inside the request; the outbox calls the provider
+    await drain()
+    expect(gw.cancels).toEqual([['sub_d', true]])
+    expect(await db.billingSubscription.findFirstOrThrow({ where: { userId: carolId } })).toMatchObject({ status: 'ACTIVE', cancelAtPeriodEnd: true })
+    await drain()
+    expect(gw.cancels).toHaveLength(1) // idempotent
+
+    // Paid-through access and history stay; nothing is revoked early.
+    const grantAfter = await db.programAccessGrant.findUniqueOrThrow({ where: { id: grantBefore.id } })
+    expect(grantAfter).toMatchObject({ revokedAt: null, expiresAt: grantBefore.expiresAt })
+    expect((await req('GET', `/programs/${programId}`, undefined, carolId)).json().data.viewerAccess).toBe('GRANTED')
+    expect(await db.billingSubscription.count({ where: { programId } })).toBe(2)
+
+    // The checkout that was open completes afterwards: it is cancelled at period end too.
+    await webhook('checkout.session.completed', { id: 'cs_test_2', mode: 'subscription', payment_status: 'paid', subscription: 'sub_late' })
+    await drain()
+    expect(gw.cancels).toEqual([['sub_d', true], ['sub_late', true]])
   })
 
   it('a failed renewal marks the subscription past due and tells the subscriber', async () => {

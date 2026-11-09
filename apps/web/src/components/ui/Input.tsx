@@ -1,4 +1,5 @@
-import { forwardRef } from 'react'
+import { forwardRef, useState } from 'react'
+import { usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { cn } from '@/lib/utils'
 import { useSpeechRecognition } from './voice/useSpeechRecognition'
 import { VoiceButton } from './voice/VoiceButton'
@@ -15,8 +16,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     { className, voice, onVoiceResult, onVoiceError, onChange, ...props },
     ref,
   ) => {
+    const [voiceEdited, setVoiceEdited] = useState(false)
     const speech = useSpeechRecognition({
       onResult: (transcript) => {
+        setVoiceEdited(true)
         onVoiceResult?.(transcript)
         onChange?.({
           target: { value: transcript },
@@ -24,6 +27,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       },
       onError: onVoiceError,
     })
+
+    usePwaReloadBlocker(voiceEdited || speech.listening)
 
     return (
       <div className="relative flex items-center">

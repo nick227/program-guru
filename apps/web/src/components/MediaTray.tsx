@@ -1,3 +1,4 @@
+import { usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { useRef, useState, type ReactNode } from 'react'
 import { AlertCircle, ImagePlus, Loader2, Play, X } from 'lucide-react'
 import type { components } from '@project/sdk'
@@ -58,6 +59,7 @@ export function MediaTray({
   const [error, setError] = useState<unknown>(null)
   const [removing, setRemoving] = useState<string | null>(null)
   const hasItem = items.length > 0
+  usePwaReloadBlocker(items.some(item => item.status === 'uploading' || item.status === 'processing') || removing !== null)
   const addLabel = !multiple && hasItem
     ? accept === 'image' ? 'Replace image' : 'Replace media'
     : accept === 'image' ? 'Add image' : 'Add media'

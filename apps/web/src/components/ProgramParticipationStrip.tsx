@@ -10,7 +10,6 @@ export interface ProgramParticipationStripProps {
   completionMetricLabel?: string
   /** The viewer's own group for this Program, when they have one. */
   groupId?: string | null
-  onStartGroup?: () => void
   className?: string
 }
 
@@ -20,13 +19,12 @@ export function ProgramParticipationStrip({
   completionRate,
   completionMetricLabel = 'completed all scheduled activities',
   groupId,
-  onStartGroup,
   className,
 }: ProgramParticipationStripProps) {
   const hasParticipants = (participantCount ?? 0) > 0
   const hasCompletion = completionRate != null
-  const hasGroupAction = !!groupId || !!onStartGroup
-  if (!hasParticipants && !hasCompletion && !hasGroupAction) return null
+  const hasGroup = !!groupId
+  if (!hasParticipants && !hasCompletion && !hasGroup) return null
 
   return (
     <div
@@ -58,26 +56,15 @@ export function ProgramParticipationStrip({
         </div>
       )}
 
-      {hasGroupAction && (
+      {hasGroup && (
         <div className="min-w-0 flex-1 pt-3 md:pl-8 md:pt-0 first:md:pl-0 first:pt-0">
-          {groupId ? (
-            <Link
-              to={buildGroupUrl(groupId)}
-              className="group flex items-center justify-between gap-3"
-            >
-              <GroupLabel title="Open your group" detail="See who is following this Program with you" />
-              <ChevronRight size={18} aria-hidden className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={onStartGroup}
-              className="group flex w-full items-center justify-between gap-3 text-left"
-            >
-              <GroupLabel title="Do this together" detail="Start a group; everyone keeps their own Calendar" />
-              <ChevronRight size={18} aria-hidden className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5" />
-            </button>
-          )}
+          <Link
+            to={buildGroupUrl(groupId!)}
+            className="group flex items-center justify-between gap-3"
+          >
+            <GroupLabel title="Open your group" detail="See who is following this Program with you" />
+            <ChevronRight size={18} aria-hidden className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5" />
+          </Link>
         </div>
       )}
     </div>

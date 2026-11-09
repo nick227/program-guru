@@ -19,6 +19,7 @@
     "src",
     "e2e",
     "*.ts",
-    "scripts"
+    "scripts",
+    "pwa-tests"
   ]
 }

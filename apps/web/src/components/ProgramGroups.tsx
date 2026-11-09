@@ -73,12 +73,6 @@ export function ProgramGroups({
         <ErrorMessage error={groups.error} retry={() => void groups.refetch()} />
         {matching.map((group) => <Participation key={group.id} groupId={group.id} programId={programId} />)}
         {createdGroupId && !matching.some((g) => g.id === createdGroupId) && <Participation groupId={createdGroupId} programId={programId} />}
-        {!matching.length && !createdGroupId && !groups.isPending && !groups.error && (
-          <p className="text-sm text-muted">
-            Invite people to follow this Program with you. Everyone
-            keeps an independent calendar and private results.
-          </p>
-        )}
         {!matching.length && !createdGroupId && canCreate && versionId ? (
           creating ? (
             <Stack>

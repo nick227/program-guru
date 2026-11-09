@@ -1,3 +1,4 @@
+import { InstallApp } from '@/components/PwaControls'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -148,6 +149,7 @@ export function SettingsPage() {
           </Link>
         </Row>
         <h1>Settings</h1>
+        <InstallApp />
 
         <Panel id="reminders">
           <Stack>

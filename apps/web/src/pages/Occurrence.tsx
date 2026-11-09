@@ -1,3 +1,4 @@
+import { usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { useEffect, useRef, useState } from 'react'
 import {
   useBeforeUnload,
@@ -114,6 +115,7 @@ function OccurrenceContent({
   const created = useRef<S['ActivitySession'] | null>(null)
   const leavingAfterFinish = useRef(false)
   const unsaved = Object.keys(dirty).length > 0
+  usePwaReloadBlocker(unsaved || busy)
   const blocker = useBlocker(
     () => (unsaved || busy) && !leavingAfterFinish.current,
   )

@@ -11,7 +11,8 @@
     "test:e2e": "playwright test",
     "test:e2e:live": "E2E_LIVE=1 playwright test --project=live",
     "test:e2e:auth": "tsx scripts/auth-live.ts",
-    "test:e2e:together": "tsx scripts/together-live.ts"
+    "test:e2e:together": "tsx scripts/together-live.ts",
+    "test:e2e:pwa": "playwright test --config playwright.pwa.config.ts"
   },
   "dependencies": {
     "@project/sdk": "workspace:*",
@@ -39,6 +40,9 @@
     "tailwindcss": "^3.4.17",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
-    "vitest": "^2.0.0"
+    "vitest": "^2.0.0",
+    "vite-plugin-pwa": "0.21.2",
+    "workbox-build": "7.3.0",
+    "workbox-window": "7.3.0"
   }
 }

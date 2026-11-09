@@ -1,3 +1,4 @@
+import { PwaUpdatePrompt } from '@/components/PwaControls'
 import { useEffect, useRef } from 'react'
 import {
   createBrowserRouter,
@@ -62,13 +63,13 @@ function Root() {
       >
         Skip to content
       </a>
+      <PwaUpdatePrompt />
       {!online && (
         <p
           role="status"
           className="border-b bg-surface px-4 py-3 text-center text-attention"
         >
-          You are offline. Cached content is available; reconnect to save
-          changes.
+          You are offline. Previously loaded data may be out of date. Connect to load your account or save changes.
         </p>
       )}
       <header className="sticky top-0 z-20 border-b bg-surface/95 backdrop-blur">

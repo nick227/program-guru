@@ -160,3 +160,22 @@ Contract, identity, taxonomy → seeded Activity/Instruction/metrics and platfor
 ## 15. Implementation decisions
 
 Password hashing: bcrypt cost 12. Sessions: server-side `Session` rows storing a hash of the token. Storage: Cloudflare R2. Queue: database outbox. Recurrence: simple structured rule evaluated in-house, no RRULE library. Email: replaceable provider, Resend by default. Checkout: Stripe. Record any change or the Stripe Connect configuration in a short ADR under `docs/adr/`. Do not make UI behavior depend on provider internals.
+
+## Installable web application
+
+Program.Guru ships an installable PWA from the existing React/Vite web service and
+normal main-branch Railway build. The manifest identity, root scope, standalone
+launch and same-origin cookie authentication remain stable across releases.
+Only build-owned shell assets are precached. APIs, authenticated responses,
+uploads and signed media are never stored by the service worker. Offline cold
+launch explains that account data needs connectivity; no persistent account
+cache, offline writes or background synchronization is provided.
+
+Updates wait for explicit Reload or Later. Reload is blocked by dirty forms,
+pending autosaves/mutations and uploading/processing media. Unclassified edited
+controls are conservatively protected until their view is closed. Other windows
+are never automatically reloaded. Active stale queries refresh on resume and
+reconnect. Installation fallback instructions cover browsers without an install
+prompt. Push notifications, native installers and multi-window coordination are
+deferred. Production-worker checks cover routing/auth, offline launch, cache
+isolation and a two-build update before release.

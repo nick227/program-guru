@@ -1,3 +1,4 @@
+import { usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { ApiError } from '@project/sdk'
 import { MediaGrid } from './MediaGrid'
 import { useState, useEffect } from 'react'
@@ -29,6 +30,7 @@ export function MediaLibrary({
   const [pendingUploadId, setPendingUploadId] = useState<string | null>(null)
   const library = useMediaLibrary({ source, q, type })
   const upload = useMediaUpload()
+  usePwaReloadBlocker(upload.stage === 'uploading' || upload.stage === 'processing')
   const pendingAsset = useMediaAsset(pendingUploadId ?? '')
   const online = useOnline()
 

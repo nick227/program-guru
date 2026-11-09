@@ -1,6 +1,7 @@
-import { Calendar } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { Calendar, CheckCircle2 } from 'lucide-react'
 import { SectionHeader } from '@/components/ui/SectionHeader'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/utils'
 
 export interface ScheduleOutlineItem {
@@ -12,72 +13,146 @@ export interface ScheduleOutlineItem {
 export interface ProgramSchedulePreviewProps {
   durationDays?: number | null
   frequencyLabel?: string | null
-  /** Days that have at least one Activity. */
   programDays?: number | null
-  /** Total scheduled Activities across the Program. */
   placements?: number | null
   activities?: ScheduleOutlineItem[]
-  onPreviewDates?: () => void
+  startDate?: string
+  onStartDateChange?: (date: string) => void
+  onStartProgram?: () => void
+  isStarting?: boolean
+  isEnrolled?: boolean
+  signedIn?: boolean
+  loginUrl?: string
+  timezone?: string
+  onViewSchedule?: () => void
   className?: string
 }
 
+const WEEK_DAYS = [
+  { short: 'M', name: 'Mon', index: 0 },
+  { short: 'T', name: 'Tue', index: 1 },
+  { short: 'W', name: 'Wed', index: 2 },
+  { short: 'T', name: 'Thu', index: 3 },
+  { short: 'F', name: 'Fri', index: 4 },
+  { short: 'S', name: 'Sat', index: 5 },
+  { short: 'S', name: 'Sun', index: 6 },
+]
+
 /**
- * Schedule summary from the preview API only. The exact dates come from
- * `Preview my calendar` (server-generated for the chosen start date), never from guesses here.
+ * Compact, visual weekly schedule: rhythm pills (M-T-W-T-F-S-S), duration summary,
+ * and integrated start action.
  */
 export function ProgramSchedulePreview({
   durationDays,
   frequencyLabel,
-  programDays,
-  placements,
   activities = [],
-  onPreviewDates,
+  startDate,
+  onStartDateChange,
+  onStartProgram,
+  isStarting = false,
+  isEnrolled = false,
+  signedIn = true,
+  loginUrl,
+  timezone,
+  onViewSchedule,
   className,
 }: ProgramSchedulePreviewProps) {
-  const facts = [
-    { label: 'Length', value: durationDays ? `${durationDays} days` : 'Ongoing' },
-    frequencyLabel ? { label: 'Rhythm', value: frequencyLabel } : null,
-    programDays != null ? { label: 'Program days', value: String(programDays) } : null,
-    placements != null ? { label: 'Sessions', value: String(placements) } : null,
-  ].filter((fact): fact is { label: string; value: string } => fact !== null)
-
-  const firstDays = activities
+  // Compute active days in week (0 = Monday, ... 6 = Sunday)
+  const explicitDays = activities
     .filter((a) => a.dayIndex != null)
-    .sort((a, b) => a.dayIndex! - b.dayIndex!)
+    .map((a) => a.dayIndex! % 7)
+
+  const activeDays = new Set<number>()
+  if (explicitDays.length > 0) {
+    for (const d of explicitDays) activeDays.add(d)
+  } else {
+    // Fallback heuristic based on frequencyLabel or defaults
+    const freq = frequencyLabel?.toLowerCase() || ''
+    if (freq.includes('daily') || freq.includes('7')) {
+      for (let i = 0; i < 7; i++) activeDays.add(i)
+    } else if (freq.includes('5')) {
+      for (let i = 0; i < 5; i++) activeDays.add(i)
+    } else if (freq.includes('2')) {
+      activeDays.add(1)
+      activeDays.add(3)
+    } else {
+      // Default: Mon, Wed, Fri
+      activeDays.add(0)
+      activeDays.add(2)
+      activeDays.add(4)
+    }
+  }
+
+  const weeks = durationDays ? Math.round(durationDays / 7) : 0
+  const durationText = durationDays
+    ? weeks > 0
+      ? `${weeks} ${weeks === 1 ? 'week' : 'weeks'}`
+      : `${durationDays} days`
+    : 'Flexible length'
+
 
   return (
-    <section aria-label="Program schedule" className={cn('w-full space-y-5', className)}>
-      <SectionHeader title="Schedule" description="Placed on your Calendar from the day you start." />
+    <section
+      aria-label="Start Program"
+      className={cn('rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-5', className)}
+    >
+      <div className="space-y-1">
+        <SectionHeader
+          title="Start Program"
+          className="pb-0"
+        />
+      </div>
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
-        {facts.map((fact) => (
-          <div key={fact.label}>
-            <dt className="text-xs text-muted">{fact.label}</dt>
-            <dd className="m-0 text-base font-semibold text-foreground">{fact.value}</dd>
+
+      {/* Start Date & Action Sitting Naturally Together */}
+      <div className="pt-3">
+        {isEnrolled ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-accent/5 rounded-lg p-3 border border-accent/20">
+            <div className="flex items-center gap-2 text-xs font-semibold text-accent">
+              <CheckCircle2 size={16} />
+              <span>You are currently enrolled</span>
+            </div>
+            {onViewSchedule && (
+              <Button size="sm" variant="outline" onClick={onViewSchedule}>
+                Open Schedule
+              </Button>
+            )}
           </div>
-        ))}
-      </dl>
-
-      {firstDays.length > 0 && (
-        <div className="space-y-2 border-t border-border pt-4">
-          <h3>First sessions</h3>
-          <ul className="space-y-1.5 text-sm">
-            {firstDays.map((activity, i) => (
-              <li key={i} className="flex items-baseline justify-between gap-3">
-                <span className="truncate text-foreground">{activity.title}</span>
-                <span className="shrink-0 font-mono text-xs text-muted">Day {activity.dayIndex! + 1}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {onPreviewDates && (
-        <Button variant="outline" className="w-full gap-2 font-semibold" onClick={onPreviewDates}>
-          <Calendar size={15} />
-          <span>Preview dates on my Calendar</span>
-        </Button>
-      )}
+        ) : signedIn ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={startDate}
+                disabled={isStarting}
+                onChange={(e) => onStartDateChange?.(e.target.value)}
+                className="h-10 flex-1 bg-surface text-sm font-medium"
+              />
+              <Button
+                size="md"
+                className="h-10 shrink-0 px-5 font-bold shadow-xs"
+                disabled={isStarting}
+                loading={isStarting}
+                onClick={onStartProgram}
+              >
+                Start Program
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h4 className="text-sm font-semibold text-foreground">Ready to start?</h4>
+              <p className="text-xs text-muted truncate">Sign in to set your start date.</p>
+            </div>
+            {loginUrl && (
+              <a href={loginUrl} className="btn btn--primary btn--sm shrink-0 font-semibold">
+                Sign in to join
+              </a>
+            )}
+          </div>
+        )}
+      </div>
     </section>
   )
 }

@@ -10,7 +10,7 @@ export interface ProgramActivityCardProps {
   /** Identity image through the shared fallback chain (`resolveHero`/`activityHero`). */
   hero: Hero
   description?: string | null
-  /** One short metadata line built from real values only, e.g. "Starts day 1". */
+  /** One short metadata line built from real values only, e.g. "Day 1". */
   meta?: string | null
   href?: string
   actions?: ReactNode
@@ -18,8 +18,8 @@ export interface ProgramActivityCardProps {
 }
 
 /**
- * Activity row: 4:3 preview, title, optional description and metadata, trailing action.
- * Renders only the values it is given; a chevron appears only when the row navigates.
+ * Media-led Activity Card: top aspect-ratio preview, day badge, title and description.
+ * Designed for responsive grid layouts.
  */
 export function ProgramActivityCard({
   title,
@@ -33,45 +33,61 @@ export function ProgramActivityCard({
   const content = (
     <article
       className={cn(
-        'group relative flex w-full items-center gap-3 rounded-[var(--radius-panel)] border border-border bg-surface p-3 sm:gap-5',
-        href && 'transition-colors hover:border-accent hover:bg-surface-raised',
+        'group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-xs transition-all duration-200 hover:border-accent/60 hover:shadow-md',
         className,
       )}
     >
-      <div className="w-28 shrink-0 sm:w-32">
+      {/* Media container */}
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-surface-muted">
         <EntityHero
           hero={hero}
           size="card"
-          className="aspect-preview rounded-[var(--radius-media)]"
+          className="h-full w-full rounded-none transition-transform duration-300 group-hover:scale-105"
         />
-      </div>
 
-      <div className="min-w-0 flex-1 space-y-1">
-        <h3 className="truncate text-base font-semibold leading-snug text-foreground">
-          {title}
-        </h3>
-        {description && (
-          <p className="line-clamp-1 text-sm text-muted">{description}</p>
+        {meta && (
+          <span className="absolute left-2.5 top-2.5 z-10 inline-flex items-center rounded-md bg-black/80 px-2.5 py-1 text-xs font-bold text-white shadow-sm backdrop-blur-md">
+            {meta}
+          </span>
         )}
-        {meta && <p className="text-sm text-muted">{meta}</p>}
       </div>
 
-      {actions ? (
-        <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          {actions}
+      {/* Card Content */}
+      <div className="flex flex-1 flex-col justify-between p-4 space-y-2">
+        <div className="space-y-1">
+          <h3
+            className="font-semibold text-base leading-snug text-foreground group-hover:text-accent transition-colors line-clamp-2"
+            title={title}
+          >
+            {title}
+          </h3>
+          {description && (
+            <p className="line-clamp-2 text-xs leading-relaxed text-muted">
+              {description}
+            </p>
+          )}
         </div>
-      ) : href ? (
-        <ChevronRight
-          size={18}
-          aria-hidden
-          className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
-        />
-      ) : null}
+
+        {/* Footer/Actions */}
+        {actions ? (
+          <div
+            className="flex items-center justify-end gap-2 pt-2 border-t border-border"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {actions}
+          </div>
+        ) : href ? (
+          <div className="flex items-center justify-end pt-1 text-xs font-semibold text-accent">
+            <span>View</span>
+            <ChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+          </div>
+        ) : null}
+      </div>
     </article>
   )
 
   return href && !actions ? (
-    <Link to={href} className="block rounded-[var(--radius-panel)]">
+    <Link to={href} className="block h-full rounded-xl focus:outline-hidden">
       {content}
     </Link>
   ) : (

@@ -1,3 +1,4 @@
+import { usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { ZodSchema } from 'zod'
@@ -52,11 +53,13 @@ export function Form<T extends Record<string, unknown>>({
     register,
     handleSubmit,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<T>({
     resolver: zodResolver(schema),
     defaultValues: defaultValues as never,
   })
+
+  usePwaReloadBlocker(isDirty || isSubmitting || isLoading)
 
   return (
     <form
@@ -87,7 +90,7 @@ export function Form<T extends Record<string, unknown>>({
                 rows={field.rows ?? 4}
                 voice={field.voice}
                 onVoiceResult={(t) =>
-                  setValue(field.name as never, t as never)
+                  setValue(field.name as never, t as never, { shouldDirty: true })
                 }
               />
             ) : (
@@ -106,7 +109,7 @@ export function Form<T extends Record<string, unknown>>({
                 placeholder={field.placeholder}
                 voice={field.voice}
                 onVoiceResult={(t) =>
-                  setValue(field.name as never, t as never)
+                  setValue(field.name as never, t as never, { shouldDirty: true })
                 }
               />
             )}
