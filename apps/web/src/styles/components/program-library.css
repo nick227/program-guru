@@ -615,10 +615,12 @@
 /* Use semantic columns so concurrent participation columns do not shift mobile metadata. */
 @media (max-width: 1150px) {
   .library-table th, .library-table td { display:table-cell; }
-  .library-table th[data-label='Source'], .library-table td[data-label='Source'] { display:none; }
+  .library-table th[data-label='Source'], .library-table td[data-label='Source'],
+  .library-table th[data-label='Type'], .library-table td[data-label='Type'] { display:none; }
 }
 @media (max-width: 680px) {
   .library-table td { display:block; grid-column:auto; grid-row:auto; }
+  .library-table td[data-label='Type'] { display:block; }
   .library-table td[data-label='Program'] { grid-column:1 / -1; grid-row:1; }
   .library-table td[data-label='Type'] { grid-column:1; grid-row:2; }
   .library-table td[data-label='Status'] { grid-column:1; grid-row:3; }
