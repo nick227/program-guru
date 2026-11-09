@@ -1,0 +1,68 @@
+@layer components {
+  /* SectionHeader (04-UI §4a) */
+  .section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .section-header__text {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 16rem;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .section-header__description {
+    margin: 0;
+    color: hsl(var(--color-muted));
+    font-size: var(--type-meta);
+  }
+
+  .section-header__action {
+    flex-shrink: 0;
+  }
+
+  /* StatusText (04-UI §4a) */
+  .status-text {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-caption);
+    font-weight: 600;
+    white-space: nowrap;
+    color: hsl(var(--color-text));
+  }
+
+  .status-text__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    flex-shrink: 0;
+    border-radius: var(--radius-full);
+    background: hsl(var(--color-status-planned));
+  }
+
+  .status-text[data-status='active'] .status-text__dot {
+    background: hsl(var(--color-status-active));
+    box-shadow: 0 0 0 3px hsl(var(--color-status-active) / 0.18);
+  }
+
+  .status-text[data-status='completed'] .status-text__dot {
+    background: hsl(var(--color-status-completed));
+  }
+
+  .status-text[data-status='paused'] .status-text__dot {
+    background: hsl(var(--color-status-paused));
+  }
+
+  .status-text[data-status='unavailable'] {
+    color: hsl(var(--color-muted));
+  }
+
+  .status-text[data-status='unavailable'] .status-text__dot {
+    background: hsl(var(--color-status-unavailable));
+  }
+}

@@ -5,6 +5,7 @@ import { Search, Plus, ArrowUpRight, BookOpen, ArrowLeft } from 'lucide-react'
 import { ProgramLibraryActions as Actions } from '@/components/ProgramLibraryActions'
 import { ProgramPeople } from '@/components/ProgramPeople'
 import { Page } from '@/components/ui/Layout'
+import { StatusText, libraryStatusTone } from '@/components/ui/StatusText'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -233,12 +234,7 @@ export function LibraryPage() {
   )
 }
 function Status({ status }: { status: string }) {
-  return (
-    <span className="library-status" data-status={status}>
-      <i />
-      {status}
-    </span>
-  )
+  return <StatusText status={libraryStatusTone(status)}>{status}</StatusText>
 }
 function Progress({ entry }: { entry: PersonalProgram }) {
   const r = entry.current

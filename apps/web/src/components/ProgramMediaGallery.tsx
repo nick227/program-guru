@@ -3,6 +3,7 @@ import { Play, ArrowRight, Video, Image as ImageIcon } from 'lucide-react'
 import { MediaViewer, type ViewerItem } from '@/components/MediaViewer'
 import { formatMediaDuration } from '@/lib/mediaDuration'
 import { cn } from '@/lib/utils'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 
 export interface ProgramMediaItem {
   id: string
@@ -59,30 +60,20 @@ export function ProgramMediaGallery({
 
   return (
     <section aria-label={title} className={cn('space-y-4', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="font-display font-bold tracking-tight text-foreground" style={{ fontSize: 'var(--type-section-title)' }}>
-            {title}
-          </h2>
-          {description && (
-            <p className="text-xs sm:text-sm text-muted mt-0.5">
-              {description}
-            </p>
-          )}
-        </div>
-
-        {displayItems.length > 0 && (
+      <SectionHeader
+        title={title}
+        description={description}
+        action={
           <button
             type="button"
             onClick={() => setViewerIndex(0)}
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-accent hover:underline transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
           >
             <span>View all {displayItems.length}</span>
-            <ArrowRight size={14} />
+            <ArrowRight size={14} aria-hidden />
           </button>
-        )}
-      </div>
+        }
+      />
 
       {/* Up to four previews; View all opens the viewer */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">

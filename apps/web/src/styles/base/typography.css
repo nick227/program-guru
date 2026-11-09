@@ -28,10 +28,11 @@
     text-rendering: optimizeLegibility;
   }
 
+  /* Heading roles (04-UI §4). Utilities and component classes still override on purpose. */
   h1 {
     margin: 0;
     font-family: var(--font-display);
-    font-size: var(--text-2xl);
+    font-size: var(--type-page-title);
     font-weight: 600;
     letter-spacing: -0.03em;
     line-height: var(--leading-tight);
@@ -40,9 +41,22 @@
   h2 {
     margin: 0;
     font-family: var(--font-display);
-    font-size: var(--text-base);
+    font-size: var(--type-section-title);
     font-weight: 600;
     letter-spacing: -0.02em;
+    line-height: var(--leading-tight);
+  }
+
+  /* A Panel or dialog is a working surface: its title stays compact. */
+  :where(.panel, [role='dialog'], dialog) h2 {
+    font-size: var(--type-panel-title);
+    line-height: var(--leading-snug);
+  }
+
+  h3 {
+    margin: 0;
+    font-size: var(--type-content-title);
+    font-weight: 600;
     line-height: var(--leading-snug);
   }
 

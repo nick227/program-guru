@@ -13,6 +13,7 @@ import { Page, Stage, Stack, Row, Grid } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ProgramHeader } from '@/components/ProgramHeader'
 import { ProgramStepper } from '@/components/ProgramStepper'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back } from '@/components/Navigation'
 import {
@@ -130,13 +131,10 @@ export function ProgramCreatePage() {
 
         {!typeId ? (
           <Stack className="gap-5">
-            <div>
-              <h2 className="add-program-question">Program Type</h2>
-              <p className="mt-2 text-muted">
-                Choose a type, then name a new Program or start from an
-                existing one.
-              </p>
-            </div>
+            <SectionHeader
+              title="Program Type"
+              description="Choose a type, then name a new Program or start from an existing one."
+            />
             {types.isPending ? (
               <Loading />
             ) : (

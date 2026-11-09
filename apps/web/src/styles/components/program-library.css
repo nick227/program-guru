@@ -9,9 +9,9 @@
   padding: 24px 0 32px;
 }
 .library-eyebrow {
-  font-size: 10px;
+  font-size: var(--type-caption);
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   color: hsl(var(--color-muted));
   margin-bottom: 10px;
 }
@@ -19,8 +19,6 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: clamp(28px, 3vw, 40px);
-  letter-spacing: -0.035em;
   margin-bottom: 10px;
 }
 .library-count {
@@ -148,29 +146,6 @@
   font-size: 13px;
   color: hsl(var(--color-muted));
   white-space: nowrap;
-}
-.library-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-  font-size: 12px;
-}
-.library-status i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: hsl(var(--color-muted));
-}
-.library-status[data-status='Active'] i {
-  background: hsl(var(--color-success));
-  box-shadow: 0 0 0 3px hsl(var(--color-success) / 0.1);
-}
-.library-status[data-status='Paused'] i {
-  background: hsl(var(--color-attention));
-}
-.library-status[data-status='Completed'] i {
-  background: hsl(var(--color-accent));
 }
 .library-progress {
   min-width: 116px;
@@ -316,7 +291,8 @@
   padding: 28px 0;
 }
 .library-detail-heading h2 {
-  font-size: 30px;
+  /* The selected Program is this view's title: page-title role under the My Programs h1. */
+  font-size: var(--type-page-title);
   margin-bottom: 10px;
 }
 .library-detail-heading > .library-actions {
@@ -352,7 +328,6 @@
   padding: 36px 0;
 }
 .library-detail-grid h3 {
-  font-size: 18px;
   margin-bottom: 18px;
 }
 .library-detail-grid p {

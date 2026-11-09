@@ -21,6 +21,8 @@ import { ProgramParticipationStrip } from '@/components/ProgramParticipationStri
 import { ProgramActivityCard } from '@/components/ProgramActivityCard'
 import { ProgramSchedulePreview } from '@/components/ProgramSchedulePreview'
 import { ProgramGroups } from '@/components/ProgramGroups'
+import { SectionHeader } from '@/components/ui/SectionHeader'
+import { StatusText, enrollmentStatusText } from '@/components/ui/StatusText'
 import { ProgramMediaGallery, type ProgramMediaItem } from '@/components/ProgramMediaGallery'
 import {
   calendarUrl,
@@ -55,7 +57,7 @@ export function ProgramPage() {
   const navigate = useNavigate()
 
   const scheduleSectionRef = useRef<HTMLDivElement>(null)
-  const togetherSectionRef = useRef<HTMLDivElement>(null)
+  const togetherSectionRef = useRef<HTMLElement>(null)
 
   useDocumentTitle(
     program.data?.title ??
@@ -139,6 +141,7 @@ export function ProgramPage() {
   const canonicalUrl = buildProgramUrl(p, { scoped: !!rawHandle })
   const signedIn = !!me.data
   const groupId = enrollment.data?.groupId ?? null
+  const enrolledStatus = enrollmentStatusText(enrollment.data?.status)
   // Mirrors ProgramGroups: only participants and the owner can start a group.
   const canStartGroup = signedIn && !!p.latestVersionId && (isEnrolled || isOwner)
 
@@ -194,8 +197,6 @@ export function ProgramPage() {
       type: 'PHOTO' as const,
     }))
 
-  const sectionTitle = { fontSize: 'var(--type-section-title)' }
-
   return (
     <Page className="page--content pb-16">
       <div className="w-full space-y-6 sm:space-y-8">
@@ -239,9 +240,7 @@ export function ProgramPage() {
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
           <div className="space-y-8 lg:col-span-7">
             <section aria-label="Program activities" className="space-y-4">
-              <h2 className="font-display font-bold tracking-tight text-foreground" style={sectionTitle}>
-                Activities
-              </h2>
+              <SectionHeader title="Activities" />
               {p.safeActivityOutline.length > 0 ? (
                 <div className="space-y-3">
                   {p.safeActivityOutline.map((item, idx) => (
@@ -280,7 +279,7 @@ export function ProgramPage() {
                 className="space-y-3 rounded-[var(--radius-panel)] border border-accent/40 bg-accent/5 p-5"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-accent">Enrolled</span>
+                  <StatusText status={enrolledStatus.status}>{enrolledStatus.label}</StatusText>
                   {enrollment.data?.participationStartDate && (
                     <span className="text-xs text-muted">
                       Joined {dateLabel(enrollment.data.participationStartDate)}
@@ -475,8 +474,10 @@ export function ProgramPage() {
             </div>
 
             {signedIn && p.latestVersionId && (
-              <div ref={togetherSectionRef}>
+              <section ref={togetherSectionRef} aria-labelledby="program-together" className="space-y-4">
+                <SectionHeader id="program-together" title="Do this together" />
                 <ProgramGroups
+                  title={null}
                   key={enrollment.data?.programVersionId ?? p.latestVersionId}
                   programId={id}
                   versionId={enrollment.data?.programVersionId ?? p.latestVersionId}
@@ -484,7 +485,7 @@ export function ProgramPage() {
                   isProgramOwner={isOwner}
                   timezone={tz}
                 />
-              </div>
+              </section>
             )}
           </div>
         </div>

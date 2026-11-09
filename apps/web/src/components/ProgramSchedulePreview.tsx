@@ -1,5 +1,6 @@
 import { Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { cn } from '@/lib/utils'
 
 export interface ScheduleOutlineItem {
@@ -45,22 +46,8 @@ export function ProgramSchedulePreview({
     .sort((a, b) => a.dayIndex! - b.dayIndex!)
 
   return (
-    <section
-      aria-label="Program schedule"
-      className={cn(
-        'w-full space-y-5 rounded-[var(--radius-panel)] border border-border bg-surface p-5 sm:p-6',
-        className,
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <Calendar size={20} aria-hidden className="mt-1 shrink-0 text-muted" />
-        <div>
-          <h2 className="font-display font-bold text-foreground" style={{ fontSize: 'var(--type-section-title)' }}>
-            Schedule
-          </h2>
-          <p className="text-sm text-muted">Placed on your Calendar from the day you start.</p>
-        </div>
-      </div>
+    <section aria-label="Program schedule" className={cn('w-full space-y-5', className)}>
+      <SectionHeader title="Schedule" description="Placed on your Calendar from the day you start." />
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
         {facts.map((fact) => (
@@ -73,7 +60,7 @@ export function ProgramSchedulePreview({
 
       {firstDays.length > 0 && (
         <div className="space-y-2 border-t border-border pt-4">
-          <h3 className="text-sm font-semibold text-foreground">First sessions</h3>
+          <h3>First sessions</h3>
           <ul className="space-y-1.5 text-sm">
             {firstDays.map((activity, i) => (
               <li key={i} className="flex items-baseline justify-between gap-3">

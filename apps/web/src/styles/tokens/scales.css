@@ -45,6 +45,7 @@
   --type-hero-title: clamp(var(--text-2xl), 1.2rem + 2.4vw, var(--text-4xl));
   --type-page-title: var(--text-2xl);
   --type-section-title: var(--text-xl);
+  --type-panel-title: var(--text-base); /* h2 inside a Panel or dialog */
   --type-content-title: var(--text-base);
   --type-meta: var(--text-sm);
   --type-caption: var(--text-xs);
