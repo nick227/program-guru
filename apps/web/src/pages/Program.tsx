@@ -1,4 +1,5 @@
 import { formatDurationMinutes } from '@/lib/durationMinutes'
+import { formatTargetTime } from '@/lib/targetTime'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -22,6 +23,7 @@ import { ProgramHero } from '@/components/program/ProgramHero'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
 import { ProgramSchedulePreview } from '@/components/program/ProgramSchedulePreview'
 import { ProgramTogether } from '@/components/program/ProgramTogether'
+import { ProgramGroups } from '@/components/program/ProgramGroups'
 import {
   ProgramPersonalDetailsGrid,
   ProgramPersonalOverview,
@@ -55,7 +57,7 @@ function resolveBackLabel(backTo: string) {
   if (backTo.startsWith('/studio')) return 'Creator Studio'
   if (backTo.startsWith('/@')) return 'Profile'
   if (backTo === '/' || backTo.startsWith('/?')) return 'Calendar'
-  return 'Browse Programs'
+  return 'Browse'
 }
 
 export function ProgramPage() {
@@ -520,6 +522,7 @@ export function ProgramPage() {
                             ? `Day ${outlineMatch.dayIndex + 1}`
                             : null,
                           formatDurationMinutes(a.durationMinutes),
+                          formatTargetTime(a.targetTime),
                           a.frequencyLabel,
                         ]
                           .filter(Boolean)
@@ -559,6 +562,7 @@ export function ProgramPage() {
                     [
                       item.dayIndex != null ? `Day ${item.dayIndex + 1}` : null,
                       formatDurationMinutes(item.durationMinutes),
+                      formatTargetTime(item.targetTime),
                     ]
                       .filter(Boolean)
                       .join(' · ') || undefined
@@ -637,6 +641,22 @@ export function ProgramPage() {
             publicUrl={publicUrl}
           />
         </div>
+
+        {/* 05 — Groups: an enrolled participant or the owner starts one and invites people (10 §2) */}
+        {signedIn && p.latestVersionId && (
+          <section aria-labelledby="program-together" className="space-y-4">
+            <SectionHeader id="program-together" title="Do this together" />
+            <ProgramGroups
+              title={null}
+              key={enrollment.data?.programVersionId ?? p.latestVersionId}
+              programId={id}
+              versionId={enrollment.data?.programVersionId ?? p.latestVersionId}
+              enrollmentId={p.myEnrollmentId}
+              isProgramOwner={isOwner}
+              timezone={tz}
+            />
+          </section>
+        )}
 
         <div className="flex justify-end">
           <ReportButton target={{ type: 'PROGRAM', id: p.id }} ownerId={p.creator?.id} />

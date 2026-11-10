@@ -59,7 +59,7 @@ test('Workspace cover uploads bound to the Program and sets it, with no picker b
   await login(page, 'author@test.local', 'password')
   await page.goto(`/programs/${programId}/workspace?step=details`)
   const cover = page.getByRole('group', { name: 'Program cover' })
-  await expect(cover.getByRole('button', { name: 'Add image' })).toBeVisible()
+  await expect(cover.getByRole('button', { name: 'Add media' })).toBeVisible()
   await expect(cover.getByRole('button', { name: /Upload image|Choose from library/ })).toHaveCount(0)
 
   await cover.locator('input[type="file"]').setInputFiles(photo('cover.jpg'))
@@ -71,7 +71,7 @@ test('Workspace cover uploads bound to the Program and sets it, with no picker b
   await expect.poll(() =>
     requests.find((r) => r.path === `/programs/${programId}/draft` && r.method === 'PATCH')?.body,
   ).toMatchObject({ coverMediaId: 'media:user:uploaded' })
-  await expect(cover.getByRole('button', { name: 'Replace image' })).toBeVisible()
+  await expect(cover.getByRole('button', { name: 'Replace media' })).toBeVisible()
 })
 
 test('Workspace cover is removed inline', async ({ page }) => {
@@ -84,7 +84,7 @@ test('Workspace cover is removed inline', async ({ page }) => {
     requests.find((r) => r.path === `/programs/${programId}/draft` && r.method === 'PATCH')?.body,
   ).toMatchObject({ coverMediaId: null })
   await expect(cover.getByRole('button', { name: /^Remove/ })).toHaveCount(0)
-  await expect(cover.getByRole('button', { name: 'Add image' })).toBeVisible()
+  await expect(cover.getByRole('button', { name: 'Add media' })).toBeVisible()
 })
 
 test('Add Program takes a cover on the first step and sends it once the draft exists', async ({
@@ -149,7 +149,7 @@ test('Workspace cover is replaced, never duplicated', async ({ page }) => {
 
   await input.setInputFiles(photo('first.jpg'))
   await expect.poll(() => coverPatches().length).toBe(1)
-  await expect(cover.getByRole('button', { name: 'Replace image' })).toBeVisible()
+  await expect(cover.getByRole('button', { name: 'Replace media' })).toBeVisible()
   await input.setInputFiles(photo('second.jpg'))
   await expect.poll(() => coverPatches().length).toBe(2)
   expect(uploadBodies(requests).map((b) => b.filename)).toEqual(['first.jpg', 'second.jpg'])

@@ -67,7 +67,7 @@ export function ProgramHero({
   statusBadges,
   primaryLabel,
   backTo = '/discover',
-  backLabel = 'Browse Programs',
+  backLabel = 'Back',
   onPrimary,
   onShare,
   onEditProgram,

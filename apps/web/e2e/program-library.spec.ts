@@ -112,7 +112,7 @@ test('Library browser keeps filters and cached content through discovery and par
   await expect(page.locator('tbody tr')).toHaveCount(1)
   const readsBeforeBrowse = libraryReads
   await page
-    .getByRole('link', { name: 'Browse Programs', exact: true })
+    .getByRole('link', { name: 'Community', exact: true })
     .click()
   await expect(
     page.getByRole('heading', { name: 'Program Library', exact: true }),
@@ -132,7 +132,7 @@ test('Library browser keeps filters and cached content through discovery and par
     'same-document',
   )
   expect(requests.filter((r) => r.path === '/resolve-slug')).toHaveLength(0)
-  await page.getByRole('link', { name: 'Browse Programs', exact: true }).click()
+  await page.getByRole('link', { name: 'Browse', exact: true }).click()
   await expect(page).toHaveURL(/\/browse\?q=Beginner/)
   await expect(
     page.getByRole('heading', { name: 'Program Library', exact: true }),
@@ -140,13 +140,13 @@ test('Library browser keeps filters and cached content through discovery and par
   await expect(
     page.getByLabel('Search Programs', { exact: true }),
   ).toHaveValue('Beginner')
-  await page.getByRole('link', { name: 'My Programs', exact: true }).click()
+  await page.getByRole('link', { name: 'Programs', exact: true }).click()
   await expect(
     page.getByRole('heading', { name: /My Programs/ }),
   ).toBeVisible()
   expect(libraryReads).toBe(readsBeforeBrowse)
   await page
-    .getByRole('link', { name: 'Browse Programs', exact: true })
+    .getByRole('link', { name: 'Community', exact: true })
     .click()
   await page
     .getByRole('button', { name: 'View Program: Beginner Strength' })

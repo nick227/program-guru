@@ -1,6 +1,6 @@
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useProgramLibrary } from '@project/sdk'
-import { Search, Plus, BookOpen, Calendar } from 'lucide-react'
+import { Search, Plus, BookOpen, Calendar, List } from 'lucide-react'
 import { ProgramLibraryActions as Actions } from '@/components/program/ProgramLibraryActions'
 import { ProgramPeople } from '@/components/program/ProgramPeople'
 import { Page } from '@/components/ui/Layout'
@@ -60,20 +60,23 @@ export function LibraryPage() {
           <h1 className="sub-header__heading">My Programs</h1>
         </div>
         <div className="sub-header__actions">
-          <Link to="/" className="sub-header__btn">
+          <Link
+            aria-label="Calendar" to="/" className="sub-header__btn">
             <Calendar size={16} aria-hidden />
-            <span>Calendar</span>
-          </Link>
-          <Link to="/browse" className="sub-header__btn">
-            <Search size={16} aria-hidden />
-            <span>Browse Programs</span>
+            <span className="hidden lg:block">Calendar</span>
           </Link>
           <Link
+            aria-label="Community" to="/browse" className="sub-header__btn">
+            <List size={16} aria-hidden />
+            <span className="hidden lg:block">Community</span>
+          </Link>
+          <Link
+            aria-label="Add Program"
             to={`/programs/new?returnTo=${encodeURIComponent(`/library?${params}`)}`}
-            className="sub-header__btn sub-header__btn--primary min-w-[180px]"
+            className="sub-header__btn sub-header__btn--primary"
           >
             <Plus size={16} aria-hidden />
-            <span>Add Program</span>
+            <span className="hidden lg:block">Add Program</span>
           </Link>
         </div>
       </header>
@@ -178,7 +181,7 @@ export function LibraryPage() {
                     Clear filters
                   </Button>
                 ) : (
-                  <Button onClick={() => navigate('/browse')}>Browse Programs</Button>
+                  <Button onClick={() => navigate('/browse')}>Community</Button>
                 )
               }
             />

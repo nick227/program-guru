@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Filter, Search, BookOpen } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Filter, List, BookOpen } from 'lucide-react'
 import {
   useCalendar,
   useCalendarYear,
@@ -8,6 +8,7 @@ import {
   useQuickCompleteCalendarItem,
   useCancelCalendarItem,
   useUndoCompletion,
+  useUpdateCalendarItem,
   useUpdatePreferences,
 } from '@project/sdk'
 import { toast } from 'sonner'
@@ -155,6 +156,8 @@ export function CalendarPage() {
   const undo = useUndoCompletion()
   const quickComplete = useQuickCompleteCalendarItem()
   const cancelItem = useCancelCalendarItem()
+  const updateItem = useUpdateCalendarItem()
+  const [pendingTimes, setPendingTimes] = useState<Record<string, string | null>>({})
   const completionKeys = useRef(new Map<string, string>())
   const origin = `/?${new URLSearchParams({
     view,
@@ -182,29 +185,48 @@ export function CalendarPage() {
     next.delete('promptReminder')
     setParams(next, { replace: true })
   }
-  const items: SurfaceItem[] = (active.data ?? []).map((item) => ({
-    id: item.id,
-    day: item.localDate,
-    title: item.title,
-    localTime: item.localTime,
-    programTitle: item.programTitle,
-    category: resolveActivityCategory(item.title, item.programTitle ?? ''),
-    detail: [item.localTime, item.programTitle].filter(Boolean).join(' · '),
-    done: item.status === 'DONE',
-    notParticipating: item.status === 'NOT_PARTICIPATING',
-    status: item.status,
-    locked: item.locked,
-    conflict: item.conflict,
-    thumbnailUrl: item.thumbnailUrl,
-    groupName: item.groupName,
-    sharedCompletionCount: item.sharedCompletionCount,
-    sessionStatus: item.sessionStatus,
-    durationLabel: item.activeSeconds ? `${Math.floor(item.activeSeconds / 60)}m ${item.activeSeconds % 60}s recorded` : undefined,
-    avatarUrls: item.participantAvatars,
-    unreadCount: item.unreadCount,
-    recurrenceId: item.recurrenceId,
-    href: `/occurrences/${item.id}?returnTo=${encodeURIComponent(origin)}`,
-  }))
+  const rawItems = active.data ?? []
+  const effectiveTimes = new Map<string, number>()
+  const hasPendingTimes = Object.keys(pendingTimes).length > 0
+  if (hasPendingTimes) {
+    for (const item of rawItems) {
+      if (item.status === 'CANCELLED') continue
+      const t = item.id in pendingTimes ? pendingTimes[item.id] : item.localTime
+      if (!t) continue
+      const key = `${item.localDate} ${t}`
+      effectiveTimes.set(key, (effectiveTimes.get(key) ?? 0) + 1)
+    }
+  }
+  const items: SurfaceItem[] = rawItems.map((item) => {
+    const localTime = item.id in pendingTimes ? pendingTimes[item.id] : item.localTime
+    const conflict = hasPendingTimes
+      ? Boolean(localTime) && (effectiveTimes.get(`${item.localDate} ${localTime}`) ?? 0) > 1
+      : item.conflict
+    return {
+      id: item.id,
+      day: item.localDate,
+      title: item.title,
+      localTime,
+      programTitle: item.programTitle,
+      category: resolveActivityCategory(item.title, item.programTitle ?? ''),
+      detail: [localTime, item.programTitle].filter(Boolean).join(' · '),
+      done: item.status === 'DONE',
+      notParticipating: item.status === 'NOT_PARTICIPATING',
+      status: item.status,
+      locked: item.locked,
+      conflict,
+      thumbnailUrl: item.thumbnailUrl,
+      groupName: item.groupName,
+      sharedCompletionCount: item.sharedCompletionCount,
+      sessionStatus: item.sessionStatus,
+      durationLabel: item.activeSeconds ? `${Math.floor(item.activeSeconds / 60)}m ${item.activeSeconds % 60}s recorded` : undefined,
+      avatarUrls: item.participantAvatars,
+      unreadCount: item.unreadCount,
+      recurrenceId: item.recurrenceId,
+      updatedAt: item.updatedAt,
+      href: `/occurrences/${item.id}?returnTo=${encodeURIComponent(origin)}`,
+    }
+  })
 
   const completeItem = async (itemId: string) => {
     const idempotencyKey =
@@ -227,6 +249,28 @@ export function CalendarPage() {
       toast.success('Activity removed from Calendar')
     } catch {
       // Mutation error remains visible; the item stays on the Calendar.
+    }
+  }
+  const changeItemTime = async (itemId: string, localTime: string | null) => {
+    const item = rawItems.find((row) => row.id === itemId)
+    if (!item) return
+    if ((item.localTime ?? null) === localTime) return
+    setPendingTimes((prev) => ({ ...prev, [itemId]: localTime }))
+    try {
+      await updateItem.mutateAsync({
+        itemId,
+        localTime,
+        expectedUpdatedAt: item.updatedAt ?? new Date().toISOString(),
+      })
+      toast.success(localTime ? 'Activity time updated' : 'Moved to Any time')
+    } catch {
+      // ErrorMessage displays the failure; pending time reverts below.
+    } finally {
+      setPendingTimes((prev) => {
+        const next = { ...prev }
+        delete next[itemId]
+        return next
+      })
     }
   }
 
@@ -276,22 +320,25 @@ export function CalendarPage() {
         </div>
         <div className="sub-header__actions">
           <Link
+            aria-label="Programs"
             to={`/library?returnTo=${encodeURIComponent(origin)}`}
             className="sub-header__btn"
           >
             <BookOpen size={16} aria-hidden />
-            <span>My Programs</span>
-          </Link>
-          <Link to="/browse" className="sub-header__btn">
-            <Search size={16} aria-hidden />
-            <span>Browse Programs</span>
+            <span className="hidden lg:block">Programs</span>
           </Link>
           <Link
+            aria-label="Community" to="/browse" className="sub-header__btn">
+            <List size={16} aria-hidden />
+            <span className="hidden lg:block">Community</span>
+          </Link>
+          <Link
+            aria-label="Add Program"
             to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
-            className="sub-header__btn sub-header__btn--primary min-w-[180px]"
+            className="sub-header__btn sub-header__btn--primary"
           >
             <Plus size={16} aria-hidden />
-            <span>Add Program</span>
+            <span className="hidden lg:block">Add Program</span>
           </Link>
         </div>
       </header>
@@ -464,7 +511,7 @@ export function CalendarPage() {
         )}
 
         <ErrorMessage
-          error={active.error || quickComplete.error || cancelItem.error}
+          error={active.error || quickComplete.error || cancelItem.error || updateItem.error}
           retry={
             active.error
               ? () => void active.refetch()
@@ -491,6 +538,7 @@ export function CalendarPage() {
               view={view}
               onComplete={(itemId) => void completeItem(itemId)}
               onRemove={(itemId, scope) => void removeItem(itemId, scope)}
+              onChangeTime={(itemId, localTime) => void changeItemTime(itemId, localTime)}
               completing={quickComplete.isPending || !online}
               removing={cancelItem.isPending}
             />

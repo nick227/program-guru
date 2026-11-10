@@ -578,7 +578,6 @@ export function ProfilePage() {
                   Create Program
                 </Link>
                 <Link to="/library" className="btn btn--outline btn--sm">
-                  My Programs
                 </Link>
                 <Link to="/media" className="btn btn--outline btn--sm">
                   My Media

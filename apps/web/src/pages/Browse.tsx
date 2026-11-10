@@ -385,20 +385,23 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             </Link>
           ) : (
             <>
-              <Link to="/" className="sub-header__btn">
+              <Link
+            aria-label="Calendar" to="/" className="sub-header__btn">
                 <Calendar size={16} aria-hidden />
-                <span>Calendar</span>
-              </Link>
-              <Link to="/library" className="sub-header__btn">
-                <BookOpen size={16} aria-hidden />
-                <span>My Programs</span>
+                <span className="hidden lg:block">Calendar</span>
               </Link>
               <Link
+            aria-label="Programs" to="/library" className="sub-header__btn">
+                <BookOpen size={16} aria-hidden />
+                <span className="hidden lg:block">Programs</span>
+              </Link>
+              <Link
+            aria-label="Add Program"
                 to={`/programs/new?returnTo=${encodeURIComponent(currentUrl)}`}
-                className="sub-header__btn sub-header__btn--primary min-w-[180px]"
+                className="sub-header__btn sub-header__btn--primary"
               >
                 <Plus size={16} aria-hidden />
-                <span>Add Program</span>
+                <span className="hidden lg:block">Add Program</span>
               </Link>
             </>
           )}
