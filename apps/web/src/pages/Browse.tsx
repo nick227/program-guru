@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import {
-  Link,
   useLocation,
   useNavigate,
   useSearchParams,
@@ -15,7 +14,7 @@ import {
   useProgramWorkspace,
   type components,
 } from '@project/sdk'
-import { ArrowLeft, BookOpen, Calendar, Plus, RotateCcw, Search, X } from 'lucide-react'
+import { RotateCcw, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
@@ -25,6 +24,7 @@ import { EmptyState, ErrorMessage } from '@/components/ui/Feedback'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { DiscoveryCard } from '@/components/shared/SuggestionRail'
+import { SubHeader } from '@/components/shared/SubHeader'
 import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { activityCard, programCard } from '@/lib/discoveryCards'
 import { safeReturn } from '@/lib/dates'
@@ -369,44 +369,12 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
 
   return (
     <Page className="page--wide">
-      <header className="sub-header">
-        <div className="sub-header__title">
-          <h1 className="sub-header__heading">{title}</h1>
-        </div>
-        <div className="sub-header__actions">
-          {mode.returnTo ? (
-            <Link
-              to={mode.returnTo}
-              state={{ fromBrowse: true }}
-              className="sub-header__btn"
-            >
-              <ArrowLeft size={16} aria-hidden />
-              <span>Back</span>
-            </Link>
-          ) : (
-            <>
-              <Link
-            aria-label="Calendar" to="/" className="sub-header__btn">
-                <Calendar size={16} aria-hidden />
-                <span className="hidden lg:block">Calendar</span>
-              </Link>
-              <Link
-            aria-label="Programs" to="/library" className="sub-header__btn">
-                <BookOpen size={16} aria-hidden />
-                <span className="hidden lg:block">Programs</span>
-              </Link>
-              <Link
-            aria-label="Add Program"
-                to={`/programs/new?returnTo=${encodeURIComponent(currentUrl)}`}
-                className="sub-header__btn sub-header__btn--primary"
-              >
-                <Plus size={16} aria-hidden />
-                <span className="hidden lg:block">Add Program</span>
-              </Link>
-            </>
-          )}
-        </div>
-      </header>
+      <SubHeader
+        title={title}
+        active="community"
+        returnTo={currentUrl}
+        backTo={mode.returnTo}
+      />
 
       <div className="flex flex-col gap-3 py-5">
         <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">

@@ -171,6 +171,19 @@ export function useProgramPreview(programId: string) {
       ).data,
   })
 }
+export function useProgramVersion(versionId: string, enabled = true) {
+  return useQuery({
+    queryKey: useViewerKey(keys.version(versionId)),
+    enabled: enabled && !!versionId,
+    queryFn: async ({ signal }) =>
+      apiData(
+        await getApiClient().GET('/program-versions/{versionId}', {
+          signal,
+          params: { path: { versionId } },
+        }),
+      ).data,
+  })
+}
 export function useResolveSlugQuery(
   kind: 'PROGRAM' | 'ACTIVITY',
   slugOrId: string,

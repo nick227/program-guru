@@ -1,6 +1,6 @@
 import { GroupInviteLink } from '@/components/social/GroupInviteLink'
 import { useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   useAcceptGroupInvitation,
   useAcceptMyGroupInvitation,
@@ -30,8 +30,10 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back, linkButton } from '@/components/shared/Navigation'
-import { calendarUrl, dateLabel, isLocalDate, today } from '@/lib/dates'
+import { linkButton } from '@/components/shared/Navigation'
+import { SubHeader } from '@/components/shared/SubHeader'
+import { buildGroupBreadcrumbs } from '@/lib/breadcrumbs'
+import { calendarUrl, dateLabel, isLocalDate, safeReturn, today } from '@/lib/dates'
 import {
   getAvailableTimezones,
   isValidTimezone,
@@ -385,9 +387,16 @@ export function GroupInvitationJoinPage() {
   const preview = invite.data
 
   return (
-    <Page>
-      <Stage>
-        <Back to="/">Calendar</Back>
+    <Page className="page--wide">
+      <SubHeader
+        breadcrumbs={[
+          { label: 'Calendar', href: '/' },
+          { label: 'Group Invitation' },
+        ]}
+        active="calendar"
+        returnTo={`/join/${token}`}
+      />
+      <Stage className="mx-auto mt-6 w-full max-w-3xl">
         <h1>Group Invitation</h1>
         {invite.isPending ? (
           <Loading />
@@ -424,8 +433,11 @@ export function GroupInvitationJoinPage() {
 
 export function GroupPage() {
   const { id = '', invitationId } = useParams()
+  const [params] = useSearchParams()
   const navigate = useNavigate()
   const online = useOnline()
+  const rawReturnTo = params.get('returnTo')
+  const explicitReturnTo = rawReturnTo ? safeReturn(rawReturnTo, '/notifications') : null
 
   const me = useCurrentUser()
   const group = useGroup(id)
@@ -469,15 +481,20 @@ export function GroupPage() {
       ? myPendingInvites.find((inv) => inv.id === invitationId)
       : undefined) ?? myPendingInvites.find((inv) => inv.groupId === id)
 
+  const groupNav = buildGroupBreadcrumbs({
+    groupName: g?.name || g?.programTitle,
+    programTitle: g?.programTitle,
+    returnTo: explicitReturnTo,
+  })
+
   return (
-    <Page>
-      <Stage>
-        <Row className="justify-between">
-          <Back to="/notifications">Notifications</Back>
-          <Link to="/" className={linkButton}>
-            Calendar
-          </Link>
-        </Row>
+    <Page className="page--wide">
+      <SubHeader
+        breadcrumbs={groupNav.items}
+        active={groupNav.activeNav}
+        returnTo={buildGroupUrl(id)}
+      />
+      <Stage className="mx-auto mt-6 w-full max-w-4xl">
 
         {group.isPending || (!g && receivedInvites.isPending) ? (
           <Loading />
@@ -860,7 +877,7 @@ export function GroupPage() {
                         try {
                           await updateGroup.mutateAsync({ closed: true })
                           toast.success('Group closed')
-                          navigate('/discover')
+                          navigate(explicitReturnTo ?? '/library')
                         } catch {
                           setClosing(false)
                         }

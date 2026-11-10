@@ -226,7 +226,10 @@ test('Back does not silently discard edited results', async ({ page }) => {
   await login(page, 'participant@test.local', 'password')
   await page.goto(`/occurrences/${itemId}`)
   await page.getByRole('button', { name: 'Increase Reps' }).click()
-  await page.getByRole('link', { name: 'Calendar', exact: true }).click()
+  await page
+    .getByRole('navigation', { name: 'Workspace navigation' })
+    .getByRole('link', { name: 'Calendar', exact: true })
+    .click()
   await expect(page.getByText('You have unsaved results.')).toBeVisible()
   await page.getByRole('button', { name: 'Keep editing' }).click()
   await expect(page.getByLabel('Reps (reps)', { exact: true })).toHaveValue('1')

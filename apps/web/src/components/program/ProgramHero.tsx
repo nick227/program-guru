@@ -34,6 +34,7 @@ export interface ProgramHeroProps {
     displayName?: string | null
     avatarUrl?: string | null
   } | null
+  creatorReturnTo?: string
   isPlatform?: boolean
   isOwner?: boolean
   statusBadges?: { label: string; tone?: 'default' | 'accent' | 'attention' }[]
@@ -62,12 +63,13 @@ export function ProgramHero({
   activityCount,
   categoryLabel,
   creator,
+  creatorReturnTo,
   isPlatform = false,
   isOwner = false,
   statusBadges,
   primaryLabel,
-  backTo = '/discover',
-  backLabel = 'Back',
+  backTo,
+  backLabel = 'Browse',
   onPrimary,
   onShare,
   onEditProgram,
@@ -107,34 +109,40 @@ export function ProgramHero({
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-12">
         {/* Left Column: Dominant Information & Primary Hierarchy */}
         <div className="flex flex-col justify-between space-y-6 lg:col-span-7">
-          <div className="flex items-center justify-between gap-4">
-            <Link
-              to={backTo}
-              className="group inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-foreground"
-            >
-              <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
-              <span>{backLabel}</span>
-            </Link>
-            {statusBadges && statusBadges.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                {statusBadges.map((badge) => (
-                  <span
-                    key={badge.label}
-                    className={cn(
-                      'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                      badge.tone === 'accent'
-                        ? 'bg-accent/15 text-accent'
-                        : badge.tone === 'attention'
-                          ? 'bg-attention/15 text-attention'
-                          : 'bg-surface-muted text-muted',
-                    )}
-                  >
-                    {badge.label}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          {(backTo || (statusBadges && statusBadges.length > 0)) && (
+            <div className="flex items-center justify-between gap-4">
+              {backTo ? (
+                <Link
+                  to={backTo}
+                  className="group inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-foreground"
+                >
+                  <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
+                  <span>{backLabel}</span>
+                </Link>
+              ) : (
+                <span />
+              )}
+              {statusBadges && statusBadges.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {statusBadges.map((badge) => (
+                    <span
+                      key={badge.label}
+                      className={cn(
+                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                        badge.tone === 'accent'
+                          ? 'bg-accent/15 text-accent'
+                          : badge.tone === 'attention'
+                            ? 'bg-attention/15 text-attention'
+                            : 'bg-surface-muted text-muted',
+                      )}
+                    >
+                      {badge.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-4">
             <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
@@ -144,7 +152,11 @@ export function ProgramHero({
             {creator ? (
               <div className="flex items-center gap-2.5 text-sm text-foreground">
                 <Link
-                  to={buildProfileUrl(creator.handle ?? '')}
+                  to={
+                    creatorReturnTo
+                      ? `${buildProfileUrl(creator.handle ?? '')}?returnTo=${encodeURIComponent(creatorReturnTo)}`
+                      : buildProfileUrl(creator.handle ?? '')
+                  }
                   className="inline-flex items-center gap-2 font-medium hover:text-accent transition-colors"
                 >
                   <Avatar

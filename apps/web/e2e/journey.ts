@@ -82,7 +82,10 @@ export async function journey(
   await page.getByRole('button', { name: 'Increase Reps' }).click()
   await page.getByRole('button', { name: 'Complete', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
-  await page.getByRole('link', { name: 'Calendar', exact: true }).click()
+  await page
+    .getByRole('navigation', { name: 'Workspace navigation' })
+    .getByRole('link', { name: 'Calendar', exact: true })
+    .click()
   await expect(
     page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()

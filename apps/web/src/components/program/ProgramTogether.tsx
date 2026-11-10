@@ -11,6 +11,7 @@ export interface ProgramTogetherProps {
   participantCount?: number | null
   completionRate?: number | null
   publicUrl: string
+  returnTo?: string
   className?: string
 }
 
@@ -23,6 +24,7 @@ export function ProgramTogether({
   participantCount = 0,
   completionRate,
   publicUrl,
+  returnTo,
   className,
 }: ProgramTogetherProps) {
   const group = useGroup(groupId ?? '')
@@ -64,7 +66,7 @@ export function ProgramTogether({
             </div>
           </div>
           <Link
-            to={buildGroupUrl(groupId!)}
+            to={buildGroupUrl(groupId!, returnTo ? { returnTo } : undefined)}
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline"
           >
             <span>Open Group</span>

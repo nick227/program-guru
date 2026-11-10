@@ -84,6 +84,7 @@ describe('url builders', () => {
     expect(buildProgramUrl(p1, { returnTo: '/discover' })).toBe(
       '/programs/beginner-core-strength?returnTo=%2Fdiscover',
     )
+    expect(buildProgramUrl({ id: '' })).toBe('/browse')
   })
 
   it('builds friendly activity URLs', () => {
@@ -95,6 +96,7 @@ describe('url builders', () => {
     expect(buildActivityUrl(a1, { returnTo: '/calendar' })).toBe(
       '/activities/morning-mobility?returnTo=%2Fcalendar',
     )
+    expect(buildActivityUrl({ id: '' })).toBe('/browse?kind=activities')
   })
 
   it('builds workspace, occurrence, and group URLs with UUIDs', () => {

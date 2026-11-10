@@ -1,6 +1,6 @@
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useProgramLibrary } from '@project/sdk'
-import { Search, Plus, BookOpen, Calendar, List } from 'lucide-react'
+import { Search, BookOpen } from 'lucide-react'
 import { ProgramLibraryActions as Actions } from '@/components/program/ProgramLibraryActions'
 import { ProgramPeople } from '@/components/program/ProgramPeople'
 import { Page } from '@/components/ui/Layout'
@@ -10,9 +10,11 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { EmptyState, ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
+import { SubHeader } from '@/components/shared/SubHeader'
 import { programHero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
-import { libraryProgramUrl } from '@/lib/programNavigation'
+import { libraryProgramUrl, libraryReturnUrl } from '@/lib/programNavigation'
+import { buildOccurrenceUrl } from '@/lib/urls'
 import {
   selectPrograms,
   statuses,
@@ -55,31 +57,7 @@ export function LibraryPage() {
   const filtered = selectPrograms(rows, query, status, owned, sort)
   return (
     <Page className="page--wide">
-      <header className="sub-header">
-        <div className="sub-header__title">
-          <h1 className="sub-header__heading">My Programs</h1>
-        </div>
-        <div className="sub-header__actions">
-          <Link
-            aria-label="Calendar" to="/" className="sub-header__btn">
-            <Calendar size={16} aria-hidden />
-            <span className="hidden lg:block">Calendar</span>
-          </Link>
-          <Link
-            aria-label="Community" to="/browse" className="sub-header__btn">
-            <List size={16} aria-hidden />
-            <span className="hidden lg:block">Community</span>
-          </Link>
-          <Link
-            aria-label="Add Program"
-            to={`/programs/new?returnTo=${encodeURIComponent(`/library?${params}`)}`}
-            className="sub-header__btn sub-header__btn--primary"
-          >
-            <Plus size={16} aria-hidden />
-            <span className="hidden lg:block">Add Program</span>
-          </Link>
-        </div>
-      </header>
+      <SubHeader title="My Programs" active="programs" />
       <ErrorMessage
         error={library.error}
         retry={() => void library.refetch()}
@@ -260,7 +238,12 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
       </td>
       <td data-label="Next Activity">
         {next ? (
-          <Link to={`/occurrences/${next.id}`} className="library-next">
+          <Link
+            to={buildOccurrenceUrl(next.id, {
+              returnTo: libraryReturnUrl(params.toString()),
+            })}
+            className="library-next"
+          >
             <strong>{next.title}</strong>
           </Link>
         ) : (

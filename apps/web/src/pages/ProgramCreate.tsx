@@ -45,6 +45,14 @@ interface ProgramCreateDraft {
   startingPoint: Program | null
 }
 
+function resolveCreateBackLabel(backTo: string) {
+  if (backTo.startsWith('/library')) return 'My Programs'
+  if (backTo.startsWith('/browse')) return 'Browse'
+  if (backTo.startsWith('/@')) return 'Profile'
+  if (backTo === '/' || backTo.startsWith('/?')) return 'Calendar'
+  return 'Back'
+}
+
 export function ProgramCreatePage() {
   useDocumentTitle('Add Program')
   const [params, setParams] = useSearchParams()
@@ -190,7 +198,7 @@ export function ProgramCreatePage() {
   return (
     <Page>
       <Stage className="w-full">
-        <Back to={backTo}>Calendar</Back>
+        <Back to={backTo}>{resolveCreateBackLabel(backTo)}</Back>
         <ProgramHeader
           title={title}
           onTitleChange={typeId ? setTitle : undefined}

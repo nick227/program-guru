@@ -12,13 +12,15 @@ import {
   usePersonalEnrollmentAction,
   useProgramLibrary,
   useProgramPreview,
+  useProgramVersion,
   useProgramWorkspace,
 } from '@project/sdk'
 import { toast } from 'sonner'
 import { Page, Stage } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back } from '@/components/shared/Navigation'
+import { SubHeader } from '@/components/shared/SubHeader'
+import { buildProgramBreadcrumbs } from '@/lib/breadcrumbs'
 import { ProgramHero } from '@/components/program/ProgramHero'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
 import { ProgramSchedulePreview } from '@/components/program/ProgramSchedulePreview'
@@ -52,14 +54,6 @@ import { activityHero, programHero } from '@/lib/hero'
 import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { ReportButton } from '@/components/shared/ReportButton'
 
-function resolveBackLabel(backTo: string) {
-  if (backTo.startsWith('/library')) return 'My Programs'
-  if (backTo.startsWith('/studio')) return 'Creator Studio'
-  if (backTo.startsWith('/@')) return 'Profile'
-  if (backTo === '/' || backTo.startsWith('/?')) return 'Calendar'
-  return 'Browse'
-}
-
 export function ProgramPage() {
   const paramsFromRouter = useParams()
   const rawHandle = paramsFromRouter.handle ? paramsFromRouter.handle.replace(/^@+/, '') : null
@@ -88,6 +82,10 @@ export function ProgramPage() {
   const isOwner = p?.viewerAccess === 'OWNER'
   const library = useProgramLibrary(signedIn)
   const workspace = useProgramWorkspace(id, signedIn && isOwner)
+  const programVersion = useProgramVersion(
+    p?.latestVersionId ?? '',
+    signedIn && !isOwner && p?.viewerAccess === 'GRANTED' && !!p?.latestVersionId,
+  )
 
   const entry = signedIn ? (library.data?.find((r) => r.program.id === id) ?? null) : null
   const ws = isOwner ? (workspace.data ?? null) : null
@@ -160,17 +158,28 @@ export function ProgramPage() {
   const dismissUpdate = useDismissEnrollmentUpdate(enrollmentId)
   const key = useRef(crypto.randomUUID())
 
+  const rawReturnTo = params.get('returnTo')
+  const explicitReturnTo = rawReturnTo ? safeReturn(rawReturnTo, '/browse') : null
+
   if (resolved.notFound || (program.error instanceof ApiError && program.error.status === 404 && !p)) {
+    const notFoundNav = buildProgramBreadcrumbs({
+      title: 'Program not found',
+      returnTo: explicitReturnTo,
+    })
     return (
-      <Page>
+      <Page className="page--wide">
+        <SubHeader
+          breadcrumbs={notFoundNav.items}
+          active={notFoundNav.activeNav}
+          returnTo={currentUrl}
+        />
         <Stage className="max-w-3xl mx-auto py-12">
-          <Back to="/discover" />
-          <h1 className="text-2xl font-bold font-display mt-4">Program not found</h1>
+          <h1 className="text-2xl font-bold font-display">Program not found</h1>
           <p className="text-muted mt-2">
             The requested program does not exist or may have been unpublished.
           </p>
-          <Link to="/discover" className="text-accent underline mt-4 inline-block">
-            Return to Discovery
+          <Link to="/browse" className="text-accent underline mt-4 inline-block">
+            Return to Browse
           </Link>
         </Stage>
       </Page>
@@ -178,10 +187,18 @@ export function ProgramPage() {
   }
 
   if (!p) {
+    const loadingNav = buildProgramBreadcrumbs({
+      title: 'Program',
+      returnTo: explicitReturnTo,
+    })
     return (
-      <Page>
+      <Page className="page--wide">
+        <SubHeader
+          breadcrumbs={loadingNav.items}
+          active={loadingNav.activeNav}
+          returnTo={currentUrl}
+        />
         <Stage className="max-w-3xl mx-auto py-12">
-          <Back to="/discover" />
           <ErrorMessage
             error={program.error}
             retry={() => void program.refetch()}
@@ -199,14 +216,19 @@ export function ProgramPage() {
   const isPaused = entry?.status === 'Paused' && entry.current?.status === 'PAUSED'
   const isDraftOnly = isOwner && !p.latestVersionId
   const canonicalUrl = buildProgramUrl(p, { scoped: !!rawHandle })
-  const backTo = safeReturn(params.get('returnTo'), '/discover')
-  const backLabel = resolveBackLabel(backTo)
+  const backTo = safeReturn(rawReturnTo, '/browse')
   const groupId = enrollment.data?.groupId ?? null
   const enrolledStatus = enrollmentStatusText(enrollment.data?.status)
 
   const publicUrl = toAbsoluteUrl(p.canonicalUrl ?? canonicalUrl)
 
   const displayTitle = ws?.title ?? p.title
+  const programNav = buildProgramBreadcrumbs({
+    title: displayTitle,
+    type: p.type,
+    focus: p.focus,
+    returnTo: explicitReturnTo,
+  })
   const displayDescription = ws ? ws.description : p.description
   const displayDurationDays = ws ? ws.durationDays : p.durationDays
   const displayFrequencyLabel = ws ? ws.frequencyLabel : p.frequencyLabel
@@ -336,8 +358,13 @@ export function ProgramPage() {
   )
 
   return (
-    <Page className="page--content max-w-7xl pb-20">
-      <div className="w-full space-y-10 sm:space-y-12">
+    <Page className="page--wide pb-20">
+      <SubHeader
+        breadcrumbs={programNav.items}
+        active={programNav.activeNav}
+        returnTo={currentUrl}
+      />
+      <div className="mx-auto mt-6 w-full max-w-7xl space-y-10 sm:space-y-12">
         {/* 01 — Program Hero */}
         <ProgramHero
           title={displayTitle}
@@ -348,12 +375,11 @@ export function ProgramPage() {
           activityCount={displayActivityCount}
           categoryLabel={p.type.label}
           creator={p.creator}
+          creatorReturnTo={currentUrl}
           isPlatform={p.isPlatform}
           isOwner={isOwner}
           statusBadges={statusBadges}
           primaryLabel={primaryLabel}
-          backTo={backTo}
-          backLabel={backLabel}
           onPrimary={handlePrimary}
           onEditProgram={
             isOwner
@@ -544,6 +570,42 @@ export function ProgramPage() {
                 </Button>
               </div>
             )
+          ) : p.viewerAccess === 'GRANTED' &&
+            programVersion.data &&
+            programVersion.data.activities.length > 0 ? (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {programVersion.data.activities.map((a) => {
+                const outlineMatch = outlineByTitle.get(a.title)
+                return (
+                  <ProgramActivityCard
+                    key={a.id}
+                    title={a.title}
+                    description={a.summary}
+                    href={`/activities/${a.id}?returnTo=${encodeURIComponent(currentUrl)}`}
+                    hero={activityHero(
+                      {
+                        title: a.title,
+                        thumbnailUrl:
+                          a.thumbnailUrl ?? outlineMatch?.mediaPreviewUrl,
+                        categoryId: a.categoryId || p.type?.categoryId,
+                      },
+                      categorySlugOf,
+                    )}
+                    meta={
+                      [
+                        outlineMatch?.dayIndex != null
+                          ? `Day ${outlineMatch.dayIndex + 1}`
+                          : null,
+                        formatDurationMinutes(a.durationMinutes),
+                        formatTargetTime(a.targetTime),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || undefined
+                    }
+                  />
+                )
+              })}
+            </div>
           ) : p.safeActivityOutline.length > 0 ? (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {p.safeActivityOutline.map((item, idx) => (
@@ -639,6 +701,7 @@ export function ProgramPage() {
             }
             completionRate={p.completionRate}
             publicUrl={publicUrl}
+            returnTo={currentUrl}
           />
         </div>
 

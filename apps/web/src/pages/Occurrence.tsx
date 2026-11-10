@@ -3,8 +3,10 @@ import { formatTargetTime } from '@/lib/targetTime'
 import { usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { useEffect, useRef, useState } from 'react'
 import {
+  Link,
   useBeforeUnload,
   useBlocker,
+  useLocation,
   useParams,
   useSearchParams,
 } from 'react-router-dom'
@@ -43,7 +45,8 @@ import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { activityHero } from '@/lib/hero'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back } from '@/components/shared/Navigation'
+import { SubHeader } from '@/components/shared/SubHeader'
+import { buildOccurrenceBreadcrumbs } from '@/lib/breadcrumbs'
 import { MetricInput } from '@/components/activity/MetricInput'
 import { ActivityTogether } from '@/components/activity/ActivityTogether'
 import { OccurrenceInstructions } from '@/components/activity/OccurrenceInstructions'
@@ -70,6 +73,9 @@ function formatElapsed(totalSeconds: number) {
 
 export function OccurrencePage() {
   const { id = '' } = useParams()
+  const [params] = useSearchParams()
+  const location = useLocation()
+  const currentUrl = `${location.pathname}${location.search}`
   const occurrence = useOccurrence(id)
   useDocumentTitle(
     occurrence.data
@@ -80,23 +86,42 @@ export function OccurrencePage() {
         }`
       : 'Occurrence',
   )
+
+  const o = occurrence.data
+  const origin = safeReturn(
+    params.get('returnTo'),
+    o ? calendarUrl(o.item.localDate) : '/',
+  )
+  const occurrenceNav = buildOccurrenceBreadcrumbs({
+    title: o?.item.title ?? 'Activity',
+    programTitle: o?.item.programTitle,
+    returnTo: params.get('returnTo') ? origin : null,
+  })
+
   return (
-    <Page className="page--content">
-      <div>
+    <Page className="page--wide pb-20">
+      <SubHeader
+        breadcrumbs={occurrenceNav.items}
+        active={occurrenceNav.activeNav}
+        returnTo={currentUrl}
+      />
+      <div className="mx-auto mt-6 w-full max-w-5xl">
         <ErrorMessage
           error={occurrence.error}
           retry={() => void occurrence.refetch()}
         />
-        {occurrence.data ? (
+        {o ? (
           <OccurrenceContent
             key={id}
-            occurrence={occurrence.data}
+            occurrence={o}
             refresh={() => void occurrence.refetch()}
           />
         ) : occurrence.isPending ? (
           <Loading />
         ) : (
-          <Back to="/">Calendar</Back>
+          <Link to={origin} className="text-accent underline">
+            Return to Calendar
+          </Link>
         )}
       </div>
     </Page>
@@ -120,10 +145,6 @@ function OccurrenceContent({
   refresh: () => void
 }) {
   const [params] = useSearchParams()
-  const origin = safeReturn(
-    params.get('returnTo'),
-    calendarUrl(o.item.localDate),
-  )
   const online = useOnline()
   const create = useCreateSession(o.item.id)
   const action = useSessionAction(o.item.id)
@@ -320,13 +341,6 @@ function OccurrenceContent({
 
   return (
     <div className="activity-page">
-      <Back to={origin}>
-        {origin.startsWith('/library')
-          ? 'My Programs'
-          : origin.startsWith('/programs/')
-            ? 'Program'
-            : 'Calendar'}
-      </Back>
       {blocker.state === 'blocked' && (
         <Panel aria-label="Unsaved results">
           <Stack>
@@ -696,14 +710,6 @@ function ActivityIdentity({
                 Save results
               </Button>
             )}
-            <Button
-              variant="outline"
-              disabled={!online}
-              onClick={onUploadMedia}
-            >
-              <Upload size={16} aria-hidden />
-              Upload media
-            </Button>
           </div>
         </div>
       </div>

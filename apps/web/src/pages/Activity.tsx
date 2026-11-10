@@ -1,65 +1,82 @@
-import { durationInput, formatDurationMinutes, parseDurationMinutes } from '@/lib/durationMinutes'
+import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Link,
   useLocation,
   useNavigate,
-  useNavigationType,
   useParams,
   useSearchParams,
 } from 'react-router-dom'
 import {
   useActivity,
   useActivityPublicMedia,
-  useActivitySuggestions,
-  useAddCalendarItem,
   useCategories,
-  useCopyActivity,
-  useCreateActivity,
-  useCurrentUser,
-  usePutActivityInstructions,
+  useProgramPreview,
   useUpdateActivityDraft,
-  type components,
 } from '@project/sdk'
-import { Page, Stage, Stack, Panel } from '@/components/ui/Layout'
+import { Clock, Repeat } from 'lucide-react'
+import { Page, Stage } from '@/components/ui/Layout'
 import { Input } from '@/components/ui/Input'
-import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back } from '@/components/shared/Navigation'
-import { ActivityBasicsFields } from '@/components/activity/ActivityBasicsFields'
-import { ActivityMediaTray } from '@/components/media/EntityMediaTray'
+import { SectionHeader } from '@/components/ui/SectionHeader'
+import { Avatar } from '@/components/ui/Avatar'
+import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
-import {
-  buildBrowseUrl,
-  clearBrowseDraft,
-  readBrowseDraft,
-  writeBrowseDraft,
-} from '@/pages/Browse'
+import { SubHeader } from '@/components/shared/SubHeader'
+import { ReportButton } from '@/components/shared/ReportButton'
 import { type RiverItem } from '@/components/media/RelatedMedia'
 import { ActivityRelatedMedia } from '@/components/activity/ActivityRelatedMedia'
-import { SuggestionRail } from '@/components/shared/SuggestionRail'
-import { activityCard } from '@/lib/discoveryCards'
+import { formatFrequency } from '@/components/program-authoring/ScheduleControls'
+import {
+  buildActivityBreadcrumbs,
+  extractProgramTargetFromPath,
+} from '@/lib/breadcrumbs'
+import { safeReturn } from '@/lib/dates'
 import { activityHero } from '@/lib/hero'
-import { calendarUrl, isLocalDate, safeReturn, today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
-import { useResolveActivityTarget } from '@/lib/useResolveSlug'
-import { buildActivityUrl } from '@/lib/urls'
-import { ReportButton } from '@/components/shared/ReportButton'
+import {
+  useResolveActivityTarget,
+  useResolveProgramTarget,
+} from '@/lib/useResolveSlug'
+import { buildActivityUrl, buildProfileUrl } from '@/lib/urls'
+import { cn } from '@/lib/utils'
 
+/** Reusable Activity definition page (`/activities/:id`). */
 export function ActivityPage() {
   const { id: rawSlugOrId = '' } = useParams()
   const [params] = useSearchParams()
+  const location = useLocation()
   const navigate = useNavigate()
+  const currentUrl = `${location.pathname}${location.search}`
 
   const resolved = useResolveActivityTarget(rawSlugOrId)
   const activity = useActivity(resolved.activityId)
+  const categories = useCategories()
+  const categorySlugOf = useCategorySlugOf()
   const updateTargetTime = useUpdateActivityDraft(resolved.activityId)
-  const publicMedia = useActivityPublicMedia(resolved.activityId, undefined, !resolved.notFound && !!resolved.activityId)
+  const publicMedia = useActivityPublicMedia(
+    resolved.activityId,
+    undefined,
+    !resolved.notFound && !!resolved.activityId,
+  )
   const online = useOnline()
   const [targetTimeDraft, setTargetTimeDraft] = useState('')
+
+  const rawReturnTo = params.get('returnTo')
+  const explicitReturnTo = rawReturnTo
+    ? safeReturn(rawReturnTo, '/browse?kind=activities')
+    : null
+  const parentTarget = extractProgramTargetFromPath(explicitReturnTo)
+  const resolvedParent = useResolveProgramTarget(
+    parentTarget?.slugOrId ?? '',
+    parentTarget?.handle ?? null,
+  )
+  const parentProgram = useProgramPreview(
+    parentTarget ? resolvedParent.programId : '',
+  )
 
   useEffect(() => {
     setTargetTimeDraft(targetTimeInput(activity.data?.targetTime))
@@ -76,21 +93,48 @@ export function ActivityPage() {
 
   useEffect(() => {
     if (resolved.isAlias && resolved.canonicalUrl) {
-      navigate(resolved.canonicalUrl, { replace: true })
+      const qs = params.toString()
+      navigate(`${resolved.canonicalUrl}${qs ? `?${qs}` : ''}`, { replace: true })
     }
-  }, [resolved.isAlias, resolved.canonicalUrl, navigate])
+  }, [resolved.isAlias, resolved.canonicalUrl, params, navigate])
+
+  const a = activity.data
+  const category = a
+    ? categories.data?.find((c) => c.id === a.categoryId) ?? null
+    : null
+
+  const activityNav = buildActivityBreadcrumbs({
+    title: a?.title ?? (resolved.notFound ? 'Activity not found' : 'Activity'),
+    category: category ? { id: category.id, label: category.label } : null,
+    parentProgram:
+      parentTarget && explicitReturnTo
+        ? {
+            title: parentProgram.data?.title ?? 'Program',
+            href: explicitReturnTo,
+            nestedReturnTo: parentTarget.nestedReturnTo,
+          }
+        : null,
+    returnTo: explicitReturnTo,
+  })
 
   if (resolved.notFound) {
     return (
-      <Page>
-        <Stage>
-          <Back to={safeReturn(params.get('returnTo'), '/discover')} />
-          <h1>Activity not found</h1>
+      <Page className="page--wide">
+        <SubHeader
+          breadcrumbs={activityNav.items}
+          active={activityNav.activeNav}
+          returnTo={currentUrl}
+        />
+        <Stage className="max-w-3xl mx-auto py-12">
+          <h1 className="text-2xl font-bold font-display">Activity not found</h1>
           <p className="text-muted">
             The requested activity does not exist or may have been unpublished.
           </p>
-          <Link to="/discover" className="text-accent underline">
-            Return to Discovery
+          <Link
+            to="/browse?kind=activities"
+            className="text-accent underline mt-2 inline-block"
+          >
+            Return to Browse
           </Link>
         </Stage>
       </Page>
@@ -98,12 +142,12 @@ export function ActivityPage() {
   }
 
   const rawRiverItems: RiverItem[] = [
-    ...(activity.data?.media ?? []).map((m) => ({
+    ...(a?.media ?? []).map((m) => ({
       id: m.id,
       thumbnailUrl: m.thumbnailUrl,
       type: m.type,
       alt: m.alt,
-      title: activity.data?.title,
+      title: a?.title,
     })),
     ...(publicMedia.data?.pages.flatMap((page) => page.data) ?? []).map((pm) => ({
       id: pm.id,
@@ -111,7 +155,7 @@ export function ActivityPage() {
       thumbnailUrl: pm.thumbnailUrl,
       type: pm.type,
       alt: pm.alt,
-      title: activity.data?.title,
+      title: a?.title,
       credit: pm.creator?.displayName || undefined,
       attribution: pm.attribution || pm.creator?.displayName || undefined,
       license: pm.license || undefined,
@@ -122,502 +166,331 @@ export function ActivityPage() {
     new Map(rawRiverItems.map((item) => [item.id, item])).values(),
   )
 
+  const hero = a ? activityHero(a, categorySlugOf) : null
+  const frequencyText = a ? formatFrequency(a.frequency) : null
+  const durationText = a ? formatDurationMinutes(a.durationMinutes) : null
+  const targetTimeText = a?.targetTime ? formatTargetTime(a.targetTime) : null
+  const nonDurationMetrics = a
+    ? a.metricLabels.filter((label) => !label.toLowerCase().startsWith('duration'))
+    : []
+
   return (
-    <Page>
-      <Stage>
-        <Back to={safeReturn(params.get('returnTo'))} />
+    <Page className="page--wide pb-20">
+      <SubHeader
+        breadcrumbs={activityNav.items}
+        active={activityNav.activeNav}
+        returnTo={currentUrl}
+      />
+
+      <div className="mx-auto mt-6 w-full max-w-5xl activity-page">
         <ErrorMessage
           error={activity.error}
           retry={() => void activity.refetch()}
         />
+
         {resolved.isLoading || activity.isPending ? (
           <Loading />
         ) : (
-          activity.data && (
+          a &&
+          hero && (
             <>
-              <h1>{activity.data.title}</h1>
-              {activity.data.durationMinutes != null && (
-                <p className="text-sm font-medium text-muted">
-                  Duration: {formatDurationMinutes(activity.data.durationMinutes)}
-                </p>
-              )}
-              {activity.data.targetTime && (
-                <p className="text-sm font-medium text-muted">
-                  Target time: {formatTargetTime(activity.data.targetTime)}
-                </p>
-              )}
-              {activity.data.canEdit && (
-                <div className="flex flex-wrap items-end gap-2">
-                  <label className="field space-y-1">
-                    <span className="label text-xs font-semibold">Target time (optional)</span>
-                    <Input
-                      type="time"
-                      aria-label="Target time (optional)"
-                      value={targetTimeDraft}
-                      disabled={!online || updateTargetTime.isPending}
-                      onChange={(event) => setTargetTimeDraft(event.target.value)}
+              {/* 1 · Hero Identity Card */}
+              <header
+                className={cn(
+                  'activity-identity',
+                  hero.src && 'activity-identity--photo',
+                )}
+              >
+                {hero.src && (
+                  <div className="activity-identity__art-wrap" aria-hidden>
+                    <EntityHero
+                      hero={hero}
+                      size="banner"
+                      className="activity-identity__art"
                     />
-                  </label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={
-                      !online ||
-                      updateTargetTime.isPending ||
-                      parseTargetTime(targetTimeDraft) === (activity.data.targetTime ?? null)
-                    }
-                    loading={updateTargetTime.isPending}
-                    onClick={() =>
-                      void updateTargetTime.mutateAsync({
-                        targetTime: parseTargetTime(targetTimeDraft),
-                        expectedRevision: activity.data!.draftRevision,
-                      })
-                    }
-                  >
-                    Save time
-                  </Button>
-                  {activity.data.targetTime && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      disabled={!online || updateTargetTime.isPending}
-                      onClick={() =>
-                        void updateTargetTime.mutateAsync({
-                          targetTime: null,
-                          expectedRevision: activity.data!.draftRevision,
-                        })
-                      }
-                    >
-                      Clear
-                    </Button>
-                  )}
-                  <ErrorMessage error={updateTargetTime.error} />
+                  </div>
+                )}
+
+                <div className="activity-identity__body">
+                  <div className="activity-identity__header">
+                    <span className="activity-identity__icon" aria-hidden>
+                      <CategoryIcon
+                        category={hero.category}
+                        size={22}
+                        strokeWidth={1.85}
+                      />
+                    </span>
+
+                    <div className="activity-identity__title-group">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="activity-identity__context">
+                          {[category?.label, a.isPlatform ? 'Platform Activity' : null]
+                            .filter(Boolean)
+                            .join(' · ') || 'Activity'}
+                        </p>
+                        {a.canEdit && (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {a.status === 'DRAFT' && (
+                              <span className="inline-flex items-center rounded-full bg-attention/15 px-2.5 py-0.5 text-xs font-semibold text-attention">
+                                Draft
+                              </span>
+                            )}
+                            <span className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-semibold text-muted">
+                              {a.visibility === 'PUBLIC'
+                                ? 'Public'
+                                : a.visibility === 'UNLISTED'
+                                  ? 'Link only'
+                                  : 'Private'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <h1>{a.title}</h1>
+
+                      {a.creator && (
+                        <div>
+                          <Link
+                            to={`${buildProfileUrl(a.creator.handle)}?returnTo=${encodeURIComponent(currentUrl)}`}
+                            className="inline-flex items-center gap-2 text-sm font-medium text-foreground hover:text-accent transition-colors"
+                          >
+                            <Avatar
+                              src={a.creator.avatarUrl}
+                              name={a.creator.displayName}
+                              size="sm"
+                              className="h-5 w-5 ring-1 ring-border"
+                            />
+                            <span>
+                              by <strong className="font-semibold">{a.creator.displayName}</strong>
+                            </span>
+                          </Link>
+                        </div>
+                      )}
+
+                      {(durationText || targetTimeText || frequencyText) && (
+                        <div className="activity-identity__meta">
+                          {durationText && (
+                            <span className="inline-flex items-center gap-1.5">
+                              <Clock size={14} aria-hidden />
+                              <span>Duration: {durationText}</span>
+                            </span>
+                          )}
+                          {targetTimeText && (
+                            <span className="inline-flex items-center gap-1.5">
+                              <Clock size={14} aria-hidden />
+                              <span>Target time: {targetTimeText}</span>
+                            </span>
+                          )}
+                          {frequencyText && (
+                            <span className="inline-flex items-center gap-1.5">
+                              <Repeat size={14} aria-hidden />
+                              <span>Frequency: {frequencyText}</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {a.summary && (
+                        <p className="activity-identity__summary">{a.summary}</p>
+                      )}
+
+                      {a.sourceActivity && (
+                        <p className="text-xs text-muted">
+                          Based on{' '}
+                          <Link
+                            to={buildActivityUrl(a.sourceActivity, {
+                              returnTo: currentUrl,
+                            })}
+                            className="font-medium text-accent hover:underline"
+                          >
+                            {a.sourceActivity.title}
+                          </Link>
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
-              <p className="text-muted">{activity.data.summary}</p>
-              {!activity.data.canEdit && <ReportButton target={{ type: 'ACTIVITY', id: activity.data.id }} />}
-              <Panel>
-                <Stack>
-                  <h2>Instructions</h2>
-                  {activity.data.instructions.map((i) => (
-                    <p key={i.id}>{i.body ?? i.title}</p>
-                  ))}
-                </Stack>
-              </Panel>
-              <ActivityRelatedMedia activityId={activity.data.id} revisionId={activity.data.canEdit ? activity.data.revisionId : null} items={riverItems} />
-              {!!activity.data.metricLabels.filter(
-                (label) => !label.toLowerCase().startsWith('duration'),
-              ).length && (
-                <p className="text-muted">
-                  {activity.data.metricLabels
-                    .filter(
-                      (label) => !label.toLowerCase().startsWith('duration'),
-                    )
-                    .join(' · ')}
-                </p>
-              )}
-              <p className="text-sm text-muted">
-                Session duration is calculated automatically while you work.
-              </p>
+              </header>
+
+              {/* 2 · Instructions + Specifications */}
+              <div className="grid grid-cols-1 gap-6 items-start lg:grid-cols-12">
+                <section
+                  aria-label="Instructions"
+                  className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-4 lg:col-span-7"
+                >
+                  <SectionHeader title="Instructions" className="pb-0" />
+                  {a.instructions.length > 0 ? (
+                    <ol className="space-y-3">
+                      {a.instructions.map((inst, index) => (
+                        <li
+                          key={inst.id}
+                          className="rounded-lg border border-border/70 bg-surface-raised p-4 space-y-1"
+                        >
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs font-bold tabular-nums text-accent">
+                              {String(index + 1).padStart(2, '0')}
+                            </span>
+                            {inst.title && (
+                              <h3 className="text-sm font-semibold text-foreground">
+                                {inst.title}
+                              </h3>
+                            )}
+                          </div>
+                          {inst.body && (
+                            <p className="text-sm leading-relaxed text-muted">
+                              {inst.body}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="text-sm text-muted">
+                      No step-by-step instructions provided for this Activity.
+                    </p>
+                  )}
+                </section>
+
+                <aside
+                  aria-label="Activity details"
+                  className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-5 lg:col-span-5"
+                >
+                  <SectionHeader title="Details" className="pb-0" />
+
+                  <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-1">
+                    {category && (
+                      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+                        <dt className="text-muted">Category</dt>
+                        <dd className="font-medium text-foreground">{category.label}</dd>
+                      </div>
+                    )}
+                    {durationText && (
+                      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+                        <dt className="text-muted">Planned duration</dt>
+                        <dd className="font-medium text-foreground">{durationText}</dd>
+                      </div>
+                    )}
+                    {frequencyText && (
+                      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+                        <dt className="text-muted">Frequency</dt>
+                        <dd className="font-medium text-foreground">{frequencyText}</dd>
+                      </div>
+                    )}
+                    {targetTimeText && (
+                      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+                        <dt className="text-muted">Target time</dt>
+                        <dd className="font-medium text-foreground">{targetTimeText}</dd>
+                      </div>
+                    )}
+                  </dl>
+
+                  {nonDurationMetrics.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                        Tracked metrics
+                      </h3>
+                      <p className="text-sm text-foreground">
+                        {nonDurationMetrics.join(' · ')}
+                      </p>
+                    </div>
+                  )}
+
+                  {a.tools.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                        Tools
+                      </h3>
+                      <div className="flex flex-wrap gap-1.5">
+                        {a.tools.map((tool) => (
+                          <span
+                            key={tool.id}
+                            className="inline-flex items-center rounded-md bg-surface-muted px-2.5 py-1 text-xs font-medium text-foreground"
+                          >
+                            {tool.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-muted">
+                    Session duration is calculated automatically while you work.
+                  </p>
+
+                  {a.canEdit ? (
+                    <div className="space-y-2 border-t border-border pt-4">
+                      <div className="flex flex-wrap items-end gap-2">
+                        <label className="field space-y-1">
+                          <span className="label text-xs font-semibold">
+                            Target time (optional)
+                          </span>
+                          <Input
+                            type="time"
+                            aria-label="Target time (optional)"
+                            value={targetTimeDraft}
+                            disabled={!online || updateTargetTime.isPending}
+                            onChange={(event) =>
+                              setTargetTimeDraft(event.target.value)
+                            }
+                          />
+                        </label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={
+                            !online ||
+                            updateTargetTime.isPending ||
+                            parseTargetTime(targetTimeDraft) ===
+                              (a.targetTime ?? null)
+                          }
+                          loading={updateTargetTime.isPending}
+                          onClick={() =>
+                            void updateTargetTime.mutateAsync({
+                              targetTime: parseTargetTime(targetTimeDraft),
+                              expectedRevision: a.draftRevision,
+                            })
+                          }
+                        >
+                          Save time
+                        </Button>
+                        {a.targetTime && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={!online || updateTargetTime.isPending}
+                            onClick={() =>
+                              void updateTargetTime.mutateAsync({
+                                targetTime: null,
+                                expectedRevision: a.draftRevision,
+                              })
+                            }
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      <ErrorMessage error={updateTargetTime.error} />
+                    </div>
+                  ) : (
+                    <div className="border-t border-border pt-3">
+                      <ReportButton target={{ type: 'ACTIVITY', id: a.id }} />
+                    </div>
+                  )}
+                </aside>
+              </div>
+
+              {/* 3 · Unified Related Media */}
+              <ActivityRelatedMedia
+                activityId={a.id}
+                revisionId={a.canEdit ? a.revisionId : null}
+                items={riverItems}
+              />
             </>
           )
         )}
-      </Stage>
-    </Page>
-  )
-}
-
-const ACTIVITY_DRAFT_KEY = 'add-activity-browse-draft'
-
-interface AddActivityDraft {
-  day: string
-  selected: components['schemas']['ActivitySummary'] | null
-  title: string
-  summary: string
-  duration: string
-  targetTime: string
-  categoryId: string
-  instruction: string
-}
-
-export function AddActivityPage() {
-  const [params] = useSearchParams()
-  const me = useCurrentUser()
-  const add = useAddCalendarItem()
-  const copy = useCopyActivity()
-  const create = useCreateActivity()
-  const putInstructions = usePutActivityInstructions()
-  const update = useUpdateActivityDraft()
-  const online = useOnline()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const navType = useNavigationType()
-  const categorySlugOf = useCategorySlugOf()
-
-  useDocumentTitle('Add Activity')
-
-  const routeState = location.state as {
-    fromBrowse?: boolean
-    pickedActivity?: components['schemas']['ActivitySummary']
-  } | null
-  const returningFromBrowse = Boolean(routeState?.fromBrowse) || navType === 'POP'
-  const [initialDraft] = useState<AddActivityDraft | null>(() =>
-    readBrowseDraft<AddActivityDraft>(ACTIVITY_DRAFT_KEY, returningFromBrowse),
-  )
-  const pickedActivity = routeState?.pickedActivity ?? null
-  useEffect(() => {
-    if (!returningFromBrowse) clearBrowseDraft(ACTIVITY_DRAFT_KEY)
-  }, [returningFromBrowse])
-
-  const [day, setDay] = useState(
-    () =>
-      initialDraft?.day ??
-      params.get('day') ??
-      today(
-        me.data?.data.preferences.timezone ??
-          Intl.DateTimeFormat().resolvedOptions().timeZone,
-      ),
-  )
-  const [selected, setSelected] = useState<
-    components['schemas']['ActivitySummary'] | null
-  >(() => pickedActivity ?? initialDraft?.selected ?? null)
-  const [title, setTitle] = useState(
-    () => pickedActivity?.title ?? initialDraft?.title ?? '',
-  )
-  const [summary, setSummary] = useState(
-    () => (pickedActivity ? (pickedActivity.summary ?? '') : initialDraft?.summary ?? ''),
-  )
-  const [duration, setDuration] = useState(
-    () => (pickedActivity ? durationInput(pickedActivity.durationMinutes) : initialDraft?.duration ?? ''),
-  )
-  const [targetTime, setTargetTime] = useState(
-    () => (pickedActivity ? targetTimeInput(pickedActivity.targetTime) : initialDraft?.targetTime ?? ''),
-  )
-  const categories = useCategories()
-  const [categoryId, setCategoryId] = useState(
-    () => pickedActivity?.categoryId ?? initialDraft?.categoryId ?? '',
-  )
-  const [instruction, setInstruction] = useState(
-    () => (pickedActivity ? '' : initialDraft?.instruction ?? ''),
-  )
-  const [createdActivity, setCreatedActivity] = useState<
-    components['schemas']['ActivityDetail'] | null
-  >(null)
-  const [instructionSaved, setInstructionSaved] = useState(false)
-  const key = useRef(crypto.randomUUID())
-  const suggestions = useActivitySuggestions({ categoryId })
-
-  /** A starting point prefills a private copy; the new-Activity path stays available. */
-  function chooseStartingPoint(activity: components['schemas']['ActivitySummary']) {
-    setSelected(activity)
-    setCreatedActivity(null)
-    setInstructionSaved(false)
-    setTitle(activity.title)
-    setSummary(activity.summary ?? '')
-    setDuration(durationInput(activity.durationMinutes))
-    setTargetTime(targetTimeInput(activity.targetTime))
-    setCategoryId(activity.categoryId)
-    setInstruction('')
-    key.current = crypto.randomUUID()
-  }
-  function openBrowser() {
-    writeBrowseDraft<AddActivityDraft>(ACTIVITY_DRAFT_KEY, {
-      day,
-      selected,
-      title,
-      summary,
-      duration,
-      targetTime,
-      categoryId,
-      instruction,
-    })
-    navigate(
-      buildBrowseUrl({
-        kind: 'activities',
-        facet: categoryId || undefined,
-        pick: 'activity',
-        returnTo: `${location.pathname}${location.search}`,
-      }),
-    )
-  }
-
-  async function addToCalendar(activityId: string) {
-    try {
-      const chosenTime = parseTargetTime(targetTime)
-      await add.mutateAsync({
-        activityId,
-        localDate: day,
-        ...(chosenTime !== null ? { localTime: chosenTime } : {}),
-        idempotencyKey: key.current,
-      })
-      clearBrowseDraft(ACTIVITY_DRAFT_KEY)
-      navigate(calendarUrl(day))
-    } catch {
-      // Mutation error remains visible; keep the date and Activity for retry.
-    }
-  }
-
-  async function createActivity() {
-    try {
-      const nextTargetTime = parseTargetTime(targetTime)
-      let created =
-        createdActivity ??
-        (selected
-          ? await copy.mutateAsync({
-              activityId: selected.id,
-              ...(selected.revisionId
-                ? { sourceRevisionId: selected.revisionId }
-                : {}),
-            })
-          : await create.mutateAsync({
-              title: title.trim(),
-              categoryId,
-              focusIds: [],
-              summary: summary.trim() || null,
-              durationMinutes: parseDurationMinutes(duration),
-              targetTime: nextTargetTime,
-            }))
-      if (!createdActivity) setCreatedActivity(created)
-
-      if (
-        created.title !== title.trim() ||
-        created.summary !== (summary.trim() || null) ||
-        created.durationMinutes !== parseDurationMinutes(duration) ||
-        (created.targetTime ?? null) !== nextTargetTime ||
-        created.categoryId !== categoryId
-      ) {
-        created = await update.mutateAsync({
-          activityId: created.id,
-          ...(created.title !== title.trim() ? { title: title.trim() } : {}),
-          ...(created.summary !== (summary.trim() || null)
-            ? { summary: summary.trim() || null }
-            : {}),
-          ...(created.durationMinutes !== parseDurationMinutes(duration)
-            ? { durationMinutes: parseDurationMinutes(duration) }
-            : {}),
-          ...((created.targetTime ?? null) !== nextTargetTime
-            ? { targetTime: nextTargetTime }
-            : {}),
-          ...(created.categoryId !== categoryId ? { categoryId } : {}),
-          expectedRevision: created.draftRevision,
-        })
-        setCreatedActivity(created)
-      }
-
-      if (instruction.trim() && !instructionSaved) {
-        created = await putInstructions.mutateAsync({
-          activityId: created.id,
-          instructions: [{ body: instruction.trim() }],
-          expectedRevision: created.draftRevision,
-        })
-        setCreatedActivity(created)
-      }
-      setInstructionSaved(true)
-    } catch {
-      // Preserve the draft and form values so the failed step can be retried.
-    }
-  }
-
-
-  return (
-    <Page>
-      <Stage>
-        <Back to={safeReturn(params.get('returnTo'))}>Calendar</Back>
-        <h1>Add Activity</h1>
-        <Panel>
-          <Stack>
-            {createdActivity ? (
-              <>
-                <div>
-                  <h3 className="font-semibold">{createdActivity.title}</h3>
-                  <p className="text-sm text-muted">
-                    {createdActivity.summary || 'No description'}
-                  </p>
-                </div>
-                <ErrorMessage
-                  error={
-                    create.error ||
-                    copy.error ||
-                    update.error ||
-                    putInstructions.error ||
-                    add.error
-                  }
-                />
-                {!instructionSaved && (
-                  <Button
-                    variant="outline"
-                    disabled={
-                      !online ||
-                      create.isPending ||
-                      copy.isPending ||
-                      update.isPending ||
-                      putInstructions.isPending
-                    }
-                    loading={
-                      create.isPending ||
-                      copy.isPending ||
-                      update.isPending ||
-                      putInstructions.isPending
-                    }
-                    onClick={() => void createActivity()}
-                  >
-                    {instruction.trim()
-                      ? 'Retry saving instructions'
-                      : 'Retry saving Activity'}
-                  </Button>
-                )}
-                {createdActivity.revisionId ? (
-                  <ActivityMediaTray revisionId={createdActivity.revisionId} />
-                ) : (
-                  <p className="text-sm text-attention">
-                    This Activity has no editable media.
-                  </p>
-                )}
-                <Button
-                  disabled={
-                    !instructionSaved ||
-                    !isLocalDate(day) ||
-                    !online ||
-                    add.isPending ||
-                    create.isPending ||
-                    copy.isPending ||
-                    update.isPending ||
-                    putInstructions.isPending
-                  }
-                  loading={
-                    add.isPending ||
-                    copy.isPending ||
-                    create.isPending ||
-                    update.isPending ||
-                    putInstructions.isPending
-                  }
-                  onClick={() => void addToCalendar(createdActivity.id)}
-                >
-                  Add to Calendar
-                </Button>
-              </>
-            ) : (
-              <>
-                <ErrorMessage
-                  error={
-                    create.error ||
-                    copy.error ||
-                    update.error ||
-                    putInstructions.error
-                  }
-                />
-                <ActivityBasicsFields
-                  title={title}
-                  summary={summary}
-                  duration={duration}
-                  targetTime={targetTime}
-                  instruction={instruction}
-                  onTitleChange={setTitle}
-                  onSummaryChange={setSummary}
-                  onDurationChange={setDuration}
-                  onTargetTimeChange={setTargetTime}
-                  onInstructionChange={setInstruction}
-                />
-                <ErrorMessage
-                  error={categories.error}
-                  retry={() => void categories.refetch()}
-                />
-                {categories.isPending ? (
-                  <Loading />
-                ) : (
-                  <label className="field">
-                    <span className="label">Category</span>
-                    <Select
-                      required
-                      value={categoryId}
-                      onChange={(event) => setCategoryId(event.target.value)}
-                    >
-                      <option value="">Choose a category</option>
-                      {categories.data?.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                )}
-                <Button
-                  disabled={
-                    !title.trim() ||
-                    !categoryId ||
-                    !isLocalDate(day) ||
-                    !online ||
-                    create.isPending ||
-                    copy.isPending ||
-                    update.isPending ||
-                    putInstructions.isPending
-                  }
-                  loading={
-                    create.isPending ||
-                    copy.isPending ||
-                    update.isPending ||
-                    putInstructions.isPending
-                  }
-                  onClick={() => void createActivity()}
-                >
-                  {selected ? 'Create a private copy' : 'Create Activity'}
-                </Button>
-              </>
-            )}
-          </Stack>
-        </Panel>
-        <label className="space-y-2">
-          Date
-          <Input
-            type="date"
-            value={day}
-            onChange={(event) => {
-              setDay(event.target.value)
-              key.current = crypto.randomUUID()
-            }}
-          />
-        </label>
-        <SuggestionRail
-          title="Suggestions"
-          actionLabel="Use as starting point"
-          items={suggestions.items.map((activity) =>
-            activityCard(activity, categorySlugOf),
-          )}
-          loading={suggestions.isPending}
-          error={suggestions.error}
-          retry={() => void suggestions.refetch()}
-          selectedId={selected?.id}
-          onPick={(id) => {
-            const activity = suggestions.items.find((a) => a.id === id)
-            if (activity) chooseStartingPoint(activity)
-          }}
-          footer={
-            <Button variant="outline" className="self-start" onClick={openBrowser}>
-              Browse Activity Library
-            </Button>
-          }
-        />
-        {selected && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <EntityHero hero={activityHero(selected, categorySlugOf)} size="thumb" />
-              <p className="min-w-0 truncate text-sm">
-                Starting point: <strong>{selected.title}</strong>
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              disabled={!isLocalDate(day) || !online || add.isPending}
-              loading={add.isPending}
-              onClick={() => void addToCalendar(selected.id)}
-            >
-              Use {selected.title} as is
-            </Button>
-          </div>
-        )}
-      </Stage>
+      </div>
     </Page>
   )
 }

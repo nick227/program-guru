@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Filter, List, BookOpen } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Filter } from 'lucide-react'
 import {
   useCalendar,
   useCalendarYear,
@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { SubHeader } from '@/components/shared/SubHeader'
 import { CalendarSurface } from '@/components/calendar/CalendarSurface'
 import type { SurfaceItem } from '@/components/calendar/CalendarSurface'
 import { resolveActivityCategory } from '@/lib/activityCategory'
@@ -314,34 +315,7 @@ export function CalendarPage() {
 
   return (
     <Page className="page--wide">
-      <header className="sub-header">
-        <div className="sub-header__title">
-          <h1 className="sub-header__heading">Calendar</h1>
-        </div>
-        <div className="sub-header__actions">
-          <Link
-            aria-label="Programs"
-            to={`/library?returnTo=${encodeURIComponent(origin)}`}
-            className="sub-header__btn"
-          >
-            <BookOpen size={16} aria-hidden />
-            <span className="hidden lg:block">Programs</span>
-          </Link>
-          <Link
-            aria-label="Community" to="/browse" className="sub-header__btn">
-            <List size={16} aria-hidden />
-            <span className="hidden lg:block">Community</span>
-          </Link>
-          <Link
-            aria-label="Add Program"
-            to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
-            className="sub-header__btn sub-header__btn--primary"
-          >
-            <Plus size={16} aria-hidden />
-            <span className="hidden lg:block">Add Program</span>
-          </Link>
-        </div>
-      </header>
+      <SubHeader title="Calendar" active="calendar" returnTo={origin} />
 
       <div className="mt-4" aria-label="Calendar controls">
         <div className="w-full my-4">

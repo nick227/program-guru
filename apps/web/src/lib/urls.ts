@@ -47,7 +47,7 @@ export function buildProgramUrl(
   program: ProgramUrlTarget,
   options: ProgramUrlOptions = {},
 ): string {
-  if (!program || !program.id) return '/discover'
+  if (!program || !program.id) return '/browse'
 
   const creatorHandle =
     options?.scoped !== false
@@ -91,7 +91,7 @@ export function buildActivityUrl(
   activity: ActivityUrlTarget,
   options: ActivityUrlOptions = {},
 ): string {
-  if (!activity || !activity.id) return '/discover'
+  if (!activity || !activity.id) return '/browse?kind=activities'
 
   const slug = activity.slug ? slugify(activity.slug) : (activity.title ? slugify(activity.title) : null)
 
@@ -139,8 +139,15 @@ export function buildOccurrenceUrl(
 /**
  * Group URL. Retains internal UUID.
  */
-export function buildGroupUrl(groupId: string): string {
-  return `/groups/${groupId}`
+export function buildGroupUrl(
+  groupId: string,
+  options: { returnTo?: string } = {},
+): string {
+  const base = `/groups/${groupId}`
+  if (options.returnTo) {
+    return `${base}?returnTo=${encodeURIComponent(options.returnTo)}`
+  }
+  return base
 }
 
 /** Resolves an app-relative path to a full origin URL in the browser. */

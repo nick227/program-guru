@@ -127,7 +127,10 @@ export function ProgramPersonalOverview({
             </Link>
           )}
           {groupId && (
-            <Link className="btn btn--outline btn--sm" to={buildGroupUrl(groupId)}>
+            <Link
+              className="btn btn--outline btn--sm"
+              to={buildGroupUrl(groupId, { returnTo: currentUrl })}
+            >
               Open Group
             </Link>
           )}

@@ -9,6 +9,7 @@ export const queryKeys = {
   programs: ['programs'] as const,
   mine: ['programs', 'mine'] as const,
   preview: (id: string) => ['programs', id, 'preview'] as const,
+  version: (versionId: string) => ['programs', 'version', versionId] as const,
   workspace: (id: string) => ['programs', id, 'workspace'] as const,
   placements: (id: string) => ['programs', id, 'placements'] as const,
   publishCheck: (id: string) => ['programs', id, 'publish-check'] as const,

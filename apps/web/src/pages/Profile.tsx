@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
-  ArrowLeft,
   Clock,
   Layers,
   LayoutGrid,
@@ -37,7 +36,9 @@ import { ShareLinkCard } from '@/components/social/ShareLink'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
 import { ThumbnailGrid } from '@/components/media/ThumbnailGrid'
-import { Back } from '@/components/shared/Navigation'
+import { SubHeader } from '@/components/shared/SubHeader'
+import { buildProfileBreadcrumbs } from '@/lib/breadcrumbs'
+import { safeReturn } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { buildActivityUrl, buildProfileUrl, buildProgramUrl, toAbsoluteUrl } from '@/lib/urls'
@@ -47,8 +48,11 @@ import { ReportButton } from '@/components/shared/ReportButton'
 
 export function ProfilePage() {
   const { handle = '' } = useParams()
+  const [params] = useSearchParams()
   const cleanHandle = handle.replace(/^@+/, '')
   const navigate = useNavigate()
+  const rawReturnTo = params.get('returnTo')
+  const explicitReturnTo = rawReturnTo ? safeReturn(rawReturnTo, '/browse') : null
 
   const me = useCurrentUser()
   const profile = useUserByHandle(cleanHandle)
@@ -73,11 +77,21 @@ export function ProfilePage() {
       : `@${cleanHandle}`,
   )
 
+  const profileNav = buildProfileBreadcrumbs({
+    label: p ? p.displayName || `@${p.handle}` : `@${cleanHandle}`,
+    returnTo: explicitReturnTo,
+  })
+  const profileUrl = buildProfileUrl(p?.handle ?? cleanHandle)
+
   if (!p) {
     return (
-      <Page>
+      <Page className="page--wide">
+        <SubHeader
+          breadcrumbs={profileNav.items}
+          active={profileNav.activeNav}
+          returnTo={profileUrl}
+        />
         <Stage className="max-w-3xl mx-auto py-12">
-          <Back to="/">Calendar</Back>
           <ErrorMessage
             error={profile.error}
             retry={() => void profile.refetch()}
@@ -96,7 +110,6 @@ export function ProfilePage() {
   const mediaRows =
     publications.data?.pages.flatMap((page) => page.data).slice(0, 12) ?? []
 
-  const profileUrl = buildProfileUrl(p.handle)
   const publicUrl = toAbsoluteUrl(profileUrl)
 
   const rawVisualUrl = p.coverUrl || p.avatarUrl || null
@@ -154,8 +167,13 @@ export function ProfilePage() {
     
 
   return (
-    <Page className="page--content max-w-7xl pb-20">
-      <div className="w-full space-y-10 sm:space-y-12">
+    <Page className="page--wide pb-20">
+      <SubHeader
+        breadcrumbs={profileNav.items}
+        active={profileNav.activeNav}
+        returnTo={profileUrl}
+      />
+      <div className="mx-auto mt-6 w-full max-w-7xl space-y-10 sm:space-y-12">
         {/* 01 — Creator Hero (reuses ProgramHero layout) */}
         <section
           aria-label={`${p.displayName || `@${p.handle}`} profile`}
@@ -164,24 +182,14 @@ export function ProfilePage() {
           <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-12">
             {/* Left Column: Creator Identity, Specs & Following Controls */}
             <div className="flex flex-col justify-between space-y-6 lg:col-span-7">
-              <div className="flex items-center justify-between gap-4">
-                <Link
-                  to="/"
-                  className="group inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-foreground"
-                >
-                  <ArrowLeft
-                    size={16}
-                    className="transition-transform group-hover:-translate-x-1"
-                  />
-                  <span>Calendar</span>
-                </Link>
-                {p.visibility === 'PRIVATE' && (
+              {p.visibility === 'PRIVATE' && (
+                <div className="flex items-center justify-end gap-4">
                   <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-2.5 py-1 text-xs font-medium text-muted">
                     <Lock size={12} className="text-accent" />
                     <span>Private profile</span>
                   </span>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">

@@ -34,6 +34,16 @@ export function isSameFrequency(current: Frequency | null | undefined, option: F
   return current.kind === option.kind
 }
 
+/** Format a Frequency value using the shared schedule option labels. */
+export function formatFrequency(frequency: Frequency | null | undefined): string | null {
+  if (!frequency) return null
+  const match = FREQUENCY_OPTIONS.find((opt) => isSameFrequency(frequency, opt.value))
+  if (match) return match.label
+  if (frequency.kind === 'N_PER_WEEK' && frequency.n) return `${frequency.n} days/week`
+  if (frequency.kind === 'CUSTOM') return 'Custom schedule'
+  return null
+}
+
 export function ProgramDurationButtons({ ws }: { ws: Workspace }) {
   const update = useUpdateProgram(ws.id)
   const online = useOnline()
