@@ -162,6 +162,19 @@ export function ActivityTile({
         )}
         {canRemove && (
           <div className="calendar-tile__menu-anchor">
+            <button
+              type="button"
+              className="calendar-tile__more"
+              aria-label={`More actions for ${item.title}`}
+              aria-expanded={menuOpen}
+              onClick={() => {
+                setMenuOpen((open) => !open)
+                setConfirmRemove(false)
+              }}
+            >
+              {menuOpen ? <X size={15} aria-hidden /> : <MoreHorizontal size={16} aria-hidden />}
+              <span>{menuOpen ? 'Close' : 'More'}</span>
+            </button>
             {menuOpen && (
               <div className="calendar-tile-menu">
                 {!confirmRemove ? (
