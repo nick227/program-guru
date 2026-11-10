@@ -115,7 +115,7 @@ test('Library browser keeps filters and cached content through discovery and par
     .getByRole('link', { name: 'Community', exact: true })
     .click()
   await expect(
-    page.getByRole('heading', { name: 'Program Library', exact: true }),
+    page.getByRole('heading', { name: 'Community', exact: true }),
   ).toBeVisible()
   await expect(page.getByLabel('Program type', { exact: true })).toHaveValue(
     '',
@@ -132,10 +132,13 @@ test('Library browser keeps filters and cached content through discovery and par
     'same-document',
   )
   expect(requests.filter((r) => r.path === '/resolve-slug')).toHaveLength(0)
-  await page.getByRole('link', { name: 'Browse', exact: true }).click()
+  await page
+    .getByRole('navigation', { name: 'Breadcrumb' })
+    .getByRole('link', { name: 'Community', exact: true })
+    .click()
   await expect(page).toHaveURL(/\/browse\?q=Beginner/)
   await expect(
-    page.getByRole('heading', { name: 'Program Library', exact: true }),
+    page.getByRole('heading', { name: 'Community', exact: true }),
   ).toBeVisible()
   await expect(
     page.getByLabel('Search Programs', { exact: true }),
@@ -146,6 +149,7 @@ test('Library browser keeps filters and cached content through discovery and par
   ).toBeVisible()
   expect(libraryReads).toBe(readsBeforeBrowse)
   await page
+    .getByRole('navigation', { name: 'Workspace navigation' })
     .getByRole('link', { name: 'Community', exact: true })
     .click()
   await page

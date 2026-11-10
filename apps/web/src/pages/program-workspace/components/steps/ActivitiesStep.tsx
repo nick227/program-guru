@@ -2,7 +2,7 @@ import { formatProgramDuration } from '@/components/program-authoring/programFie
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
-import { buildBrowseUrl } from '@/pages/Browse'
+import { buildBrowseUrl } from '@/lib/browse'
 import { WorkspaceActivityRow } from '@/components/program-authoring/WorkspaceActivityRow'
 import { CreateActivitySection } from '@/components/program-authoring/CreateActivitySection'
 import type { Workspace } from '@/components/program-authoring/types'
@@ -20,7 +20,7 @@ export function ActivitiesStep({
   const browseHref = buildBrowseUrl({
     kind: 'activities',
     programId: ws.id,
-    facet: ws.type.categoryId || undefined,
+    category: ws.type.categoryId || undefined,
     returnTo: base,
   })
 

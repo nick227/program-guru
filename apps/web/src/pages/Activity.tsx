@@ -134,7 +134,7 @@ export function ActivityPage() {
             to="/browse?kind=activities"
             className="text-accent underline mt-2 inline-block"
           >
-            Return to Browse
+            Return to Community
           </Link>
         </Stage>
       </Page>
@@ -182,7 +182,7 @@ export function ActivityPage() {
         returnTo={currentUrl}
       />
 
-      <div className="mx-auto mt-6 w-full max-w-5xl activity-page">
+      <div className="mx-auto mt-6 w-full activity-page page--width">
         <ErrorMessage
           error={activity.error}
           retry={() => void activity.refetch()}

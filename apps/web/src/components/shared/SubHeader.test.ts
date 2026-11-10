@@ -29,13 +29,13 @@ describe('SubHeader', () => {
     expect(resolveSubHeaderNav('/browse')).toBe('community')
     expect(resolveSubHeaderNav('/library')).toBe('programs')
     expect(resolveSubHeaderNav('/programs/new')).toBe('add-program')
-    expect(resolveSubHeaderNav('/discover')).toBe('add-program')
+    expect(resolveSubHeaderNav('/discover')).toBe('community')
     expect(resolveSubHeaderNav('/settings')).toBeUndefined()
   })
 
   it.each([
     { route: '/', title: 'Calendar', activeLabel: 'Calendar', href: '/' },
-    { route: '/browse', title: 'Program Library', activeLabel: 'Community', href: '/browse' },
+    { route: '/browse', title: 'Community', activeLabel: 'Community', href: '/browse' },
     { route: '/library', title: 'My Programs', activeLabel: 'Programs', href: '/library' },
   ])(
     'renders all four actions in consistent order and marks $activeLabel active on $route',
@@ -70,8 +70,8 @@ describe('SubHeader', () => {
   it('renders breadcrumbs alongside the persistent 4-action SubHeader on entity pages', () => {
     const html = renderSubHeader('/programs/beginner-strength', {
       breadcrumbs: [
-        { label: 'Browse', href: '/browse' },
-        { label: 'Training', href: '/browse?type=t1' },
+        { label: 'Community', href: '/browse' },
+        { label: 'Training', href: '/browse?type=type-1' },
         { label: 'Beginner Strength' },
       ],
       active: 'community',
@@ -79,7 +79,7 @@ describe('SubHeader', () => {
     })
     expect(html).toContain('aria-label="Breadcrumb"')
     expect(html).toContain('href="/browse"')
-    expect(html).toContain('href="/browse?type=t1"')
+    expect(html).toContain('href="/browse?type=type-1"')
     expect(html).toContain('Beginner Strength')
     expect(html).toContain('aria-label="Community" aria-current="page"')
     expect(html).toContain('aria-label="Workspace navigation"')

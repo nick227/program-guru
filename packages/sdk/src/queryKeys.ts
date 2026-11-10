@@ -20,7 +20,14 @@ export const queryKeys = {
     ['activities', 'list', { q, focusId }] as const,
   types: ['catalog', 'program-types'] as const,
   categories: ['catalog', 'categories'] as const,
-  focuses: (id: string) => ['catalog', 'focuses', id] as const,
+  focuses: (filter: string | { categoryId?: string; programTypeId?: string } = '') =>
+    [
+      'catalog',
+      'focuses',
+      typeof filter === 'string'
+        ? { programTypeId: filter || undefined }
+        : filter,
+    ] as const,
   calendar: ['calendar'] as const,
   week: (start: string, end: string) =>
     ['calendar', 'list', { start, end }] as const,

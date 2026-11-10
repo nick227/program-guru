@@ -69,7 +69,7 @@ export function ProgramHero({
   statusBadges,
   primaryLabel,
   backTo,
-  backLabel = 'Browse',
+  backLabel = 'Community',
   onPrimary,
   onShare,
   onEditProgram,

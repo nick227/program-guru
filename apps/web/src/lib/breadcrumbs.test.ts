@@ -17,9 +17,9 @@ describe('breadcrumbs builders', () => {
     })
     expect(direct.activeNav).toBe('community')
     expect(direct.items).toEqual([
-      { label: 'Browse', href: '/browse' },
+      { label: 'Community', href: '/browse' },
       { label: 'Training', href: '/browse?type=type-1' },
-      { label: 'Strength', href: '/browse?type=type-1&facet=focus-1' },
+      { label: 'Strength', href: '/browse?type=type-1&focus=focus-1' },
       { label: 'Beginner Strength' },
     ])
 
@@ -30,8 +30,19 @@ describe('breadcrumbs builders', () => {
       returnTo: '/browse?type=type-1',
     })
     expect(filtered.items).toEqual([
-      { label: 'Browse', href: '/browse?type=type-1' },
-      { label: 'Strength', href: '/browse?type=type-1&facet=focus-1' },
+      { label: 'Community', href: '/browse?type=type-1' },
+      { label: 'Strength', href: '/browse?type=type-1&focus=focus-1' },
+      { label: 'Beginner Strength' },
+    ])
+
+    const legacyFacet = buildProgramBreadcrumbs({
+      title: 'Beginner Strength',
+      type: { id: 'type-1', label: 'Training' },
+      focus: { id: 'focus-1', label: 'Strength' },
+      returnTo: '/browse?type=type-1&facet=focus-1',
+    })
+    expect(legacyFacet.items).toEqual([
+      { label: 'Community', href: '/browse?type=type-1&facet=focus-1' },
       { label: 'Beginner Strength' },
     ])
   })
@@ -93,8 +104,8 @@ describe('breadcrumbs builders', () => {
     })
     expect(directActivity.activeNav).toBe('community')
     expect(directActivity.items).toEqual([
-      { label: 'Browse', href: '/browse?kind=activities' },
-      { label: 'Fitness', href: '/browse?kind=activities&facet=cat-1' },
+      { label: 'Community', href: '/browse?kind=activities' },
+      { label: 'Fitness', href: '/browse?kind=activities&category=cat-1' },
       { label: 'Morning Mobility' },
     ])
   })
@@ -108,7 +119,7 @@ describe('breadcrumbs builders', () => {
     ).toEqual({
       activeNav: 'community',
       items: [
-        { label: 'Browse', href: '/browse' },
+        { label: 'Community', href: '/browse' },
         { label: 'Program', href: '/programs/beginner-strength' },
         { label: 'Coach Maya' },
       ],

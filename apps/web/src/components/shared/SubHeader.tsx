@@ -16,9 +16,16 @@ interface NavItem {
 /** Resolve which sub-header navigation item corresponds to the current route. */
 export function resolveSubHeaderNav(pathname: string): SubHeaderNavKey | undefined {
   if (pathname === '/') return 'calendar'
-  if (pathname === '/browse' || pathname.startsWith('/browse/')) return 'community'
+  if (
+    pathname === '/browse' ||
+    pathname.startsWith('/browse/') ||
+    pathname === '/discover' ||
+    pathname.startsWith('/discover/')
+  ) {
+    return 'community'
+  }
   if (pathname === '/library' || pathname.startsWith('/library/')) return 'programs'
-  if (pathname === '/programs/new' || pathname === '/discover') return 'add-program'
+  if (pathname === '/programs/new') return 'add-program'
   return undefined
 }
 

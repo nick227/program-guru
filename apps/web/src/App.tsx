@@ -17,7 +17,7 @@ import { buildProfileUrl } from '@/lib/urls'
 import { CalendarPage } from '@/pages/Calendar'
 import { LoginPage } from '@/pages/Login'
 import { ForgotPasswordPage, RegisterPage, ResetPasswordPage, VerifyEmailPage } from '@/pages/Auth'
-import { LibraryPage } from '@/pages/Discover'
+import { LibraryPage } from '@/pages/MyPrograms'
 import { ProgramCreatePage } from '@/pages/ProgramCreate'
 import { ProgramWorkspacePage } from '@/pages/ProgramWorkspace'
 import { ProgramPage } from '@/pages/Program'
@@ -116,6 +116,11 @@ function ProfileRedirect() {
   return <Navigate to={buildProfileUrl(handle)} replace />
 }
 
+function DiscoverRedirect() {
+  const location = useLocation()
+  return <Navigate to={`/browse${location.search}${location.hash}`} replace />
+}
+
 function HandleRoute() {
   const { handle = '' } = useParams()
   return handle.startsWith('@') ? <ProfilePage /> : <ProfileRedirect />
@@ -149,7 +154,7 @@ const router = createBrowserRouter([
       { path: '/verify-email', element: <VerifyEmailPage /> },
       { path: '/forgot-password', element: <ForgotPasswordPage /> },
       { path: '/reset-password', element: <ResetPasswordPage /> },
-      { path: '/discover', element: <ProgramCreatePage /> },
+      { path: '/discover', element: <DiscoverRedirect /> },
       { path: '/browse', element: <LibraryBrowserPage /> },
       // Friendly creator-scoped routes use a handle segment prefixed with @.
       { path: '/:handle/:slug', element: <ProgramAliasRoute /> },

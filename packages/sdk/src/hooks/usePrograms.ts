@@ -8,6 +8,7 @@ type S = components['schemas']
 
 export type DiscoverProgramsOptions = {
   q?: string
+  categoryId?: string
   programTypeId?: string
   focusId?: string
   sort?: S['DiscoverSort']
@@ -30,11 +31,13 @@ export function useDiscoverPrograms(
         }
 
   const queryQ = opts.q || undefined
+  const queryCategoryId = opts.categoryId || undefined
   const queryTypeId = opts.programTypeId || undefined
   const queryFocusId = opts.focusId || undefined
   const querySort = opts.sort || undefined
   const queryAccessMode = opts.accessMode || undefined
-  const queryEnabled = opts.enabled ?? (!!opts.programTypeId || !!opts.q)
+  const queryEnabled =
+    opts.enabled ?? (!!opts.categoryId || !!opts.programTypeId || !!opts.q)
 
   return useInfiniteQuery({
     queryKey: useViewerKey([
@@ -43,6 +46,7 @@ export function useDiscoverPrograms(
       {
         kind: 'PROGRAM',
         q: queryQ,
+        categoryId: queryCategoryId,
         programTypeId: queryTypeId,
         focusId: queryFocusId,
         sort: querySort,
@@ -59,6 +63,7 @@ export function useDiscoverPrograms(
             query: {
               kind: 'PROGRAM',
               q: queryQ,
+              categoryId: queryCategoryId,
               programTypeId: queryTypeId,
               focusId: queryFocusId,
               sort: querySort,
@@ -145,15 +150,29 @@ export function useCategories() {
       apiData(await getApiClient().GET('/catalog/categories', { signal })).data,
   })
 }
-export function useFocuses(programTypeId: string) {
+export type FocusesFilter = {
+  categoryId?: string
+  programTypeId?: string
+  enabled?: boolean
+}
+
+export function useFocuses(filterOrProgramTypeId: string | FocusesFilter = '') {
+  const filter: FocusesFilter =
+    typeof filterOrProgramTypeId === 'string'
+      ? { programTypeId: filterOrProgramTypeId, enabled: !!filterOrProgramTypeId }
+      : filterOrProgramTypeId
+  const categoryId = filter.categoryId || undefined
+  const programTypeId = filter.programTypeId || undefined
+  const enabled = filter.enabled ?? (!!programTypeId || !!categoryId)
+
   return useQuery({
-    queryKey: useViewerKey(keys.focuses(programTypeId)),
-    enabled: !!programTypeId,
+    queryKey: useViewerKey(keys.focuses({ categoryId, programTypeId })),
+    enabled,
     queryFn: async ({ signal }) =>
       apiData(
         await getApiClient().GET('/catalog/focuses', {
           signal,
-          params: { query: { programTypeId } },
+          params: { query: { categoryId, programTypeId } },
         }),
       ).data,
   })

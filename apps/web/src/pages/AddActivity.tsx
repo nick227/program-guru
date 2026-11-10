@@ -32,7 +32,7 @@ import {
   clearBrowseDraft,
   readBrowseDraft,
   writeBrowseDraft,
-} from '@/pages/Browse'
+} from '@/lib/browse'
 import { SuggestionRail } from '@/components/shared/SuggestionRail'
 import { activityCard } from '@/lib/discoveryCards'
 import { activityHero } from '@/lib/hero'
@@ -148,7 +148,7 @@ export function AddActivityPage() {
     navigate(
       buildBrowseUrl({
         kind: 'activities',
-        facet: categoryId || undefined,
+        category: categoryId || undefined,
         pick: 'activity',
         returnTo: `${location.pathname}${location.search}`,
       }),

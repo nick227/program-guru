@@ -21,7 +21,7 @@ import {
   clearBrowseDraft,
   readBrowseDraft,
   writeBrowseDraft,
-} from '@/pages/Browse'
+} from '@/lib/browse'
 import { SuggestionRail } from '@/components/shared/SuggestionRail'
 import { MediaTray } from '@/components/media/MediaTray'
 import { useDraftMedia } from '@/lib/useEntityMedia'
@@ -47,7 +47,7 @@ interface ProgramCreateDraft {
 
 function resolveCreateBackLabel(backTo: string) {
   if (backTo.startsWith('/library')) return 'My Programs'
-  if (backTo.startsWith('/browse')) return 'Browse'
+  if (backTo.startsWith('/browse')) return 'Community'
   if (backTo.startsWith('/@')) return 'Profile'
   if (backTo === '/' || backTo.startsWith('/?')) return 'Calendar'
   return 'Back'

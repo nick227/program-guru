@@ -1,6 +1,6 @@
 import type { BreadcrumbItem } from '@/components/shared/Breadcrumbs'
 import type { SubHeaderNavKey } from '@/components/shared/SubHeader'
-import { buildBrowseUrl } from '@/pages/Browse'
+import { buildBrowseUrl } from '@/lib/browse'
 
 interface TaxonomyRef {
   id: string
@@ -49,7 +49,7 @@ export function extractProgramTargetFromPath(raw?: string | null): {
 function resolveContextRoot(
   returnTo: string | null | undefined,
   defaultHref: string,
-  defaultLabel = 'Browse',
+  defaultLabel = 'Community',
 ): { label: string; href: string; activeNav?: SubHeaderNavKey } {
   if (!returnTo) {
     return { label: defaultLabel, href: defaultHref, activeNav: 'community' }
@@ -69,8 +69,8 @@ function resolveContextRoot(
   if (/^\/@[^/]+$/.test(parseUrl(returnTo)?.pathname ?? '')) {
     return { label: 'Profile', href: returnTo, activeNav: 'community' }
   }
-  if (returnTo.startsWith('/browse')) {
-    return { label: 'Browse', href: returnTo, activeNav: 'community' }
+  if (returnTo.startsWith('/browse') || returnTo.startsWith('/discover')) {
+    return { label: 'Community', href: returnTo, activeNav: 'community' }
   }
   return { label: defaultLabel, href: defaultHref, activeNav: 'community' }
 }
@@ -104,7 +104,7 @@ export function buildProgramBreadcrumbs({
   }
 
   const browseHref = returnTo?.startsWith('/browse') ? returnTo : '/browse'
-  const items: BreadcrumbItem[] = [{ label: 'Browse', href: browseHref }]
+  const items: BreadcrumbItem[] = [{ label: 'Community', href: browseHref }]
 
   if (type && !hasParamValue(returnTo, 'type', type.id)) {
     items.push({
@@ -112,10 +112,15 @@ export function buildProgramBreadcrumbs({
       href: buildBrowseUrl({ kind: 'programs', type: type.id }),
     })
   }
-  if (type && focus && !hasParamValue(returnTo, 'facet', focus.id)) {
+  if (
+    type &&
+    focus &&
+    !hasParamValue(returnTo, 'focus', focus.id) &&
+    !hasParamValue(returnTo, 'facet', focus.id)
+  ) {
     items.push({
       label: focus.label,
-      href: buildBrowseUrl({ kind: 'programs', type: type.id, facet: focus.id }),
+      href: buildBrowseUrl({ kind: 'programs', type: type.id, focus: focus.id }),
     })
   }
   items.push({ label: title })
@@ -165,12 +170,16 @@ export function buildActivityBreadcrumbs({
   const browseHref = returnTo?.startsWith('/browse')
     ? returnTo
     : buildBrowseUrl({ kind: 'activities' })
-  const items: BreadcrumbItem[] = [{ label: 'Browse', href: browseHref }]
+  const items: BreadcrumbItem[] = [{ label: 'Community', href: browseHref }]
 
-  if (category && !hasParamValue(returnTo, 'facet', category.id)) {
+  if (
+    category &&
+    !hasParamValue(returnTo, 'category', category.id) &&
+    !hasParamValue(returnTo, 'facet', category.id)
+  ) {
     items.push({
       label: category.label,
-      href: buildBrowseUrl({ kind: 'activities', facet: category.id }),
+      href: buildBrowseUrl({ kind: 'activities', category: category.id }),
     })
   }
   items.push({ label: title })
@@ -191,7 +200,7 @@ export function buildProfileBreadcrumbs({
     if (programTarget) {
       return {
         items: [
-          { label: 'Browse', href: '/browse' },
+          { label: 'Community', href: '/browse' },
           { label: 'Program', href: returnTo },
           { label },
         ],
@@ -206,7 +215,7 @@ export function buildProfileBreadcrumbs({
   }
 
   return {
-    items: [{ label: 'Browse', href: '/browse' }, { label }],
+    items: [{ label: 'Community', href: '/browse' }, { label }],
     activeNav: 'community',
   }
 }

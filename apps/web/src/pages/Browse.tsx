@@ -28,74 +28,23 @@ import { SubHeader } from '@/components/shared/SubHeader'
 import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { activityCard, programCard } from '@/lib/discoveryCards'
 import { safeReturn } from '@/lib/dates'
+import {
+  BROWSE_PARAM,
+  buildBrowseUrl,
+  resolveBrowseFilters,
+  type BrowseCreator,
+  type BrowseKind,
+} from '@/lib/browse'
 import { useDocumentTitle } from '@/lib/title'
 import { useAddExistingActivity } from '@/components/program-authoring/useAddExistingActivity'
 import type { Workspace } from '@/components/program-authoring/types'
 
 type S = components['schemas']
 type Sort = S['DiscoverSort']
-type Creator = 'ALL' | 'PLATFORM' | 'COMMUNITY'
-type BrowseKind = 'programs' | 'activities'
-type BrowsePick = 'program' | 'activity'
-
-export interface BrowseUrlOptions {
-  kind?: BrowseKind
-  type?: string
-  facet?: string
-  pick?: BrowsePick
-  programId?: string
-  returnTo?: string
-}
-
-/** Build a `/browse` URL for standalone discovery or picker flows. */
-export function buildBrowseUrl(options: BrowseUrlOptions = {}): string {
-  const query = new URLSearchParams()
-  if (options.kind && options.kind !== 'programs') query.set('kind', options.kind)
-  if (options.type) query.set('type', options.type)
-  if (options.facet) query.set('facet', options.facet)
-  if (options.pick) query.set('pick', options.pick)
-  if (options.programId) query.set('programId', options.programId)
-  if (options.returnTo) query.set('returnTo', options.returnTo)
-  const qs = query.toString()
-  return qs ? `/browse?${qs}` : '/browse'
-}
-
-export function writeBrowseDraft<T>(key: string, value: T) {
-  try {
-    sessionStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    /* ignore storage errors */
-  }
-}
-
-export function readBrowseDraft<T>(key: string, shouldRestore: boolean): T | null {
-  if (!shouldRestore) return null
-  try {
-    const raw = sessionStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : null
-  } catch {
-    return null
-  }
-}
-
-export function clearBrowseDraft(key: string) {
-  try {
-    sessionStorage.removeItem(key)
-  } catch {
-    /* ignore storage errors */
-  }
-}
-
-const PARAM = {
-  q: 'q',
-  sort: 'sort',
-  creator: 'creator',
-  facet: 'facet',
-  type: 'type',
-} as const
 
 interface BrowserMode {
   kind: BrowseKind
+  isPicker?: boolean
   actionLabel: string
   lockedProgramTypeId?: string
   exclude?: string[]
@@ -139,6 +88,7 @@ export function LibraryBrowserPage() {
       <LibraryBrowser
         mode={{
           kind: 'programs',
+          isPicker: true,
           lockedProgramTypeId: params.get('type') || undefined,
           actionLabel: 'Use as starting point',
           returnTo,
@@ -156,6 +106,7 @@ export function LibraryBrowserPage() {
       <LibraryBrowser
         mode={{
           kind: 'activities',
+          isPicker: true,
           actionLabel: 'Use as starting point',
           returnTo,
           onPickActivity: (activity) =>
@@ -171,6 +122,7 @@ export function LibraryBrowserPage() {
     <LibraryBrowser
       mode={{
         kind,
+        isPicker: false,
         actionLabel: kind === 'programs' ? 'View Program' : 'View Activity',
         prefetchOnHover: kind === 'programs',
         returnTo,
@@ -200,6 +152,7 @@ function WorkspaceLibraryBrowser({
       <LibraryBrowser
         mode={{
           kind: 'activities',
+          isPicker: true,
           actionLabel: 'Add to Program',
           returnTo,
           onPickActivity: () => {},
@@ -223,6 +176,7 @@ function LoadedWorkspaceLibraryBrowser({
     <LibraryBrowser
       mode={{
         kind: 'activities',
+        isPicker: true,
         exclude: ws.activities.map((a) => a.activityId),
         actionLabel: 'Add to Program',
         returnTo,
@@ -258,23 +212,41 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     if (mode.prefetchOnHover) prefetch(id)
   }
 
-  const programTypeId =
-    mode.kind === 'programs'
-      ? (mode.lockedProgramTypeId ?? params.get(PARAM.type) ?? '')
-      : ''
-  const focuses = useFocuses(programTypeId)
+  const filters = resolveBrowseFilters(
+    params,
+    mode.kind,
+    mode.lockedProgramTypeId,
+  )
+  const categoryId = filters.category
+  const programTypeId = filters.type
+  const focusId = filters.focus
+  const search = filters.q
+  const sort = filters.sort
+  const creator = filters.creator
+
+  const focuses = useFocuses({
+    categoryId: categoryId || undefined,
+    programTypeId: programTypeId || undefined,
+    enabled: true,
+  })
+  const visibleTypes = categoryId
+    ? (types.data ?? []).filter((t) => t.categoryId === categoryId)
+    : (types.data ?? [])
   const typeLabel = types.data?.find((t) => t.id === programTypeId)?.label
 
-  const [query, setQuery] = useState(params.get(PARAM.q) ?? '')
-  const search = params.get(PARAM.q) ?? ''
-  const sort = (params.get(PARAM.sort) as Sort | null) ?? 'POPULAR'
-  const creator = (params.get(PARAM.creator) as Creator | null) ?? 'ALL'
-  const facet = params.get(PARAM.facet) ?? ''
+  const [query, setQuery] = useState(search)
 
   const setParam = (key: string, value: string, fallback = '') =>
     setParams(
       (previous) => {
         const next = new URLSearchParams(previous)
+        if (
+          key === BROWSE_PARAM.category ||
+          key === BROWSE_PARAM.type ||
+          key === BROWSE_PARAM.focus
+        ) {
+          next.delete(BROWSE_PARAM.facet)
+        }
         if (value === fallback) next.delete(key)
         else next.set(key, value)
         return next
@@ -284,7 +256,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      if (query.trim() !== search) setParam(PARAM.q, query.trim())
+      if (query.trim() !== search) setParam(BROWSE_PARAM.q, query.trim())
     }, 250)
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -292,14 +264,16 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
 
   const programs = useDiscoverPrograms({
     q: search,
-    programTypeId,
-    focusId: facet || undefined,
+    categoryId: categoryId || undefined,
+    programTypeId: programTypeId || undefined,
+    focusId: focusId || undefined,
     sort,
     enabled: mode.kind === 'programs',
   })
   const activities = useDiscoverActivities({
     q: search,
-    categoryId: facet || undefined,
+    categoryId: categoryId || undefined,
+    focusId: focusId || undefined,
     sort,
     enabled: mode.kind === 'activities',
   })
@@ -325,21 +299,20 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             pick: () => mode.onPickActivity?.(activity),
           }))
 
-  const facets =
-    mode.kind === 'programs'
-      ? (focuses.data ?? []).map((f) => ({ id: f.id, label: f.label }))
-      : (categories.data ?? []).map((c) => ({ id: c.id, label: c.label }))
+  const focusOptions = (focuses.data ?? []).map((f) => ({ id: f.id, label: f.label }))
   const noun = mode.kind === 'programs' ? 'Program' : 'Activity'
-  const title =
-    mode.kind === 'programs'
+  const title = mode.isPicker
+    ? mode.kind === 'programs'
       ? `${typeLabel ?? 'Program'} Library`
       : 'Activity Library'
+    : 'Community'
   useDocumentTitle(title)
 
   const filtered =
-    (!mode.lockedProgramTypeId && !!params.get(PARAM.type)) ||
+    !!categoryId ||
+    (!mode.lockedProgramTypeId && !!programTypeId) ||
+    !!focusId ||
     !!search ||
-    !!params.get(PARAM.facet) ||
     sort !== 'POPULAR' ||
     creator !== 'ALL'
 
@@ -348,11 +321,13 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     setParams(
       (previous) => {
         const next = new URLSearchParams(previous)
-        next.delete(PARAM.q)
-        next.delete(PARAM.sort)
-        next.delete(PARAM.creator)
-        next.delete(PARAM.facet)
-        if (!mode.lockedProgramTypeId) next.delete(PARAM.type)
+        next.delete(BROWSE_PARAM.q)
+        next.delete(BROWSE_PARAM.sort)
+        next.delete(BROWSE_PARAM.creator)
+        next.delete(BROWSE_PARAM.category)
+        next.delete(BROWSE_PARAM.focus)
+        next.delete(BROWSE_PARAM.facet)
+        if (!mode.lockedProgramTypeId) next.delete(BROWSE_PARAM.type)
         return next
       },
       { replace: true },
@@ -385,7 +360,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                 aria-label={`Search ${noun === 'Program' ? 'Programs' : 'Activities'}`}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={`Search ${noun === 'Program' ? (typeLabel ?? 'Program') : 'Activity'} library`}
+                placeholder={`Search ${noun === 'Program' ? (typeLabel ?? 'Programs') : 'Activities'}`}
                 className="pl-9 pr-8"
               />
               {query && (
@@ -407,9 +382,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                 { value: 'RELEVANT', label: 'Featured' },
               ],
               sort,
-              (value) => setParam(PARAM.sort, value, 'POPULAR'),
+              (value) => setParam(BROWSE_PARAM.sort, value, 'POPULAR'),
             )}
-            {toggle<Creator>(
+            {toggle<BrowseCreator>(
               'Filter by creator',
               [
                 { value: 'ALL', label: 'All creators' },
@@ -417,55 +392,102 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                 { value: 'COMMUNITY', label: 'Community' },
               ],
               creator,
-              (value) => setParam(PARAM.creator, value, 'ALL'),
+              (value) => setParam(BROWSE_PARAM.creator, value, 'ALL'),
             )}
           </div>
-          {mode.kind === 'programs' && !mode.lockedProgramTypeId && (
-            <label className="flex items-center gap-3 text-sm text-muted">
-              <Select
-                aria-label="Program type"
-                value={programTypeId}
-                className="w-full max-w-xs sm:min-w-64"
-                onChange={(event) => {
-                  setParams(
-                    (previous) => {
-                      const next = new URLSearchParams(previous)
-                      next.delete(PARAM.facet)
-                      if (event.target.value) next.set(PARAM.type, event.target.value)
-                      else next.delete(PARAM.type)
-                      return next
-                    },
-                    { replace: true },
-                  )
-                }}
-              >
-                <option value="">All Program types</option>
-                {types.data?.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.label}
-                  </option>
-                ))}
-              </Select>
-            </label>
+          {!mode.lockedProgramTypeId && (
+            <div className="flex flex-wrap items-center gap-2">
+              {(categories.data?.length ?? 0) > 0 && (
+                <label className="flex items-center gap-3 text-sm text-muted">
+                  <Select
+                    aria-label="Category"
+                    value={categoryId}
+                    className="w-full max-w-xs sm:min-w-48"
+                    onChange={(event) => {
+                      const nextCategory = event.target.value
+                      setParams(
+                        (previous) => {
+                          const next = new URLSearchParams(previous)
+                          next.delete(BROWSE_PARAM.facet)
+                          if (nextCategory) next.set(BROWSE_PARAM.category, nextCategory)
+                          else next.delete(BROWSE_PARAM.category)
+                          if (programTypeId && nextCategory) {
+                            const currentType = types.data?.find((t) => t.id === programTypeId)
+                            if (currentType && currentType.categoryId !== nextCategory) {
+                              next.delete(BROWSE_PARAM.type)
+                            }
+                          }
+                          if (focusId && nextCategory) {
+                            const currentFocus = focuses.data?.find((f) => f.id === focusId)
+                            if (currentFocus && currentFocus.categoryId !== nextCategory) {
+                              next.delete(BROWSE_PARAM.focus)
+                            }
+                          }
+                          return next
+                        },
+                        { replace: true },
+                      )
+                    }}
+                  >
+                    <option value="">All categories</option>
+                    {categories.data?.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.label}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              )}
+              {mode.kind === 'programs' && (
+                <label className="flex items-center gap-3 text-sm text-muted">
+                  <Select
+                    aria-label="Program type"
+                    value={programTypeId}
+                    className="w-full max-w-xs sm:min-w-56"
+                    onChange={(event) => {
+                      const nextType = event.target.value
+                      setParams(
+                        (previous) => {
+                          const next = new URLSearchParams(previous)
+                          next.delete(BROWSE_PARAM.facet)
+                          next.delete(BROWSE_PARAM.focus)
+                          if (nextType) next.set(BROWSE_PARAM.type, nextType)
+                          else next.delete(BROWSE_PARAM.type)
+                          return next
+                        },
+                        { replace: true },
+                      )
+                    }}
+                  >
+                    <option value="">All Program types</option>
+                    {visibleTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              )}
+            </div>
           )}
         </div>
-        {facets.length > 0 && (
+        {focusOptions.length > 0 && (
           <div
             role="group"
-            aria-label={mode.kind === 'programs' ? 'Filter by focus' : 'Filter by category'}
+            aria-label="Filter by focus"
             className="flex flex-wrap items-center gap-1.5"
           >
             {[
-              { id: '', label: mode.kind === 'programs' ? 'All focuses' : 'All categories' },
-              ...facets,
+              { id: '', label: 'All focuses' },
+              ...focusOptions,
             ].map((option) => (
               <button
                 key={option.id || 'all'}
                 type="button"
-                aria-pressed={facet === option.id}
-                onClick={() => setParam(PARAM.facet, option.id)}
+                aria-pressed={focusId === option.id}
+                onClick={() => setParam(BROWSE_PARAM.focus, option.id)}
                 className={`min-h-8 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  facet === option.id
+                  focusId === option.id
                     ? 'bg-accent text-accent-foreground'
                     : 'border border-border bg-surface text-muted hover:border-accent hover:text-text'
                 }`}
