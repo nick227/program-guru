@@ -5,6 +5,7 @@ type DiscoverSort = components['schemas']['DiscoverSort']
 export type BrowseKind = 'programs' | 'activities'
 export type BrowsePick = 'program' | 'activity'
 export type BrowseCreator = 'ALL' | 'PLATFORM' | 'COMMUNITY'
+export type BrowseDuration = '' | 'short' | 'medium' | 'long' | 'ongoing'
 
 export const BROWSE_PARAM = {
   q: 'q',
@@ -13,6 +14,7 @@ export const BROWSE_PARAM = {
   category: 'category',
   type: 'type',
   focus: 'focus',
+  duration: 'duration',
   facet: 'facet',
 } as const
 
@@ -21,6 +23,7 @@ export interface BrowseUrlOptions {
   category?: string
   type?: string
   focus?: string
+  duration?: BrowseDuration
   pick?: BrowsePick
   programId?: string
   returnTo?: string
@@ -42,11 +45,46 @@ export function buildBrowseUrl(options: BrowseUrlOptions = {}): string {
   if (options.category) query.set(BROWSE_PARAM.category, options.category)
   if (options.type) query.set(BROWSE_PARAM.type, options.type)
   if (options.focus) query.set(BROWSE_PARAM.focus, options.focus)
+  if (options.duration) query.set(BROWSE_PARAM.duration, options.duration)
   if (options.pick) query.set('pick', options.pick)
   if (options.programId) query.set('programId', options.programId)
   if (options.returnTo) query.set('returnTo', options.returnTo)
   const qs = query.toString()
   return qs ? `/browse?${qs}` : '/browse'
+}
+
+/** Resolve the client-side duration bucket filter from query params. */
+export function resolveBrowseDuration(
+  params: URLSearchParams,
+  kind: BrowseKind,
+): BrowseDuration {
+  const raw = params.get(BROWSE_PARAM.duration) ?? ''
+  if (raw === 'short' || raw === 'medium' || raw === 'long') return raw
+  if (raw === 'ongoing' && kind === 'programs') return raw
+  return ''
+}
+
+/** Match a Program or Activity against the selected duration bucket. */
+export function matchesBrowseDuration(
+  duration: BrowseDuration,
+  kind: BrowseKind,
+  item: { durationDays?: number | null; durationMinutes?: number | null },
+): boolean {
+  if (!duration) return true
+  if (kind === 'programs') {
+    const days = item.durationDays
+    if (duration === 'ongoing') return days == null
+    if (days == null) return false
+    if (duration === 'short') return days <= 14
+    if (duration === 'medium') return days > 14 && days <= 28
+    return days > 28
+  }
+  const minutes = item.durationMinutes
+  if (minutes == null) return false
+  if (duration === 'short') return minutes <= 15
+  if (duration === 'medium') return minutes > 15 && minutes <= 30
+  if (duration === 'long') return minutes > 30
+  return true
 }
 
 /** Resolve composable discovery filters from query params, supporting legacy `?facet=` links. */

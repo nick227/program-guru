@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildBrowseUrl, resolveBrowseFilters } from './browse'
+import {
+  buildBrowseUrl,
+  matchesBrowseDuration,
+  resolveBrowseDuration,
+  resolveBrowseFilters,
+} from './browse'
 
 describe('browse URL and filter helpers', () => {
   it('builds composable /browse URLs with explicit category, type, and focus params', () => {
@@ -69,6 +74,24 @@ describe('browse URL and filter helpers', () => {
       sort: 'POPULAR',
       creator: 'ALL',
     })
+  })
+
+  it('resolves and matches duration buckets for programs and activities', () => {
+    expect(resolveBrowseDuration(new URLSearchParams('duration=medium'), 'programs')).toBe('medium')
+    expect(resolveBrowseDuration(new URLSearchParams('duration=ongoing'), 'programs')).toBe('ongoing')
+    expect(resolveBrowseDuration(new URLSearchParams('duration=ongoing'), 'activities')).toBe('')
+    expect(resolveBrowseDuration(new URLSearchParams('duration=bogus'), 'programs')).toBe('')
+
+    expect(matchesBrowseDuration('short', 'programs', { durationDays: 14 })).toBe(true)
+    expect(matchesBrowseDuration('medium', 'programs', { durationDays: 28 })).toBe(true)
+    expect(matchesBrowseDuration('long', 'programs', { durationDays: 56 })).toBe(true)
+    expect(matchesBrowseDuration('ongoing', 'programs', { durationDays: null })).toBe(true)
+    expect(matchesBrowseDuration('short', 'programs', { durationDays: null })).toBe(false)
+
+    expect(matchesBrowseDuration('short', 'activities', { durationMinutes: 15 })).toBe(true)
+    expect(matchesBrowseDuration('medium', 'activities', { durationMinutes: 30 })).toBe(true)
+    expect(matchesBrowseDuration('long', 'activities', { durationMinutes: 45 })).toBe(true)
+    expect(matchesBrowseDuration('short', 'activities', { durationMinutes: null })).toBe(false)
   })
 })
 

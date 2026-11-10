@@ -1,0 +1,35 @@
+@layer components {
+  .browse-sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--color-border)) transparent;
+  }
+
+  .browse-thumb [data-hero-fallback='true'] {
+    background-color: hsl(var(--color-surface-muted));
+  }
+
+  .browse-thumb [data-hero-category='fitness'][data-hero-fallback='true'] {
+    background-color: hsl(var(--cat-fitness-bg));
+  }
+
+  .browse-thumb [data-hero-category='wellness'][data-hero-fallback='true'] {
+    background-color: hsl(var(--cat-wellness-bg));
+  }
+
+  .browse-thumb [data-hero-category='education'][data-hero-fallback='true'] {
+    background-color: hsl(var(--cat-education-bg));
+  }
+
+  .browse-thumb [data-hero-category='finance'][data-hero-fallback='true'] {
+    background-color: hsl(var(--cat-finance-bg));
+  }
+
+  .browse-thumb [data-hero-category='relationships'][data-hero-fallback='true'] {
+    background-color: hsl(var(--cat-relationships-bg));
+  }
+
+  .browse-thumb [data-hero-category='custom'][data-hero-fallback='true'] {
+    background-color: hsl(var(--cat-custom-bg));
+  }
+}
+

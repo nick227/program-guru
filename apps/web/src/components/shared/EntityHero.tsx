@@ -36,11 +36,13 @@ export function EntityHero({
   size = 'card',
   className,
   onPlay,
+  interactive = true,
 }: {
   hero: Hero
   size?: keyof typeof SIZES
   className?: string
   onPlay?: () => void
+  interactive?: boolean
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const [viewerOpen, setViewerOpen] = useState(false)
@@ -50,7 +52,7 @@ export function EntityHero({
 
   return (
     <div
-      aria-hidden={!isVideo ? true : undefined}
+      aria-hidden={!isVideo || !interactive ? true : undefined}
       style={
         !showImage
           ? ({
@@ -84,7 +86,7 @@ export function EntityHero({
           className="absolute inset-0 h-full w-full object-cover"
         />
       )}
-      {isVideo && (
+      {isVideo && interactive && (
         <button
           type="button"
           aria-label={`Play ${hero.alt || 'video'}`}
@@ -121,6 +123,14 @@ export function EntityHero({
             />
           </span>
         </button>
+      )}
+      {isVideo && !interactive && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute bottom-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white"
+        >
+          <Play size={12} className="fill-current translate-x-0.5" />
+        </span>
       )}
       {viewerOpen && hero.media && (
         <MediaViewer
