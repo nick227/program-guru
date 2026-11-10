@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
-import type { ProgramStep } from '../types'
+import type { ProgramStep } from '@/components/program-authoring/types'
 
 export function useWorkspaceStep() {
   const { step: pathStep } = useParams()

@@ -14,9 +14,9 @@ import { Textarea } from '@/components/ui/Textarea'
 import { StatusText } from '@/components/ui/StatusText'
 import { ProgramMediaTray } from '@/components/EntityMediaTray'
 import { DeleteProgramDialog } from '@/components/DeleteProgramDialog'
-import { ProgramDurationButtons } from '@/pages/program-workspace/components/steps/ScheduleControls'
+import { ProgramDurationButtons } from '@/components/program-authoring/ScheduleControls'
 import { buildWorkspaceUrl } from '@/lib/urls'
-import type { Workspace } from '@/pages/program-workspace/types'
+import type { Workspace } from '@/components/program-authoring/types'
 
 export function ProgramOwnerBanner({
   ws,

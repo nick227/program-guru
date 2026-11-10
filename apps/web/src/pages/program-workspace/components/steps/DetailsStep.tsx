@@ -7,8 +7,8 @@ import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { linkButton } from '@/components/Navigation'
 import { ProgramMediaTray } from '@/components/EntityMediaTray'
 import { useOnline } from '@/lib/useOnline'
-import { ProgramDurationButtons } from './ScheduleControls'
-import type { Workspace } from '../../types'
+import { ProgramDurationButtons } from '@/components/program-authoring/ScheduleControls'
+import type { Workspace } from '@/components/program-authoring/types'
 
 export function DetailsStep({
   ws,

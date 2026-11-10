@@ -36,7 +36,7 @@ import {
   readBrowseDraft,
   writeBrowseDraft,
 } from '@/components/LibraryBrowser'
-import { type RiverItem } from '@/components/RelatedMediaRiver'
+import { type RiverItem } from '@/components/RelatedMedia'
 import { ActivityRelatedMedia } from '@/components/ActivityRelatedMedia'
 import { SuggestionRail } from '@/components/SuggestionRail'
 import { activityCard } from '@/lib/discoveryCards'

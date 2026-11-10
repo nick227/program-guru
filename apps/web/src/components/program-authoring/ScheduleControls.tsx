@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/Input'
 import { Row } from '@/components/ui/Layout'
 import { useOnline } from '@/lib/useOnline'
 import { formatDurationMinutes, MAX_DURATION_MINUTES } from '@/lib/durationMinutes'
-import type { Workspace } from '../../types'
+import type { Workspace } from './types'
 
 export type Frequency = NonNullable<Workspace['frequency']>
 

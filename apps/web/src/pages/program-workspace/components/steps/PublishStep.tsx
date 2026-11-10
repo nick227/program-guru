@@ -17,7 +17,7 @@ import { today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { buildProgramUrl } from '@/lib/urls'
 import { WorkspaceTogether } from './WorkspaceTogether'
-import type { Workspace } from '../../types'
+import type { Workspace } from '@/components/program-authoring/types'
 
 export function PublishStep({
   ws,

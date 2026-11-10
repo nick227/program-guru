@@ -22,7 +22,7 @@ import {
   ActivityFrequencyButtons,
   type Frequency,
 } from './ScheduleControls'
-import type { Workspace } from '../../types'
+import type { Workspace } from './types'
 
 export function WorkspaceActivityRow({
   activity,

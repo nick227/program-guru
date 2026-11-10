@@ -3,7 +3,7 @@ import {
   useCopyActivity,
   useCurrentUser,
 } from '@project/sdk'
-import type { ActivitySummary, Workspace } from '../types'
+import type { ActivitySummary, Workspace } from './types'
 
 export function useAddExistingActivity(ws: Workspace) {
   const me = useCurrentUser()

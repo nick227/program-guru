@@ -12,6 +12,9 @@ export type RelatedMediaItem = ViewerItem & {
 }
 
 /** Shared, uncollapsed media surface for Programs and Activities. */
+/** A Related Media item that may carry a title. */
+export type RiverItem = RelatedMediaItem & { title?: string | null }
+
 export function RelatedMedia({
   items,
   onAdd,

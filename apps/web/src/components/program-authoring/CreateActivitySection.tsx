@@ -17,7 +17,7 @@ import {
   ActivityFrequencyButtons,
   type Frequency,
 } from './ScheduleControls'
-import type { ActivityDetail, Workspace } from '../../types'
+import type { ActivityDetail, Workspace } from './types'
 
 const DEFAULT_FREQ: Frequency = { kind: 'N_PER_WEEK', n: 3 }
 

@@ -1,6 +1,6 @@
 import { useCurrentUser, useMyEnrollments } from '@project/sdk'
 import { ProgramGroups } from '@/components/ProgramGroups'
-import type { Workspace } from '../../types'
+import type { Workspace } from '@/components/program-authoring/types'
 
 export function WorkspaceTogether({ ws }: { ws: Workspace }) {
   const me = useCurrentUser()

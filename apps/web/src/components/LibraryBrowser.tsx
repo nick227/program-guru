@@ -29,8 +29,8 @@ import { useCategorySlugOf } from '@/components/EntityHero'
 import { activityCard, programCard } from '@/lib/discoveryCards'
 import { safeReturn } from '@/lib/dates'
 import { useDocumentTitle } from '@/lib/title'
-import { useAddExistingActivity } from '@/pages/program-workspace/hooks/useAddExistingActivity'
-import type { Workspace } from '@/pages/program-workspace/types'
+import { useAddExistingActivity } from '@/components/program-authoring/useAddExistingActivity'
+import type { Workspace } from '@/components/program-authoring/types'
 
 type S = components['schemas']
 type Sort = S['DiscoverSort']

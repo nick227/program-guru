@@ -4,7 +4,7 @@
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useAddProgramActivities, useAdminList, useCreateActivity, type components } from '@project/sdk'
-import { WorkspaceActivityRow } from '@/pages/program-workspace/components/steps/WorkspaceActivityRow'
+import { WorkspaceActivityRow } from '@/components/program-authoring/WorkspaceActivityRow'
 import { ResourceForm } from '../components/ResourceForm'
 import { FieldControl, FieldFrame } from '../components/fields'
 import type { Field } from '../types'

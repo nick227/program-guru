@@ -280,7 +280,7 @@ MediaLibrary (+ MediaGrid, MediaCapture) ← MediaStudio, MediaPicker (no consum
 ## 6. Findings
 
 ### 6.1 Components with no consumer
-**Status 2026-11-10:** the five components in the table below have been deleted. `RelatedMediaRiver` is still pending, because removing it means editing `Activity.tsx`, which has another agent's uncommitted work.
+**Status 2026-11-10:** done. All six components below have been deleted. `RiverItem` now lives in `RelatedMedia.tsx`.
 
 These had no import anywhere in `src/`:
 
@@ -292,10 +292,10 @@ These had no import anywhere in `src/`:
 | `ProgramParticipationStrip` | 84 | Probably replaced by `ProgramPersonalOverview`. |
 | `SessionUpload` | 77 | Occurrence uploads go through `OccurrenceMedia` and `useEntityMedia`. |
 
-`RelatedMediaRiver` (13 lines) isn't rendered anywhere either. Only its `RiverItem` type is used, by `Activity.tsx`. Move the type and delete the component.
+`RelatedMediaRiver` (13 lines) wasn't rendered anywhere either. Only its `RiverItem` type was used, and that type has moved to `RelatedMedia.tsx`.
 
 ### 6.2 Layering inversions
-`components/` and `lib/` should not depend on `pages/`. In the working tree they do. In committed `HEAD`, only `admin/sections/NestedActivities.tsx` does; the others come from uncommitted Program and Workspace work that is still in progress (`ScheduleControls.tsx` and `ProgramOwnerEditor.tsx` are untracked). **Status 2026-11-10:** deferred until that work is committed, so the moves don't sweep it into an unrelated commit.
+`components/` and `lib/` should not depend on `pages/`. In the working tree they do. In committed `HEAD`, only `admin/sections/NestedActivities.tsx` does; the others come from uncommitted Program and Workspace work that is still in progress (`ScheduleControls.tsx` and `ProgramOwnerEditor.tsx` are untracked). **Status 2026-11-10:** done. `ScheduleControls`, `WorkspaceActivityRow`, `CreateActivitySection`, `useAddExistingActivity` and `types.ts` now live in `components/program-authoring/`. The Workspace steps, Program detail, `ProgramOwnerEditor`, `LibraryBrowser` and Admin import them from there. The three-step Workspace and its page-private parts (`useWorkspaceStep`, the step components, `WorkspaceHeader`) stay under `pages/program-workspace/`.
 
 - `components/LibraryBrowser.tsx` imports `pages/program-workspace/hooks/useAddExistingActivity` and `pages/program-workspace/types`.
 - `components/ProgramOwnerEditor.tsx` imports `pages/program-workspace/components/steps/ScheduleControls`.
@@ -333,8 +333,8 @@ Suggested renames: `Discover.tsx` → `MyPrograms.tsx`, and move `LibraryBrowser
 ---
 
 ## 7. Suggested order of work
-1. ~~Delete the unused components (§6.1).~~ Five are done. For `RelatedMediaRiver`, move `RiverItem` out first.
-2. Move the shared authoring parts out of `pages/program-workspace` (§6.2).
+1. ~~Delete the unused components (§6.1).~~ Done.
+2. ~~Move the shared authoring parts out of `pages/program-workspace` (§6.2).~~ Done.
 3. Settle the Workspace and Occurrence questions against `03-UX.md` §4 and §6 (§6.4), changing the spec first if needed.
 4. Split `Group.tsx` and `Occurrence.tsx` (§6.5).
 5. Rename the files listed in §6.3, add `ui/Dialog`, and replace the raw `select` and `textarea` elements (§6.6).

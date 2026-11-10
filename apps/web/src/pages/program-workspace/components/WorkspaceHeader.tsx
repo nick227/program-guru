@@ -3,7 +3,7 @@ import { ExternalLink } from 'lucide-react'
 import { Row } from '@/components/ui/Layout'
 import { Back } from '@/components/Navigation'
 import { buildProgramUrl } from '@/lib/urls'
-import type { Workspace } from '../types'
+import type { Workspace } from '@/components/program-authoring/types'
 
 export function WorkspaceHeader({
   ws,

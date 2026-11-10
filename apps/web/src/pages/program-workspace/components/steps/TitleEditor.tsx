@@ -5,7 +5,7 @@ import { ErrorMessage } from '@/components/ui/Feedback'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { useAutosave } from '@/lib/useAutosave'
 import { useOnline } from '@/lib/useOnline'
-import type { Workspace } from '../../types'
+import type { Workspace } from '@/components/program-authoring/types'
 
 export function TitleEditor({ ws }: { ws: Workspace }) {
   const update = useUpdateProgram(ws.id)

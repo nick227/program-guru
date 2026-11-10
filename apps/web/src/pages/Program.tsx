@@ -31,8 +31,8 @@ import {
   ProgramOwnerEditPanel,
 } from '@/components/ProgramOwnerEditor'
 import { buildBrowseUrl } from '@/components/LibraryBrowser'
-import { WorkspaceActivityRow } from '@/pages/program-workspace/components/steps/WorkspaceActivityRow'
-import { CreateActivitySection } from '@/pages/program-workspace/components/steps/CreateActivitySection'
+import { WorkspaceActivityRow } from '@/components/program-authoring/WorkspaceActivityRow'
+import { CreateActivitySection } from '@/components/program-authoring/CreateActivitySection'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { enrollmentStatusText } from '@/components/ui/StatusText'
 import {

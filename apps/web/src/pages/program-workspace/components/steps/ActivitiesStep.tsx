@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { buildBrowseUrl } from '@/components/LibraryBrowser'
-import { WorkspaceActivityRow } from './WorkspaceActivityRow'
-import { CreateActivitySection } from './CreateActivitySection'
-import type { Workspace } from '../../types'
+import { WorkspaceActivityRow } from '@/components/program-authoring/WorkspaceActivityRow'
+import { CreateActivitySection } from '@/components/program-authoring/CreateActivitySection'
+import type { Workspace } from '@/components/program-authoring/types'
 
 export function ActivitiesStep({
   ws,
