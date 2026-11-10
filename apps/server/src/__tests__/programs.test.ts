@@ -77,6 +77,59 @@ describe('Program authoring (01 §6 required test 2)', () => {
     expect(placements).toHaveLength(14)
   })
 
+  it('distributes each individual activity across program duration using its own frequency', async () => {
+    const ws0 = (await alice.post('/programs', { programTypeId: cat.workout.id, focusId: cat.strength.id })).json().data
+    const dailyStretch = (await alice.post('/activities', {
+      title: 'Daily Stretch',
+      durationMinutes: 10,
+      frequency: { kind: 'DAILY' },
+      categoryId: cat.fitness.id,
+    })).json().data
+    const twiceWeeklyRun = (await alice.post('/activities', {
+      title: 'Easy Run',
+      durationMinutes: 30,
+      frequency: { kind: 'N_PER_WEEK', n: 2 },
+      categoryId: cat.fitness.id,
+    })).json().data
+
+    // Add both activities to the 28-day program: Daily Stretch gets 28 placements, Easy Run gets 8.
+    const added = (await alice.post(`/programs/${ws0.id}/draft/activities`, {
+      activityIds: [dailyStretch.id, twiceWeeklyRun.id],
+      frequencies: {
+        [dailyStretch.id]: { kind: 'DAILY' },
+        [twiceWeeklyRun.id]: { kind: 'N_PER_WEEK', n: 2 },
+      },
+      expectedRevision: ws0.draftRevision,
+    })).json().data
+    expect(added).toMatchObject({ durationDays: 28, programDays: 28, placements: 36 })
+    expect(added.activities.map((a: any) => [a.title, a.durationMinutes, a.frequencyLabel, a.placementCount])).toEqual([
+      ['Daily Stretch', 10, 'Daily', 28],
+      ['Easy Run', 30, '2 days/week', 8],
+    ])
+
+    // Update Easy Run's frequency individually -> 4 days/week across 28 days = 16 placements; Daily Stretch stays 28.
+    const updated = await alice.patch(`/programs/${ws0.id}/draft/activities/${twiceWeeklyRun.id}`, {
+      frequency: { kind: 'N_PER_WEEK', n: 4 },
+      expectedRevision: added.draftRevision,
+    })
+    expect(updated.statusCode).toBe(200)
+    await validateResponse('updateProgramActivity', 200, updated.json())
+    expect(updated.json().data.activities.map((a: any) => [a.title, a.frequencyLabel, a.placementCount])).toEqual([
+      ['Daily Stretch', 'Daily', 28],
+      ['Easy Run', '4 days/week', 16],
+    ])
+
+    // Changing program duration to 2 weeks (14 days) redistributes each activity by its own frequency.
+    const shortened = (await alice.patch(`/programs/${ws0.id}/draft`, {
+      durationDays: 14,
+      expectedRevision: updated.json().data.draftRevision,
+    })).json().data
+    expect(shortened.activities.map((a: any) => [a.title, a.frequencyLabel, a.placementCount])).toEqual([
+      ['Daily Stretch', 'Daily', 14],
+      ['Easy Run', '4 days/week', 8],
+    ])
+  })
+
   it('rejects a stale draft revision', async () => {
     const { ws } = await buildProgram()
     const res = await alice.patch(`/programs/${ws.id}/draft`, { title: 'X', expectedRevision: ws.draftRevision - 1 })
@@ -247,6 +300,12 @@ describe('updateProgramDraft', () => {
 describe('addProgramActivities', () => {
   it('matches the contract', async () => {
     await contractCase(app, 'addProgramActivities')
+  })
+})
+
+describe('updateProgramActivity', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateProgramActivity')
   })
 })
 

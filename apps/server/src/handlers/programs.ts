@@ -38,6 +38,10 @@ export async function updateProgramDraft(request: any) {
 export async function addProgramActivities(request: any) {
   return { data: await authoring.addActivities(uid(request), request.params.programId, request.body) }
 }
+export async function updateProgramActivity(request: any) {
+  const { programId, activityId } = request.params
+  return { data: await authoring.updateActivity(uid(request), programId, activityId, request.body) }
+}
 export async function removeProgramActivity(request: any) {
   const { programId, activityId } = request.params
   return { data: await authoring.removeActivity(uid(request), programId, activityId, request.query.expectedRevision) }

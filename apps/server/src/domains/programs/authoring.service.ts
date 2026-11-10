@@ -18,8 +18,10 @@ import {
   DEFAULT_DURATION_DAYS,
   DEFAULT_FREQUENCY,
   countPlacements,
+  frequencyLabel,
   generatePlacements,
   parseFrequency,
+  programDays,
   type Frequency,
   type GenerationMode,
 } from './schedule'
@@ -60,8 +62,9 @@ async function openDraftVersion(tx: Tx, userId: string, programId: string): Prom
       versionNumber: latest.versionNumber + 1,
       createdById: userId,
       items: {
-        create: items.map(({ id: _i, programVersionId: _v, targetOverrides, ...item }) => ({
+        create: items.map(({ id: _i, programVersionId: _v, frequency, targetOverrides, ...item }) => ({
           ...item,
+          frequency: (frequency ?? undefined) as Prisma.InputJsonValue | undefined,
           targetOverrides: (targetOverrides ?? undefined) as Prisma.InputJsonValue | undefined,
         })),
       },
@@ -80,31 +83,75 @@ async function refreshCounts(tx: Tx, versionId: string) {
   await tx.programVersion.update({ where: { id: versionId }, data: countPlacements(items) })
 }
 
+type SelectedActivity = { activityId: string; activityRevisionId: string; frequency: Frequency | null }
+
 /** Selected Activities in display order: first appearance by day, then position. */
-async function selectedActivities(tx: Tx, versionId: string) {
+async function selectedActivities(tx: Tx, versionId: string): Promise<SelectedActivity[]> {
   const items = await tx.programScheduleItem.findMany({
     where: { programVersionId: versionId },
     orderBy: [{ relativeDay: 'asc' }, { position: 'asc' }],
-    select: { activityId: true, activityRevisionId: true },
+    select: { activityId: true, activityRevisionId: true, frequency: true },
   })
-  const seen = new Map<string, string>()
-  for (const i of items) if (!seen.has(i.activityId)) seen.set(i.activityId, i.activityRevisionId)
-  return [...seen].map(([activityId, activityRevisionId]) => ({ activityId, activityRevisionId }))
+  const seen = new Map<string, SelectedActivity>()
+  for (const i of items) {
+    const existing = seen.get(i.activityId)
+    const freq = i.frequency ? parseFrequency(i.frequency) : null
+    if (!existing) {
+      seen.set(i.activityId, { activityId: i.activityId, activityRevisionId: i.activityRevisionId, frequency: freq })
+    } else if (!existing.frequency && freq) {
+      existing.frequency = freq
+    }
+  }
+  return [...seen.values()]
 }
 
 /**
  * Regenerates automatic placements (07 §7). Manual placements survive; a generated slot is skipped
  * when the same Activity already has a manual placement that day.
  */
-export async function regenerate(tx: Tx, version: ProgramVersion, order: { activityId: string; activityRevisionId: string }[], keepManual = true) {
+export async function regenerate(tx: Tx, version: ProgramVersion, order: { activityId: string; activityRevisionId: string; frequency?: Frequency | null }[], keepManual = true) {
   await tx.programScheduleItem.deleteMany({ where: { programVersionId: version.id, ...(keepManual ? { isManual: false } : {}) } })
   const manual = keepManual ? await tx.programScheduleItem.findMany({ where: { programVersionId: version.id }, select: { activityId: true, relativeDay: true } }) : []
   const taken = new Set(manual.map((m) => `${m.activityId}:${m.relativeDay}`))
-  const generated = generatePlacements(order.length, parseFrequency(version.frequency), version.durationDays, version.generationMode, version.cycleDays ?? undefined)
-  const rows = generated
-    .map((g) => ({ ...order[g.activityIndex]!, relativeDay: g.relativeDay, position: g.position }))
-    .filter((r) => !taken.has(`${r.activityId}:${r.relativeDay}`))
-    .map((r) => ({ ...r, programVersionId: version.id, isManual: false }))
+  const defaultFreq = parseFrequency(version.frequency)
+  let rows: Prisma.ProgramScheduleItemCreateManyInput[]
+  if (version.generationMode === 'ROTATE') {
+    const generated = generatePlacements(order.length, defaultFreq, version.durationDays, version.generationMode, version.cycleDays ?? undefined)
+    rows = generated
+      .map((g) => {
+        const entry = order[g.activityIndex]!
+        return {
+          activityId: entry.activityId,
+          activityRevisionId: entry.activityRevisionId,
+          relativeDay: g.relativeDay,
+          position: g.position,
+          frequency: (entry.frequency ?? undefined) as Prisma.InputJsonValue | undefined,
+        }
+      })
+      .filter((r) => !taken.has(`${r.activityId}:${r.relativeDay}`))
+      .map((r) => ({ ...r, programVersionId: version.id, isManual: false }))
+  } else {
+    const dayPositions = new Map<number, number>()
+    rows = []
+    for (const entry of order) {
+      const freq = entry.frequency ?? defaultFreq
+      const days = programDays(freq, version.durationDays, version.cycleDays ?? undefined)
+      for (const relativeDay of days) {
+        if (taken.has(`${entry.activityId}:${relativeDay}`)) continue
+        const position = dayPositions.get(relativeDay) ?? 0
+        dayPositions.set(relativeDay, position + 1)
+        rows.push({
+          programVersionId: version.id,
+          activityId: entry.activityId,
+          activityRevisionId: entry.activityRevisionId,
+          relativeDay,
+          position,
+          frequency: (entry.frequency ?? undefined) as Prisma.InputJsonValue | undefined,
+          isManual: false,
+        })
+      }
+    }
+  }
   if (rows.length) await tx.programScheduleItem.createMany({ data: rows })
   await refreshCounts(tx, version.id)
 }
@@ -123,13 +170,18 @@ export async function workspace(userId: string, programId: string) {
   const activities = await db.activity.findMany({ where: { id: { in: [...new Set(items.map((i) => i.activityId))] } } })
   const byId = new Map(activities.map((a) => [a.id, a]))
   const order = await selectedActivities(db, version.id)
-  const rows = order.map(({ activityId, activityRevisionId }) => {
+  const defaultFreq = parseFrequency(version.frequency)
+  const rows = order.map(({ activityId, activityRevisionId, frequency }) => {
     const rev = revs.get(activityRevisionId) ?? null
     const s = summarizeRevision(rev)
+    const rowFreq = frequency ?? defaultFreq
     return {
       activityId,
       revisionId: activityRevisionId,
       title: rev?.titleSnapshot ?? byId.get(activityId)?.title ?? 'Activity',
+      durationMinutes: rev ? rev.durationMinutesSnapshot : (byId.get(activityId)?.durationMinutes ?? null),
+      frequency: rowFreq,
+      frequencyLabel: frequencyLabel(rowFreq) ?? '3 days/week',
       instructionCount: s.instructionCount,
       mediaCount: s.mediaCount,
       metrics: s.metricLabels,
@@ -283,7 +335,13 @@ export async function updateDraft(
     if (title) {
       await allocateProgramSlug(tx, { programId, creatorId: program.creatorId, title })
     }
-    if (scheduleChanged) await regenerate(tx, updated, await selectedActivities(tx, updated.id))
+    if (scheduleChanged) {
+      const current = await selectedActivities(tx, updated.id)
+      const order = input.frequency !== undefined
+        ? current.map((c) => ({ ...c, frequency: input.frequency! }))
+        : current
+      await regenerate(tx, updated, order)
+    }
   })
   return workspace(userId, programId)
 }
@@ -293,21 +351,32 @@ async function pinnableRevision(author: Author, activityId: string) {
   const a = await db.activity.findUnique({ where: { id: activityId } })
   if (!a || !(author.activity(a) || canUseActivity(a, author.userId)) || a.status === 'ARCHIVED') return null
   if (author.activity(a)) {
-    const latest = await db.activityRevision.findFirst({ where: { activityId }, orderBy: { revisionNumber: 'desc' }, select: { id: true } })
-    return latest?.id ?? null
+    const latest = await db.activityRevision.findFirst({ where: { activityId }, orderBy: { revisionNumber: 'desc' }, select: { id: true, frequencySnapshot: true } })
+    return latest ? { id: latest.id, frequency: latest.frequencySnapshot ? parseFrequency(latest.frequencySnapshot) : null } : null
   }
-  return a.latestPublishedRevisionId
+  if (!a.latestPublishedRevisionId) return null
+  const rev = await db.activityRevision.findUnique({ where: { id: a.latestPublishedRevisionId }, select: { id: true, frequencySnapshot: true } })
+  return rev ? { id: rev.id, frequency: rev.frequencySnapshot ? parseFrequency(rev.frequencySnapshot) : null } : null
 }
 
-export async function addActivities(userId: string, programId: string, input: { activityIds: string[]; expectedRevision: number }) {
+export async function addActivities(
+  userId: string,
+  programId: string,
+  input: { activityIds: string[]; frequencies?: Record<string, Frequency>; expectedRevision: number },
+) {
   const ids = [...new Set(input.activityIds)]
   if (!ids.length) throw badRequest('Choose at least one activity', { activityIds: 'is empty' })
-  const pinned: { activityId: string; activityRevisionId: string }[] = []
+  if (input.frequencies) {
+    for (const freq of Object.values(input.frequencies)) {
+      if (freq.kind === 'N_PER_WEEK' && !freq.n) throw badRequest('Choose how many days a week', { 'frequency.n': 'is required' })
+    }
+  }
+  const pinned: SelectedActivity[] = []
   const author = await authorFor(userId)
   for (const activityId of ids) {
     const rev = await pinnableRevision(author, activityId)
     if (!rev) throw badRequest('One of those activities is not available', { activityIds: `not available: ${activityId}` })
-    pinned.push({ activityId, activityRevisionId: rev })
+    pinned.push({ activityId, activityRevisionId: rev.id, frequency: input.frequencies?.[activityId] ?? rev.frequency })
   }
   await db.$transaction(async (tx) => {
     await ownedProgram(tx, userId, programId)
@@ -315,6 +384,35 @@ export async function addActivities(userId: string, programId: string, input: { 
     const version = await openDraftVersion(tx, userId, programId)
     const current = await selectedActivities(tx, version.id)
     const order = [...current, ...pinned.filter((p) => !current.some((c) => c.activityId === p.activityId))]
+    await regenerate(tx, version, order)
+  })
+  return workspace(userId, programId)
+}
+
+export async function updateActivity(
+  userId: string,
+  programId: string,
+  activityId: string,
+  input: { frequency: Frequency; expectedRevision: number },
+) {
+  if (input.frequency.kind === 'N_PER_WEEK' && !input.frequency.n) {
+    throw badRequest('Choose how many days a week', { 'frequency.n': 'is required' })
+  }
+  await db.$transaction(async (tx) => {
+    await ownedProgram(tx, userId, programId)
+    await bump(tx, programId, input.expectedRevision)
+    const version = await openDraftVersion(tx, userId, programId)
+    const current = await selectedActivities(tx, version.id)
+    if (!current.some((c) => c.activityId === activityId)) {
+      throw notFound('Activity in program')
+    }
+    const order = current.map((c) =>
+      c.activityId === activityId ? { ...c, frequency: input.frequency } : c,
+    )
+    await tx.programScheduleItem.updateMany({
+      where: { programVersionId: version.id, activityId },
+      data: { frequency: input.frequency as Prisma.InputJsonValue },
+    })
     await regenerate(tx, version, order)
   })
   return workspace(userId, programId)
@@ -368,10 +466,11 @@ export async function addPlacement(
       data: {
         programVersionId: version.id,
         activityId: input.activityId,
-        activityRevisionId: rev,
+        activityRevisionId: rev.id,
         relativeDay: input.relativeDay,
         localTime: input.localTime ?? null,
         position,
+        frequency: (rev.frequency ?? undefined) as Prisma.InputJsonValue | undefined,
         targetOverrides: (input.targetOverrides ?? undefined) as Prisma.InputJsonValue | undefined,
         isManual: true,
       },
@@ -607,6 +706,7 @@ export async function copy(userId: string, programId: string) {
               localTime: i.localTime,
               position: i.position,
               isManual: i.isManual,
+              frequency: (i.frequency ?? undefined) as Prisma.InputJsonValue | undefined,
               targetOverrides: (i.targetOverrides ?? undefined) as Prisma.InputJsonValue | undefined,
             })),
         },

@@ -3,9 +3,10 @@ import { apiData, getApiClient } from '../client'
 import { useViewerKey } from './viewerKey'
 import { useApiMutation } from './mutation'
 
-export function useProgramLibrary() {
+export function useProgramLibrary(enabled = true) {
   return useQuery({
     queryKey: useViewerKey(['programs', 'personal-library']),
+    enabled,
     queryFn: async ({ signal }) =>
       apiData(await getApiClient().GET('/me/program-library', { signal })).data,
     staleTime: 60_000,

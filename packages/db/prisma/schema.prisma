@@ -423,6 +423,8 @@ model Activity {
   categoryId                String         @db.Char(36)
   title                     String         @db.VarChar(140)
   summary                   String?        @db.VarChar(500)
+  durationMinutes           Int?
+  frequency                 Json?
   status                    ActivityStatus @default(DRAFT)
   visibility                Visibility     @default(PRIVATE)
   sourceActivityId          String?        @db.Char(36)
@@ -460,9 +462,11 @@ model ActivityRevision {
   id              String    @id @default(uuid()) @db.Char(36)
   activityId      String    @db.Char(36)
   revisionNumber  Int
-  titleSnapshot   String    @db.VarChar(140)
-  summarySnapshot String?   @db.VarChar(500)
-  publishedAt     DateTime?
+  titleSnapshot     String    @db.VarChar(140)
+  summarySnapshot   String?   @db.VarChar(500)
+  durationMinutesSnapshot Int?
+  frequencySnapshot Json?
+  publishedAt       DateTime?
   editorId        String?   @db.Char(36)
   createdAt       DateTime  @default(now())
 
@@ -704,6 +708,7 @@ model ProgramScheduleItem {
   relativeDay        Int
   localTime          String? @db.VarChar(5)
   position           Int     @default(0)
+  frequency          Json?
   targetOverrides    Json?
   isManual           Boolean @default(false)
 

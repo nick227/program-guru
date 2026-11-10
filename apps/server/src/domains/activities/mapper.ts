@@ -1,5 +1,6 @@
 import { db, type Prisma } from '@project/db'
 import { mediaUrl } from '../media/urls'
+import { parseFrequency } from '../programs/schedule'
 import { toUserSummary } from '../users/mapper'
 
 export const revisionInclude = {
@@ -119,11 +120,14 @@ export function summarizeRevision(rev: RevisionFull | null) {
 }
 
 export function toActivitySummary(a: ActivityWithCreator, rev: RevisionFull | null) {
+  const rawFreq = rev ? rev.frequencySnapshot : a.frequency
   return {
     id: a.id,
     revisionId: rev?.id ?? null,
     title: rev?.titleSnapshot ?? a.title,
     summary: rev ? rev.summarySnapshot : a.summary,
+    durationMinutes: rev ? rev.durationMinutesSnapshot : a.durationMinutes,
+    frequency: rawFreq ? parseFrequency(rawFreq) : null,
     creator: a.creator?.profile ? toUserSummary(a.creator.profile) : null,
     categoryId: a.categoryId,
     focusIds: a.focuses.map((f) => f.focusId),

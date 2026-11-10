@@ -22,14 +22,14 @@ export async function preview(viewerId: string | null, programId: string, opts: 
   const revs = await loadRevisions(items.map((i) => i.activityRevisionId))
   // Preview-safe outline: titles, first day, and only platform-licensed imagery. Never locked
   // instructions or a creator's private media (07 §3).
-  const outline: { title: string; dayIndex: number | null; mediaPreviewUrl: string | null }[] = []
+  const outline: { title: string; dayIndex: number | null; mediaPreviewUrl: string | null; durationMinutes: number | null }[] = []
   const seen = new Set<string>()
   for (const i of items) {
     if (seen.has(i.activityId)) continue
     seen.add(i.activityId)
     const rev = revs.get(i.activityRevisionId)
     const platformVisual = rev?.attachments.find((a) => a.media.ownerId === null && a.media.state === 'READY')
-    outline.push({ title: rev?.titleSnapshot ?? 'Activity', dayIndex: i.relativeDay, mediaPreviewUrl: platformVisual ? mediaUrl(platformVisual.mediaId) : null })
+    outline.push({ title: rev?.titleSnapshot ?? 'Activity', dayIndex: i.relativeDay, mediaPreviewUrl: platformVisual ? mediaUrl(platformVisual.mediaId) : null, durationMinutes: rev?.durationMinutesSnapshot ?? null })
   }
   const [stat, mine] = await Promise.all([
     db.programStat.findUnique({ where: { programId } }),

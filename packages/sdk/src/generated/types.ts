@@ -880,7 +880,8 @@ export interface paths {
         delete: operations["removeProgramActivity"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update program activity frequency */
+        patch: operations["updateProgramActivity"];
         trace?: never;
     };
     "/programs/{programId}/draft/placements": {
@@ -3045,6 +3046,9 @@ export interface components {
             revisionId: string | null;
             title: string;
             summary: string | null;
+            /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
+            durationMinutes: number | null;
+            frequency?: components["schemas"]["Frequency"] | null;
             creator: components["schemas"]["UserSummary"] | null;
             /** Format: uuid */
             categoryId: string;
@@ -3102,6 +3106,9 @@ export interface components {
             revisionId: string | null;
             title: string;
             summary: string | null;
+            /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
+            durationMinutes: number | null;
+            frequency?: components["schemas"]["Frequency"] | null;
             creator: components["schemas"]["UserSummary"] | null;
             /** Format: uuid */
             categoryId: string;
@@ -3132,11 +3139,17 @@ export interface components {
             categoryId: string;
             focusIds?: string[];
             summary?: string | null;
+            /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
+            durationMinutes?: number | null;
+            frequency?: components["schemas"]["Frequency"] | null;
             owner?: components["schemas"]["ContentOwner"];
         };
         UpdateActivityDraftInput: {
             title?: string;
             summary?: string | null;
+            /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
+            durationMinutes?: number | null;
+            frequency?: components["schemas"]["Frequency"] | null;
             /** Format: uuid */
             categoryId?: string;
             focusIds?: string[];
@@ -3247,6 +3260,10 @@ export interface components {
             /** Format: uuid */
             revisionId: string | null;
             title: string;
+            /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
+            durationMinutes: number | null;
+            frequency: components["schemas"]["Frequency"];
+            frequencyLabel: string;
             instructionCount: number;
             mediaCount: number;
             metrics: string[];
@@ -3292,6 +3309,8 @@ export interface components {
             title: string;
             dayIndex: number | null;
             mediaPreviewUrl: string | null;
+            /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
+            durationMinutes?: number | null;
         };
         /** @description Preview-safe fields only: never locked instructions or media. */
         ProgramPreview: {
@@ -3394,6 +3413,13 @@ export interface components {
         /** @description Adds Activities to the draft and places them automatically. */
         AddProgramActivitiesInput: {
             activityIds: string[];
+            frequencies?: {
+                [key: string]: components["schemas"]["Frequency"];
+            };
+            expectedRevision: number;
+        };
+        UpdateProgramActivityInput: {
+            frequency: components["schemas"]["Frequency"];
             expectedRevision: number;
         };
         RegenerateScheduleInput: {
@@ -6246,6 +6272,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProgramWorkspace"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    updateProgramActivity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programId: string;
+                activityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProgramActivityInput"];
+            };
+        };
         responses: {
             /** @description Success */
             200: {

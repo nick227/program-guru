@@ -2003,6 +2003,54 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
   /programs/{programId}/draft/activities/{activityId}:
+    patch:
+      operationId: updateProgramActivity
+      summary: Update program activity frequency
+      tags:
+      - programs
+      parameters:
+      - in: path
+        name: programId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: activityId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProgramActivityInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProgramWorkspace'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
     delete:
       operationId: removeProgramActivity
       summary: Remove program activity
@@ -7622,6 +7670,7 @@ components:
       - revisionId
       - title
       - summary
+      - durationMinutes
       - creator
       - categoryId
       - focusIds
@@ -7648,6 +7697,17 @@ components:
           type:
           - string
           - 'null'
+        durationMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+          description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        frequency:
+          anyOf:
+          - $ref: '#/components/schemas/Frequency'
+          - type: 'null'
         creator:
           anyOf:
           - $ref: '#/components/schemas/UserSummary'
@@ -7798,6 +7858,7 @@ components:
       - revisionId
       - title
       - summary
+      - durationMinutes
       - creator
       - categoryId
       - focusIds
@@ -7832,6 +7893,17 @@ components:
           type:
           - string
           - 'null'
+        durationMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+          description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        frequency:
+          anyOf:
+          - $ref: '#/components/schemas/Frequency'
+          - type: 'null'
         creator:
           anyOf:
           - $ref: '#/components/schemas/UserSummary'
@@ -7926,6 +7998,17 @@ components:
           - 'null'
           minLength: 0
           maxLength: 500
+        durationMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+          description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        frequency:
+          anyOf:
+          - $ref: '#/components/schemas/Frequency'
+          - type: 'null'
         owner:
           $ref: '#/components/schemas/ContentOwner'
       additionalProperties: false
@@ -7944,6 +8027,17 @@ components:
           - 'null'
           minLength: 0
           maxLength: 500
+        durationMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+          description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        frequency:
+          anyOf:
+          - $ref: '#/components/schemas/Frequency'
+          - type: 'null'
         categoryId:
           type: string
           format: uuid
@@ -8245,6 +8339,9 @@ components:
       - activityId
       - revisionId
       - title
+      - durationMinutes
+      - frequency
+      - frequencyLabel
       - instructionCount
       - mediaCount
       - metrics
@@ -8260,6 +8357,17 @@ components:
           - 'null'
           format: uuid
         title:
+          type: string
+        durationMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+          description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        frequency:
+          $ref: '#/components/schemas/Frequency'
+        frequencyLabel:
           type: string
         instructionCount:
           type: integer
@@ -8414,6 +8522,13 @@ components:
           type:
           - string
           - 'null'
+        durationMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+          description: Planned minutes for one occurrence (08 §2). Not measured session time.
     ProgramPreview:
       type: object
       description: 'Preview-safe fields only: never locked instructions or media.'
@@ -8716,6 +8831,21 @@ components:
           items:
             type: string
             format: uuid
+        frequencies:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Frequency'
+        expectedRevision:
+          type: integer
+      additionalProperties: false
+    UpdateProgramActivityInput:
+      type: object
+      required:
+      - frequency
+      - expectedRevision
+      properties:
+        frequency:
+          $ref: '#/components/schemas/Frequency'
         expectedRevision:
           type: integer
       additionalProperties: false

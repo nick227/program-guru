@@ -45,8 +45,10 @@ export function frequencyLabel(f: Frequency | null): string | null {
       return 'Weekdays'
     case 'FLEXIBLE':
       return 'Flexible'
-    default:
-      return `${weeklyOffsets(f).length} days/week`
+    default: {
+      const count = weeklyOffsets(f).length
+      return `${count} ${count === 1 ? 'day' : 'days'}/week`
+    }
   }
 }
 

@@ -36,19 +36,34 @@ describe('listActivities', () => {
 })
 
 describe('activity authoring', () => {
-  it('edits a draft with instructions, activity and instruction metrics, and tools', async () => {
-    const created = (await create()).json().data
-    expect(created).toMatchObject({ status: 'DRAFT', visibility: 'PRIVATE', canEdit: true, draftRevision: 0 })
+  it('edits a draft with duration minutes, instructions, activity and instruction metrics, and tools', async () => {
+    const createdRes = await app.inject({
+      method: 'POST',
+      url: '/activities',
+      headers: asAuth(testUserId),
+      payload: { title: 'Morning Stretch', durationMinutes: 15, categoryId: cat.fitness.id, focusIds: [cat.strength.id] },
+    })
+    expect(createdRes.statusCode).toBe(201)
+    const created = createdRes.json().data
+    expect(created).toMatchObject({ status: 'DRAFT', visibility: 'PRIVATE', durationMinutes: 15, canEdit: true, draftRevision: 0 })
+    const updatedRes = await app.inject({
+      method: 'PATCH',
+      url: `/activities/${created.id}/draft`,
+      headers: asAuth(testUserId),
+      payload: { durationMinutes: 25, expectedRevision: 0 },
+    })
+    expect(updatedRes.statusCode).toBe(200)
+    expect(updatedRes.json().data.durationMinutes).toBe(25)
     let res = await app.inject({
       method: 'PUT', url: `/activities/${created.id}/draft/instructions`, headers: asAuth(testUserId),
-      payload: { expectedRevision: 0, instructions: [{ title: 'Warm up', body: 'Loosen up' }, { title: 'Hold', body: 'Hold each stretch' }] },
+      payload: { expectedRevision: 1, instructions: [{ title: 'Warm up', body: 'Loosen up' }, { title: 'Hold', body: 'Hold each stretch' }] },
     })
     expect(res.statusCode).toBe(200)
     await validateResponse('putActivityInstructions', 200, res.json())
     const [warm, hold] = res.json().data.instructions
     res = await app.inject({
       method: 'PUT', url: `/activities/${created.id}/draft/metrics`, headers: asAuth(testUserId),
-      payload: { expectedRevision: 1, metrics: [
+      payload: { expectedRevision: 2, metrics: [
         { metricDefinitionId: cat.duration.id, defaults: { target: 600 } },
         { metricDefinitionId: cat.duration.id, instructionKey: hold.instructionKey, rollupToMetricKey: 'duration' },
       ] },
@@ -58,13 +73,13 @@ describe('activity authoring', () => {
     expect(res.json().data.instructions[1].metrics[0].key).toBe('duration')
     res = await app.inject({
       method: 'PUT', url: `/activities/${created.id}/draft/tools`, headers: asAuth(testUserId),
-      payload: { expectedRevision: 2, tools: [{ toolDefinitionId: cat.timer.id, instructionKey: hold.instructionKey, config: { seconds: 30 } }] },
+      payload: { expectedRevision: 3, tools: [{ toolDefinitionId: cat.timer.id, instructionKey: hold.instructionKey, config: { seconds: 30 } }] },
     })
     expect(res.json().data.instructions[1].tools[0]).toMatchObject({ key: 'TIMER', config: { seconds: 30 } })
     // Reorder and drop one; instructionKey is preserved for the survivor.
     res = await app.inject({
       method: 'PUT', url: `/activities/${created.id}/draft/instructions`, headers: asAuth(testUserId),
-      payload: { expectedRevision: 3, instructions: [{ instructionKey: hold.instructionKey, title: 'Hold' }] },
+      payload: { expectedRevision: 4, instructions: [{ instructionKey: hold.instructionKey, title: 'Hold' }] },
     })
     expect(res.json().data.instructions.map((i: any) => i.instructionKey)).toEqual([hold.instructionKey])
     expect(warm.instructionKey).not.toBe(hold.instructionKey)

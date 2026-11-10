@@ -196,9 +196,10 @@ export function useResolveSlugQuery(
     staleTime: 60 * 1000,
   })
 }
-export function useProgramWorkspace(programId: string) {
+export function useProgramWorkspace(programId: string, enabled = true) {
   return useQuery({
     queryKey: useViewerKey(keys.workspace(programId)),
+    enabled: enabled && !!programId,
     queryFn: async ({ signal }) =>
       apiData(
         await getApiClient().GET('/programs/{programId}/workspace', {
@@ -279,9 +280,10 @@ export function useDeleteProgramPlacement(programId: string) {
     `draft:${programId}`,
   )
 }
-export function usePublishCheck(programId: string) {
+export function usePublishCheck(programId: string, enabled = true) {
   return useQuery({
     queryKey: useViewerKey(keys.publishCheck(programId)),
+    enabled: enabled && !!programId,
     queryFn: async ({ signal }) =>
       apiData(
         await getApiClient().GET('/programs/{programId}/publish-check', {
@@ -413,6 +415,25 @@ export function useAddProgramActivities(programId: string) {
           params: { path: { programId } },
           body,
         }),
+      ).data,
+    [keys.programs],
+    `draft:${programId}`,
+  )
+}
+export function useUpdateProgramActivity(programId: string) {
+  return useApiMutation(
+    async ({
+      activityId,
+      ...body
+    }: S['UpdateProgramActivityInput'] & { activityId: string }) =>
+      apiData(
+        await getApiClient().PATCH(
+          '/programs/{programId}/draft/activities/{activityId}',
+          {
+            params: { path: { programId, activityId } },
+            body,
+          },
+        ),
       ).data,
     [keys.programs],
     `draft:${programId}`,
