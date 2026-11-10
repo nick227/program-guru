@@ -24,6 +24,12 @@ An **Activity** is a reusable, category-agnostic action: Leg Raises, Read, Daily
 
 **No generic `content` field, no `variations[]`, no separately forced steps.** `summary` is brief; `Instruction.body` holds guidance where needed. Instruction title optional; if video alone explains action, body can be omitted after accessible media alt/caption.
 
+### Planned duration and default frequency (decided 2026-11-10)
+
+- **`Activity.durationMinutes`** (integer, 1–1440, nullable), snapshotted on each revision as `ActivityRevision.durationMinutesSnapshot`. It is the author's expected time for one occurrence. It is stored as minutes, never free text, and displayed naturally ("45 min", "1 hr", "1 hr 30 min"). It does not replace measured session time (§4) or a DURATION result metric.
+- **`Activity.frequency`** (nullable), snapshotted as `ActivityRevision.frequencySnapshot`. It uses the same structured value as Programs (`FrequencyDto`: `DAILY`, `WEEKDAYS`, `N_PER_WEEK` with `n`, `FLEXIBLE`, `CUSTOM` with `offsets`), validated the same way. It is the Activity's default when it is added to a Program, and a Program may override it per Activity (07 §7).
+- Both fields are optional so existing Activities and Programs keep working unchanged. Activity create and draft-update inputs and the Activity summary and detail DTOs carry both fields.
+
 ## 3. Sample Prisma-style schema
 
 
