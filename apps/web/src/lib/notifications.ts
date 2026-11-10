@@ -1,6 +1,7 @@
 import { buildProfileUrl } from './urls'
 import type { components } from '@project/sdk'
 import { dateLabel, safeReturn, today } from './dates'
+import { formatTargetTime } from './targetTime'
 
 type S = components['schemas']
 export type NotificationItem = S['Notification']
@@ -199,12 +200,7 @@ export function localNowTime(timeZone: string, now = new Date()): string {
 
 export function formatLocalTime(hhmm: string | null | undefined): string {
   if (!hhmm || !isValidReminderTime(hhmm)) return 'Anytime'
-  const [hStr, mStr] = hhmm.split(':')
-  const hour = Number(hStr)
-  const minute = Number(mStr)
-  const suffix = hour >= 12 ? 'PM' : 'AM'
-  const hour12 = hour % 12 === 0 ? 12 : hour % 12
-  return `${hour12}:${String(minute).padStart(2, '0')} ${suffix}`
+  return formatTargetTime(hhmm) ?? 'Anytime'
 }
 
 export function formatNotificationTimestamp(

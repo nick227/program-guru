@@ -1,4 +1,5 @@
 import { parseDurationMinutes } from '@/lib/durationMinutes'
+import { parseTargetTime } from '@/lib/targetTime'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -25,6 +26,7 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
   const [duration, setDuration] = useState('')
+  const [targetTime, setTargetTime] = useState('')
   const [frequency, setFrequency] = useState<Frequency>(
     () => ws.frequency ?? DEFAULT_FREQ,
   )
@@ -49,6 +51,7 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
           focusIds: ws.focus ? [ws.focus.id] : [],
           summary: summary.trim() || null,
           durationMinutes: parseDurationMinutes(duration),
+          targetTime: parseTargetTime(targetTime),
           frequency,
         }))
       setCreated(activity)
@@ -73,6 +76,7 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
       setTitle('')
       setSummary('')
       setDuration('')
+      setTargetTime('')
       setFrequency(ws.frequency ?? DEFAULT_FREQ)
     } catch {
       /* Mutation errors stay visible; keep the form for retry. */
@@ -133,6 +137,18 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
             inputAriaLabel="Activity duration (optional)"
           />
         </div>
+        <label className="space-y-1">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Target time (optional)
+          </span>
+          <Input
+            type="time"
+            aria-label="Activity target time (optional)"
+            value={targetTime}
+            disabled={!!created || busy}
+            onChange={(e) => setTargetTime(e.target.value)}
+          />
+        </label>
         <div className="space-y-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted">
             Media (optional)

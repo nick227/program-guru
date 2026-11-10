@@ -31,6 +31,7 @@ async function studioApi(page: Page) {
             title: 'Squats',
             summary: 'A controlled squat.',
             durationMinutes: null,
+            targetTime: null,
             creator: null,
             categoryId: '00000000-0000-4000-8000-000000000003',
             focusIds: ['00000000-0000-4000-8000-000000000004'],

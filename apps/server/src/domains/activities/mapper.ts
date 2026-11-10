@@ -127,6 +127,7 @@ export function toActivitySummary(a: ActivityWithCreator, rev: RevisionFull | nu
     title: rev?.titleSnapshot ?? a.title,
     summary: rev ? rev.summarySnapshot : a.summary,
     durationMinutes: rev ? rev.durationMinutesSnapshot : a.durationMinutes,
+    targetTime: rev ? rev.targetTimeSnapshot : a.targetTime,
     frequency: rawFreq ? parseFrequency(rawFreq) : null,
     creator: a.creator?.profile ? toUserSummary(a.creator.profile) : null,
     categoryId: a.categoryId,

@@ -424,6 +424,7 @@ model Activity {
   title                     String         @db.VarChar(140)
   summary                   String?        @db.VarChar(500)
   durationMinutes           Int?
+  targetTime                String?        @db.VarChar(5)
   frequency                 Json?
   status                    ActivityStatus @default(DRAFT)
   visibility                Visibility     @default(PRIVATE)
@@ -465,6 +466,7 @@ model ActivityRevision {
   titleSnapshot     String    @db.VarChar(140)
   summarySnapshot   String?   @db.VarChar(500)
   durationMinutesSnapshot Int?
+  targetTimeSnapshot      String?   @db.VarChar(5)
   frequencySnapshot Json?
   publishedAt       DateTime?
   editorId        String?   @db.Char(36)

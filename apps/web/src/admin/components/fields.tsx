@@ -70,6 +70,8 @@ export function FieldControl<V>({ field, ...p }: { field: Field<V> } & FieldProp
       return <input {...common} type="checkbox" className="h-5 w-5" checked={!!p.value} onChange={(e) => p.onChange(e.target.checked)} />
     case 'date':
       return <Input {...common} type="date" className="max-w-48" value={typeof p.value === 'string' ? p.value.slice(0, 10) : ''} onChange={(e) => p.onChange(e.target.value || null)} />
+    case 'time':
+      return <Input {...common} type="time" className="max-w-40" value={typeof p.value === 'string' ? p.value.slice(0, 5) : ''} onChange={(e) => p.onChange(e.target.value || null)} />
     case 'visibility':
       return <SegmentedControl ariaLabel={field.label} options={VISIBILITY} value={(p.value as string) ?? 'PRIVATE'} onChange={p.onChange} />
     case 'duration':

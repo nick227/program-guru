@@ -188,12 +188,14 @@ async function pinRevision(userId: string, activityId: string, revisionId?: stri
   if (revisionId) {
     const r = await db.activityRevision.findFirst({ where: { id: revisionId, activityId } })
     if (!r || (!isActivityOwner(a, userId) && !r.publishedAt)) throw badRequest('That version is not available', { revisionId: 'not available' })
-    return r.id
+    return { id: r.id, targetTime: r.targetTimeSnapshot ?? null }
   }
   if (isActivityOwner(a, userId)) {
-    return (await db.activityRevision.findFirstOrThrow({ where: { activityId }, orderBy: { revisionNumber: 'desc' } })).id
+    const r = await db.activityRevision.findFirstOrThrow({ where: { activityId }, orderBy: { revisionNumber: 'desc' } })
+    return { id: r.id, targetTime: r.targetTimeSnapshot ?? null }
   }
-  return a.latestPublishedRevisionId!
+  const r = await db.activityRevision.findUniqueOrThrow({ where: { id: a.latestPublishedRevisionId! } })
+  return { id: r.id, targetTime: r.targetTimeSnapshot ?? null }
 }
 
 export async function add(
@@ -223,17 +225,18 @@ export async function add(
       return result(userId, itemId!, recurrenceId || null)
     },
     run: async () => {
-      const revisionId = await pinRevision(userId, input.activityId, input.revisionId)
+      const pinned = await pinRevision(userId, input.activityId, input.revisionId)
+      const effectiveTime = input.localTime === undefined ? pinned.targetTime : input.localTime
       const { itemId, recurrenceId, createdCount } = await db.$transaction(async (tx) => {
         if (input.recurrence) {
           const r = await tx.calendarRecurrence.create({
             data: {
               ownerId: userId,
               activityId: input.activityId,
-              activityRevisionId: revisionId,
+              activityRevisionId: pinned.id,
               rule: input.recurrence as Prisma.InputJsonValue,
               anchorDate: toDbDate(input.localDate),
-              localTime: input.localTime ?? null,
+              localTime: effectiveTime ?? null,
               timezone: tz,
               untilDate: input.untilDate ? toDbDate(input.untilDate) : null,
             },
@@ -247,11 +250,11 @@ export async function add(
           data: {
             ownerId: userId,
             activityId: input.activityId,
-            activityRevisionId: revisionId,
+            activityRevisionId: pinned.id,
             idempotencyKey: `add:${userId}:${idempotencyKey}`,
             localDate: toDbDate(input.localDate),
-            localTime: input.localTime ?? null,
-            scheduledAtUtc: input.localTime ? localToUtc(input.localDate, input.localTime, tz) : null,
+            localTime: effectiveTime ?? null,
+            scheduledAtUtc: effectiveTime ? localToUtc(input.localDate, effectiveTime, tz) : null,
             targetOverrides: (input.targetOverrides ?? undefined) as Prisma.InputJsonValue | undefined,
           },
         })

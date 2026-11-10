@@ -5,6 +5,7 @@ import {
   Check,
   CheckCircle2,
   Clock3,
+  GripVertical,
   Lock,
   MoreHorizontal,
   Users,
@@ -14,6 +15,7 @@ import { AvatarStack } from '@/components/social/AvatarStack'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { UnreadDot } from '@/components/shared/UnreadDot'
 import { resolveActivityCategory, type ActivityCategory } from '@/lib/activityCategory'
+import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
 import { cn } from '@/lib/utils'
 
 export type ActivityTileDensity = 'pill' | 'card' | 'timeblock' | 'month' | 'week' | 'day' | 'year'
@@ -40,6 +42,7 @@ export type ActivityTileItem = {
   avatarUrls?: string[]
   unreadCount?: number
   recurrenceId?: string | null
+  updatedAt?: string
 }
 
 export type ActivityTileProps = {
@@ -49,6 +52,11 @@ export type ActivityTileProps = {
   onSelect?: () => void
   onComplete?: (itemId: string) => void
   onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
+  onChangeTime?: (itemId: string, localTime: string | null) => void
+  draggable?: boolean
+  isDragging?: boolean
+  onDragStart?: (event: React.DragEvent<HTMLElement>, item: ActivityTileItem) => void
+  onDragEnd?: (event: React.DragEvent<HTMLElement>) => void
   completing?: boolean
   removing?: boolean
 }
@@ -60,6 +68,11 @@ export function ActivityTile({
   onSelect,
   onComplete,
   onRemove,
+  onChangeTime,
+  draggable = false,
+  isDragging = false,
+  onDragStart,
+  onDragEnd,
   completing = false,
   removing = false,
 }: ActivityTileProps) {
@@ -87,6 +100,12 @@ export function ActivityTile({
     Boolean(onRemove) && detailed &&
     !item.locked &&
     (!item.status || item.status === 'PLANNED')
+  const canAdjustTime =
+    Boolean(onChangeTime) &&
+    density === 'day' &&
+    !item.locked &&
+    item.status !== 'CANCELLED'
+  const timeDisplay = formatTargetTime(item.localTime)
   const statusLabel = item.locked
     ? 'Access needed'
     : isDone
@@ -100,8 +119,35 @@ export function ActivityTile({
             : item.sessionStatus === 'ACTIVE' ? 'In progress' : item.sessionStatus === 'PAUSED' ? 'Paused' : 'Pending'
 
   const actions =
-    canComplete || canRemove ? (
+    canComplete || canRemove || canAdjustTime ? (
       <div className="calendar-tile__actions">
+        {canAdjustTime && (
+          <div className="calendar-tile__time-controls">
+            <input
+              type="time"
+              className="calendar-tile__time-input"
+              aria-label={`Time of day for ${item.title}`}
+              value={targetTimeInput(item.localTime)}
+              onChange={(event) => {
+                const next = parseTargetTime(event.target.value)
+                if (next !== (item.localTime ?? null)) {
+                  onChangeTime?.(item.id, next)
+                }
+              }}
+            />
+            {item.localTime && (
+              <button
+                type="button"
+                className="calendar-tile__clear-time"
+                aria-label={`Clear time for ${item.title}`}
+                title="Move to Any time"
+                onClick={() => onChangeTime?.(item.id, null)}
+              >
+                <X size={14} aria-hidden />
+              </button>
+            )}
+          </div>
+        )}
         {canComplete && (
           <button
             type="button"
@@ -114,12 +160,60 @@ export function ActivityTile({
             {!compact && <span>{completing ? 'Saving…' : 'Complete'}</span>}
           </button>
         )}
+        {canRemove && (
+          <div className="calendar-tile__menu-anchor">
+            {menuOpen && (
+              <div className="calendar-tile-menu">
+                {!confirmRemove ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmRemove(true)}
+                    className="calendar-tile-menu__item"
+                  >
+                    Remove from Calendar
+                  </button>
+                ) : (
+                  <>
+                    <span className="calendar-tile-menu__label">
+                      {item.recurrenceId
+                        ? 'Remove which activities?'
+                        : 'Remove this activity?'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={removing}
+                      onClick={() => onRemove?.(item.id, 'THIS_ONE')}
+                      className="calendar-tile-menu__item"
+                    >
+                      {item.recurrenceId ? 'This activity only' : 'Remove activity'}
+                    </button>
+                    {item.recurrenceId && (
+                      <button
+                        type="button"
+                        disabled={removing}
+                        onClick={() => onRemove?.(item.id, 'THIS_AND_FUTURE')}
+                        className="calendar-tile-menu__item"
+                      >
+                        This and future activities
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     ) : null
 
   const content = (
     <>
       <div className="calendar-tile__main">
+        {draggable && canAdjustTime && (
+          <span className="calendar-tile__drag-handle" aria-hidden title="Drag to change time">
+            <GripVertical size={16} />
+          </span>
+        )}
         {item.thumbnailUrl && failedImage !== item.thumbnailUrl ? (
           <img
             src={item.thumbnailUrl}
@@ -142,6 +236,12 @@ export function ActivityTile({
           )}
           {item.detail && !item.programTitle && !item.localTime && (
             <p className="calendar-tile__program">{item.detail}</p>
+          )}
+          {density === 'day' && timeDisplay && (
+            <p className="calendar-tile__time">
+              <Clock3 size={12} aria-hidden />
+              <time dateTime={`${item.day}T${item.localTime}`}>{timeDisplay}</time>
+            </p>
           )}
           {detailed && statusLabel !== 'Pending' && (
             <p className="calendar-tile__status">
@@ -197,12 +297,21 @@ export function ActivityTile({
   return (
     <article
       data-category={category}
+      data-item-id={item.id}
+      draggable={draggable && canAdjustTime}
+      onDragStart={
+        draggable && canAdjustTime
+          ? (event) => onDragStart?.(event, item)
+          : undefined
+      }
+      onDragEnd={draggable && canAdjustTime ? onDragEnd : undefined}
       className={cn(
         'calendar-tile',
         { month: 'calendar-tile--month', week: 'calendar-tile--week', day: 'calendar-tile--day', year: 'calendar-tile--year', pill: 'calendar-tile--pill', card: 'calendar-tile--card', timeblock: 'calendar-tile--timeblock' }[density],
         compact && 'calendar-tile--compact',
         isDone && 'calendar-tile--complete',
         item.conflict && 'calendar-tile--conflict',
+        isDragging && 'calendar-tile--dragging',
         className,
       )}
     >

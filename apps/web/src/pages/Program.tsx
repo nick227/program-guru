@@ -1,4 +1,5 @@
 import { formatDurationMinutes } from '@/lib/durationMinutes'
+import { formatTargetTime } from '@/lib/targetTime'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -521,6 +522,7 @@ export function ProgramPage() {
                             ? `Day ${outlineMatch.dayIndex + 1}`
                             : null,
                           formatDurationMinutes(a.durationMinutes),
+                          formatTargetTime(a.targetTime),
                           a.frequencyLabel,
                         ]
                           .filter(Boolean)
@@ -560,6 +562,7 @@ export function ProgramPage() {
                     [
                       item.dayIndex != null ? `Day ${item.dayIndex + 1}` : null,
                       formatDurationMinutes(item.durationMinutes),
+                      formatTargetTime(item.targetTime),
                     ]
                       .filter(Boolean)
                       .join(' · ') || undefined

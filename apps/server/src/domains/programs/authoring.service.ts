@@ -83,23 +83,24 @@ async function refreshCounts(tx: Tx, versionId: string) {
   await tx.programVersion.update({ where: { id: versionId }, data: countPlacements(items) })
 }
 
-type SelectedActivity = { activityId: string; activityRevisionId: string; frequency: Frequency | null }
+type SelectedActivity = { activityId: string; activityRevisionId: string; frequency: Frequency | null; localTime: string | null }
 
 /** Selected Activities in display order: first appearance by day, then position. */
 async function selectedActivities(tx: Tx, versionId: string): Promise<SelectedActivity[]> {
   const items = await tx.programScheduleItem.findMany({
     where: { programVersionId: versionId },
     orderBy: [{ relativeDay: 'asc' }, { position: 'asc' }],
-    select: { activityId: true, activityRevisionId: true, frequency: true },
+    select: { activityId: true, activityRevisionId: true, frequency: true, localTime: true },
   })
   const seen = new Map<string, SelectedActivity>()
   for (const i of items) {
     const existing = seen.get(i.activityId)
     const freq = i.frequency ? parseFrequency(i.frequency) : null
     if (!existing) {
-      seen.set(i.activityId, { activityId: i.activityId, activityRevisionId: i.activityRevisionId, frequency: freq })
-    } else if (!existing.frequency && freq) {
-      existing.frequency = freq
+      seen.set(i.activityId, { activityId: i.activityId, activityRevisionId: i.activityRevisionId, frequency: freq, localTime: i.localTime ?? null })
+    } else {
+      if (!existing.frequency && freq) existing.frequency = freq
+      if (!existing.localTime && i.localTime) existing.localTime = i.localTime
     }
   }
   return [...seen.values()]
@@ -109,7 +110,7 @@ async function selectedActivities(tx: Tx, versionId: string): Promise<SelectedAc
  * Regenerates automatic placements (07 §7). Manual placements survive; a generated slot is skipped
  * when the same Activity already has a manual placement that day.
  */
-export async function regenerate(tx: Tx, version: ProgramVersion, order: { activityId: string; activityRevisionId: string; frequency?: Frequency | null }[], keepManual = true) {
+export async function regenerate(tx: Tx, version: ProgramVersion, order: { activityId: string; activityRevisionId: string; frequency?: Frequency | null; localTime?: string | null }[], keepManual = true) {
   await tx.programScheduleItem.deleteMany({ where: { programVersionId: version.id, ...(keepManual ? { isManual: false } : {}) } })
   const manual = keepManual ? await tx.programScheduleItem.findMany({ where: { programVersionId: version.id }, select: { activityId: true, relativeDay: true } }) : []
   const taken = new Set(manual.map((m) => `${m.activityId}:${m.relativeDay}`))
@@ -124,6 +125,7 @@ export async function regenerate(tx: Tx, version: ProgramVersion, order: { activ
           activityId: entry.activityId,
           activityRevisionId: entry.activityRevisionId,
           relativeDay: g.relativeDay,
+          localTime: entry.localTime ?? null,
           position: g.position,
           frequency: (entry.frequency ?? undefined) as Prisma.InputJsonValue | undefined,
         }
@@ -145,6 +147,7 @@ export async function regenerate(tx: Tx, version: ProgramVersion, order: { activ
           activityId: entry.activityId,
           activityRevisionId: entry.activityRevisionId,
           relativeDay,
+          localTime: entry.localTime ?? null,
           position,
           frequency: (entry.frequency ?? undefined) as Prisma.InputJsonValue | undefined,
           isManual: false,
@@ -180,6 +183,7 @@ export async function workspace(userId: string, programId: string) {
       revisionId: activityRevisionId,
       title: rev?.titleSnapshot ?? byId.get(activityId)?.title ?? 'Activity',
       durationMinutes: rev ? rev.durationMinutesSnapshot : (byId.get(activityId)?.durationMinutes ?? null),
+      targetTime: rev ? rev.targetTimeSnapshot : (byId.get(activityId)?.targetTime ?? null),
       frequency: rowFreq,
       frequencyLabel: frequencyLabel(rowFreq) ?? '3 days/week',
       instructionCount: s.instructionCount,
@@ -351,12 +355,12 @@ async function pinnableRevision(author: Author, activityId: string) {
   const a = await db.activity.findUnique({ where: { id: activityId } })
   if (!a || !(author.activity(a) || canUseActivity(a, author.userId)) || a.status === 'ARCHIVED') return null
   if (author.activity(a)) {
-    const latest = await db.activityRevision.findFirst({ where: { activityId }, orderBy: { revisionNumber: 'desc' }, select: { id: true, frequencySnapshot: true } })
-    return latest ? { id: latest.id, frequency: latest.frequencySnapshot ? parseFrequency(latest.frequencySnapshot) : null } : null
+    const latest = await db.activityRevision.findFirst({ where: { activityId }, orderBy: { revisionNumber: 'desc' }, select: { id: true, frequencySnapshot: true, targetTimeSnapshot: true } })
+    return latest ? { id: latest.id, frequency: latest.frequencySnapshot ? parseFrequency(latest.frequencySnapshot) : null, targetTime: latest.targetTimeSnapshot ?? null } : null
   }
   if (!a.latestPublishedRevisionId) return null
-  const rev = await db.activityRevision.findUnique({ where: { id: a.latestPublishedRevisionId }, select: { id: true, frequencySnapshot: true } })
-  return rev ? { id: rev.id, frequency: rev.frequencySnapshot ? parseFrequency(rev.frequencySnapshot) : null } : null
+  const rev = await db.activityRevision.findUnique({ where: { id: a.latestPublishedRevisionId }, select: { id: true, frequencySnapshot: true, targetTimeSnapshot: true } })
+  return rev ? { id: rev.id, frequency: rev.frequencySnapshot ? parseFrequency(rev.frequencySnapshot) : null, targetTime: rev.targetTimeSnapshot ?? null } : null
 }
 
 export async function addActivities(
@@ -376,7 +380,7 @@ export async function addActivities(
   for (const activityId of ids) {
     const rev = await pinnableRevision(author, activityId)
     if (!rev) throw badRequest('One of those activities is not available', { activityIds: `not available: ${activityId}` })
-    pinned.push({ activityId, activityRevisionId: rev.id, frequency: input.frequencies?.[activityId] ?? rev.frequency })
+    pinned.push({ activityId, activityRevisionId: rev.id, frequency: input.frequencies?.[activityId] ?? rev.frequency, localTime: rev.targetTime })
   }
   await db.$transaction(async (tx) => {
     await ownedProgram(tx, userId, programId)
@@ -468,7 +472,7 @@ export async function addPlacement(
         activityId: input.activityId,
         activityRevisionId: rev.id,
         relativeDay: input.relativeDay,
-        localTime: input.localTime ?? null,
+        localTime: input.localTime ?? rev.targetTime ?? null,
         position,
         frequency: (rev.frequency ?? undefined) as Prisma.InputJsonValue | undefined,
         targetOverrides: (input.targetOverrides ?? undefined) as Prisma.InputJsonValue | undefined,

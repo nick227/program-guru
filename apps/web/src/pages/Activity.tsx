@@ -1,4 +1,5 @@
 import { durationInput, formatDurationMinutes, parseDurationMinutes } from '@/lib/durationMinutes'
+import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
 import { useEffect, useRef, useState } from 'react'
 import {
   Link,
@@ -55,7 +56,14 @@ export function ActivityPage() {
 
   const resolved = useResolveActivityTarget(rawSlugOrId)
   const activity = useActivity(resolved.activityId)
+  const updateTargetTime = useUpdateActivityDraft(resolved.activityId)
   const publicMedia = useActivityPublicMedia(resolved.activityId, undefined, !resolved.notFound && !!resolved.activityId)
+  const online = useOnline()
+  const [targetTimeDraft, setTargetTimeDraft] = useState('')
+
+  useEffect(() => {
+    setTargetTimeDraft(targetTimeInput(activity.data?.targetTime))
+  }, [activity.data?.id, activity.data?.targetTime, activity.data?.draftRevision])
 
   useDocumentTitle(
     activity.data?.title ??
@@ -133,6 +141,61 @@ export function ActivityPage() {
                   Duration: {formatDurationMinutes(activity.data.durationMinutes)}
                 </p>
               )}
+              {activity.data.targetTime && (
+                <p className="text-sm font-medium text-muted">
+                  Target time: {formatTargetTime(activity.data.targetTime)}
+                </p>
+              )}
+              {activity.data.canEdit && (
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="field space-y-1">
+                    <span className="label text-xs font-semibold">Target time (optional)</span>
+                    <Input
+                      type="time"
+                      aria-label="Target time (optional)"
+                      value={targetTimeDraft}
+                      disabled={!online || updateTargetTime.isPending}
+                      onChange={(event) => setTargetTimeDraft(event.target.value)}
+                    />
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={
+                      !online ||
+                      updateTargetTime.isPending ||
+                      parseTargetTime(targetTimeDraft) === (activity.data.targetTime ?? null)
+                    }
+                    loading={updateTargetTime.isPending}
+                    onClick={() =>
+                      void updateTargetTime.mutateAsync({
+                        targetTime: parseTargetTime(targetTimeDraft),
+                        expectedRevision: activity.data!.draftRevision,
+                      })
+                    }
+                  >
+                    Save time
+                  </Button>
+                  {activity.data.targetTime && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={!online || updateTargetTime.isPending}
+                      onClick={() =>
+                        void updateTargetTime.mutateAsync({
+                          targetTime: null,
+                          expectedRevision: activity.data!.draftRevision,
+                        })
+                      }
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  <ErrorMessage error={updateTargetTime.error} />
+                </div>
+              )}
               <p className="text-muted">{activity.data.summary}</p>
               {!activity.data.canEdit && <ReportButton target={{ type: 'ACTIVITY', id: activity.data.id }} />}
               <Panel>
@@ -174,6 +237,7 @@ interface AddActivityDraft {
   title: string
   summary: string
   duration: string
+  targetTime: string
   categoryId: string
   instruction: string
 }
@@ -228,6 +292,9 @@ export function AddActivityPage() {
   const [duration, setDuration] = useState(
     () => (pickedActivity ? durationInput(pickedActivity.durationMinutes) : initialDraft?.duration ?? ''),
   )
+  const [targetTime, setTargetTime] = useState(
+    () => (pickedActivity ? targetTimeInput(pickedActivity.targetTime) : initialDraft?.targetTime ?? ''),
+  )
   const categories = useCategories()
   const [categoryId, setCategoryId] = useState(
     () => pickedActivity?.categoryId ?? initialDraft?.categoryId ?? '',
@@ -250,6 +317,7 @@ export function AddActivityPage() {
     setTitle(activity.title)
     setSummary(activity.summary ?? '')
     setDuration(durationInput(activity.durationMinutes))
+    setTargetTime(targetTimeInput(activity.targetTime))
     setCategoryId(activity.categoryId)
     setInstruction('')
     key.current = crypto.randomUUID()
@@ -261,6 +329,7 @@ export function AddActivityPage() {
       title,
       summary,
       duration,
+      targetTime,
       categoryId,
       instruction,
     })
@@ -276,9 +345,11 @@ export function AddActivityPage() {
 
   async function addToCalendar(activityId: string) {
     try {
+      const chosenTime = parseTargetTime(targetTime)
       await add.mutateAsync({
         activityId,
         localDate: day,
+        ...(chosenTime !== null ? { localTime: chosenTime } : {}),
         idempotencyKey: key.current,
       })
       clearBrowseDraft(ACTIVITY_DRAFT_KEY)
@@ -290,6 +361,7 @@ export function AddActivityPage() {
 
   async function createActivity() {
     try {
+      const nextTargetTime = parseTargetTime(targetTime)
       let created =
         createdActivity ??
         (selected
@@ -305,6 +377,7 @@ export function AddActivityPage() {
               focusIds: [],
               summary: summary.trim() || null,
               durationMinutes: parseDurationMinutes(duration),
+              targetTime: nextTargetTime,
             }))
       if (!createdActivity) setCreatedActivity(created)
 
@@ -312,6 +385,7 @@ export function AddActivityPage() {
         created.title !== title.trim() ||
         created.summary !== (summary.trim() || null) ||
         created.durationMinutes !== parseDurationMinutes(duration) ||
+        (created.targetTime ?? null) !== nextTargetTime ||
         created.categoryId !== categoryId
       ) {
         created = await update.mutateAsync({
@@ -322,6 +396,9 @@ export function AddActivityPage() {
             : {}),
           ...(created.durationMinutes !== parseDurationMinutes(duration)
             ? { durationMinutes: parseDurationMinutes(duration) }
+            : {}),
+          ...((created.targetTime ?? null) !== nextTargetTime
+            ? { targetTime: nextTargetTime }
             : {}),
           ...(created.categoryId !== categoryId ? { categoryId } : {}),
           expectedRevision: created.draftRevision,
@@ -435,10 +512,12 @@ export function AddActivityPage() {
                   title={title}
                   summary={summary}
                   duration={duration}
+                  targetTime={targetTime}
                   instruction={instruction}
                   onTitleChange={setTitle}
                   onSummaryChange={setSummary}
                   onDurationChange={setDuration}
+                  onTargetTimeChange={setTargetTime}
                   onInstructionChange={setInstruction}
                 />
                 <ErrorMessage

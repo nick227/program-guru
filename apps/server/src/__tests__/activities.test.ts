@@ -36,24 +36,32 @@ describe('listActivities', () => {
 })
 
 describe('activity authoring', () => {
-  it('edits a draft with duration minutes, instructions, activity and instruction metrics, and tools', async () => {
+  it('edits a draft with duration minutes, target time, instructions, activity and instruction metrics, and tools', async () => {
     const createdRes = await app.inject({
       method: 'POST',
       url: '/activities',
       headers: asAuth(testUserId),
-      payload: { title: 'Morning Stretch', durationMinutes: 15, categoryId: cat.fitness.id, focusIds: [cat.strength.id] },
+      payload: { title: 'Morning Stretch', durationMinutes: 15, targetTime: '07:15', categoryId: cat.fitness.id, focusIds: [cat.strength.id] },
     })
     expect(createdRes.statusCode).toBe(201)
     const created = createdRes.json().data
-    expect(created).toMatchObject({ status: 'DRAFT', visibility: 'PRIVATE', durationMinutes: 15, canEdit: true, draftRevision: 0 })
+    expect(created).toMatchObject({ status: 'DRAFT', visibility: 'PRIVATE', durationMinutes: 15, targetTime: '07:15', canEdit: true, draftRevision: 0 })
     const updatedRes = await app.inject({
       method: 'PATCH',
       url: `/activities/${created.id}/draft`,
       headers: asAuth(testUserId),
-      payload: { durationMinutes: 25, expectedRevision: 0 },
+      payload: { durationMinutes: 25, targetTime: '08:00', expectedRevision: 0 },
     })
     expect(updatedRes.statusCode).toBe(200)
     expect(updatedRes.json().data.durationMinutes).toBe(25)
+    expect(updatedRes.json().data.targetTime).toBe('08:00')
+    const invalidTimeRes = await app.inject({
+      method: 'PATCH',
+      url: `/activities/${created.id}/draft`,
+      headers: asAuth(testUserId),
+      payload: { targetTime: '25:00', expectedRevision: 1 },
+    })
+    expect(invalidTimeRes.statusCode).toBe(400)
     let res = await app.inject({
       method: 'PUT', url: `/activities/${created.id}/draft/instructions`, headers: asAuth(testUserId),
       payload: { expectedRevision: 1, instructions: [{ title: 'Warm up', body: 'Loosen up' }, { title: 'Hold', body: 'Hold each stretch' }] },

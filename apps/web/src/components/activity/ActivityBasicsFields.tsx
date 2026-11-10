@@ -4,20 +4,24 @@ export function ActivityBasicsFields({
   title,
   summary,
   duration,
+  targetTime,
   instruction,
   onTitleChange,
   onSummaryChange,
   onDurationChange,
+  onTargetTimeChange,
   onInstructionChange,
   hideInstructions = false,
 }: {
   title: string
   summary: string
   duration?: string
+  targetTime?: string
   instruction?: string
   onTitleChange: (value: string) => void
   onSummaryChange: (value: string) => void
   onDurationChange?: (value: string) => void
+  onTargetTimeChange?: (value: string) => void
   onInstructionChange?: (value: string) => void
   hideInstructions?: boolean
 }) {
@@ -52,6 +56,17 @@ export function ActivityBasicsFields({
             placeholder="Minutes"
             value={duration ?? ''}
             onChange={(event) => onDurationChange(event.target.value)}
+          />
+        </label>
+      )}
+      {onTargetTimeChange && (
+        <label className="field space-y-1">
+          <span className="label font-semibold text-xs">Target time (optional)</span>
+          <Input
+            type="time"
+            aria-label="Target time (optional)"
+            value={targetTime ?? ''}
+            onChange={(event) => onTargetTimeChange(event.target.value)}
           />
         </label>
       )}

@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
 import { ActivityTile, type ActivityTileDensity, type ActivityTileItem } from '@/components/calendar/ActivityTile'
+import { formatHourLabel, formatTargetTime, isValidTargetTime } from '@/lib/targetTime'
 import { cn } from '@/lib/utils'
 
 export type SurfaceItem = ActivityTileItem
@@ -10,6 +11,189 @@ export type CalendarDay = {
   number: string
   today?: boolean
   inCurrentMonth?: boolean
+}
+
+const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
+
+function DayHourlyTable({
+  day,
+  items,
+  onComplete,
+  onRemove,
+  onChangeTime,
+  completing,
+  removing,
+}: {
+  day: CalendarDay
+  items: SurfaceItem[]
+  onComplete?: (itemId: string) => void
+  onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
+  onChangeTime?: (itemId: string, localTime: string | null) => void
+  completing?: boolean
+  removing?: boolean
+}) {
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dropSlot, setDropSlot] = useState<string | null>(null)
+  const draggingIdRef = useRef<string | null>(null)
+
+  const dayItems = items.filter((item) => item.day === day.id)
+  const untimedItems = dayItems.filter((item) => !isValidTargetTime(item.localTime))
+  const byHour = new Map<string, SurfaceItem[]>()
+  for (const item of dayItems) {
+    if (!isValidTargetTime(item.localTime)) continue
+    const hourKey = item.localTime.slice(0, 2)
+    const list = byHour.get(hourKey) ?? []
+    list.push(item)
+    byHour.set(hourKey, list)
+  }
+  for (const list of byHour.values()) {
+    list.sort((a, b) => (a.localTime ?? '').localeCompare(b.localTime ?? ''))
+  }
+
+  const handleDragStart = (event: React.DragEvent<HTMLElement>, item: SurfaceItem) => {
+    draggingIdRef.current = item.id
+    event.dataTransfer.clearData()
+    event.dataTransfer.setData('text/plain', item.id)
+    event.dataTransfer.effectAllowed = 'move'
+    window.requestAnimationFrame(() => {
+      if (draggingIdRef.current === item.id) setDraggingId(item.id)
+    })
+  }
+
+  const handleDragEnd = () => {
+    draggingIdRef.current = null
+    setDraggingId(null)
+    setDropSlot(null)
+  }
+
+  const handleDragOver = (event: React.DragEvent<HTMLTableRowElement>, slotKey: string) => {
+    if (!onChangeTime) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    if (dropSlot !== slotKey) setDropSlot(slotKey)
+  }
+
+  const handleDragLeave = (event: React.DragEvent<HTMLTableRowElement>, slotKey: string) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setDropSlot((prev) => (prev === slotKey ? null : prev))
+    }
+  }
+
+  const handleDrop = (
+    event: React.DragEvent<HTMLTableRowElement>,
+    slotKey: string,
+    targetTime: string | null,
+  ) => {
+    event.preventDefault()
+    const id = event.dataTransfer.getData('text/plain') || draggingIdRef.current || draggingId
+    draggingIdRef.current = null
+    setDraggingId(null)
+    setDropSlot(null)
+    if (!id || !onChangeTime) return
+    const dragged = dayItems.find((it) => it.id === id)
+    if (!dragged || dragged.locked || dragged.status === 'CANCELLED') return
+    if (slotKey === 'anytime') {
+      if (dragged.localTime) onChangeTime(id, null)
+      return
+    }
+    const currentHour = isValidTargetTime(dragged.localTime) ? dragged.localTime.slice(0, 2) : null
+    if (currentHour !== slotKey && targetTime) {
+      onChangeTime(id, targetTime)
+    }
+  }
+
+  const renderDayTile = (item: SurfaceItem) => (
+    <ActivityTile
+      key={item.id}
+      item={item}
+      density="day"
+      onComplete={onComplete}
+      onRemove={onRemove}
+      onChangeTime={onChangeTime}
+      draggable={Boolean(onChangeTime)}
+      isDragging={draggingId === item.id}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      completing={completing}
+      removing={removing}
+    />
+  )
+
+  return (
+    <div className="calendar-day-schedule">
+      <table className="calendar-day-table" aria-label="Day schedule">
+        <tbody>
+          <tr
+            data-slot="anytime"
+            onDragEnter={(event) => handleDragOver(event, 'anytime')}
+            onDragOver={(event) => handleDragOver(event, 'anytime')}
+            onDragLeave={(event) => handleDragLeave(event, 'anytime')}
+            onDrop={(event) => handleDrop(event, 'anytime', null)}
+            className={cn(
+              'calendar-day-table__row calendar-day-table__row--anytime',
+              untimedItems.length > 0 && 'calendar-day-table__row--populated',
+              dropSlot === 'anytime' && 'calendar-day-table__row--drop',
+            )}
+          >
+            <th scope="row" className="calendar-day-table__time">
+              Any time
+            </th>
+            <td className="calendar-day-table__items">
+              {untimedItems.length > 0 ? (
+                <div className="calendar-day-table__list">
+                  {untimedItems.map(renderDayTile)}
+                </div>
+              ) : (
+                <span className="calendar-day-table__empty-hint">
+                  {draggingId ? 'Drop here for any time' : 'No untimed activities'}
+                </span>
+              )}
+            </td>
+          </tr>
+
+          {HOURS.map((hour) => {
+            const hourKey = String(hour).padStart(2, '0')
+            const slotTime = `${hourKey}:00`
+            const hourItems = byHour.get(hourKey) ?? []
+            return (
+              <tr
+                key={hourKey}
+                data-slot={hourKey}
+                data-hour={hour}
+                onDragEnter={(event) => handleDragOver(event, hourKey)}
+                onDragOver={(event) => handleDragOver(event, hourKey)}
+                onDragLeave={(event) => handleDragLeave(event, hourKey)}
+                onDrop={(event) => handleDrop(event, hourKey, slotTime)}
+                className={cn(
+                  'calendar-day-table__row',
+                  hourItems.length > 0 && 'calendar-day-table__row--populated',
+                  dropSlot === hourKey && 'calendar-day-table__row--drop',
+                )}
+              >
+                <th scope="row" className="calendar-day-table__time">
+                  <time dateTime={`${day.id}T${slotTime}`}>{formatHourLabel(hour)}</time>
+                </th>
+                <td className="calendar-day-table__items">
+                  {hourItems.length > 0 && (
+                    <div className="calendar-day-table__list">
+                      {hourItems.map(renderDayTile)}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+
+          <tr className="calendar-day-table__row calendar-day-table__row--end" aria-hidden="true">
+            <th scope="row" className="calendar-day-table__time">
+              12:00 AM
+            </th>
+            <td className="calendar-day-table__items" />
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  )
 }
 
 function DayItems({
@@ -69,8 +253,9 @@ function DayItems({
       slots.set(time, slot)
     }
     const times = [...slots.keys()].sort((a, b) => {
-      if (!a) return 1
-      if (!b) return -1
+      if (!a && !b) return 0
+      if (!a) return -1
+      if (!b) return 1
       return a.localeCompare(b)
     })
     return (
@@ -78,7 +263,7 @@ function DayItems({
         {times.map((time) => (
           <li key={time || 'untimed'} className="calendar-agenda__slot">
             <h3 className="calendar-agenda__time">
-              {time ? <time dateTime={`${day.id}T${time}`}>{time}</time> : 'Any time'}
+              {time ? <time dateTime={`${day.id}T${time}`}>{formatTargetTime(time) ?? time}</time> : 'Any time'}
             </h3>
             <div className="calendar-agenda__items">
               {slots.get(time)!.map(renderTile)}
@@ -105,6 +290,7 @@ export function CalendarSurface({
   view = 'week',
   onComplete,
   onRemove,
+  onChangeTime,
   completing = false,
   removing = false,
 }: {
@@ -115,6 +301,7 @@ export function CalendarSurface({
   view?: 'day' | 'week' | 'month'
   onComplete?: (itemId: string) => void
   onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
+  onChangeTime?: (itemId: string, localTime: string | null) => void
   completing?: boolean
   removing?: boolean
 }) {
@@ -257,13 +444,13 @@ export function CalendarSurface({
   // --- DAY VIEW ---
   if (view === 'day') {
     return (
-      <section className="calendar-selected-day">
-        <DayItems
+      <section className="calendar-selected-day w-full">
+        <DayHourlyTable
           day={selectedDay}
           items={items}
-          density="day"
           onComplete={onComplete}
           onRemove={onRemove}
+          onChangeTime={onChangeTime}
           completing={completing}
           removing={removing}
         />

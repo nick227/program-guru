@@ -29,6 +29,7 @@ An **Activity** is a reusable, category-agnostic action: Leg Raises, Read, Daily
 - **`Activity.durationMinutes`** (integer, 1–1440, nullable), snapshotted on each revision as `ActivityRevision.durationMinutesSnapshot`. It is the author's expected time for one occurrence. It is stored as minutes, never free text, and displayed naturally ("45 min", "1 hr", "1 hr 30 min"). It does not replace measured session time (§4) or a DURATION result metric.
 - **`Activity.frequency`** (nullable), snapshotted as `ActivityRevision.frequencySnapshot`. It uses the same structured value as Programs (`FrequencyDto`: `DAILY`, `WEEKDAYS`, `N_PER_WEEK` with `n`, `FLEXIBLE`, `CUSTOM` with `offsets`), validated the same way. It is the Activity's default when it is added to a Program, and a Program may override it per Activity (07 §7).
 - Both fields are optional so existing Activities and Programs keep working unchanged. Activity create and draft-update inputs and the Activity summary and detail DTOs carry both fields.
+- **`Activity.targetTime`** (decided 2026-11-10; local time of day `HH:mm`, 24-hour, nullable), snapshotted as `ActivityRevision.targetTimeSnapshot`. It is the author's suggested time. When the Activity is placed on a Calendar or in a Program without an explicit time, the new Calendar Item or schedule item takes it as its `localTime`. A time already set on an item, and any later personal change, always wins; changing `targetTime` never moves existing items. Shown in 12-hour form ("7:00 AM").
 
 ## 3. Sample Prisma-style schema
 

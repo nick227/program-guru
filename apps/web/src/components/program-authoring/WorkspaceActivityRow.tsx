@@ -1,4 +1,5 @@
 import { durationInput, formatDurationMinutes, parseDurationMinutes } from '@/lib/durationMinutes'
+import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Clock, Repeat } from 'lucide-react'
@@ -42,6 +43,7 @@ export function WorkspaceActivityRow({
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
   const [duration, setDuration] = useState(durationInput(activity.durationMinutes))
+  const [targetTime, setTargetTime] = useState(targetTimeInput(activity.targetTime))
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
@@ -49,6 +51,7 @@ export function WorkspaceActivityRow({
     setTitle(detail.data.title)
     setSummary(detail.data.summary ?? '')
     setDuration(durationInput(detail.data.durationMinutes))
+    setTargetTime(targetTimeInput(detail.data.targetTime))
   }, [detail.data?.id, detail.data?.draftRevision])
 
   const context =
@@ -63,8 +66,10 @@ export function WorkspaceActivityRow({
     !!detail.data &&
     (title !== detail.data.title ||
       summary !== (detail.data.summary ?? '') ||
-      parseDurationMinutes(duration) !== (detail.data.durationMinutes ?? null))
+      parseDurationMinutes(duration) !== (detail.data.durationMinutes ?? null) ||
+      parseTargetTime(targetTime) !== (detail.data.targetTime ?? null))
   const displayDuration = formatDurationMinutes(detail.data ? detail.data.durationMinutes : activity.durationMinutes)
+  const displayTargetTime = formatTargetTime(detail.data ? detail.data.targetTime : activity.targetTime)
 
   return (
     <article className="rounded-2xl border border-border bg-surface p-4 transition-all hover:border-accent hover:shadow-sm space-y-3">
@@ -104,6 +109,14 @@ export function WorkspaceActivityRow({
                 </span>
               )}
               {displayDuration && <span aria-hidden>·</span>}
+              {displayTargetTime && (
+                <>
+                  <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
+                    {displayTargetTime}
+                  </span>
+                  <span aria-hidden>·</span>
+                </>
+              )}
               <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
                 <Repeat size={12} aria-hidden />
                 {activity.frequencyLabel}
@@ -216,6 +229,19 @@ export function WorkspaceActivityRow({
                   inputAriaLabel={`Duration for ${activity.title}`}
                 />
               </div>
+              <label className="space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                  Target time (optional)
+                </span>
+                <Input
+                  type="time"
+                  aria-label={`Target time for ${activity.title}`}
+                  className="h-10 text-sm"
+                  value={targetTime}
+                  disabled={!online || update.isPending}
+                  onChange={(e) => setTargetTime(e.target.value)}
+                />
+              </label>
               <Button
                 size="sm"
                 className="h-9 px-4 font-semibold"
@@ -224,15 +250,18 @@ export function WorkspaceActivityRow({
                 onClick={async () => {
                   if (!detail.data) return
                   try {
+                    const nextTargetTime = parseTargetTime(targetTime)
                     const updated = await update.mutateAsync({
                       expectedRevision: detail.data.draftRevision,
                       ...(title.trim() !== detail.data.title ? { title: title.trim() } : {}),
                       ...(summary !== (detail.data.summary ?? '') ? { summary: summary.trim() || null } : {}),
                       ...(parseDurationMinutes(duration) !== (detail.data.durationMinutes ?? null) ? { durationMinutes: parseDurationMinutes(duration) } : {}),
+                      ...(nextTargetTime !== (detail.data.targetTime ?? null) ? { targetTime: nextTargetTime } : {}),
                     })
                     setTitle(updated.title)
                     setSummary(updated.summary ?? '')
                     setDuration(durationInput(updated.durationMinutes))
+                    setTargetTime(targetTimeInput(updated.targetTime))
                     toast.success('Activity updated')
                   } catch {
                     /* Keep edits available for retry */

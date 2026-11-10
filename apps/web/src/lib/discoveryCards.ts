@@ -1,4 +1,5 @@
 import { formatDurationMinutes } from '@/lib/durationMinutes'
+import { formatTargetTime } from '@/lib/targetTime'
 import type { components } from '@project/sdk'
 import { activityHero, programHero, type CategorySlugOf } from './hero'
 import type { DiscoveryCardModel } from '@/components/shared/SuggestionRail'
@@ -41,6 +42,7 @@ export function activityCard(
     meta:
       [
         formatDurationMinutes(activity.durationMinutes),
+        formatTargetTime(activity.targetTime),
         activity.instructionCount
           ? `${activity.instructionCount} ${activity.instructionCount === 1 ? 'instruction' : 'instructions'}`
           : null,

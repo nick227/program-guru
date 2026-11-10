@@ -38,6 +38,7 @@ export type Field<V> = FieldBase<V> &
     | { kind: 'select'; options: Options<V>; placeholder?: string }
     | { kind: 'boolean' }
     | { kind: 'date' }
+    | { kind: 'time' }
     /** Visibility: PRIVATE / UNLISTED / PUBLIC. */
     | { kind: 'visibility' }
     /** Program length in days; null is ongoing. */

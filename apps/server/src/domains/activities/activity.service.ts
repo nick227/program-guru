@@ -134,6 +134,7 @@ async function cloneRevision(tx: Tx, from: RevisionFull, activityId: string, rev
       titleSnapshot: from.titleSnapshot,
       summarySnapshot: from.summarySnapshot,
       durationMinutesSnapshot: from.durationMinutesSnapshot,
+      targetTimeSnapshot: from.targetTimeSnapshot,
       frequencySnapshot: (from.frequencySnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
       editorId,
     },
@@ -203,7 +204,18 @@ function checkDurationMinutes(value: number | null | undefined) {
   return value
 }
 
-export async function create(userId: string, input: { title: string; categoryId: string; focusIds?: string[]; summary?: string | null; durationMinutes?: number | null; frequency?: Frequency | null; owner?: 'SELF' | 'PLATFORM' }) {
+/** Optional planned local time of day (HH:mm, 24-hour). */
+function checkTargetTime(value: string | null | undefined) {
+  if (value === undefined || value === null) return value
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (!/^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(trimmed)) {
+    throw badRequest('Target time must be HH:MM (24-hour)', { targetTime: 'must be HH:MM' })
+  }
+  return trimmed
+}
+
+export async function create(userId: string, input: { title: string; categoryId: string; focusIds?: string[]; summary?: string | null; durationMinutes?: number | null; targetTime?: string | null; frequency?: Frequency | null; owner?: 'SELF' | 'PLATFORM' }) {
   const platform = input.owner === 'PLATFORM'
   if (platform && !(await authorFor(userId)).platform) throw forbidden('Only admins create platform activities')
   await assertTaxonomy(userId, input.categoryId, input.focusIds)
@@ -211,6 +223,7 @@ export async function create(userId: string, input: { title: string; categoryId:
   const title = input.title.trim()
   if (!title) throw badRequest('Name the activity', { title: 'is required' })
   const durationMinutes = checkDurationMinutes(input.durationMinutes) ?? null
+  const targetTime = checkTargetTime(input.targetTime) ?? null
   const frequencyJson = input.frequency === undefined || input.frequency === null ? undefined : (input.frequency as Prisma.InputJsonValue)
   const a = await db.$transaction(async (tx) => {
     const activity = await tx.activity.create({
@@ -220,12 +233,13 @@ export async function create(userId: string, input: { title: string; categoryId:
         title,
         summary: input.summary?.trim() || null,
         durationMinutes,
+        targetTime,
         frequency: frequencyJson,
         focuses: { create: [...new Set(input.focusIds ?? [])].map((focusId) => ({ focusId })) },
       },
     })
     await tx.activityRevision.create({
-      data: { activityId: activity.id, revisionNumber: 1, titleSnapshot: title, summarySnapshot: input.summary?.trim() || null, durationMinutesSnapshot: durationMinutes, frequencySnapshot: frequencyJson, editorId: userId },
+      data: { activityId: activity.id, revisionNumber: 1, titleSnapshot: title, summarySnapshot: input.summary?.trim() || null, durationMinutesSnapshot: durationMinutes, targetTimeSnapshot: targetTime, frequencySnapshot: frequencyJson, editorId: userId },
     })
     await allocateActivitySlug(tx, { activityId: activity.id, title })
     return activity
@@ -236,7 +250,7 @@ export async function create(userId: string, input: { title: string; categoryId:
 export async function updateDraft(
   userId: string,
   activityId: string,
-  input: { title?: string; summary?: string | null; durationMinutes?: number | null; frequency?: Frequency | null; categoryId?: string; focusIds?: string[]; expectedRevision: number },
+  input: { title?: string; summary?: string | null; durationMinutes?: number | null; targetTime?: string | null; frequency?: Frequency | null; categoryId?: string; focusIds?: string[]; expectedRevision: number },
 ) {
   await assertTaxonomy(userId, input.categoryId, input.focusIds)
   if (input.title !== undefined && !input.title.trim()) throw badRequest('Name the activity', { title: 'is required' })
@@ -246,9 +260,10 @@ export async function updateDraft(
     const title = input.title?.trim()
     const summary = input.summary === undefined ? undefined : input.summary?.trim() || null
     const durationMinutes = checkDurationMinutes(input.durationMinutes)
+    const targetTime = checkTargetTime(input.targetTime)
     const frequency = input.frequency === undefined ? undefined : input.frequency === null ? Prisma.DbNull : (input.frequency as Prisma.InputJsonValue)
-    await tx.activityRevision.update({ where: { id: draft.id }, data: { titleSnapshot: title, summarySnapshot: summary, durationMinutesSnapshot: durationMinutes, frequencySnapshot: frequency } })
-    await tx.activity.update({ where: { id: activityId }, data: { title, summary, durationMinutes, frequency, categoryId: input.categoryId } })
+    await tx.activityRevision.update({ where: { id: draft.id }, data: { titleSnapshot: title, summarySnapshot: summary, durationMinutesSnapshot: durationMinutes, targetTimeSnapshot: targetTime, frequencySnapshot: frequency } })
+    await tx.activity.update({ where: { id: activityId }, data: { title, summary, durationMinutes, targetTime, frequency, categoryId: input.categoryId } })
     if (title) {
       await allocateActivitySlug(tx, { activityId, title })
     }
@@ -445,6 +460,7 @@ export async function copy(userId: string, activityId: string, input: { sourceRe
         title,
         summary: rev.summarySnapshot,
         durationMinutes: rev.durationMinutesSnapshot,
+        targetTime: rev.targetTimeSnapshot,
         frequency: (rev.frequencySnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
         sourceActivityId: src.id,
         canonicalActivityId: src.canonicalActivityId ?? src.id,

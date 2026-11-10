@@ -82,6 +82,42 @@ describe('standalone and recurring entries (P1)', () => {
     expect(moved.json().data).toMatchObject({ localDate: '2026-11-10', localTime: '07:30', conflict: false })
   })
 
+  it('defaults calendar item localTime from activity targetTime and lets day level override or clear it', async () => {
+    const act = (
+      await req('POST', '/activities', {
+        title: 'Sunrise Mobility',
+        targetTime: '06:30',
+        categoryId: cat.fitness.id,
+      })
+    ).json().data
+    const added = await req('POST', '/calendar/items', {
+      activityId: act.id,
+      localDate: '2026-11-10',
+      idempotencyKey: key(),
+    })
+    expect(added.statusCode).toBe(201)
+    const item = added.json().data.item
+    expect(item.localTime).toBe('06:30')
+
+    const updated = await req('PATCH', `/calendar-items/${item.id}`, {
+      localTime: '09:00',
+      expectedUpdatedAt: item.updatedAt,
+    })
+    expect(updated.statusCode).toBe(200)
+    expect(updated.json().data.localTime).toBe('09:00')
+
+    const cleared = await req('PATCH', `/calendar-items/${item.id}`, {
+      localTime: null,
+      expectedUpdatedAt: updated.json().data.updatedAt,
+    })
+    expect(cleared.statusCode).toBe(200)
+    expect(cleared.json().data.localTime).toBeNull()
+
+    // Activity targetTime remains unchanged when day-level occurrence time changes.
+    const actAfter = (await req('GET', `/activities/${act.id}`)).json().data
+    expect(actAfter.targetTime).toBe('06:30')
+  })
+
   it('caps the range and requires auth', async () => {
     expect((await req('GET', '/calendar/items?start=2026-01-01&end=2026-06-01')).statusCode).toBe(400)
     expect((await app.inject({ method: 'GET', url: '/calendar/items?start=2026-01-01&end=2026-01-07' })).statusCode).toBe(401)

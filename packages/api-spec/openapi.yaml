@@ -7671,6 +7671,7 @@ components:
       - title
       - summary
       - durationMinutes
+      - targetTime
       - creator
       - categoryId
       - focusIds
@@ -7704,6 +7705,12 @@ components:
           minimum: 1
           maximum: 1440
           description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        targetTime:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+          description: Optional target local time of day (HH:mm) for one occurrence.
         frequency:
           anyOf:
           - $ref: '#/components/schemas/Frequency'
@@ -7859,6 +7866,7 @@ components:
       - title
       - summary
       - durationMinutes
+      - targetTime
       - creator
       - categoryId
       - focusIds
@@ -7900,6 +7908,12 @@ components:
           minimum: 1
           maximum: 1440
           description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        targetTime:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+          description: Optional target local time of day (HH:mm) for one occurrence.
         frequency:
           anyOf:
           - $ref: '#/components/schemas/Frequency'
@@ -8005,6 +8019,12 @@ components:
           minimum: 1
           maximum: 1440
           description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        targetTime:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+          description: Optional target local time of day (HH:mm) for one occurrence.
         frequency:
           anyOf:
           - $ref: '#/components/schemas/Frequency'
@@ -8034,6 +8054,12 @@ components:
           minimum: 1
           maximum: 1440
           description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        targetTime:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+          description: Optional target local time of day (HH:mm) for one occurrence.
         frequency:
           anyOf:
           - $ref: '#/components/schemas/Frequency'
@@ -8340,6 +8366,7 @@ components:
       - revisionId
       - title
       - durationMinutes
+      - targetTime
       - frequency
       - frequencyLabel
       - instructionCount
@@ -8365,6 +8392,12 @@ components:
           minimum: 1
           maximum: 1440
           description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        targetTime:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+          description: Optional target local time of day (HH:mm) for one occurrence.
         frequency:
           $ref: '#/components/schemas/Frequency'
         frequencyLabel:
@@ -8529,6 +8562,12 @@ components:
           minimum: 1
           maximum: 1440
           description: Planned minutes for one occurrence (08 §2). Not measured session time.
+        targetTime:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+          description: Optional target local time of day (HH:mm) for one occurrence.
     ProgramPreview:
       type: object
       description: 'Preview-safe fields only: never locked instructions or media.'

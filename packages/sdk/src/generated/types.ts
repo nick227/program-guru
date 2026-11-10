@@ -3048,6 +3048,8 @@ export interface components {
             summary: string | null;
             /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
             durationMinutes: number | null;
+            /** @description Optional target local time of day (HH:mm) for one occurrence. */
+            targetTime: string | null;
             frequency?: components["schemas"]["Frequency"] | null;
             creator: components["schemas"]["UserSummary"] | null;
             /** Format: uuid */
@@ -3108,6 +3110,8 @@ export interface components {
             summary: string | null;
             /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
             durationMinutes: number | null;
+            /** @description Optional target local time of day (HH:mm) for one occurrence. */
+            targetTime: string | null;
             frequency?: components["schemas"]["Frequency"] | null;
             creator: components["schemas"]["UserSummary"] | null;
             /** Format: uuid */
@@ -3141,6 +3145,8 @@ export interface components {
             summary?: string | null;
             /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
             durationMinutes?: number | null;
+            /** @description Optional target local time of day (HH:mm) for one occurrence. */
+            targetTime?: string | null;
             frequency?: components["schemas"]["Frequency"] | null;
             owner?: components["schemas"]["ContentOwner"];
         };
@@ -3149,6 +3155,8 @@ export interface components {
             summary?: string | null;
             /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
             durationMinutes?: number | null;
+            /** @description Optional target local time of day (HH:mm) for one occurrence. */
+            targetTime?: string | null;
             frequency?: components["schemas"]["Frequency"] | null;
             /** Format: uuid */
             categoryId?: string;
@@ -3262,6 +3270,8 @@ export interface components {
             title: string;
             /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
             durationMinutes: number | null;
+            /** @description Optional target local time of day (HH:mm) for one occurrence. */
+            targetTime: string | null;
             frequency: components["schemas"]["Frequency"];
             frequencyLabel: string;
             instructionCount: number;
@@ -3311,6 +3321,8 @@ export interface components {
             mediaPreviewUrl: string | null;
             /** @description Planned minutes for one occurrence (08 §2). Not measured session time. */
             durationMinutes?: number | null;
+            /** @description Optional target local time of day (HH:mm) for one occurrence. */
+            targetTime?: string | null;
         };
         /** @description Preview-safe fields only: never locked instructions or media. */
         ProgramPreview: {

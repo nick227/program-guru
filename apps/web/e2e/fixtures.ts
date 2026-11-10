@@ -28,6 +28,7 @@ const activity: S['ActivitySummary'] = {
   title: 'Squats',
   summary: 'A controlled squat.',
   durationMinutes: null,
+  targetTime: null,
   creator: null,
   categoryId: uid(3),
   focusIds: [uid(4)],
@@ -95,6 +96,7 @@ export async function mockApi(
   let copied = false
   let activeActivitySummary = activity.summary
   let activeActivityDuration: number | null = activity.durationMinutes
+  let activeActivityTargetTime: string | null = activity.targetTime
   let activeActivityFrequency: NonNullable<S['ProgramWorkspace']['frequency']> = { kind: 'N_PER_WEEK', n: 3 }
   let programDurationDays: number | null = 28
   let programFrequency: NonNullable<S['ProgramWorkspace']['frequency']> = { kind: 'N_PER_WEEK', n: 3 }
@@ -158,6 +160,7 @@ export async function mockApi(
             revisionId: activeActivityRevisionId,
             title: activeActivityTitle,
             durationMinutes: activeActivityDuration,
+            targetTime: activeActivityTargetTime,
             frequency: activeActivityFrequency,
             frequencyLabel: freqLabel(activeActivityFrequency),
             instructionCount: activityInstructions.length,
@@ -173,10 +176,11 @@ export async function mockApi(
     latestPublishedVersionId: published ? uid(12) : null,
     hasUnpublishedChanges: !published,
   })
+  let itemLocalTime: string | null = null
   const item = (): S['CalendarItem'] => ({
     id: itemId,
     localDate: getStart(),
-    localTime: null,
+    localTime: itemLocalTime,
     status: cancelled ? 'CANCELLED' : done ? 'DONE' : 'PLANNED',
     title: activeActivityTitle,
     activityId: activeActivityId,
@@ -203,6 +207,7 @@ export async function mockApi(
     title: activeActivityTitle,
     summary: activeActivitySummary,
     durationMinutes: activeActivityDuration,
+    targetTime: activeActivityTargetTime,
     instructionCount: activityInstructions.length,
     isCopy: copied,
     isPlatform: !copied,
@@ -394,6 +399,8 @@ export async function mockApi(
         typeof body.summary === 'string' ? body.summary : null
       activeActivityDuration =
         typeof body.durationMinutes === 'number' ? body.durationMinutes : null
+      activeActivityTargetTime =
+        typeof body.targetTime === 'string' ? body.targetTime : null
       if (body.frequency) activeActivityFrequency = body.frequency
       activityInstructions = []
       activityRevision = 1
@@ -408,6 +415,7 @@ export async function mockApi(
       activeActivityTitle = activity.title
       activeActivitySummary = activity.summary
       activeActivityDuration = activity.durationMinutes
+      activeActivityTargetTime = activity.targetTime
       activityInstructions = [instruction]
       activityRevision = 1
       copied = true
@@ -442,6 +450,8 @@ export async function mockApi(
         activeActivitySummary = body.summary
       if (typeof body.durationMinutes === 'number' || body.durationMinutes === null)
         activeActivityDuration = body.durationMinutes
+      if (typeof body.targetTime === 'string' || body.targetTime === null)
+        activeActivityTargetTime = body.targetTime
       activityRevision++
       return send(activityDetail())
     }
@@ -727,15 +737,17 @@ export async function mockApi(
       })
     if (path === '/resolve-slug') {
       const kind = url.searchParams.get('kind')
+      const slugOrId = url.searchParams.get('slugOrId')
+      const resolvedActivityId = slugOrId === activityId ? activityId : activeActivityId
       return send({
-        id: kind === 'ACTIVITY' ? activityId : programId,
+        id: kind === 'ACTIVITY' ? resolvedActivityId : programId,
         kind: kind === 'ACTIVITY' ? 'ACTIVITY' : 'PROGRAM',
         canonicalSlug: null,
         creatorHandle: null,
         isAlias: false,
         canonicalUrl:
           kind === 'ACTIVITY'
-            ? `/activities/${activityId}`
+            ? `/activities/${resolvedActivityId}`
             : `/programs/${programId}`,
       } satisfies S['SlugResolution'])
     }
@@ -768,6 +780,11 @@ export async function mockApi(
           ? [item()]
           : [],
       )
+    if (path === `/calendar-items/${itemId}` && method === 'PATCH') {
+      if (body.localTime !== undefined) itemLocalTime = body.localTime
+      if (typeof body.localDate === 'string') start = body.localDate
+      return send(item())
+    }
     if (path === `/calendar-items/${itemId}` && method === 'DELETE') {
       cancelled = true
       return send(item())

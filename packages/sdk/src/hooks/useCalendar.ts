@@ -169,3 +169,18 @@ export function useAddCalendarItem() {
     [keys.calendar],
   )
 }
+export function useUpdateCalendarItem() {
+  return useApiMutation(
+    async ({
+      itemId,
+      ...body
+    }: S['UpdateCalendarItemInput'] & { itemId: string }) =>
+      apiData(
+        await getApiClient().PATCH('/calendar-items/{itemId}', {
+          params: { path: { itemId } },
+          body,
+        }),
+      ).data,
+    [keys.calendar, keys.occurrences],
+  )
+}

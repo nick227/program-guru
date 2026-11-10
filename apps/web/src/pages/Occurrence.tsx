@@ -1,4 +1,5 @@
 import { formatDurationMinutes } from '@/lib/durationMinutes'
+import { formatTargetTime } from '@/lib/targetTime'
 import { usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -554,6 +555,8 @@ function ActivityIdentity({
               </span>
             </div>
             {(activity?.durationMinutes != null ||
+              o.item.localTime ||
+              activity?.targetTime ||
               (session &&
                 (phase === 'active' ||
                   phase === 'paused' ||
@@ -563,6 +566,14 @@ function ActivityIdentity({
                   <span className="inline-flex items-center gap-1.5">
                     <Clock size={14} aria-hidden />
                     {formatDurationMinutes(activity.durationMinutes)}
+                  </span>
+                )}
+                {(o.item.localTime || activity?.targetTime) && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock size={14} aria-hidden />
+                    {o.item.localTime
+                      ? `Scheduled ${formatTargetTime(o.item.localTime)}`
+                      : `Target time ${formatTargetTime(activity?.targetTime)}`}
                   </span>
                 )}
                 {session &&
@@ -768,6 +779,17 @@ function OccurrenceToday({
             tone: 'accent' as const,
             value: formatDurationMinutes(activity.durationMinutes),
             label: 'Target duration',
+          },
+        ]
+      : []),
+    ...(activity?.targetTime || o.item.localTime
+      ? [
+          {
+            key: 'target-time',
+            icon: <Clock size={16} aria-hidden />,
+            tone: 'accent' as const,
+            value: formatTargetTime(o.item.localTime ?? activity?.targetTime),
+            label: o.item.localTime ? 'Scheduled time' : 'Target time',
           },
         ]
       : []),
