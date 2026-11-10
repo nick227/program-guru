@@ -26,11 +26,10 @@ import { toast } from 'sonner'
 import {
   Calendar,
   Check,
-  CheckCircle2,
-  Circle,
   Clock,
   Flame,
   Pause,
+  Pencil,
   Play,
   RotateCcw,
   Target,
@@ -44,6 +43,8 @@ import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { activityHero } from '@/lib/hero'
 import { Button } from '@/components/ui/Button'
+import { Avatar } from '@/components/ui/Avatar'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { SubHeader } from '@/components/shared/SubHeader'
 import { buildOccurrenceBreadcrumbs } from '@/lib/breadcrumbs'
@@ -51,6 +52,8 @@ import { MetricInput } from '@/components/activity/MetricInput'
 import { ActivityTogether } from '@/components/activity/ActivityTogether'
 import { OccurrenceInstructions } from '@/components/activity/OccurrenceInstructions'
 import { OccurrenceMedia } from '@/components/activity/OccurrenceMedia'
+import { ShareLinkCard } from '@/components/social/ShareLink'
+import { buildActivityUrl, buildProfileUrl, toAbsoluteUrl } from '@/lib/urls'
 import { calendarUrl, dateLabel, safeReturn, today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
@@ -338,6 +341,13 @@ function OccurrenceContent({
     me.data?.data.preferences.timezone ??
     Intl.DateTimeFormat().resolvedOptions().timeZone
   const isToday = o.item.localDate === today(viewerTz)
+  // The occurrence itself is private; share the Activity's public page when others can open it.
+  const shareUrl =
+    activity.data &&
+    activity.data.status === 'PUBLISHED' &&
+    activity.data.visibility !== 'PRIVATE'
+      ? toAbsoluteUrl(buildActivityUrl(activity.data))
+      : null
 
   return (
     <div className="activity-page">
@@ -436,7 +446,39 @@ function OccurrenceContent({
           />
         </div>
 
-        {/* 4 · Community stats (privacy-safe aggregates when available) */}
+        {/* 4 · Share */}
+        <div className="activity-share">
+          {shareUrl ? (
+            <ShareLinkCard
+              title="Share"
+              ariaLabel="Share Activity"
+              description="Invite others to try this Activity."
+              url={shareUrl}
+              shareTitle={o.item.title}
+              copiedMessage="Activity link copied"
+              inputLabel="Activity link"
+            />
+          ) : (
+            <section
+              aria-label="Share Activity"
+              className="rounded-xl border border-border bg-surface p-5 sm:p-6"
+            >
+              <SectionHeader
+                title="Share"
+                className="pb-0"
+                description={
+                  o.item.locked
+                    ? 'This Activity is part of a Program you no longer have access to, so it has no share link.'
+                    : activity.isPending
+                      ? 'Loading share link…'
+                      : 'This Activity is private, so there is no public link to share. Make it public in the Activity editor to share it.'
+                }
+              />
+            </section>
+          )}
+        </div>
+
+        {/* 5 · Community stats (privacy-safe aggregates when available) */}
         {communityLine && (
           <p className="activity-community">
             <Users size={16} aria-hidden />
@@ -492,7 +534,7 @@ function SessionElapsed({ session }: { session: S['ActivitySession'] }) {
   )
 }
 
-/** Hero card: category icon, context, title, status pill, summary, actions and artwork. */
+/** Hero: thumbnail, context and status, title + summary, creator/meta, then the action band. */
 function ActivityIdentity({
   occurrence: o,
   activity,
@@ -529,6 +571,9 @@ function ActivityIdentity({
   onUploadMedia: () => void
 }) {
   const categorySlugOf = useCategorySlugOf()
+  const location = useLocation()
+  const currentUrl = `${location.pathname}${location.search}`
+  const creator = activity?.creator ?? null
   const hero = activityHero(
     {
       title: o.item.title,
@@ -546,102 +591,121 @@ function ActivityIdentity({
     dateText,
   ].filter(Boolean)
 
+  const showTimer =
+    !!session &&
+    (phase === 'active' ||
+      phase === 'paused' ||
+      (phase === 'completed' && !session.isManualCompletion))
+  const hasMeta =
+    !!creator ||
+    activity?.durationMinutes != null ||
+    !!o.item.localTime ||
+    !!activity?.targetTime ||
+    showTimer
+
   return (
-    <header className={cn('activity-identity', hero.src && 'activity-identity--photo')}>
-      {hero.src && (
-        <div className="activity-identity__art-wrap" aria-hidden>
-          <EntityHero hero={hero} size="banner" className="activity-identity__art" />
+    <header className="occurrence-hero">
+      {/* Thumbnail: the image, or the category fallback tile when there is none. */}
+      <EntityHero hero={hero} size="header" className="occurrence-hero__thumb" />
+
+      <div className="occurrence-hero__kicker">
+        <p className="occurrence-hero__context">{context.join(' · ')}</p>
+        <span role="status">
+          <StatusText status={PHASE_TONE[phase]} className="activity-status-pill">
+            {PHASE_LABEL[phase]}
+          </StatusText>
+        </span>
+      </div>
+
+      <div className="occurrence-hero__text">
+        <h1 className="occurrence-hero__title">{o.item.title}</h1>
+        {activity?.summary && (
+          <p className="occurrence-hero__summary">{activity.summary}</p>
+        )}
+      </div>
+
+      {hasMeta && (
+        <div className="occurrence-hero__meta">
+          {creator && (
+            <Link
+              to={`${buildProfileUrl(creator.handle)}?returnTo=${encodeURIComponent(currentUrl)}`}
+              className="occurrence-hero__creator"
+            >
+              <Avatar
+                src={creator.avatarUrl}
+                name={creator.displayName}
+                size="sm"
+                className="h-6 w-6 ring-1 ring-border"
+              />
+              <span>
+                by <strong className="font-semibold">{creator.displayName}</strong>
+              </span>
+            </Link>
+          )}
+          {activity?.durationMinutes != null && (
+            <span className="inline-flex items-center gap-1.5">
+              <Clock size={14} aria-hidden />
+              {formatDurationMinutes(activity.durationMinutes)}
+            </span>
+          )}
+          {(o.item.localTime || activity?.targetTime) && (
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar size={14} aria-hidden />
+              {o.item.localTime
+                ? `Scheduled ${formatTargetTime(o.item.localTime)}`
+                : `Target time ${formatTargetTime(activity?.targetTime)}`}
+            </span>
+          )}
+          {showTimer && session && <SessionElapsed session={session} />}
         </div>
       )}
-      <div className="activity-identity__body">
-        <div className="activity-identity__header">
-          <span className="activity-identity__icon" aria-hidden>
-            <CategoryIcon category={hero.category} size={22} strokeWidth={1.85} />
-          </span>
-          <div className="activity-identity__title-group">
-            <p className="activity-identity__context">{context.join(' · ')}</p>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1>{o.item.title}</h1>
-              <span role="status">
-                <StatusText status={PHASE_TONE[phase]} className="activity-status-pill">
-                  {PHASE_LABEL[phase]}
-                </StatusText>
-              </span>
-            </div>
-            {(activity?.durationMinutes != null ||
-              o.item.localTime ||
-              activity?.targetTime ||
-              (session &&
-                (phase === 'active' ||
-                  phase === 'paused' ||
-                  (phase === 'completed' && !session.isManualCompletion)))) && (
-              <div className="activity-identity__meta">
-                {activity?.durationMinutes != null && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock size={14} aria-hidden />
-                    {formatDurationMinutes(activity.durationMinutes)}
-                  </span>
-                )}
-                {(o.item.localTime || activity?.targetTime) && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock size={14} aria-hidden />
-                    {o.item.localTime
-                      ? `Scheduled ${formatTargetTime(o.item.localTime)}`
-                      : `Target time ${formatTargetTime(activity?.targetTime)}`}
-                  </span>
-                )}
-                {session &&
-                  (phase === 'active' ||
-                    phase === 'paused' ||
-                    (phase === 'completed' && !session.isManualCompletion)) && (
-                    <SessionElapsed session={session} />
-                  )}
-              </div>
-            )}
 
-        {activity?.summary && (
-          <p className="activity-identity__summary">{activity.summary}</p>
-        )}
-          </div>
-        </div>
-
-        <div className="activity-actions">
-          <ErrorMessage error={error} />
-          {!!error && (
+      <div className="activity-actions">
+        {!!error && (
+          <div className="activity-actions__error">
+            <ErrorMessage error={error} />
             <Button variant="outline" size="sm" onClick={onRefresh}>
               Refresh Activity
             </Button>
-          )}
-          <div className="activity-session__actions">
+          </div>
+        )}
+        <div className="activity-session__actions">
+          <div className="activity-session__primary">
             {(phase === 'ready' || phase === 'not-participating') &&
               (timed ? (
                 <>
                   <Button
                     size="lg"
+                    className="activity-cta"
                     disabled={disabled}
                     loading={pendingButton === 'start'}
                     onClick={() => onPerform('START', 'start')}
                   >
-                    {pendingButton !== 'start' && <Play size={16} aria-hidden />}
+                    {pendingButton !== 'start' && <Play size={18} aria-hidden />}
                     Start
                   </Button>
                   <Button
                     variant="outline"
+                    size="lg"
                     disabled={disabled}
                     loading={pendingButton === 'finish-no-timer'}
                     onClick={() => onPerform('FINISH', 'finish-no-timer')}
                   >
+                    {pendingButton !== 'finish-no-timer' && (
+                      <Check size={16} aria-hidden />
+                    )}
                     Complete without timer
                   </Button>
                 </>
               ) : (
                 <Button
                   size="lg"
+                  className="activity-cta"
                   disabled={disabled}
                   loading={pendingButton === 'finish'}
                   onClick={() => onPerform('FINISH', 'finish')}
                 >
-                  {pendingButton !== 'finish' && <Check size={16} aria-hidden />}
+                  {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
                   Complete
                 </Button>
               ))}
@@ -649,15 +713,17 @@ function ActivityIdentity({
               <>
                 <Button
                   size="lg"
+                  className="activity-cta"
                   disabled={disabled}
                   loading={pendingButton === 'finish'}
                   onClick={() => onPerform('FINISH', 'finish')}
                 >
-                  {pendingButton !== 'finish' && <Check size={16} aria-hidden />}
+                  {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
                   Complete
                 </Button>
                 <Button
                   variant="outline"
+                  size="lg"
                   disabled={disabled}
                   loading={pendingButton === 'pause'}
                   onClick={() => onPerform('PAUSE', 'pause')}
@@ -671,6 +737,17 @@ function ActivityIdentity({
               <>
                 <Button
                   size="lg"
+                  className="activity-cta"
+                  disabled={disabled}
+                  loading={pendingButton === 'finish'}
+                  onClick={() => onPerform('FINISH', 'finish')}
+                >
+                  {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
+                  Complete
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
                   disabled={disabled}
                   loading={pendingButton === 'resume'}
                   onClick={() => onPerform('RESUME', 'resume')}
@@ -678,20 +755,12 @@ function ActivityIdentity({
                   {pendingButton !== 'resume' && <Play size={16} aria-hidden />}
                   Resume
                 </Button>
-                <Button
-                  variant="outline"
-                  disabled={disabled}
-                  loading={pendingButton === 'finish'}
-                  onClick={() => onPerform('FINISH', 'finish')}
-                >
-                  {pendingButton !== 'finish' && <Check size={16} aria-hidden />}
-                  Complete
-                </Button>
               </>
             )}
             {phase === 'completed' && (
               <Button
                 variant="outline"
+                size="lg"
                 disabled={disabled}
                 loading={undoPending}
                 onClick={onUndo}
@@ -703,6 +772,7 @@ function ActivityIdentity({
             {unsaved && (
               <Button
                 variant="outline"
+                size="lg"
                 disabled={disabled}
                 loading={pendingButton === 'save'}
                 onClick={() => onPerform(undefined, 'save')}
@@ -711,13 +781,58 @@ function ActivityIdentity({
               </Button>
             )}
           </div>
+          <div className="activity-session__tools">
+            <Button variant="outline" disabled={!online} onClick={onUploadMedia}>
+              <Upload size={16} aria-hidden />
+              Upload media
+            </Button>
+            {activity?.canEdit && (
+              <Link
+                to={buildActivityUrl(activity, { returnTo: currentUrl })}
+                className="btn btn--outline btn--icon"
+                aria-label="Edit Activity"
+                title="Edit Activity"
+              >
+                <Pencil size={16} aria-hidden />
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </header>
   )
 }
 
-/** Today card: goal progress bar, metric inputs, instructions, and compact stat tiles. */
+/** Small ring that replaces the full-width progress bar. */
+function CompletionRing({ percent, done }: { percent: number; done: boolean }) {
+  const r = 9
+  const c = 2 * Math.PI * r
+  return (
+    <span
+      className={cn('activity-ring', done && 'activity-ring--done')}
+      role="progressbar"
+      aria-label="Activity progress"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={percent}
+    >
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden>
+        <circle className="activity-ring__track" cx="12" cy="12" r={r} />
+        <circle
+          className="activity-ring__fill"
+          cx="12"
+          cy="12"
+          r={r}
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - percent / 100)}
+        />
+      </svg>
+      {done && <Check size={12} strokeWidth={3} className="activity-ring__check" aria-hidden />}
+    </span>
+  )
+}
+
+/** Today card: completion ring, metric inputs, instructions, and compact stat tiles. */
 function OccurrenceToday({
   occurrence: o,
   activity,
@@ -840,50 +955,28 @@ function OccurrenceToday({
       </div>
 
       <div className="activity-today__task">
-        <div className="activity-today__task-row">
-          <span className="flex min-w-0 items-center gap-2.5 text-sm font-medium">
-            {phase === 'completed' ? (
-              <CheckCircle2
-                size={18}
-                className="shrink-0 text-status-completed"
-                aria-hidden
-              />
-            ) : (
-              <Circle size={18} className="shrink-0 text-muted" aria-hidden />
-            )}
-            <span className="truncate">
-              {phase === 'completed' ? o.item.title : `Complete ${o.item.title}`}
-            </span>
+        <CompletionRing
+          percent={progressPct}
+          done={phase === 'completed' || progressPct >= 100}
+        />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+          {phase === 'completed' ? o.item.title : `Complete ${o.item.title}`}
+        </span>
+        {numericTarget !== null ? (
+          <span className="shrink-0 text-xs font-semibold tabular-nums text-muted">
+            {numericCurrent} / {numericTarget}
+            {primaryMetric?.unit ? ` ${primaryMetric.unit}` : ''}
           </span>
-          {numericTarget !== null ? (
-            <span className="shrink-0 rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted">
-              {numericCurrent} / {numericTarget}
-            </span>
-          ) : (
-            phase === 'completed' && (
-              <span className="shrink-0 rounded-full border border-status-completed/40 bg-status-completed/15 px-2.5 py-0.5 text-xs font-semibold text-status-completed">
-                Done
-              </span>
-            )
-          )}
-        </div>
-        <div
-          className="activity-progress-track"
-          role="progressbar"
-          aria-label="Activity progress"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progressPct}
-        >
-          <div
+        ) : (
+          <span
             className={cn(
-              'activity-progress-fill',
-              (phase === 'completed' || progressPct >= 100) &&
-                'activity-progress-fill--done',
+              'shrink-0 text-xs font-semibold',
+              phase === 'completed' ? 'text-status-completed' : 'text-muted',
             )}
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
+          >
+            {phase === 'completed' ? 'Done' : 'Not done'}
+          </span>
+        )}
       </div>
 
       {resultInputs.length > 0 && (
