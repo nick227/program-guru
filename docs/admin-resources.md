@@ -141,7 +141,7 @@ editor: {
 
 ## Initial admins
 
-There is no UI or environment path to ADMIN. An operator promotes an existing account:
+Locally, `pnpm db:seed` creates `admin-dev@test.local` / `admin dev password` as an ADMIN (README). Everywhere else there is no UI or environment path to ADMIN; an operator promotes an existing account:
 
 ```bash
 pnpm --filter server admin grant someone@example.com     # local (.env)

@@ -2521,11 +2521,31 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
   }
 }
 
+/**
+ * Local development only: the default ADMIN account (README). Runs from `pnpm db:seed`, which
+ * db-guard refuses outside a localhost database; never part of seedDatabase(), so production
+ * bootstrap never creates it. Idempotent: keeps an existing password, restores ADMIN and ACTIVE.
+ */
+export const DEV_ADMIN = { email: 'admin-dev@test.local', password: 'admin dev password', handle: 'admindev', displayName: 'Admin Dev' }
+// bcrypt (cost 12) of DEV_ADMIN.password, precomputed so this package needs no bcrypt dependency.
+const DEV_ADMIN_HASH = '$2a$12$q.IgCIAGElCj1W/5tegXxeQs3TU8mrBlMaHrrusGT4o88ZDhzv3.C'
+
+export async function seedDevAdmin(prisma: PrismaClient = db) {
+  if (process.env.NODE_ENV === 'production') throw new Error('seedDevAdmin is for local development only')
+  const data = { role: 'ADMIN' as const, status: 'ACTIVE' as const, deactivatedAt: null, emailVerifiedAt: new Date() }
+  const user = await prisma.user.upsert({ where: { email: DEV_ADMIN.email }, update: data, create: { email: DEV_ADMIN.email, ...data } })
+  await prisma.localCredential.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id, passwordHash: DEV_ADMIN_HASH } })
+  await prisma.userProfile.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id, handle: DEV_ADMIN.handle, displayName: DEV_ADMIN.displayName } })
+  await prisma.userPreference.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id } })
+  return DEV_ADMIN.email
+}
+
 const isMain = Boolean(process.argv[1]?.replace(/\\/g, '/').endsWith('prisma/seed.ts'))
 if (isMain) {
   seedDatabase()
-    .then((summary) => {
+    .then(async (summary) => {
       console.log('Seeded platform catalog:', summary)
+      console.log('Development admin:', await seedDevAdmin())
     })
     .catch((err) => {
       console.error('Failed to seed platform catalog:', err)

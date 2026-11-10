@@ -89,7 +89,7 @@ One admin surface (`/admin`) for platform content, accounts and access. It is re
 - **Accounts:** admins search users, change role (`USER`/`MODERATOR`/`ADMIN`) and suspend or reactivate. The last active `ADMIN` can never be demoted, suspended or deactivated, whichever path is used.
 - **Membership:** read-only views of existing Program prices, purchases, subscriptions and access grants, plus the existing manual grant and revoke. There are no platform plans or limits, and refunds stay in the provider dashboard (ADR 0001).
 - **Audit:** role changes, suspensions, moderation, and publish, archive and delete of platform content each write a `ModerationAction`. A null `moderatorId` means a server-side command.
-- **Initial admins** are promoted from existing accounts by an explicit, idempotent server command (`admin grant <email>`; `pnpm --filter server admin` locally, `admin:prod` in the API service). No environment variable, seed or client path can grant `ADMIN`.
+- **Initial admins** are promoted from existing accounts by an explicit, idempotent server command (`admin grant <email>`; `pnpm --filter server admin` locally, `admin:prod` in the API service). No environment variable, production seed or client path can grant `ADMIN`. The local development seed alone creates a known admin (`admin-dev@test.local`, see README) and refuses any non-localhost database.
 
 Endpoints: `GET /admin/content`, `POST /admin/content/import`, `POST /admin/content/{kind}/{id}/moderation`, `GET /admin/users`, `GET|PATCH /admin/users/{userId}`, `GET /admin/membership/{prices|purchases|subscriptions|grants}`, `GET /admin/audit`.
 

@@ -32,6 +32,16 @@ Requirements: [`docs/specs/`](docs/specs/). Project state and deviations: [`CLAU
 
 Local-only commands refuse to run unless `DATABASE_URL` points at localhost.
 
+## Default development account
+
+`pnpm db:seed` creates (or restores) one local admin account:
+
+| Email | Password | Role |
+|---|---|---|
+| `admin-dev@test.local` | `admin dev password` | ADMIN (`/admin`) |
+
+It exists only in local databases. Production bootstrap never creates it, and `db:seed` refuses any non-localhost database. Real admins are promoted from existing accounts with `pnpm --filter server admin grant <email>` (`admin:prod` on Railway).
+
 ## Deployment (Railway)
 
 - `railway.json` runs `pnpm db:deploy` before each release starts.
