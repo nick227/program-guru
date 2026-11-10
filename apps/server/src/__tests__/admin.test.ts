@@ -413,5 +413,17 @@ describe('platform media and moderation queues', () => {
     const refused = await call(testUserId, 'POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })
     expect(refused.statusCode).toBe(400)
     expect(refused.json().fieldErrors.visibility).toMatch(/restricted/i)
+
+    // Unrestrict: the existing RESTORE action, with a reason, recorded in the audit trail.
+    const resolved = await data(call(rootAdminId, 'GET', '/moderation/reports?status=RESOLVED'))
+    expect(resolved.map((r: any) => r.id)).toEqual([report.id])
+    expect((await call(rootAdminId, 'POST', `/moderation/reports/${report.id}/resolve`, { status: 'RESOLVED', action: 'RESTORE' })).statusCode).toBe(400)
+    await data(call(rootAdminId, 'POST', `/moderation/reports/${report.id}/resolve`, { status: 'RESOLVED', action: 'RESTORE', reason: 'Appeal accepted' }))
+    const audit = await data(call(rootAdminId, 'GET', `/admin/audit?targetId=${testUserId}`))
+    expect(audit.map((a: any) => [a.action, a.reason])).toEqual([['RESTORE', 'Appeal accepted'], ['RESTRICT_PUBLISHING', 'Repeated spam']])
+    expect((await db.user.findUniqueOrThrow({ where: { id: testUserId } })).status).toBe('ACTIVE')
+
+    const published = await data(call(testUserId, 'POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision }))
+    expect(published).toMatchObject({ status: 'PUBLISHED', visibility: 'PUBLIC' })
   })
 })

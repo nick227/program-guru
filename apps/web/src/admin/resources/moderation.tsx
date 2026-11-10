@@ -27,6 +27,17 @@ const reportActions: Action<Report>[] = [
   { label: 'Suspend account', tone: 'danger', when: (r) => open(r) && r.target.type === 'USER', reason: true, confirm: 'Signs the account out and blocks sign-in.', useRun: resolution('RESOLVED', 'SUSPEND_USER') },
   { label: 'Resolve', when: open, reason: true, confirm: 'Closes the report without changing the content.', useRun: resolution('RESOLVED') },
   { label: 'Dismiss', when: open, reason: true, useRun: resolution('DISMISSED') },
+  {
+    label: 'Unrestrict',
+    when: (r) => !open(r) && r.target.type === 'USER',
+    reason: true,
+    confirm: 'Lifts any publishing restriction and suspension on this account.',
+    useRun: function useUnrestrict() {
+      const m = useResolveReport()
+      // Keeps the report's own outcome; RESTORE on an account is recorded in the audit trail.
+      return (r, ctx) => m.mutateAsync({ reportId: r.id, status: r.status === 'DISMISSED' ? 'DISMISSED' : 'RESOLVED', action: 'RESTORE', reason: ctx.reason })
+    },
+  },
 ]
 
 export const reports = defineResource<Report, Report, AdminListQuery<'/moderation/reports'>>({

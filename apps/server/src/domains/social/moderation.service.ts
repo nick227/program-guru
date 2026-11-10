@@ -84,7 +84,13 @@ export async function applyModeration(tx: Prisma.TransactionClient, actorId: str
       return tx.user.update({ where: { id }, data: { status: 'SUSPENDED' } })
     }
     case 'USER:RESTORE':
-      return tx.user.update({ where: { id }, data: { status: 'ACTIVE' } })
+      // Undoes account moderation: ends any active publishing restriction now (its record keeps the
+      // real end time) and lifts a suspension. A deactivated account stays the owner's to reactivate.
+      await tx.moderationAction.updateMany({
+        where: { targetType: 'USER', targetId: id, action: 'RESTRICT_PUBLISHING', OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+        data: { expiresAt: now },
+      })
+      return tx.user.updateMany({ where: { id, status: 'SUSPENDED' }, data: { status: 'ACTIVE' } })
     case 'USER:RESTRICT_PUBLISHING':
       return null // recorded as an action; PublishingPolicy checks active restrictions
     default:
