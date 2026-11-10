@@ -1,5 +1,7 @@
 # `apps/web/src/components` — Inventory and Consolidation Proposal
 
+> **Superseded (2026-11-10).** This snapshot is out of date: it counts 38 component files, and there are now 65. It also lists components that have since been removed (`MediaPicker`, `MediaAttachments`, `ui/Card`, `ui/DayProgressBar`, `ProgramLibraryDialog`, `ActivityMediaHistory`). For current page and component composition, use [`composition-analysis.md`](composition-analysis.md). This file is kept as history.
+
 Status: analysis, 2026-11-08. Covers the working tree, including uncommitted files (`ActivityTile`, `ActivityBasicsFields`, `ProgramLibraryDialog`, `ui/DayProgressBar`, `ui/SegmentedControl`). This document proposes implementation changes only. Requirements stay in `docs/specs/01–13`, and nothing here changes the locked layouts (`03-UX.md` §2, §4, §6).
 
 **Totals:** 38 files, 4,162 lines. 22 domain components (3,180 lines) and 16 `ui/` primitives (982 lines). Pages (`src/pages`, 7,119 lines) are the main consumers.

@@ -2,6 +2,8 @@
 
 Authoritative requirements: `docs/specs/01–13`, especially 03 UX, 04 UI, 06 data model, 10 Activities and 11 Media. This document describes implementation, not a replacement contract.
 
+> **2026-11-10:** the `MediaAttachments` and `MediaPicker` components described below have been removed because nothing rendered them. Attachments are now shown by `RelatedMedia`/`RelatedMediaMenu`, and media is added through `MediaTray`/`EntityMediaTray`. The data model and the hooks (`useMediaAttachments`, etc.) described here are unchanged. See [`composition-analysis.md`](composition-analysis.md).
+
 ## One model, four contexts
 
 `MediaAsset` stores the upload; `MediaAttachment` places that asset; `MediaPublication` grants a publication audience. Never encode privacy in an attachment purpose. Private is a personal-library projection, **not** a third backend audience enum. Absence of a publication alone does not guarantee privacy: readable instructional attachments and avatar/cover pointers can authorize access under existing parent rules. Group maps to GROUP and Community to PUBLIC. Publishing is explicit, server-authorized and moderated; PENDING is not publicly approved.
