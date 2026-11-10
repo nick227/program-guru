@@ -1,4 +1,4 @@
-import { useMediaDialog } from '@/lib/useMediaDialog'
+import { Dialog } from '@/components/ui/Dialog'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useMediaUrl } from '@project/sdk'
 import { ErrorMessage, Loading } from './ui/Feedback'
@@ -33,7 +33,6 @@ export function MediaViewer({
 }) {
   const item = items[index]
   const delivery = useMediaUrl(item?.url ? '' : (item?.id ?? ''), item?.publicationId)
-  const dialog = useMediaDialog()
   const [failed, setFailed] = useState(false)
   useEffect(() => {
     setFailed(false)
@@ -56,14 +55,8 @@ export function MediaViewer({
   const src =
     item.url ?? (delivery.isError || delivery.isFetching ? undefined : delivery.data?.url)
   return (
-    <dialog
-      ref={dialog}
-      onCancel={(event) => {
-        event.preventDefault()
-        onClose()
-      }}
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      onClose={onClose}
       aria-label={item.alt || 'Media viewer'}
       className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none flex-col bg-black/95 overflow-auto p-4 text-white open:flex backdrop:bg-black"
     >
@@ -145,6 +138,6 @@ export function MediaViewer({
           <ChevronRight aria-hidden size={16} />
         </Button>
       </Row>
-    </dialog>
+    </Dialog>
   )
 }

@@ -1,3 +1,4 @@
+import { formatProgramDuration, PROGRAM_DURATION_PRESETS } from './programFields'
 import { useUpdateProgram } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage } from '@/components/ui/Feedback'
@@ -9,7 +10,7 @@ import type { Workspace } from './types'
 
 export type Frequency = NonNullable<Workspace['frequency']>
 
-const DURATION_OPTIONS: (number | null)[] = [7, 14, 28, 56, null]
+const DURATION_OPTIONS: (number | null)[] = [...PROGRAM_DURATION_PRESETS, null]
 
 /** Preset durations in minutes. */
 export const ACTIVITY_DURATION_PRESETS = [10, 15, 20, 30, 45, 60, 120]
@@ -31,11 +32,6 @@ export function isSameFrequency(current: Frequency | null | undefined, option: F
     return current.kind === 'N_PER_WEEK' && (current.n ?? 3) === option.n
   }
   return current.kind === option.kind
-}
-
-export function formatProgramDuration(days: number | null | undefined) {
-  if (days === null || days === undefined) return 'Ongoing'
-  return `${days / 7} ${days === 7 ? 'week' : 'weeks'}`
 }
 
 export function ProgramDurationButtons({ ws }: { ws: Workspace }) {

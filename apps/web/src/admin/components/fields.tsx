@@ -1,7 +1,8 @@
 // Field rendering for ResourceForm: one frame (label, control, help, error, trailing actions) and
-// one control per field kind. Specialized kinds (visibility, duration, frequency, reference) live
+// one control per field kind. Specialized kinds (visibility, duration, reference) live
 // here so every resource gets them by name.
 import { useEffect, useId, useState, type ReactNode } from 'react'
+import { PROGRAM_DURATION_PRESETS } from '@/components/program-authoring/programFields'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
@@ -42,13 +43,7 @@ const VISIBILITY: Option[] = [
   { value: 'UNLISTED', label: 'Unlisted' },
   { value: 'PUBLIC', label: 'Public' },
 ]
-const DURATIONS = [7, 14, 28, 56]
-const FREQUENCIES: Option[] = [
-  { value: 'DAILY', label: 'Every day' },
-  { value: 'WEEKDAYS', label: 'Weekdays' },
-  { value: 'N_PER_WEEK', label: 'Days per week' },
-  { value: 'FLEXIBLE', label: 'Flexible' },
-]
+const DURATIONS = PROGRAM_DURATION_PRESETS
 
 /** Resolves static or hook-backed options. Called during render, so option hooks are allowed. */
 function useOptions<V>(options: Options<V>, values: V) {
@@ -79,8 +74,6 @@ export function FieldControl<V>({ field, ...p }: { field: Field<V> } & FieldProp
       return <SegmentedControl ariaLabel={field.label} options={VISIBILITY} value={(p.value as string) ?? 'PRIVATE'} onChange={p.onChange} />
     case 'duration':
       return <DurationControl {...p} />
-    case 'frequency':
-      return <FrequencyControl {...p} />
     case 'reference':
       return <ReferenceControl field={field} {...p} />
     case 'custom':
@@ -115,23 +108,6 @@ function DurationControl<V>(p: FieldProps<V>) {
         onChange={(v) => p.onChange(v === 'ongoing' ? null : v === 'custom' ? (days ?? 30) : Number(v))}
       />
       {preset === 'custom' && <Input id={p.id} type="number" min={1} max={3650} className="max-w-24" value={days ?? ''} onChange={(e) => p.onChange(Number(e.target.value) || 1)} aria-label="Days" />}
-    </div>
-  )
-}
-
-function FrequencyControl<V>(p: FieldProps<V>) {
-  const f = (p.value as { kind: string; n?: number } | null) ?? { kind: 'N_PER_WEEK', n: 3 }
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Select id={p.id} className="max-w-48" value={f.kind} disabled={p.disabled} onChange={(e) => p.onChange(e.target.value === 'N_PER_WEEK' ? { kind: 'N_PER_WEEK', n: f.n ?? 3 } : { kind: e.target.value })}>
-        {FREQUENCIES.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-        {!FREQUENCIES.some((o) => o.value === f.kind) && <option value={f.kind}>{f.kind}</option>}
-      </Select>
-      {f.kind === 'N_PER_WEEK' && <Input type="number" min={1} max={7} className="max-w-20" aria-label="Days per week" value={f.n ?? 3} onChange={(e) => p.onChange({ kind: 'N_PER_WEEK', n: Math.min(7, Math.max(1, Number(e.target.value) || 1)) })} />}
     </div>
   )
 }

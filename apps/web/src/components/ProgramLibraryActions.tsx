@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { Dialog } from './ui/Dialog'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   useCopyProgram,
@@ -46,11 +47,7 @@ export function ProgramLibraryActions({
     'RESTART' | 'REMOVE' | 'REMOVE_LIBRARY' | null
   >(null)
   const [deleting, setDeleting] = useState(false)
-  const dialog = useRef<HTMLDialogElement>(null)
   const menu = useRef<HTMLDetailsElement>(null)
-  useEffect(() => {
-    if (confirm) dialog.current?.showModal()
-  }, [confirm])
   const p = entry.program
   const r = entry.current
   const busy = manage.isPending || enrollment.isPending || copy.isPending
@@ -207,9 +204,8 @@ export function ProgramLibraryActions({
         />
       )}
       {confirm && (
-        <dialog
-          ref={dialog}
-          onCancel={() => setConfirm(null)}
+        <Dialog
+          onClose={() => setConfirm(null)}
           className="library-confirm"
           aria-label={
             confirm === 'RESTART'
@@ -250,7 +246,7 @@ export function ProgramLibraryActions({
               Cancel
             </Button>
           </div>
-        </dialog>
+        </Dialog>
       )}
     </div>
   )

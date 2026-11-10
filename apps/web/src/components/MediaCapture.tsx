@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { useMediaDialog } from '@/lib/useMediaDialog'
+import { Dialog } from '@/components/ui/Dialog'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { Stack } from './ui/Layout'
@@ -17,19 +17,14 @@ export function MediaCapture(props: Props) {
   )
 }
 function CaptureDialog(props: Props) {
-  const dialog = useMediaDialog()
   return (
-    <dialog
-      ref={dialog}
+    <Dialog
       aria-label="Capture media"
-      onCancel={(event) => {
-        event.preventDefault()
-        props.onClose()
-      }}
+      onClose={props.onClose}
       className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none bg-background text-text"
     >
       <CaptureSurface {...props} />
-    </dialog>
+    </Dialog>
   )
 }
 function CaptureSurface({ onFile, onClose }: Props) {

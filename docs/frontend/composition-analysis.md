@@ -313,6 +313,8 @@ These had no import anywhere in `src/`:
 Suggested renames: `Discover.tsx` → `MyPrograms.tsx`, and move `LibraryBrowser.tsx` to `pages/Browse.tsx`, keeping its `buildBrowseUrl` and draft helpers in `lib/browse.ts`.
 
 ### 6.4 Places to check against the spec
+**Status 2026-11-10:** resolved in the spec. `03-UX.md` §4 now describes the approved three-step Workspace and the owner's inline editing on Program detail. §6 records that My Metrics renders inside Today and allows the optional community line.
+
 - **Workspace (§4, locked):** the spec describes one page (header, name, Activities list, inline schedule, `Preview & Publish`). The code has a three-step `ProgramStepper`. Program detail also adds a second inline editor (`ProgramOwnerEditPanel` plus `WorkspaceActivityRow`). Decide which one is canonical, or record in the spec that the steps are allowed.
 - **Participant Activity (§6, locked):** My Metrics is merged into Today, not shown as row 3. A community aggregate line is added after Related Media, but the spec says "These rows are the whole page". Confirm or adjust.
 
@@ -328,7 +330,8 @@ Suggested renames: `Discover.tsx` → `MyPrograms.tsx`, and move `LibraryBrowser
 ### 6.6 Inconsistent primitives
 - Raw `<select>` appears in Settings, Group, ProgramGroups, RelatedMediaMenu and four `studio/*` panels, even though `ui/Select` exists.
 - Raw `<textarea>` appears in ProgramCreate, ActivityBasicsFields, three workspace steps and ChannelPanel, even though `ui/Textarea` exists. As a result, voice input and error wiring are inconsistent across forms.
-- Dialogs are hand-built in eight components: ReportButton, MediaViewer, MediaCapture, DeleteProgramDialog, ProgramLibraryActions, AccountMenu, MediaPicker, and admin `actions`. A shared `ui/Dialog` with one focus trap would remove most of that duplication.
+- **Status 2026-11-10, dialogs:** done. `ui/Dialog` (with `useModalDialog`) is the only native `<dialog>`. Confirmations, Report, the media viewer and capture all use it, and every one returns focus to its opener. AccountMenu's popover is intentionally not a modal.
+- Dialogs were hand-built in eight components: ReportButton, MediaViewer, MediaCapture, DeleteProgramDialog, ProgramLibraryActions, AccountMenu, MediaPicker, and admin `actions`. A shared `ui/Dialog` with one focus trap would remove most of that duplication.
 
 ---
 

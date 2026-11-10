@@ -1,3 +1,9 @@
+import {
+  formatProgramDuration,
+  PROGRAM_DESCRIPTION_MAX,
+  PROGRAM_DESCRIPTION_PLACEHOLDER,
+  programDescriptionInput,
+} from '@/components/program-authoring/programFields'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useUpdateProgram } from '@project/sdk'
@@ -36,7 +42,7 @@ export function DetailsStep({
       setSavingDesc(true)
       update
         .mutateAsync({
-          description: description.trim() || null,
+          description: programDescriptionInput(description),
           expectedRevision: ws.draftRevision,
         })
         .then(() => {
@@ -55,7 +61,7 @@ export function DetailsStep({
       <div className="flex items-center gap-2 text-sm text-muted">
         <span className="font-semibold text-foreground">{ws.type.label}</span>
         {ws.focus && <span>· {ws.focus.label}</span>}
-        <span>· {ws.durationDays ? `${ws.durationDays / 7} weeks` : 'Ongoing'}</span>
+        <span>· {formatProgramDuration(ws.durationDays)}</span>
       </div>
 
       {/* Cover Image */}
@@ -76,9 +82,9 @@ export function DetailsStep({
         </h3>
         <textarea
           className="textarea min-h-28 w-full rounded-lg border border-border p-3 text-sm"
-          maxLength={20000}
+          maxLength={PROGRAM_DESCRIPTION_MAX}
           value={description}
-          placeholder="Program goals, requirements, target audience..."
+          placeholder={PROGRAM_DESCRIPTION_PLACEHOLDER}
           disabled={!online}
           onChange={(e) => setDescription(e.target.value)}
         />

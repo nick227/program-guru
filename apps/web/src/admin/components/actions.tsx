@@ -1,6 +1,7 @@
 // Runs Actions for ResourceTable rows and ResourceEditor headers: optional confirmation (with an
 // audit reason when the action records one), the mutation, a toast, and an admin cache refresh.
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { Dialog } from '@/components/ui/Dialog'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
@@ -72,15 +73,11 @@ export function ActionButtons<R>({ actions, row, runner, size = 'sm' }: { action
 }
 
 function ConfirmDialog<R>({ pending, busy, onCancel, onConfirm }: { pending: Pending<R>; busy: boolean; onCancel: () => void; onConfirm: (reason: string) => void }) {
-  const ref = useRef<HTMLDialogElement>(null)
   const [reason, setReason] = useState('')
-  useEffect(() => {
-    ref.current?.showModal()
-  }, [])
   const label = text(pending.action.label, pending.row)!
   const needsReason = !!pending.action.reason
   return (
-    <dialog ref={ref} className="admin-dialog" onCancel={onCancel} aria-labelledby="admin-confirm-title">
+    <Dialog className="admin-dialog" onClose={onCancel} aria-labelledby="admin-confirm-title">
       <form
         method="dialog"
         className="space-y-4"
@@ -108,6 +105,6 @@ function ConfirmDialog<R>({ pending, busy, onCancel, onConfirm }: { pending: Pen
           </Button>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   )
 }

@@ -42,8 +42,6 @@ export type Field<V> = FieldBase<V> &
     | { kind: 'visibility' }
     /** Program length in days; null is ongoing. */
     | { kind: 'duration' }
-    /** Program frequency object ({ kind, n? }). */
-    | { kind: 'frequency' }
     /** Pick a record by searching another resource's list. */
     | { kind: 'reference'; search: (q: string) => { options: Option[]; isLoading: boolean }; placeholder?: string }
     /** Escape hatch for genuinely unique inputs. */

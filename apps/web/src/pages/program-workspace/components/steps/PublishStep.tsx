@@ -1,3 +1,5 @@
+import { formatProgramDuration, programPublishInput, type ProgramVisibility } from '@/components/program-authoring/programFields'
+import { ProgramVisibilityButtons, PublishCheckIssues } from '@/components/program-authoring/PublishControls'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -9,7 +11,6 @@ import {
   usePublishProgram,
 } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
-import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
 import { programHero } from '@/lib/hero'
@@ -34,7 +35,7 @@ export function PublishStep({
   const online = useOnline()
   const navigate = useNavigate()
   const categorySlugOf = useCategorySlugOf()
-  const [visibility, setVisibility] = useState<'PUBLIC' | 'UNLISTED' | 'PRIVATE'>(
+  const [visibility, setVisibility] = useState<ProgramVisibility>(
     ws.visibility === 'PRIVATE' ? 'PUBLIC' : ws.visibility,
   )
   const [startNow, setStartNow] = useState(true)
@@ -49,11 +50,7 @@ export function PublishStep({
 
   const handlePublish = async () => {
     try {
-      const published = await publish.mutateAsync({
-        visibility,
-        accessMode: 'OPEN',
-        expectedRevision: ws.draftRevision,
-      })
+      const published = await publish.mutateAsync(programPublishInput(ws, visibility))
 
       if (startNow && !isEnrolled) {
         const versionId =
@@ -93,7 +90,7 @@ export function PublishStep({
           <div className="min-w-0 flex-1">
             <h4 className="font-display text-lg font-bold truncate">{ws.title}</h4>
             <p className="text-xs text-muted mt-0.5">
-              {ws.type.label} · {ws.durationDays ? `${ws.durationDays / 7} weeks` : 'Ongoing'} · {ws.activityCount} Activities
+              {ws.type.label} · {formatProgramDuration(ws.durationDays)} · {ws.activityCount} Activities
             </p>
           </div>
         </Row>
@@ -107,24 +104,11 @@ export function PublishStep({
 
         {/* Visibility Controls */}
         <div className="space-y-2">
-          <Row className="gap-2">
-            {(['PUBLIC', 'UNLISTED', 'PRIVATE'] as const).map((v) => (
-              <Button
-                key={v}
-                aria-pressed={visibility === v}
-                variant={visibility === v ? 'default' : 'outline'}
-                size="sm"
-                className="h-9 px-4 font-semibold"
-                onClick={() => setVisibility(v)}
-              >
-                {v === 'PUBLIC'
-                  ? 'Public'
-                  : v === 'UNLISTED'
-                    ? 'Link only'
-                    : 'Private'}
-              </Button>
-            ))}
-          </Row>
+          <ProgramVisibilityButtons
+            value={visibility}
+            onChange={setVisibility}
+            buttonClassName="h-9 px-4 font-semibold"
+          />
         </div>
 
         {/* Group Sharing & Invites */}
@@ -134,20 +118,7 @@ export function PublishStep({
           </div>
         )}
 
-        <ErrorMessage
-          error={check.error || publish.error}
-          retry={() => void check.refetch()}
-        />
-        {check.isPending && <Loading />}
-        {check.data?.issues.map((issue) => (
-          <p
-            role="alert"
-            className="text-xs text-danger font-medium"
-            key={`${issue.code}:${issue.field}:${issue.activityId}`}
-          >
-            {issue.message}
-          </p>
-        ))}
+        <PublishCheckIssues check={check} error={publish.error} />
       </Panel>
 
       {/* Consistent Bottom Navigation */}

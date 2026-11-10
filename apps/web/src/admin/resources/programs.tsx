@@ -3,6 +3,7 @@
 import { useCreateProgram, useDeleteProgram, useFocuses, useProgramTypes, useProgramWorkspace, usePublishCheck, usePublishProgram, useUpdateProgram, useAdminArchive, type components } from '@project/sdk'
 import { useNavigate } from 'react-router-dom'
 import { ProgramMediaTray } from '@/components/EntityMediaTray'
+import { formatProgramDuration, PROGRAM_DESCRIPTION_MAX, PROGRAM_TITLE_MAX, programDescriptionInput } from '@/components/program-authoring/programFields'
 import { ResourceForm } from '../components/ResourceForm'
 import { ResourceTable } from '../components/ResourceTable'
 import { NestedActivities } from '../sections/NestedActivities'
@@ -12,7 +13,7 @@ import { statusBadges } from './content'
 import { label } from './shared'
 
 type Workspace = components['schemas']['ProgramWorkspace']
-type Details = Pick<Workspace, 'title' | 'description' | 'durationDays' | 'frequency' | 'generationMode'> & { programTypeId: string; focusId: string | null }
+type Details = Pick<Workspace, 'title' | 'description' | 'durationDays' | 'generationMode'> & { programTypeId: string; focusId: string | null }
 type Publish = { visibility: Workspace['visibility']; accessMode: Workspace['accessMode'] }
 type Create = { programTypeId: string; focusId: string | null }
 
@@ -20,13 +21,12 @@ const useTypeOptions = (): Option[] => (useProgramTypes().data ?? []).map((t) =>
 const useFocusOptions = (v: { programTypeId: string }): Option[] => (useFocuses(v.programTypeId).data ?? []).map((f) => ({ value: f.id, label: f.label }))
 
 const detailFields: Field<Details>[] = [
-  { kind: 'text', name: 'title', label: 'Title', required: true, maxLength: 140, assist: true },
-  { kind: 'textarea', name: 'description', label: 'Description', maxLength: 20000, rows: 5, assist: true },
+  { kind: 'text', name: 'title', label: 'Title', required: true, maxLength: PROGRAM_TITLE_MAX, assist: true },
+  { kind: 'textarea', name: 'description', label: 'Description', maxLength: PROGRAM_DESCRIPTION_MAX, rows: 5, assist: true },
   { kind: 'select', name: 'programTypeId', label: 'Type', required: true, options: useTypeOptions },
   { kind: 'select', name: 'focusId', label: 'Focus', options: useFocusOptions },
   { kind: 'duration', name: 'durationDays', label: 'Duration' },
-  { kind: 'frequency', name: 'frequency', label: 'Frequency' },
-  { kind: 'select', name: 'generationMode', label: 'Schedule', options: [{ value: 'ALL_EACH_DAY', label: 'Every Activity each scheduled day' }, { value: 'ROTATE', label: 'Rotate Activities' }], help: 'Changing duration, frequency or schedule regenerates automatic placements.' },
+  { kind: 'select', name: 'generationMode', label: 'Schedule', options: [{ value: 'ALL_EACH_DAY', label: 'Every Activity each scheduled day' }, { value: 'ROTATE', label: 'Rotate Activities' }], help: 'Changing duration or schedule regenerates automatic placements. Each Activity keeps its own frequency.' },
 ]
 const publishFields: Field<Publish>[] = [
   { kind: 'visibility', name: 'visibility', label: 'Privacy' },
@@ -35,13 +35,13 @@ const publishFields: Field<Publish>[] = [
 
 function DetailsForm({ ws }: { ws: Workspace }) {
   const update = useUpdateProgram(ws.id)
-  const initial: Details = { title: ws.title, description: ws.description ?? '', programTypeId: ws.type.id, focusId: ws.focus?.id ?? null, durationDays: ws.durationDays, frequency: ws.frequency, generationMode: ws.generationMode }
+  const initial: Details = { title: ws.title, description: ws.description ?? '', programTypeId: ws.type.id, focusId: ws.focus?.id ?? null, durationDays: ws.durationDays, generationMode: ws.generationMode }
   return (
     <ResourceForm
       fields={detailFields}
       initial={initial}
       onSubmit={(_, changes) =>
-        update.mutateAsync({ ...changes, frequency: changes.frequency ?? undefined, ...(changes.description !== undefined ? { description: changes.description?.trim() || null } : {}), ...(changes.programTypeId ? { focusId: changes.focusId ?? null } : {}), expectedRevision: ws.draftRevision })
+        update.mutateAsync({ ...changes, ...(changes.description !== undefined ? { description: programDescriptionInput(changes.description ?? '') } : {}), ...(changes.programTypeId ? { focusId: changes.focusId ?? null } : {}), expectedRevision: ws.draftRevision })
       }
     />
   )
@@ -83,7 +83,7 @@ export const programs = defineResource<unknown, Workspace>({
   editor: {
     useRecord: useProgramWorkspace,
     title: (ws) => ws.title,
-    subtitle: (ws) => `${ws.type.label}${ws.focus ? ` · ${ws.focus.label}` : ''} · ${ws.durationDays ? `${Math.round(ws.durationDays / 7)} weeks` : 'Ongoing'} · ${ws.frequencyLabel}`,
+    subtitle: (ws) => `${ws.type.label}${ws.focus ? ` · ${ws.focus.label}` : ''} · ${formatProgramDuration(ws.durationDays)}`,
     badges: (ws) => [...statusBadges(ws), { label: label(ws.visibility), tone: 'muted' }, { label: 'Program Guru', tone: 'muted' }],
     actions: [
       { label: 'View page', href: (ws) => `/programs/${ws.id}`, when: (ws) => !!ws.latestPublishedVersionId },

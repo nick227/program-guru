@@ -1,3 +1,4 @@
+import { formatProgramDuration } from '@/components/program-authoring/programFields'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -93,11 +94,7 @@ export function ProgramHero({
     }
   }
 
-  const durationText = durationDays
-    ? durationDays >= 7
-      ? `${Math.round(durationDays / 7)} weeks`
-      : `${durationDays} days`
-    : 'Ongoing'
+  const durationText = formatProgramDuration(durationDays || null)
 
   return (
     <section

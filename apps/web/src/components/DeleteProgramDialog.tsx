@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react'
 import { useDeleteProgram } from '@project/sdk'
 import { toast } from 'sonner'
 import { Button } from './ui/Button'
+import { Dialog } from './ui/Dialog'
 
 /** Owner-only permanent delete with an explicit destructive confirmation (07-PROGRAMS.md §6). */
 export function DeleteProgramDialog({
@@ -14,10 +14,6 @@ export function DeleteProgramDialog({
   onDeleted?: () => void
 }) {
   const remove = useDeleteProgram()
-  const dialog = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    dialog.current?.showModal()
-  }, [])
   async function confirm() {
     try {
       const result = await remove.mutateAsync(program.id)
@@ -33,9 +29,8 @@ export function DeleteProgramDialog({
     }
   }
   return (
-    <dialog
-      ref={dialog}
-      onCancel={onClose}
+    <Dialog
+      onClose={onClose}
       className="library-confirm"
       aria-label="Delete Program"
     >
@@ -58,6 +53,6 @@ export function DeleteProgramDialog({
           Cancel
         </Button>
       </div>
-    </dialog>
+    </Dialog>
   )
 }

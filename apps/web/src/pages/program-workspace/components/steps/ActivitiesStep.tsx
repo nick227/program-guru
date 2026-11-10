@@ -1,3 +1,4 @@
+import { formatProgramDuration } from '@/components/program-authoring/programFields'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
@@ -30,9 +31,7 @@ export function ActivitiesStep({
           <h2 className="text-xl font-bold tracking-tight text-foreground">Activities</h2>
           <span className="text-xs text-muted">
             {ws.activityCount} {ws.activityCount === 1 ? 'activity' : 'activities'} ·{' '}
-            {ws.durationDays
-              ? `${ws.durationDays / 7} ${ws.durationDays === 7 ? 'week' : 'weeks'}`
-              : 'Ongoing'}
+            {formatProgramDuration(ws.durationDays)}
           </span>
         </div>
         <Link

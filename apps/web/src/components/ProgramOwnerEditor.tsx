@@ -1,3 +1,13 @@
+import {
+  PROGRAM_DESCRIPTION_MAX,
+  PROGRAM_DESCRIPTION_PLACEHOLDER,
+  PROGRAM_TITLE_MAX,
+  programDescriptionInput,
+  programPublishInput,
+  programVisibilityLabel,
+  type ProgramVisibility,
+} from '@/components/program-authoring/programFields'
+import { ProgramVisibilityButtons, PublishCheckIssues } from '@/components/program-authoring/PublishControls'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, Trash2, X } from 'lucide-react'
@@ -8,7 +18,7 @@ import {
   useUpdateProgram,
 } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
-import { ErrorMessage, Loading } from '@/components/ui/Feedback'
+import { ErrorMessage } from '@/components/ui/Feedback'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StatusText } from '@/components/ui/StatusText'
@@ -38,7 +48,7 @@ export function ProgramOwnerBanner({
             {isDraft ? 'Draft' : 'Unpublished changes'}
           </StatusText>
           <span className="text-xs text-muted capitalize">
-            {ws.visibility.toLowerCase()}
+            {programVisibilityLabel(ws.visibility)}
           </span>
         </div>
         <p className="text-sm text-foreground">
@@ -84,7 +94,7 @@ export function ProgramOwnerEditPanel({
 
   const [title, setTitle] = useState(ws.title)
   const [description, setDescription] = useState(ws.description ?? '')
-  const [visibility, setVisibility] = useState<'PUBLIC' | 'UNLISTED' | 'PRIVATE'>(
+  const [visibility, setVisibility] = useState<ProgramVisibility>(
     ws.visibility,
   )
   const [deleting, setDeleting] = useState(false)
@@ -107,7 +117,7 @@ export function ProgramOwnerEditPanel({
     try {
       await update.mutateAsync({
         title: trimmedTitle,
-        description: trimmedDescription || null,
+        description: programDescriptionInput(description),
         expectedRevision: ws.draftRevision,
       })
       toast.success('Program details saved')
@@ -122,20 +132,12 @@ export function ProgramOwnerEditPanel({
       if (hasDetailChanges && trimmedTitle) {
         const updated = await update.mutateAsync({
           title: trimmedTitle,
-          description: trimmedDescription || null,
+          description: programDescriptionInput(description),
           expectedRevision: ws.draftRevision,
         })
-        await publish.mutateAsync({
-          visibility,
-          accessMode: ws.accessMode,
-          expectedRevision: updated.draftRevision,
-        })
+        await publish.mutateAsync(programPublishInput(ws, visibility, updated.draftRevision))
       } else {
-        await publish.mutateAsync({
-          visibility,
-          accessMode: ws.accessMode,
-          expectedRevision: ws.draftRevision,
-        })
+        await publish.mutateAsync(programPublishInput(ws, visibility))
       }
       toast.success(
         ws.status === 'PUBLISHED' ? 'Program update published' : 'Program published',
@@ -191,7 +193,7 @@ export function ProgramOwnerEditPanel({
             </span>
             <Input
               value={title}
-              maxLength={140}
+              maxLength={PROGRAM_TITLE_MAX}
               disabled={!online || archived || update.isPending}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -202,9 +204,9 @@ export function ProgramOwnerEditPanel({
             </span>
             <Textarea
               rows={3}
-              maxLength={20000}
+              maxLength={PROGRAM_DESCRIPTION_MAX}
               value={description}
-              placeholder="Program goals, requirements, target audience..."
+              placeholder={PROGRAM_DESCRIPTION_PLACEHOLDER}
               disabled={!online || archived || update.isPending}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -247,21 +249,11 @@ export function ProgramOwnerEditPanel({
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
                 Visibility & Publishing
               </h3>
-              <div className="flex flex-wrap gap-2" role="group" aria-label="Program visibility">
-                {(['PUBLIC', 'UNLISTED', 'PRIVATE'] as const).map((v) => (
-                  <Button
-                    key={v}
-                    type="button"
-                    size="sm"
-                    aria-pressed={visibility === v}
-                    variant={visibility === v ? 'default' : 'outline'}
-                    disabled={!online || publish.isPending}
-                    onClick={() => setVisibility(v)}
-                  >
-                    {v === 'PUBLIC' ? 'Public' : v === 'UNLISTED' ? 'Link only' : 'Private'}
-                  </Button>
-                ))}
-              </div>
+              <ProgramVisibilityButtons
+                value={visibility}
+                onChange={setVisibility}
+                disabled={!online || publish.isPending}
+              />
             </div>
             <Button
               type="button"
@@ -278,20 +270,7 @@ export function ProgramOwnerEditPanel({
               {ws.status === 'PUBLISHED' ? 'Publish Update' : 'Publish Program'}
             </Button>
           </div>
-          <ErrorMessage
-            error={check.error || publish.error}
-            retry={() => void check.refetch()}
-          />
-          {check.isPending && <Loading />}
-          {check.data?.issues.map((issue) => (
-            <p
-              role="alert"
-              className="text-xs font-medium text-danger"
-              key={`${issue.code}:${issue.field}:${issue.activityId}`}
-            >
-              {issue.message}
-            </p>
-          ))}
+          <PublishCheckIssues check={check} error={publish.error} />
         </div>
       )}
 

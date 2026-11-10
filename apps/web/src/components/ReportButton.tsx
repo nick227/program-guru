@@ -1,10 +1,11 @@
 // One Report action for Programs, Activities, media and profiles (12-SOCIAL §7). Signed-in viewers
 // only; the report enters the moderation queue (Admin → Moderation). Callers hide it from owners.
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Flag } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCreateReport, useCurrentUser, type components } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
+import { Dialog } from '@/components/ui/Dialog'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
@@ -38,13 +39,11 @@ export function ReportButton({ target, ownerId, label = 'Report' }: { target: Ta
 }
 
 function ReportDialog({ target, onClose }: { target: Target; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null)
   const report = useCreateReport()
   const [reason, setReason] = useState<Reason | ''>('')
   const [details, setDetails] = useState('')
-  useEffect(() => ref.current?.showModal(), [])
   return (
-    <dialog ref={ref} onCancel={onClose} onClose={onClose} aria-labelledby="report-title" className="w-[min(28rem,calc(100vw-2rem))] rounded-xl border border-border bg-surface p-5 text-text backdrop:bg-black/40">
+    <Dialog onClose={onClose} aria-labelledby="report-title" className="w-[min(28rem,calc(100vw-2rem))] rounded-xl border border-border bg-surface p-5 text-text backdrop:bg-black/40">
       <form
         className="space-y-4"
         onSubmit={async (e) => {
@@ -53,7 +52,7 @@ function ReportDialog({ target, onClose }: { target: Target; onClose: () => void
           try {
             await report.mutateAsync({ target, reason, ...(details.trim() ? { details: details.trim() } : {}) })
             toast.success('Thanks. A moderator will review it.')
-            ref.current?.close()
+            onClose()
           } catch {
             /* shown below */
           }
@@ -79,7 +78,7 @@ function ReportDialog({ target, onClose }: { target: Target; onClose: () => void
         </label>
         <ErrorMessage error={report.error} />
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={() => ref.current?.close()}>
+          <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" loading={report.isPending} disabled={!reason}>
@@ -87,6 +86,6 @@ function ReportDialog({ target, onClose }: { target: Target; onClose: () => void
           </Button>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   )
 }

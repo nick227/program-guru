@@ -1,3 +1,4 @@
+import { PROGRAM_DESCRIPTION_MAX } from '@/components/program-authoring/programFields'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 import {
@@ -255,7 +256,7 @@ export function ProgramCreatePage() {
               <span className="label font-semibold">Description</span>
               <textarea
                 className="textarea min-h-28"
-                maxLength={5000}
+                maxLength={PROGRAM_DESCRIPTION_MAX}
                 value={description}
                 placeholder="What is this Program about?"
                 disabled={busy}

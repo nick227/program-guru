@@ -1,3 +1,4 @@
+import { PROGRAM_TITLE_MAX } from '@/components/program-authoring/programFields'
 import { Pencil } from 'lucide-react'
 
 /** Shared identity for Program creation, customization, and confirmation. */
@@ -26,7 +27,7 @@ export function ProgramHeader({
               className="program-header__name"
               aria-label="Program name"
               placeholder={`Name your ${label ?? 'Program'}`}
-              maxLength={140}
+              maxLength={PROGRAM_TITLE_MAX}
               required
               value={title}
               autoFocus={autoFocus}
