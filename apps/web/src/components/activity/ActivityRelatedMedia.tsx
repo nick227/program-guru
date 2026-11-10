@@ -11,6 +11,7 @@ export function ActivityRelatedMedia({ activityId, revisionId, items }: {
   const ready = media.items.filter(item => item.status === 'ready' && item.mediaId)
   const ids = new Set(ready.map(item => item.mediaId))
   return <RelatedMedia
+    variant="gallery"
     items={[
       ...items.filter(item => !ids.has(item.id)),
       ...ready.map(item => ({ id: item.mediaId!, thumbnailUrl: item.src, type: item.type, alt: item.alt,

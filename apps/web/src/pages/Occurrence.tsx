@@ -39,21 +39,21 @@ import {
 } from 'lucide-react'
 import { Page, Panel, Stack } from '@/components/ui/Layout'
 import { StatusText, type ParticipationStatus } from '@/components/ui/StatusText'
-import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
+import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { activityHero } from '@/lib/hero'
 import { Button } from '@/components/ui/Button'
-import { Avatar } from '@/components/ui/Avatar'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { SubHeader } from '@/components/shared/SubHeader'
 import { buildOccurrenceBreadcrumbs } from '@/lib/breadcrumbs'
 import { MetricInput } from '@/components/activity/MetricInput'
 import { ActivityTogether } from '@/components/activity/ActivityTogether'
-import { OccurrenceInstructions } from '@/components/activity/OccurrenceInstructions'
+import { ActivityHero, type ActivityMeta } from '@/components/activity/ActivityHero'
+import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
+import { ActivitySection } from '@/components/activity/ActivitySection'
+import { ActivityShare } from '@/components/activity/ActivityShare'
 import { OccurrenceMedia } from '@/components/activity/OccurrenceMedia'
-import { ShareLinkCard } from '@/components/social/ShareLink'
-import { buildActivityUrl, buildProfileUrl, toAbsoluteUrl } from '@/lib/urls'
+import { buildActivityUrl } from '@/lib/urls'
 import { calendarUrl, dateLabel, safeReturn, today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
@@ -108,7 +108,7 @@ export function OccurrencePage() {
         active={occurrenceNav.activeNav}
         returnTo={currentUrl}
       />
-      <div className="mx-auto mt-6 w-full max-w-5xl">
+      <div className="mx-auto mt-6 w-full page--width">
         <ErrorMessage
           error={occurrence.error}
           retry={() => void occurrence.refetch()}
@@ -341,13 +341,6 @@ function OccurrenceContent({
     me.data?.data.preferences.timezone ??
     Intl.DateTimeFormat().resolvedOptions().timeZone
   const isToday = o.item.localDate === today(viewerTz)
-  // The occurrence itself is private; share the Activity's public page when others can open it.
-  const shareUrl =
-    activity.data &&
-    activity.data.status === 'PUBLISHED' &&
-    activity.data.visibility !== 'PRIVATE'
-      ? toAbsoluteUrl(buildActivityUrl(activity.data))
-      : null
 
   return (
     <div className="activity-page">
@@ -374,7 +367,7 @@ function OccurrenceContent({
       )}
 
       {/* 1 · Hero Identity Card */}
-      <ActivityIdentity
+      <OccurrenceHero
         occurrence={o}
         activity={activity.data}
         phase={phase}
@@ -447,36 +440,11 @@ function OccurrenceContent({
         </div>
 
         {/* 4 · Share */}
-        <div className="activity-share">
-          {shareUrl ? (
-            <ShareLinkCard
-              title="Share"
-              ariaLabel="Share Activity"
-              description="Invite others to try this Activity."
-              url={shareUrl}
-              shareTitle={o.item.title}
-              copiedMessage="Activity link copied"
-              inputLabel="Activity link"
-            />
-          ) : (
-            <section
-              aria-label="Share Activity"
-              className="rounded-xl border border-border bg-surface p-5 sm:p-6"
-            >
-              <SectionHeader
-                title="Share"
-                className="pb-0"
-                description={
-                  o.item.locked
-                    ? 'This Activity is part of a Program you no longer have access to, so it has no share link.'
-                    : activity.isPending
-                      ? 'Loading share link…'
-                      : 'This Activity is private, so there is no public link to share. Make it public in the Activity editor to share it.'
-                }
-              />
-            </section>
-          )}
-        </div>
+        <ActivityShare
+          activity={activity.data}
+          loading={activity.isPending}
+          locked={o.item.locked}
+        />
 
         {/* 5 · Community stats (privacy-safe aggregates when available) */}
         {communityLine && (
@@ -534,8 +502,8 @@ function SessionElapsed({ session }: { session: S['ActivitySession'] }) {
   )
 }
 
-/** Hero: thumbnail, context and status, title + summary, creator/meta, then the action band. */
-function ActivityIdentity({
+/** Occurrence header: the shared Activity hero with session, upload and edit actions. */
+function OccurrenceHero({
   occurrence: o,
   activity,
   phase,
@@ -573,7 +541,6 @@ function ActivityIdentity({
   const categorySlugOf = useCategorySlugOf()
   const location = useLocation()
   const currentUrl = `${location.pathname}${location.search}`
-  const creator = activity?.creator ?? null
   const hero = activityHero(
     {
       title: o.item.title,
@@ -596,210 +563,188 @@ function ActivityIdentity({
     (phase === 'active' ||
       phase === 'paused' ||
       (phase === 'completed' && !session.isManualCompletion))
-  const hasMeta =
-    !!creator ||
-    activity?.durationMinutes != null ||
-    !!o.item.localTime ||
-    !!activity?.targetTime ||
-    showTimer
+  const meta: ActivityMeta[] = [
+    ...(activity?.durationMinutes != null
+      ? [
+          {
+            key: 'duration',
+            icon: Clock,
+            label: `Duration: ${formatDurationMinutes(activity.durationMinutes)}`,
+          },
+        ]
+      : []),
+    ...(o.item.localTime || activity?.targetTime
+      ? [
+          {
+            key: 'time',
+            icon: Calendar,
+            label: o.item.localTime
+              ? `Scheduled ${formatTargetTime(o.item.localTime)}`
+              : `Target time: ${formatTargetTime(activity?.targetTime)}`,
+          },
+        ]
+      : []),
+  ]
 
   return (
-    <header className="occurrence-hero">
-      {/* Thumbnail: the image, or the category fallback tile when there is none. */}
-      <EntityHero hero={hero} size="header" className="occurrence-hero__thumb" />
-
-      <div className="occurrence-hero__kicker">
-        <p className="occurrence-hero__context">{context.join(' · ')}</p>
+    <ActivityHero
+      hero={hero}
+      context={context.join(' · ')}
+      status={
         <span role="status">
           <StatusText status={PHASE_TONE[phase]} className="activity-status-pill">
             {PHASE_LABEL[phase]}
           </StatusText>
         </span>
-      </div>
-
-      <div className="occurrence-hero__text">
-        <h1 className="occurrence-hero__title">{o.item.title}</h1>
-        {activity?.summary && (
-          <p className="occurrence-hero__summary">{activity.summary}</p>
-        )}
-      </div>
-
-      {hasMeta && (
-        <div className="occurrence-hero__meta">
-          {creator && (
-            <Link
-              to={`${buildProfileUrl(creator.handle)}?returnTo=${encodeURIComponent(currentUrl)}`}
-              className="occurrence-hero__creator"
-            >
-              <Avatar
-                src={creator.avatarUrl}
-                name={creator.displayName}
-                size="sm"
-                className="h-6 w-6 ring-1 ring-border"
-              />
-              <span>
-                by <strong className="font-semibold">{creator.displayName}</strong>
-              </span>
-            </Link>
+      }
+      title={o.item.title}
+      summary={activity?.summary}
+      creator={activity?.creator}
+      returnTo={currentUrl}
+      meta={meta}
+      extraMeta={showTimer && session ? <SessionElapsed session={session} /> : null}
+      actions={
+        <>
+          {!!error && (
+            <div className="activity-actions__error">
+              <ErrorMessage error={error} />
+              <Button variant="outline" size="sm" onClick={onRefresh}>
+                Refresh Activity
+              </Button>
+            </div>
           )}
-          {activity?.durationMinutes != null && (
-            <span className="inline-flex items-center gap-1.5">
-              <Clock size={14} aria-hidden />
-              {formatDurationMinutes(activity.durationMinutes)}
-            </span>
-          )}
-          {(o.item.localTime || activity?.targetTime) && (
-            <span className="inline-flex items-center gap-1.5">
-              <Calendar size={14} aria-hidden />
-              {o.item.localTime
-                ? `Scheduled ${formatTargetTime(o.item.localTime)}`
-                : `Target time ${formatTargetTime(activity?.targetTime)}`}
-            </span>
-          )}
-          {showTimer && session && <SessionElapsed session={session} />}
-        </div>
-      )}
-
-      <div className="activity-actions">
-        {!!error && (
-          <div className="activity-actions__error">
-            <ErrorMessage error={error} />
-            <Button variant="outline" size="sm" onClick={onRefresh}>
-              Refresh Activity
-            </Button>
-          </div>
-        )}
-        <div className="activity-session__actions">
-          <div className="activity-session__primary">
-            {(phase === 'ready' || phase === 'not-participating') &&
-              (timed ? (
+          <div className="activity-session__actions">
+            <div className="activity-session__primary">
+              {(phase === 'ready' || phase === 'not-participating') &&
+                (timed ? (
+                  <>
+                    <Button
+                      size="lg"
+                      className="activity-cta"
+                      disabled={disabled}
+                      loading={pendingButton === 'start'}
+                      onClick={() => onPerform('START', 'start')}
+                    >
+                      {pendingButton !== 'start' && <Play size={18} aria-hidden />}
+                      Start
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      disabled={disabled}
+                      loading={pendingButton === 'finish-no-timer'}
+                      onClick={() => onPerform('FINISH', 'finish-no-timer')}
+                    >
+                      {pendingButton !== 'finish-no-timer' && (
+                        <Check size={16} aria-hidden />
+                      )}
+                      Complete without timer
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="activity-cta"
+                    disabled={disabled}
+                    loading={pendingButton === 'finish'}
+                    onClick={() => onPerform('FINISH', 'finish')}
+                  >
+                    {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
+                    Complete
+                  </Button>
+                ))}
+              {phase === 'active' && (
                 <>
                   <Button
                     size="lg"
                     className="activity-cta"
                     disabled={disabled}
-                    loading={pendingButton === 'start'}
-                    onClick={() => onPerform('START', 'start')}
+                    loading={pendingButton === 'finish'}
+                    onClick={() => onPerform('FINISH', 'finish')}
                   >
-                    {pendingButton !== 'start' && <Play size={18} aria-hidden />}
-                    Start
+                    {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
+                    Complete
                   </Button>
                   <Button
                     variant="outline"
                     size="lg"
                     disabled={disabled}
-                    loading={pendingButton === 'finish-no-timer'}
-                    onClick={() => onPerform('FINISH', 'finish-no-timer')}
+                    loading={pendingButton === 'pause'}
+                    onClick={() => onPerform('PAUSE', 'pause')}
                   >
-                    {pendingButton !== 'finish-no-timer' && (
-                      <Check size={16} aria-hidden />
-                    )}
-                    Complete without timer
+                    {pendingButton !== 'pause' && <Pause size={16} aria-hidden />}
+                    Pause
                   </Button>
                 </>
-              ) : (
-                <Button
-                  size="lg"
-                  className="activity-cta"
-                  disabled={disabled}
-                  loading={pendingButton === 'finish'}
-                  onClick={() => onPerform('FINISH', 'finish')}
-                >
-                  {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
-                  Complete
-                </Button>
-              ))}
-            {phase === 'active' && (
-              <>
-                <Button
-                  size="lg"
-                  className="activity-cta"
-                  disabled={disabled}
-                  loading={pendingButton === 'finish'}
-                  onClick={() => onPerform('FINISH', 'finish')}
-                >
-                  {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
-                  Complete
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  disabled={disabled}
-                  loading={pendingButton === 'pause'}
-                  onClick={() => onPerform('PAUSE', 'pause')}
-                >
-                  {pendingButton !== 'pause' && <Pause size={16} aria-hidden />}
-                  Pause
-                </Button>
-              </>
-            )}
-            {phase === 'paused' && (
-              <>
-                <Button
-                  size="lg"
-                  className="activity-cta"
-                  disabled={disabled}
-                  loading={pendingButton === 'finish'}
-                  onClick={() => onPerform('FINISH', 'finish')}
-                >
-                  {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
-                  Complete
-                </Button>
+              )}
+              {phase === 'paused' && (
+                <>
+                  <Button
+                    size="lg"
+                    className="activity-cta"
+                    disabled={disabled}
+                    loading={pendingButton === 'finish'}
+                    onClick={() => onPerform('FINISH', 'finish')}
+                  >
+                    {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
+                    Complete
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    disabled={disabled}
+                    loading={pendingButton === 'resume'}
+                    onClick={() => onPerform('RESUME', 'resume')}
+                  >
+                    {pendingButton !== 'resume' && <Play size={16} aria-hidden />}
+                    Resume
+                  </Button>
+                </>
+              )}
+              {phase === 'completed' && (
                 <Button
                   variant="outline"
                   size="lg"
                   disabled={disabled}
-                  loading={pendingButton === 'resume'}
-                  onClick={() => onPerform('RESUME', 'resume')}
+                  loading={undoPending}
+                  onClick={onUndo}
                 >
-                  {pendingButton !== 'resume' && <Play size={16} aria-hidden />}
-                  Resume
+                  {!undoPending && <RotateCcw size={16} aria-hidden />}
+                  Undo completion
                 </Button>
-              </>
-            )}
-            {phase === 'completed' && (
-              <Button
-                variant="outline"
-                size="lg"
-                disabled={disabled}
-                loading={undoPending}
-                onClick={onUndo}
-              >
-                {!undoPending && <RotateCcw size={16} aria-hidden />}
-                Undo completion
+              )}
+              {unsaved && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  disabled={disabled}
+                  loading={pendingButton === 'save'}
+                  onClick={() => onPerform(undefined, 'save')}
+                >
+                  Save results
+                </Button>
+              )}
+            </div>
+            <div className="activity-session__tools">
+              <Button variant="outline" disabled={!online} onClick={onUploadMedia}>
+                <Upload size={16} aria-hidden />
+                Upload media
               </Button>
-            )}
-            {unsaved && (
-              <Button
-                variant="outline"
-                size="lg"
-                disabled={disabled}
-                loading={pendingButton === 'save'}
-                onClick={() => onPerform(undefined, 'save')}
-              >
-                Save results
-              </Button>
-            )}
+              {activity?.canEdit && (
+                <Link
+                  to={buildActivityUrl(activity, { edit: true, returnTo: currentUrl })}
+                  className="btn btn--outline btn--icon"
+                  aria-label="Edit Activity"
+                  title="Edit Activity"
+                >
+                  <Pencil size={16} aria-hidden />
+                </Link>
+              )}
+            </div>
           </div>
-          <div className="activity-session__tools">
-            <Button variant="outline" disabled={!online} onClick={onUploadMedia}>
-              <Upload size={16} aria-hidden />
-              Upload media
-            </Button>
-            {activity?.canEdit && (
-              <Link
-                to={buildActivityUrl(activity, { returnTo: currentUrl })}
-                className="btn btn--outline btn--icon"
-                aria-label="Edit Activity"
-                title="Edit Activity"
-              >
-                <Pencil size={16} aria-hidden />
-              </Link>
-            )}
-          </div>
-        </div>
-      </div>
-    </header>
+        </>
+      }
+    />
   )
 }
 
@@ -943,16 +888,7 @@ function OccurrenceToday({
   ]
 
   return (
-    <section
-      aria-labelledby="today-heading"
-      className="activity-card activity-today"
-    >
-      <div className="activity-card__header">
-        <div className="activity-card__title">
-          <Target size={18} className="shrink-0 text-accent" aria-hidden />
-          <h2 id="today-heading">Today</h2>
-        </div>
-      </div>
+    <ActivitySection icon={Target} title="Today" className="activity-today">
 
       <div className="activity-today__task">
         <CompletionRing
@@ -999,10 +935,7 @@ function OccurrenceToday({
         </div>
       )}
 
-      <OccurrenceInstructions
-        instructions={o.instructions}
-        locked={o.item.locked}
-      />
+      <ActivityInstructions instructions={o.instructions} locked={o.item.locked} />
 
       {statTiles.length > 0 && (
         <div className="activity-stat-grid">
@@ -1027,6 +960,6 @@ function OccurrenceToday({
           ))}
         </div>
       )}
-    </section>
+    </ActivitySection>
   )
 }

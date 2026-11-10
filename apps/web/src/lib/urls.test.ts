@@ -97,6 +97,9 @@ describe('url builders', () => {
       '/activities/morning-mobility?returnTo=%2Fcalendar',
     )
     expect(buildActivityUrl({ id: '' })).toBe('/browse?kind=activities')
+    expect(buildActivityUrl(a1, { edit: true, returnTo: '/calendar' })).toBe(
+      '/activities/morning-mobility?edit=1&returnTo=%2Fcalendar',
+    )
   })
 
   it('builds workspace, occurrence, and group URLs with UUIDs', () => {

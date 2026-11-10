@@ -1,5 +1,5 @@
 import { formatDurationMinutes } from '@/lib/durationMinutes'
-import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
+import { formatTargetTime } from '@/lib/targetTime'
 import { useEffect, useState } from 'react'
 import {
   Link,
@@ -13,21 +13,28 @@ import {
   useActivityPublicMedia,
   useCategories,
   useProgramPreview,
-  useUpdateActivityDraft,
 } from '@project/sdk'
-import { Clock, Repeat } from 'lucide-react'
+import {
+  Clock,
+  Image as ImageIcon,
+  ListOrdered,
+  Pencil,
+  Repeat,
+  Target,
+} from 'lucide-react'
 import { Page, Stage } from '@/components/ui/Layout'
-import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { SectionHeader } from '@/components/ui/SectionHeader'
-import { Avatar } from '@/components/ui/Avatar'
-import { CategoryIcon } from '@/components/shared/CategoryIcon'
-import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
+import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { SubHeader } from '@/components/shared/SubHeader'
 import { ReportButton } from '@/components/shared/ReportButton'
 import { type RiverItem } from '@/components/media/RelatedMedia'
 import { ActivityRelatedMedia } from '@/components/activity/ActivityRelatedMedia'
+import { ActivityHero, type ActivityMeta } from '@/components/activity/ActivityHero'
+import { ActivitySection } from '@/components/activity/ActivitySection'
+import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
+import { ActivityShare } from '@/components/activity/ActivityShare'
+import { ActivityDetailsEditor } from '@/components/activity/ActivityDetailsEditor'
 import { formatFrequency } from '@/components/program-authoring/ScheduleControls'
 import {
   buildActivityBreadcrumbs,
@@ -35,13 +42,12 @@ import {
 } from '@/lib/breadcrumbs'
 import { safeReturn } from '@/lib/dates'
 import { activityHero } from '@/lib/hero'
-import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import {
   useResolveActivityTarget,
   useResolveProgramTarget,
 } from '@/lib/useResolveSlug'
-import { buildActivityUrl, buildProfileUrl } from '@/lib/urls'
+import { buildActivityUrl } from '@/lib/urls'
 import { cn } from '@/lib/utils'
 
 /** Reusable Activity definition page (`/activities/:id`). */
@@ -56,14 +62,12 @@ export function ActivityPage() {
   const activity = useActivity(resolved.activityId)
   const categories = useCategories()
   const categorySlugOf = useCategorySlugOf()
-  const updateTargetTime = useUpdateActivityDraft(resolved.activityId)
   const publicMedia = useActivityPublicMedia(
     resolved.activityId,
     undefined,
     !resolved.notFound && !!resolved.activityId,
   )
-  const online = useOnline()
-  const [targetTimeDraft, setTargetTimeDraft] = useState('')
+  const [editing, setEditing] = useState(params.get('edit') === '1')
 
   const rawReturnTo = params.get('returnTo')
   const explicitReturnTo = rawReturnTo
@@ -77,10 +81,6 @@ export function ActivityPage() {
   const parentProgram = useProgramPreview(
     parentTarget ? resolvedParent.programId : '',
   )
-
-  useEffect(() => {
-    setTargetTimeDraft(targetTimeInput(activity.data?.targetTime))
-  }, [activity.data?.id, activity.data?.targetTime, activity.data?.draftRevision])
 
   useDocumentTitle(
     activity.data?.title ??
@@ -170,9 +170,20 @@ export function ActivityPage() {
   const frequencyText = a ? formatFrequency(a.frequency) : null
   const durationText = a ? formatDurationMinutes(a.durationMinutes) : null
   const targetTimeText = a?.targetTime ? formatTargetTime(a.targetTime) : null
-  const nonDurationMetrics = a
+  const metrics = a
     ? a.metricLabels.filter((label) => !label.toLowerCase().startsWith('duration'))
     : []
+  const meta: ActivityMeta[] = [
+    ...(durationText
+      ? [{ key: 'duration', icon: Clock, label: `Duration: ${durationText}` }]
+      : []),
+    ...(targetTimeText
+      ? [{ key: 'target-time', icon: Clock, label: `Target time: ${targetTimeText}` }]
+      : []),
+    ...(frequencyText
+      ? [{ key: 'frequency', icon: Repeat, label: `Frequency: ${frequencyText}` }]
+      : []),
+  ]
 
   return (
     <Page className="page--wide pb-20">
@@ -182,7 +193,7 @@ export function ActivityPage() {
         returnTo={currentUrl}
       />
 
-      <div className="mx-auto mt-6 w-full activity-page page--width">
+      <div className="mx-auto mt-6 w-full page--width">
         <ErrorMessage
           error={activity.error}
           retry={() => void activity.refetch()}
@@ -193,301 +204,131 @@ export function ActivityPage() {
         ) : (
           a &&
           hero && (
-            <>
-              {/* 1 · Hero Identity Card */}
-              <header
+            <div className="activity-page">
+              <ActivityHero
+                hero={hero}
+                context={
+                  [category?.label, a.isPlatform ? 'Platform Activity' : null]
+                    .filter(Boolean)
+                    .join(' · ') || 'Activity'
+                }
+                status={
+                  a.canEdit && (
+                    <>
+                      {a.status === 'DRAFT' && (
+                        <span className="activity-status-pill" data-status="paused">
+                          Draft
+                        </span>
+                      )}
+                      <span className="activity-status-pill">
+                        {a.visibility === 'PUBLIC'
+                          ? 'Public'
+                          : a.visibility === 'UNLISTED'
+                            ? 'Link only'
+                            : 'Private'}
+                      </span>
+                    </>
+                  )
+                }
+                title={a.title}
+                summary={a.summary}
+                creator={a.creator}
+                returnTo={currentUrl}
+                meta={meta}
+                footnote={
+                  a.sourceActivity && (
+                    <p className="text-xs text-muted">
+                      Based on{' '}
+                      <Link
+                        to={buildActivityUrl(a.sourceActivity, { returnTo: currentUrl })}
+                        className="font-medium text-accent hover:underline"
+                      >
+                        {a.sourceActivity.title}
+                      </Link>
+                    </p>
+                  )
+                }
+                actions={
+                  <div className="activity-session__actions">
+                    <div className="activity-session__tools ml-auto">
+                      {a.canEdit ? (
+                        <Button
+                          variant={editing ? 'default' : 'outline'}
+                          aria-pressed={editing}
+                          onClick={() => setEditing((open) => !open)}
+                        >
+                          <Pencil size={16} aria-hidden />
+                          Edit Activity
+                        </Button>
+                      ) : (
+                        <ReportButton target={{ type: 'ACTIVITY', id: a.id }} />
+                      )}
+                    </div>
+                  </div>
+                }
+              />
+
+              {editing && a.canEdit && (
+                <ActivityDetailsEditor activity={a} onDone={() => setEditing(false)} />
+              )}
+
+              <div
                 className={cn(
-                  'activity-identity',
-                  hero.src && 'activity-identity--photo',
+                  'activity-layout',
+                  (metrics.length > 0 || a.tools.length > 0) && 'activity-layout--definition',
                 )}
               >
-                {hero.src && (
-                  <div className="activity-identity__art-wrap" aria-hidden>
-                    <EntityHero
-                      hero={hero}
-                      size="banner"
-                      className="activity-identity__art"
-                    />
-                  </div>
+                <ActivitySection icon={ListOrdered} title="Instructions">
+                  <ActivityInstructions
+                    instructions={a.instructions}
+                    empty="No step-by-step instructions provided for this Activity."
+                  />
+                </ActivitySection>
+
+                {(metrics.length > 0 || a.tools.length > 0) && (
+                  <ActivitySection icon={Target} title="Tracks and uses">
+                    {metrics.length > 0 && (
+                      <div className="space-y-1.5">
+                        <h3 className="activity-card__label">Tracked metrics</h3>
+                        <p className="text-sm text-foreground">{metrics.join(' · ')}</p>
+                      </div>
+                    )}
+                    {a.tools.length > 0 && (
+                      <div className="space-y-1.5">
+                        <h3 className="activity-card__label">Tools</h3>
+                        <div className="flex flex-wrap gap-1.5">
+                          {a.tools.map((tool) => (
+                            <span
+                              key={tool.id}
+                              className="inline-flex items-center rounded-md bg-surface-muted px-2.5 py-1 text-xs font-medium text-foreground"
+                            >
+                              {tool.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </ActivitySection>
                 )}
 
-                <div className="activity-identity__body">
-                  <div className="activity-identity__header">
-                    <span className="activity-identity__icon" aria-hidden>
-                      <CategoryIcon
-                        category={hero.category}
-                        size={22}
-                        strokeWidth={1.85}
-                      />
-                    </span>
-
-                    <div className="activity-identity__title-group">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="activity-identity__context">
-                          {[category?.label, a.isPlatform ? 'Platform Activity' : null]
-                            .filter(Boolean)
-                            .join(' · ') || 'Activity'}
-                        </p>
-                        {a.canEdit && (
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {a.status === 'DRAFT' && (
-                              <span className="inline-flex items-center rounded-full bg-attention/15 px-2.5 py-0.5 text-xs font-semibold text-attention">
-                                Draft
-                              </span>
-                            )}
-                            <span className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-semibold text-muted">
-                              {a.visibility === 'PUBLIC'
-                                ? 'Public'
-                                : a.visibility === 'UNLISTED'
-                                  ? 'Link only'
-                                  : 'Private'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <h1>{a.title}</h1>
-
-                      {a.creator && (
-                        <div>
-                          <Link
-                            to={`${buildProfileUrl(a.creator.handle)}?returnTo=${encodeURIComponent(currentUrl)}`}
-                            className="inline-flex items-center gap-2 text-sm font-medium text-foreground hover:text-accent transition-colors"
-                          >
-                            <Avatar
-                              src={a.creator.avatarUrl}
-                              name={a.creator.displayName}
-                              size="sm"
-                              className="h-5 w-5 ring-1 ring-border"
-                            />
-                            <span>
-                              by <strong className="font-semibold">{a.creator.displayName}</strong>
-                            </span>
-                          </Link>
-                        </div>
-                      )}
-
-                      {(durationText || targetTimeText || frequencyText) && (
-                        <div className="activity-identity__meta">
-                          {durationText && (
-                            <span className="inline-flex items-center gap-1.5">
-                              <Clock size={14} aria-hidden />
-                              <span>Duration: {durationText}</span>
-                            </span>
-                          )}
-                          {targetTimeText && (
-                            <span className="inline-flex items-center gap-1.5">
-                              <Clock size={14} aria-hidden />
-                              <span>Target time: {targetTimeText}</span>
-                            </span>
-                          )}
-                          {frequencyText && (
-                            <span className="inline-flex items-center gap-1.5">
-                              <Repeat size={14} aria-hidden />
-                              <span>Frequency: {frequencyText}</span>
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {a.summary && (
-                        <p className="activity-identity__summary">{a.summary}</p>
-                      )}
-
-                      {a.sourceActivity && (
-                        <p className="text-xs text-muted">
-                          Based on{' '}
-                          <Link
-                            to={buildActivityUrl(a.sourceActivity, {
-                              returnTo: currentUrl,
-                            })}
-                            className="font-medium text-accent hover:underline"
-                          >
-                            {a.sourceActivity.title}
-                          </Link>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </header>
-
-              {/* 2 · Instructions + Specifications */}
-              <div className="grid grid-cols-1 gap-6 items-start lg:grid-cols-12">
-                <section
-                  aria-label="Instructions"
-                  className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-4 lg:col-span-7"
+                <ActivitySection
+                  as="div"
+                  id="related-media"
+                  icon={ImageIcon}
+                  title="Related Media"
+                  description="Demonstrations and public photos and videos for this Activity."
+                  className="activity-gallery activity-related scroll-mt-20"
                 >
-                  <SectionHeader title="Instructions" className="pb-0" />
-                  {a.instructions.length > 0 ? (
-                    <ol className="space-y-3">
-                      {a.instructions.map((inst, index) => (
-                        <li
-                          key={inst.id}
-                          className="rounded-lg border border-border/70 bg-surface-raised p-4 space-y-1"
-                        >
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-xs font-bold tabular-nums text-accent">
-                              {String(index + 1).padStart(2, '0')}
-                            </span>
-                            {inst.title && (
-                              <h3 className="text-sm font-semibold text-foreground">
-                                {inst.title}
-                              </h3>
-                            )}
-                          </div>
-                          {inst.body && (
-                            <p className="text-sm leading-relaxed text-muted">
-                              {inst.body}
-                            </p>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <p className="text-sm text-muted">
-                      No step-by-step instructions provided for this Activity.
-                    </p>
-                  )}
-                </section>
+                  <ActivityRelatedMedia
+                    activityId={a.id}
+                    revisionId={a.canEdit ? a.revisionId : null}
+                    items={riverItems}
+                  />
+                </ActivitySection>
 
-                <aside
-                  aria-label="Activity details"
-                  className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-5 lg:col-span-5"
-                >
-                  <SectionHeader title="Details" className="pb-0" />
-
-                  <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-1">
-                    {category && (
-                      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
-                        <dt className="text-muted">Category</dt>
-                        <dd className="font-medium text-foreground">{category.label}</dd>
-                      </div>
-                    )}
-                    {durationText && (
-                      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
-                        <dt className="text-muted">Planned duration</dt>
-                        <dd className="font-medium text-foreground">{durationText}</dd>
-                      </div>
-                    )}
-                    {frequencyText && (
-                      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
-                        <dt className="text-muted">Frequency</dt>
-                        <dd className="font-medium text-foreground">{frequencyText}</dd>
-                      </div>
-                    )}
-                    {targetTimeText && (
-                      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
-                        <dt className="text-muted">Target time</dt>
-                        <dd className="font-medium text-foreground">{targetTimeText}</dd>
-                      </div>
-                    )}
-                  </dl>
-
-                  {nonDurationMetrics.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-                        Tracked metrics
-                      </h3>
-                      <p className="text-sm text-foreground">
-                        {nonDurationMetrics.join(' · ')}
-                      </p>
-                    </div>
-                  )}
-
-                  {a.tools.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-                        Tools
-                      </h3>
-                      <div className="flex flex-wrap gap-1.5">
-                        {a.tools.map((tool) => (
-                          <span
-                            key={tool.id}
-                            className="inline-flex items-center rounded-md bg-surface-muted px-2.5 py-1 text-xs font-medium text-foreground"
-                          >
-                            {tool.label}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <p className="text-xs text-muted">
-                    Session duration is calculated automatically while you work.
-                  </p>
-
-                  {a.canEdit ? (
-                    <div className="space-y-2 border-t border-border pt-4">
-                      <div className="flex flex-wrap items-end gap-2">
-                        <label className="field space-y-1">
-                          <span className="label text-xs font-semibold">
-                            Target time (optional)
-                          </span>
-                          <Input
-                            type="time"
-                            aria-label="Target time (optional)"
-                            value={targetTimeDraft}
-                            disabled={!online || updateTargetTime.isPending}
-                            onChange={(event) =>
-                              setTargetTimeDraft(event.target.value)
-                            }
-                          />
-                        </label>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={
-                            !online ||
-                            updateTargetTime.isPending ||
-                            parseTargetTime(targetTimeDraft) ===
-                              (a.targetTime ?? null)
-                          }
-                          loading={updateTargetTime.isPending}
-                          onClick={() =>
-                            void updateTargetTime.mutateAsync({
-                              targetTime: parseTargetTime(targetTimeDraft),
-                              expectedRevision: a.draftRevision,
-                            })
-                          }
-                        >
-                          Save time
-                        </Button>
-                        {a.targetTime && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            disabled={!online || updateTargetTime.isPending}
-                            onClick={() =>
-                              void updateTargetTime.mutateAsync({
-                                targetTime: null,
-                                expectedRevision: a.draftRevision,
-                              })
-                            }
-                          >
-                            Clear
-                          </Button>
-                        )}
-                      </div>
-                      <ErrorMessage error={updateTargetTime.error} />
-                    </div>
-                  ) : (
-                    <div className="border-t border-border pt-3">
-                      <ReportButton target={{ type: 'ACTIVITY', id: a.id }} />
-                    </div>
-                  )}
-                </aside>
+                <ActivityShare activity={a} />
               </div>
-
-              {/* 3 · Unified Related Media */}
-              <ActivityRelatedMedia
-                activityId={a.id}
-                revisionId={a.canEdit ? a.revisionId : null}
-                items={riverItems}
-              />
-            </>
+            </div>
           )
         )}
       </div>

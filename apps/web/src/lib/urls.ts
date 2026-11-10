@@ -27,6 +27,8 @@ export interface ProgramUrlOptions {
 
 export interface ActivityUrlOptions {
   returnTo?: string | null
+  /** Opens the owner editor on arrival. */
+  edit?: boolean
 }
 
 /**
@@ -97,11 +99,11 @@ export function buildActivityUrl(
 
   const path = slug ? `/activities/${slug}` : `/activities/${activity.id}`
 
-  if (options.returnTo) {
-    const query = new URLSearchParams({ returnTo: options.returnTo })
-    return `${path}?${query.toString()}`
-  }
-  return path
+  const query = new URLSearchParams()
+  if (options.edit) query.set('edit', '1')
+  if (options.returnTo) query.set('returnTo', options.returnTo)
+  const qs = query.toString()
+  return qs ? `${path}?${qs}` : path
 }
 
 /**

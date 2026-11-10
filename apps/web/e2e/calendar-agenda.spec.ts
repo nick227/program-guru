@@ -116,7 +116,8 @@ test('activity target time is displayed on Activity and can be set by user', asy
   // Activity detail page displays Target time and lets owner update it
   await page.goto('/activities/00000000-0000-4000-8000-000000000022')
   await expect(page.getByText('Target time: 7:30 AM')).toBeVisible()
+  await page.getByRole('button', { name: 'Edit Activity' }).click()
   await page.getByLabel('Target time (optional)').fill('08:15')
-  await page.getByRole('button', { name: 'Save time' }).click()
+  await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByText('Target time: 8:15 AM')).toBeVisible()
 })

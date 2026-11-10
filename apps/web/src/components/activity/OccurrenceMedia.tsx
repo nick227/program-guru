@@ -5,7 +5,7 @@ import { RelatedMedia } from '@/components/media/RelatedMedia'
 import { RelatedMediaMenu } from '@/components/media/RelatedMediaMenu'
 import { GroupMediaThread } from '@/components/social/GroupMediaThread'
 import { ErrorMessage } from '@/components/ui/Feedback'
-import { SectionHeader } from '@/components/ui/SectionHeader'
+import { ActivitySection } from './ActivitySection'
 import { mergeRelatedMedia } from '@/lib/activityMediaHistory'
 import { useMediaUploads } from '@/lib/useMediaUploads'
 import { useOnline } from '@/lib/useOnline'
@@ -123,15 +123,14 @@ export function OccurrenceMedia({
   })
 
   return (
-    <div id="related-media" className="activity-card activity-related scroll-mt-20">
-      <div className="activity-related__header">
-        <div className="flex items-start gap-2.5">
-          <ImageIcon size={18} className="mt-1 shrink-0 text-accent" aria-hidden />
-          <SectionHeader
-            title="Related Media"
-            description="Photos and videos from you, your group, and the community."
-          />
-        </div>
+    <ActivitySection
+      as="div"
+      id="related-media"
+      icon={ImageIcon}
+      title="Related Media"
+      description="Photos and videos from you, your group, and the community."
+      className="activity-related scroll-mt-20"
+      action={
         <div role="group" aria-label="Filter related media" className="media-pill-tabs">
           {FILTERS.map((value) => (
             <button
@@ -148,7 +147,8 @@ export function OccurrenceMedia({
             </button>
           ))}
         </div>
-      </div>
+      }
+    >
       <ErrorMessage error={history.error} retry={() => void history.refetch()} />
       <RelatedMedia
         variant="gallery"
@@ -200,6 +200,6 @@ export function OccurrenceMedia({
           ) : null
         }
       </RelatedMedia>
-    </div>
+    </ActivitySection>
   )
 }
