@@ -87,6 +87,8 @@ export const programs = defineResource<unknown, Workspace>({
     badges: (ws) => [...statusBadges(ws), { label: label(ws.visibility), tone: 'muted' }, { label: 'Program Guru', tone: 'muted' }],
     actions: [
       { label: 'View page', href: (ws) => `/programs/${ws.id}`, when: (ws) => !!ws.latestPublishedVersionId },
+      // The Program workspace owns schedule editing; it accepts admins for platform Programs.
+      { label: 'Schedule editor', href: (ws) => `/programs/${ws.id}/workspace?step=activities`, when: (ws) => ws.status !== 'ARCHIVED' },
       {
         label: 'Archive',
         when: (ws) => ws.status === 'PUBLISHED',

@@ -71,7 +71,7 @@ export function ResourceTable({ resource, fixed, urlState = false, title }: { re
         {list.search && <Input type="search" aria-label={list.search} placeholder={list.search} value={search} onChange={(e) => setSearch(e.target.value)} className="admin-toolbar__search" />}
         {filters.map((f) => (
           <Select key={f.key} aria-label={f.label} value={String(chosen[f.key] ?? '')} onChange={(e) => set(f.key, e.target.value)} className="admin-toolbar__filter">
-            <option value="">{f.label}: all</option>
+            <option value="">{f.label}: {f.allLabel ?? 'all'}</option>
             {f.options.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}

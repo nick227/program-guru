@@ -36,6 +36,7 @@ import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { useResolveActivityTarget } from '@/lib/useResolveSlug'
 import { buildActivityUrl } from '@/lib/urls'
+import { ReportButton } from '@/components/ReportButton'
 
 export function ActivityPage() {
   const { id: rawSlugOrId = '' } = useParams()
@@ -118,6 +119,7 @@ export function ActivityPage() {
             <>
               <h1>{activity.data.title}</h1>
               <p className="text-muted">{activity.data.summary}</p>
+              {!activity.data.canEdit && <ReportButton target={{ type: 'ACTIVITY', id: activity.data.id }} />}
               <Panel>
                 <Stack>
                   <h2>Instructions</h2>

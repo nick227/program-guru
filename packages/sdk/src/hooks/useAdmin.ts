@@ -19,6 +19,9 @@ export type AdminListPath =
   | '/admin/membership/purchases'
   | '/admin/membership/subscriptions'
   | '/admin/membership/grants'
+  // Moderation queues (MODERATOR or ADMIN): reports and pending public contributions.
+  | '/moderation/reports'
+  | '/moderation/publications'
 export type AdminListQuery<P extends AdminListPath> = NonNullable<paths[P]['get']['parameters']['query']>
 export type AdminListPage<P extends AdminListPath> = paths[P]['get']['responses'][200]['content']['application/json']
 export type AdminListRow<P extends AdminListPath> = AdminListPage<P>['data'][number]
@@ -112,4 +115,26 @@ export function useRevokeProgramAccess() {
     async (grantId: string) => apiData(await getApiClient().DELETE('/moderation/grants/{grantId}', { params: { path: { grantId } } })).data,
     [adminKey],
   )
+}
+
+export function useResolveReport() {
+  return useApiMutation(
+    async ({ reportId, ...body }: S['ResolveReportInput'] & { reportId: string }) =>
+      apiData(await getApiClient().POST('/moderation/reports/{reportId}/resolve', { params: { path: { reportId } }, body })).data,
+    [adminKey, keys.programs, keys.discover, ['activities'], keys.media],
+  )
+}
+
+/** Approve or reject a PENDING public contribution. Rejecting never deletes the owner's asset. */
+export function useModeratePublication() {
+  return useApiMutation(
+    async ({ publicationId, ...body }: S['ModeratePublicationInput'] & { publicationId: string }) =>
+      apiData(await getApiClient().POST('/moderation/publications/{publicationId}', { params: { path: { publicationId } }, body })).data,
+    [adminKey, keys.media, ['activities']],
+  )
+}
+
+/** Any signed-in user may report a Program, Activity, media publication, comment or account. */
+export function useCreateReport() {
+  return useApiMutation(async (body: S['ReportContentInput']) => apiData(await getApiClient().POST('/reports', { body })).data, [])
 }

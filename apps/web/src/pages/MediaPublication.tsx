@@ -15,6 +15,7 @@ import { dateLabel } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { buildGroupUrl, buildProfileUrl } from '@/lib/urls'
+import { ReportButton } from '@/components/ReportButton'
 
 export function MediaPublicationPage() {
   const { id = '' } = useParams()
@@ -75,6 +76,7 @@ export function MediaPublicationPage() {
                     · {data.status}
                   </span>
                 </Row>
+                <ReportButton target={{ type: 'MEDIA', id: data.id }} ownerId={data.creator?.id} />
 
                 {data.media.thumbnailUrl && (
                   <img

@@ -370,3 +370,48 @@ describe('membership', () => {
     expect(await data(call(rootAdminId, 'GET', `/admin/membership/grants?active=true`))).toEqual([])
   })
 })
+
+describe('platform media and moderation queues', () => {
+  const asset = (ownerId: string, key: string) =>
+    db.mediaAsset.create({ data: { ownerId, type: 'PHOTO', originalStorageKey: `test/${key}.png`, mime: 'image/png', byteSize: 1, state: 'READY' } })
+
+  it('refuses to delete an admin-owned file while platform content uses it', async () => {
+    await admin()
+    const c = await catalog()
+    const cover = await asset(rootAdminId, 'cover')
+    const demo = await asset(rootAdminId, 'demo')
+    let ws = await data(call(rootAdminId, 'POST', '/programs', { programTypeId: c.workout.id, owner: 'PLATFORM' }))
+    ws = await data(call(rootAdminId, 'PATCH', `/programs/${ws.id}/draft`, { coverMediaId: cover.id, expectedRevision: ws.draftRevision }))
+    const act = await data(call(rootAdminId, 'POST', '/activities', { title: 'Wall Sit', categoryId: c.fitness.id, owner: 'PLATFORM' }))
+    await data(call(rootAdminId, 'POST', '/media-attachments', { mediaId: demo.id, target: { kind: 'ACTIVITY_REVISION', id: act.revisionId }, purpose: 'DEMONSTRATION' }))
+
+    expect((await call(rootAdminId, 'DELETE', `/media/${cover.id}`)).statusCode).toBe(409)
+    expect((await call(rootAdminId, 'DELETE', `/media/${demo.id}`)).statusCode).toBe(409)
+    expect((await db.program.findUniqueOrThrow({ where: { id: ws.id } })).coverMediaId).toBe(cover.id)
+
+    // Once platform content no longer uses it, it is the owner's to delete again.
+    await data(call(rootAdminId, 'PATCH', `/programs/${ws.id}/draft`, { coverMediaId: null, expectedRevision: ws.draftRevision }))
+    expect((await call(rootAdminId, 'DELETE', `/media/${cover.id}`)).statusCode).toBe(200)
+    // A user's own Program cover is unaffected by the rule.
+    const mine = await asset(testUserId, 'mine')
+    const own = await data(call(testUserId, 'POST', '/programs', { programTypeId: c.workout.id }))
+    await data(call(testUserId, 'PATCH', `/programs/${own.id}/draft`, { coverMediaId: mine.id, expectedRevision: own.draftRevision }))
+    expect((await call(testUserId, 'DELETE', `/media/${mine.id}`)).statusCode).toBe(200)
+  })
+
+  it('lets an admin restrict publishing from the reports queue', async () => {
+    await admin()
+    const c = await catalog()
+    const report = await data(call(testOtherUserId, 'POST', '/reports', { target: { type: 'USER', id: testUserId }, reason: 'HARASSMENT', details: 'Spam programs' }))
+    const queue = await data(call(rootAdminId, 'GET', '/moderation/reports'))
+    expect(queue.map((r: any) => r.id)).toEqual([report.id])
+    await data(call(rootAdminId, 'POST', `/moderation/reports/${report.id}/resolve`, { status: 'RESOLVED', action: 'RESTRICT_PUBLISHING', reason: 'Repeated spam' }))
+    expect(await data(call(rootAdminId, 'GET', '/moderation/reports'))).toEqual([])
+
+    let ws = await data(call(testUserId, 'POST', '/programs', { programTypeId: c.workout.id }))
+    ws = await data(call(testUserId, 'POST', `/programs/${ws.id}/draft/activities`, { activityIds: [c.squats.activity.id], expectedRevision: ws.draftRevision }))
+    const refused = await call(testUserId, 'POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })
+    expect(refused.statusCode).toBe(400)
+    expect(refused.json().fieldErrors.visibility).toMatch(/restricted/i)
+  })
+})

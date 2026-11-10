@@ -34,6 +34,7 @@ import { useResolveProgramTarget } from '@/lib/useResolveSlug'
 import { buildGroupUrl, buildProgramUrl, buildWorkspaceUrl } from '@/lib/urls'
 import { activityHero, programHero } from '@/lib/hero'
 import { useCategorySlugOf } from '@/components/EntityHero'
+import { ReportButton } from '@/components/ReportButton'
 
 export function ProgramPage() {
   const paramsFromRouter = useParams()
@@ -368,6 +369,9 @@ export function ProgramPage() {
             completionRate={p.completionRate}
             publicUrl={publicUrl}
           />
+        </div>
+        <div className="flex justify-end">
+          <ReportButton target={{ type: 'PROGRAM', id: p.id }} ownerId={p.creator?.id} />
         </div>
       </div>
     </Page>

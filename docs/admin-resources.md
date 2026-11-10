@@ -6,7 +6,7 @@ The admin is one pattern, not a set of pages. A **resource** is a plain TypeScri
 
 | Component | Renders |
 |---|---|
-| `AdminLayout` | Header, section tabs (Content, Users, Membership), a section's resource tabs, ADMIN-only guard |
+| `AdminLayout` | Header, section tabs (Content, Users, Moderation, Membership), a section's resource tabs, ADMIN-only guard |
 | `ResourceTable` | `resource.list`: search, select filters, columns, row actions, bulk actions, paging, phone card layout |
 | `ResourceForm` | Typed `Field[]`: local state, changed-fields-only submit, server `fieldErrors` inline, dirty guard |
 | `ResourceEditor` | `resource.editor`: header (back, title, badges, actions) plus sections; also `ResourceCreate` for `resource.create` |
@@ -29,7 +29,7 @@ Content is also served at `/admin` itself.
 
 ## Add a resource
 
-Say we want `/admin/reports` (the moderation queue).
+Say we want `/admin/reports` (this example now exists as `resources/moderation.tsx`, using the existing `/moderation/reports` operation).
 
 **1. API.** Declare the list operation in `openapi.yaml`: a `GET` under `/admin/...` returning `{ data, meta }`. Run `pnpm --filter server handlers:sync` and implement the handler. Then regenerate the SDK (`pnpm --filter @project/sdk generate`). Add the path to `AdminListPath` in `packages/sdk/src/hooks/useAdmin.ts`, which makes it listable with full types:
 
@@ -65,6 +65,8 @@ export const reports = defineResource<Report, Report, AdminListQuery<'/admin/rep
 ```
 
 **3. Register** it in `registry.tsx` (`resources` array order is tab order). Done: the route, the tab, search, filters, paging and the phone layout all come from the definition. `src/admin/registry.test.ts` checks paths are unique and every section has a home.
+
+**Pages are keyed by resource.** `registry.tsx` gives every route element `key={resource.path}`. Resources declare different numbers of hook-backed actions, and without the key React reuses one table for another and crashes ("Should have a queue"). `e2e/admin.spec.ts` guards this.
 
 ## Add a field
 

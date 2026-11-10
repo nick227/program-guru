@@ -11,6 +11,7 @@ import '../admin.css'
 export const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: 'content', label: 'Content' },
   { key: 'users', label: 'Users' },
+  { key: 'moderation', label: 'Moderation' },
   { key: 'membership', label: 'Membership' },
 ]
 

@@ -20,6 +20,7 @@ import { useDocumentTitle } from '@/lib/title'
 import { buildActivityUrl, buildProfileUrl, buildProgramUrl } from '@/lib/urls'
 import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
 import { programHero } from '@/lib/hero'
+import { ReportButton } from '@/components/ReportButton'
 
 export function ProfilePage() {
   const { handle = '' } = useParams()
@@ -94,6 +95,7 @@ export function ProfilePage() {
                 <div>
                   <h1 className="text-xl font-bold">{p.displayName}</h1>
                   <p className="text-muted">@{p.handle}</p>
+                  <ReportButton target={{ type: 'USER', id: p.id }} ownerId={p.id} label="Report account" />
                 </div>
               </Row>
               {isOwner ? (

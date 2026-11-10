@@ -74,6 +74,8 @@ export type Filter = {
   key: string
   label: string
   options: Option[]
+  /** What an empty choice means when the server has a default (e.g. reports default to open). */
+  allLabel?: string
 }
 
 export type ActionContext = { reason: string }
@@ -177,7 +179,7 @@ export type Resource<Row = any, Detail = any, Query extends ListQuery = ListQuer
   import?: ImportDef
 }
 
-export type SectionKey = 'content' | 'users' | 'membership'
+export type SectionKey = 'content' | 'users' | 'moderation' | 'membership'
 
 /** Identity helper: infers Row/Detail/Query from the object while checking it against Resource. */
 export const defineResource = <Row, Detail = Row, Query extends ListQuery = ListQuery>(r: Resource<Row, Detail, Query>) => r

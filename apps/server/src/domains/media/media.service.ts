@@ -458,8 +458,25 @@ export async function completeUpload(userId: string, uploadId: string) {
   return toAsset(userId, updated)
 }
 
+/**
+ * Platform content (creatorId null, 12 §7a) is shared by every admin, but its media stays owned by
+ * the admin who uploaded it. Their own library delete must not strip it from everyone's content:
+ * refuse while a platform Program cover or platform Program/Activity/Instruction attachment uses it.
+ */
+async function usedByPlatformContent(mediaId: string) {
+  const platformActivity = { activity: { creatorId: null } }
+  const [covers, attachments] = await Promise.all([
+    db.program.count({ where: { coverMediaId: mediaId, creatorId: null, deletedAt: null } }),
+    db.mediaAttachment.count({
+      where: { mediaId, OR: [{ program: { creatorId: null, deletedAt: null } }, { revision: platformActivity }, { instruction: { revision: platformActivity } }] },
+    }),
+  ])
+  return covers + attachments > 0
+}
+
 export async function remove(userId: string, mediaId: string) {
   const m = await ownAsset(userId, mediaId)
+  if (await usedByPlatformContent(m.id)) throw conflict('Platform content uses this file. Remove it from that Program or Activity first.')
   // Soft delete hides it everywhere and ends every publication; the worker purges files after retention.
   await db.$transaction([
     db.mediaPublication.updateMany({ where: { mediaId: m.id, status: { in: ['PENDING', 'APPROVED'] } }, data: { status: 'REVOKED' } }),
