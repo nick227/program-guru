@@ -78,6 +78,21 @@ Examples (copy): `3 activities today`, `Alex completed today's activity`, `Comme
 - User may report content (copyright, unsafe guidance, harassment, privacy). Moderator may hide publication or comment, unlist a Program, remove account ability to publish, revoke entitlement if legally appropriate, and keep audit trail. Publishing is not pre-approved; reporting and moderation are the safeguard.
 - Domain-sensitive safety: fitness/wellness instructions should avoid medical claims; finance examples should not expose individual finances or promise returns; relationships content must respect privacy and consent. Do not use public comparison/leaderboards as default.
 
+## 7a. Platform administration
+
+One admin surface (`/admin`) for platform content, accounts and access. It is reachable only by `ADMIN`; `MODERATOR` keeps the report and publication queues and manual grants above. Every admin operation is authorized server-side (`adminOnlyAuth`), goes through the same domain services and validation as ordinary authoring, and never through a generic CRUD endpoint.
+
+- **Platform content** (`creatorId = null`: the seeded library and anything admins create or import) is authored by any active `ADMIN` through the ordinary Program and Activity operations, with the same drafts, revisions, publish checks and tombstone deletion. Version and revision rows record the admin who made each change. Platform Programs cannot use PAID access.
+- **User-owned content** is moderation-only for admins: hide, restore, unlist. Admins never edit it, so creator attribution and version history stay the creator's.
+- **Unpublish** is archive. An archived Program is restored by publishing it again (`07-PROGRAMS.md` §6).
+- **Import** creates platform Programs with nested Activities from structured JSON. It is validated as a whole before anything is written (`dryRun` returns every issue), written in one transaction as drafts, and replay-safe through an idempotency key. Publishing stays an explicit, reviewed step.
+- **Accounts:** admins search users, change role (`USER`/`MODERATOR`/`ADMIN`) and suspend or reactivate. The last active `ADMIN` can never be demoted, suspended or deactivated, whichever path is used.
+- **Membership:** read-only views of existing Program prices, purchases, subscriptions and access grants, plus the existing manual grant and revoke. There are no platform plans or limits, and refunds stay in the provider dashboard (ADR 0001).
+- **Audit:** role changes, suspensions, moderation, and publish, archive and delete of platform content each write a `ModerationAction`. A null `moderatorId` means a server-side command.
+- **Initial admins** are promoted from existing accounts by an explicit, idempotent server command (`admin grant <email>`; `pnpm --filter server admin` locally, `admin:prod` in the API service). No environment variable, seed or client path can grant `ADMIN`.
+
+Endpoints: `GET /admin/content`, `POST /admin/content/import`, `POST /admin/content/{kind}/{id}/moderation`, `GET /admin/users`, `GET|PATCH /admin/users/{userId}`, `GET /admin/membership/{prices|purchases|subscriptions|grants}`, `GET /admin/audit`.
+
 ## 8. DTOs
 
 ```ts

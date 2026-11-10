@@ -4,16 +4,16 @@
 import { expect } from 'vitest'
 import Stripe from 'stripe'
 import { db } from '@project/db'
-import { asAuth, seedUser, testAdminId, testOtherUserId, testUserId, validateResponse } from './index'
+import { asAuth, rootAdminId, seedUser, testAdminId, testOtherUserId, testUserId, validateResponse } from './index'
 import { existingCatalog, makeMedia, seedAchievements, seedCatalog } from './fixtures'
 import { setBillingGateway, type BillingGateway } from '../../infrastructure/stripe'
 import { unsubscribeToken } from '../../domains/social/notification.service'
 import { drain } from '../../worker/outbox'
 
 type App = { inject: (opts: any) => Promise<any> }
-type Who = 'alice' | 'bob' | 'carol' | 'mod' | 'anon'
+type Who = 'alice' | 'bob' | 'carol' | 'mod' | 'admin' | 'anon'
 export const carolId = '00000000-0000-4000-8000-0000000000c0'
-const ids: Record<Exclude<Who, 'anon'>, string> = { alice: testUserId, bob: testOtherUserId, carol: carolId, mod: testAdminId }
+const ids: Record<Exclude<Who, 'anon'>, string> = { alice: testUserId, bob: testOtherUserId, carol: carolId, mod: testAdminId, admin: rootAdminId }
 const START = '2026-11-09'
 
 class Fake implements BillingGateway {
@@ -67,6 +67,11 @@ export class World {
     await db.userProfile.update({ where: { userId: carolId }, data: { visibility: 'PRIVATE' } })
     await seedAchievements()
     return (await existingCatalog()) ?? seedCatalog()
+  })
+  /** The ADMIN account (the default test users include only a MODERATOR). */
+  admin = () => this.once('admin', async () => {
+    if (!(await db.user.findUnique({ where: { id: rootAdminId } }))) await seedUser(rootAdminId, 'root', { role: 'ADMIN' })
+    return rootAdminId
   })
   /** Alice's draft program with both seeded activities. */
   draft = () => this.once('draft', async () => {
@@ -437,6 +442,24 @@ export const cases: Record<string, Case> = {
   resolveReport: { as: 'mod', protected: true, request: async (w) => ({ method: 'POST', url: `/moderation/reports/${(await w.report()).id}/resolve`, payload: { status: 'DISMISSED', reason: 'Not a violation' } }) },
   listPendingPublications: { as: 'mod', protected: true, request: async (w) => (await w.pendingPublication(), { method: 'GET', url: '/moderation/publications' }) },
   moderateMediaPublication: { as: 'mod', protected: true, request: async (w) => ({ method: 'POST', url: `/moderation/publications/${(await w.pendingPublication()).id}`, payload: { decision: 'REJECT', note: 'Off topic' } }) },
+  listAdminContent: { as: 'admin', protected: true, request: async (w) => (await w.draft(), { method: 'GET', url: '/admin/content' }) },
+  importAdminContent: {
+    as: 'admin',
+    protected: true,
+    request: async (w) => {
+      const c = await w.cat()
+      return { method: 'POST', url: '/admin/content/import', payload: { idempotencyKey: 'contract-import-1', programs: [{ title: 'Imported', programType: c.workout.slug, activities: [{ ref: 'squats' }, { title: 'Wall Sit', metrics: [{ metric: 'duration' }] }] }] } }
+    },
+  },
+  moderateAdminContent: { as: 'admin', protected: true, request: async (w) => ({ method: 'POST', url: `/admin/content/PROGRAM/${(await w.draft()).id}/moderation`, payload: { action: 'HIDE', reason: 'Unsafe guidance' } }) },
+  listAdminAudit: { as: 'admin', protected: true, request: async (w) => (await w.grant(), { method: 'GET', url: '/admin/audit' }) },
+  listAdminUsers: { as: 'admin', protected: true, request: async () => ({ method: 'GET', url: '/admin/users?q=ali' }) },
+  getAdminUser: { as: 'admin', protected: true, request: async () => ({ method: 'GET', url: `/admin/users/${testUserId}` }) },
+  updateAdminUser: { as: 'admin', protected: true, request: async () => ({ method: 'PATCH', url: `/admin/users/${testUserId}`, payload: { role: 'MODERATOR', reason: 'Helps with reports' } }) },
+  listAdminPrices: { as: 'admin', protected: true, request: async (w) => (await w.market(), { method: 'GET', url: '/admin/membership/prices' }) },
+  listAdminPurchases: { as: 'admin', protected: true, request: async () => ({ method: 'GET', url: '/admin/membership/purchases' }) },
+  listAdminSubscriptions: { as: 'admin', protected: true, request: async (w) => (await w.market(), { method: 'GET', url: `/admin/membership/subscriptions?userId=${testOtherUserId}` }) },
+  listAdminGrants: { as: 'admin', protected: true, request: async (w) => (await w.grant(), { method: 'GET', url: '/admin/membership/grants?active=true' }) },
   grantProgramAccess: { as: 'mod', protected: true, request: async (w) => ({ method: 'POST', url: `/moderation/programs/${(await w.approvalProgram()).id}/grants`, payload: { userId: carolId, reason: 'Support' } }) },
   revokeProgramAccess: { as: 'mod', protected: true, request: async (w) => ({ method: 'DELETE', url: `/moderation/grants/${(await w.grant()).id}` }) },
 }
@@ -458,6 +481,7 @@ export async function contractCase(app: App, operationId: string) {
   if (!c) throw new Error(`No contract case for ${operationId}`)
   const w = new World(app)
   try {
+    if (c.as === 'admin') await w.admin()
     const r = await c.request(w)
     if (c.protected) {
       const anon = await app.inject({ method: r.method, url: r.url, payload: r.payload as any, headers: r.headers })

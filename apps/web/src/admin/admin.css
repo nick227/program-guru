@@ -1,0 +1,112 @@
+/* Admin (12-SOCIAL §7a). Existing tokens only; mirrors the My Programs table (13 §5).
+   ≥768px: table. <768px: each row becomes a labelled card; low-priority columns leave first.
+   Imported by AdminLayout, so no Tailwind @layer (component-imported CSS cannot use it). */
+.admin { display: flex; flex-direction: column; gap: var(--space-6); }
+
+.admin-header { display: flex; flex-direction: column; gap: var(--space-3); }
+.admin-header__title { font-family: var(--font-display, inherit); font-size: var(--text-xl, 1.25rem); font-weight: 700; }
+
+.admin-tabs,
+.admin-subtabs { display: flex; gap: var(--space-1); overflow-x: auto; border-bottom: 1px solid hsl(var(--color-border)); }
+.admin-subtabs { border-bottom: 0; }
+.admin-tab {
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: hsl(var(--color-muted));
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.admin-tab--active { border-color: hsl(var(--color-accent)); color: hsl(var(--color-text)); }
+.admin-subtab {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  color: hsl(var(--color-muted));
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+.admin-subtab--active { background: hsl(var(--color-surface-muted)); color: hsl(var(--color-text)); font-weight: 600; }
+
+.admin-main { min-width: 0; }
+
+.admin-section {
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-panel);
+  background: hsl(var(--color-surface));
+  padding: var(--space-5);
+}
+.admin-section > .section-header { margin-bottom: var(--space-4); }
+
+.admin-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.admin-toolbar .admin-toolbar__search { width: 100%; }
+.admin-toolbar .admin-toolbar__filter { width: auto; min-width: 9rem; }
+.admin-toolbar__links { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-left: auto; }
+@media (min-width: 640px) { .admin-toolbar .admin-toolbar__search { width: 16rem; } }
+
+.admin-bulk {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: hsl(var(--color-accent) / 0.08);
+}
+
+.admin-empty { padding: var(--space-8) 0; color: hsl(var(--color-muted)); text-align: center; font-size: var(--text-sm); }
+
+.admin-table { width: 100%; border-collapse: collapse; text-align: left; font-size: var(--text-sm); transition: opacity var(--duration-fast); }
+.admin-table th {
+  padding: var(--space-3);
+  color: hsl(var(--color-muted));
+  font-size: var(--type-caption);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.admin-table td { padding: var(--space-3); border-bottom: 1px solid hsl(var(--color-border) / 0.6); vertical-align: middle; }
+.admin-table tbody tr:hover td { background: hsl(var(--color-surface-muted) / 0.4); }
+.admin-table__check { width: 2rem; }
+.admin-table__actions { text-align: right; white-space: nowrap; }
+.admin-table__primary { font-weight: 600; }
+.admin-table__primary:hover { color: hsl(var(--color-accent)); }
+
+@media (max-width: 1023px) {
+  .admin-table [data-priority='low'] { display: none; }
+}
+@media (max-width: 767px) {
+  .admin-table thead { display: none; }
+  .admin-table, .admin-table tbody, .admin-table tr, .admin-table td { display: block; width: 100%; }
+  .admin-table tr { padding: var(--space-3) 0; border-bottom: 1px solid hsl(var(--color-border) / 0.6); }
+  .admin-table td { display: flex; gap: var(--space-3); justify-content: space-between; padding: var(--space-1) 0; border: 0; }
+  .admin-table td[data-label]::before { content: attr(data-label); color: hsl(var(--color-muted)); font-size: var(--type-caption); }
+  .admin-table td:nth-child(1)[data-label]::before,
+  .admin-table td.admin-table__check + td[data-label]::before { content: none; }
+  .admin-table td.admin-table__check { position: absolute; left: 0; top: var(--space-3); width: auto; padding: 0; }
+  .admin-table tr:has(.admin-table__check) { position: relative; padding-left: var(--space-8); }
+  .admin-table td.admin-table__actions { justify-content: flex-start; padding-top: var(--space-2); }
+}
+
+.admin-badge {
+  display: inline-flex; align-items: center;
+  padding: 0.0625rem var(--space-2);
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-full);
+  color: hsl(var(--color-text));
+  font-size: var(--type-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.admin-badge--muted { color: hsl(var(--color-muted)); }
+.admin-badge--accent { border-color: hsl(var(--color-accent) / 0.4); color: hsl(var(--color-accent)); }
+.admin-badge--warning { border-color: hsl(var(--color-attention) / 0.4); color: hsl(var(--color-attention)); }
+.admin-badge--danger { border-color: hsl(var(--color-danger) / 0.4); color: hsl(var(--color-danger)); }
+
+.admin-dialog {
+  width: min(28rem, calc(100vw - 2rem));
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-panel);
+  background: hsl(var(--color-surface));
+  color: hsl(var(--color-text));
+  padding: var(--space-5);
+}
+.admin-dialog::backdrop { background: hsl(var(--color-text) / 0.4); }

@@ -5,13 +5,15 @@ import { Prisma, db, type ProgramVersion } from '@project/db'
 import { badRequest, forbidden, notFound, versionConflict } from '../../lib/errors'
 import { enqueue } from '../../lib/outbox'
 import { afterCursor, pageArgs, pageOrder, toPage } from '../../lib/paging'
-import { canReadRevision, canUseActivity, isOpenlyReadable, isOwner as isActivityOwner } from '../activities/access'
+import { canReadRevision, canUseActivity, isOpenlyReadable } from '../activities/access'
 import { loadRevisions, summarizeRevision } from '../activities/mapper'
 import { publish as publishActivityRevision } from '../activities/activity.service'
 import { canSeeProgram, isProgramOwner, marketplaceEnabled } from './access'
 import { isPublishingRestricted } from '../social/moderation.service'
 import { allocateProgramSlug } from './slug.service'
 import { programInclude, toPlacement, toPrice, toProgramSummary } from './mapper'
+import { authorFor, type Author } from '../admin/authors'
+import { audit } from '../admin/audit'
 import {
   DEFAULT_DURATION_DAYS,
   DEFAULT_FREQUENCY,
@@ -28,12 +30,17 @@ type AccessMode = 'OPEN' | 'APPROVAL' | 'PAID'
 
 // ── Draft plumbing ──────────────────────────────────────────────────────────
 
-async function ownedProgram(tx: Tx, userId: string, programId: string) {
+/** The owner's Program, or a platform Program for an active admin (12 §7a). */
+async function ownedProgram(tx: Tx, userId: string, programId: string, opts: { allowArchived?: boolean } = {}) {
   const p = await tx.program.findUnique({ where: { id: programId } })
-  if (!p || !isProgramOwner(p, userId)) throw notFound('Program')
-  if (p.status === 'ARCHIVED') throw forbidden('Archived programs cannot be edited')
+  if (!p || !(await authorFor(userId, tx)).program(p)) throw notFound('Program')
+  if (p.status === 'ARCHIVED' && !opts.allowArchived) throw forbidden('Archived programs cannot be edited')
   return p
 }
+
+/** Admin changes to platform content are audited; owners' own changes are not moderation. */
+const auditPlatform = (tx: Tx, author: Author, p: { id: string; creatorId: string | null }, action: 'PUBLISH' | 'ARCHIVE', reason: string) =>
+  author.platform && p.creatorId === null ? audit(tx, author.userId, 'PROGRAM', p.id, action, reason) : null
 
 async function draftVersion(tx: Tx, programId: string) {
   return tx.programVersion.findFirst({ where: { programId, publishedAt: null } })
@@ -89,7 +96,7 @@ async function selectedActivities(tx: Tx, versionId: string) {
  * Regenerates automatic placements (07 §7). Manual placements survive; a generated slot is skipped
  * when the same Activity already has a manual placement that day.
  */
-async function regenerate(tx: Tx, version: ProgramVersion, order: { activityId: string; activityRevisionId: string }[], keepManual = true) {
+export async function regenerate(tx: Tx, version: ProgramVersion, order: { activityId: string; activityRevisionId: string }[], keepManual = true) {
   await tx.programScheduleItem.deleteMany({ where: { programVersionId: version.id, ...(keepManual ? { isManual: false } : {}) } })
   const manual = keepManual ? await tx.programScheduleItem.findMany({ where: { programVersionId: version.id }, select: { activityId: true, relativeDay: true } }) : []
   const taken = new Set(manual.map((m) => `${m.activityId}:${m.relativeDay}`))
@@ -106,7 +113,8 @@ async function regenerate(tx: Tx, version: ProgramVersion, order: { activityId: 
 
 export async function workspace(userId: string, programId: string) {
   const p = await db.program.findUnique({ where: { id: programId }, include: programInclude })
-  if (!p || !isProgramOwner(p, userId)) throw notFound('Program')
+  const author = await authorFor(userId)
+  if (!p || !author.program(p)) throw notFound('Program')
   const draft = await draftVersion(db, programId)
   const version = draft ?? p.latestPublished
   if (!version) throw notFound('Program')
@@ -126,7 +134,7 @@ export async function workspace(userId: string, programId: string) {
       mediaCount: s.mediaCount,
       metrics: s.metricLabels,
       placementCount: items.filter((i) => i.activityId === activityId).length,
-      canEdit: isActivityOwner(byId.get(activityId) ?? { creatorId: null }, userId),
+      canEdit: author.activity(byId.get(activityId) ?? { creatorId: '' }),
     }
   })
   return {
@@ -159,7 +167,10 @@ export async function listMine(userId: string, query: { status?: 'DRAFT' | 'PUBL
 
 // ── Creation and editing ────────────────────────────────────────────────────
 
-export async function create(userId: string, input: { programTypeId: string; focusId?: string | null }) {
+export async function create(userId: string, input: { programTypeId: string; focusId?: string | null; owner?: 'SELF' | 'PLATFORM' }) {
+  const platform = input.owner === 'PLATFORM'
+  if (platform && !(await authorFor(userId)).platform) throw forbidden('Only admins create platform programs')
+  const creatorId = platform ? null : userId
   const type = await db.programType.findFirst({
     where: { id: input.programTypeId, isActive: true, OR: [{ reviewState: 'APPROVED' }, { createdById: userId }] },
   })
@@ -170,16 +181,16 @@ export async function create(userId: string, input: { programTypeId: string; foc
   if (input.focusId && !focus) throw badRequest('Choose a focus', { focusId: 'not found' })
   const prefs = await db.userPreference.findUnique({ where: { userId } })
   // A suggested, editable name from the selections (03 §3 stage 7); never a user-entered fact.
-  const title = `My ${focus ? `${focus.label} ` : ''}${type.label}`.slice(0, 140)
+  const title = `${platform ? '' : 'My '}${focus ? `${focus.label} ` : ''}${type.label}`.slice(0, 140)
   const p = await db.$transaction(async (tx) => {
     const program = await tx.program.create({
       data: {
-        creatorId: userId,
+        creatorId,
         title,
         categoryId: type.categoryId,
         programTypeId: type.id,
         focusId: focus?.id ?? null,
-        visibility: prefs?.defaultVisibility ?? 'PRIVATE',
+        visibility: platform ? 'PRIVATE' : prefs?.defaultVisibility ?? 'PRIVATE',
         policy: { create: { accessMode: 'OPEN' } },
       },
     })
@@ -195,7 +206,7 @@ export async function create(userId: string, input: { programTypeId: string; foc
         createdById: userId,
       },
     })
-    await allocateProgramSlug(tx, { programId: program.id, creatorId: userId, title })
+    await allocateProgramSlug(tx, { programId: program.id, creatorId, title })
     return program
   })
   return workspace(userId, p.id)
@@ -238,7 +249,7 @@ export async function updateDraft(
   if (input.frequency?.kind === 'N_PER_WEEK' && !input.frequency.n) throw badRequest('Choose how many days a week', { 'frequency.n': 'is required' })
 
   await db.$transaction(async (tx) => {
-    await ownedProgram(tx, userId, programId)
+    const program = await ownedProgram(tx, userId, programId)
     await bump(tx, programId, input.expectedRevision)
     const version = await openDraftVersion(tx, userId, programId)
     const scheduleChanged = input.durationDays !== undefined || input.frequency !== undefined || input.generationMode !== undefined
@@ -270,7 +281,7 @@ export async function updateDraft(
       },
     })
     if (title) {
-      await allocateProgramSlug(tx, { programId, creatorId: userId, title })
+      await allocateProgramSlug(tx, { programId, creatorId: program.creatorId, title })
     }
     if (scheduleChanged) await regenerate(tx, updated, await selectedActivities(tx, updated.id))
   })
@@ -278,10 +289,10 @@ export async function updateDraft(
 }
 
 /** The revision a Program should pin for an Activity right now. */
-async function pinnableRevision(userId: string, activityId: string) {
+async function pinnableRevision(author: Author, activityId: string) {
   const a = await db.activity.findUnique({ where: { id: activityId } })
-  if (!a || !canUseActivity(a, userId) || a.status === 'ARCHIVED') return null
-  if (isActivityOwner(a, userId)) {
+  if (!a || !(author.activity(a) || canUseActivity(a, author.userId)) || a.status === 'ARCHIVED') return null
+  if (author.activity(a)) {
     const latest = await db.activityRevision.findFirst({ where: { activityId }, orderBy: { revisionNumber: 'desc' }, select: { id: true } })
     return latest?.id ?? null
   }
@@ -292,8 +303,9 @@ export async function addActivities(userId: string, programId: string, input: { 
   const ids = [...new Set(input.activityIds)]
   if (!ids.length) throw badRequest('Choose at least one activity', { activityIds: 'is empty' })
   const pinned: { activityId: string; activityRevisionId: string }[] = []
+  const author = await authorFor(userId)
   for (const activityId of ids) {
-    const rev = await pinnableRevision(userId, activityId)
+    const rev = await pinnableRevision(author, activityId)
     if (!rev) throw badRequest('One of those activities is not available', { activityIds: `not available: ${activityId}` })
     pinned.push({ activityId, activityRevisionId: rev })
   }
@@ -328,7 +340,7 @@ async function placementsFor(versionId: string) {
 
 export async function listPlacements(userId: string, programId: string) {
   const p = await db.program.findUnique({ where: { id: programId } })
-  if (!p || !isProgramOwner(p, userId)) throw notFound('Program')
+  if (!p || !(await authorFor(userId)).program(p)) throw notFound('Program')
   const version = (await draftVersion(db, programId)) ?? (p.latestPublishedVersionId ? await db.programVersion.findUnique({ where: { id: p.latestPublishedVersionId } }) : null)
   if (!version) throw notFound('Program')
   return placementsFor(version.id)
@@ -344,7 +356,7 @@ export async function addPlacement(
   programId: string,
   input: { activityId: string; relativeDay: number; localTime?: string; position?: number; targetOverrides?: Record<string, unknown> | null; expectedRevision: number },
 ) {
-  const rev = await pinnableRevision(userId, input.activityId)
+  const rev = await pinnableRevision(await authorFor(userId), input.activityId)
   if (!rev) throw badRequest('That activity is not available', { activityId: 'not available' })
   const created = await db.$transaction(async (tx) => {
     await ownedProgram(tx, userId, programId)
@@ -439,8 +451,12 @@ type Issue = { code: string; message: string; field: string | null; activityId: 
 
 async function collectIssues(userId: string, programId: string, target?: { visibility: Visibility; accessMode: AccessMode }) {
   const p = await db.program.findUnique({ where: { id: programId }, include: { policy: true, prices: { where: { active: true } } } })
-  if (!p || !isProgramOwner(p, userId)) throw notFound('Program')
-  const version = (await draftVersion(db, programId)) ?? null
+  const author = await authorFor(userId)
+  if (!p || !author.program(p)) throw notFound('Program')
+  const draft = (await draftVersion(db, programId)) ?? null
+  // 07 §6: an archived Program is restored by publishing it again, with or without new changes.
+  const restoring = !draft && p.status === 'ARCHIVED' && !!p.latestPublishedVersionId
+  const version = draft ?? (restoring ? await db.programVersion.findUnique({ where: { id: p.latestPublishedVersionId! } }) : null)
   const issues: Issue[] = []
   const add = (code: string, message: string, field: string | null = null, activityId: string | null = null) => issues.push({ code, message, field, activityId })
   const visibility = target?.visibility ?? p.visibility
@@ -459,7 +475,7 @@ async function collectIssues(userId: string, programId: string, target?: { visib
   // published as a pinned snapshot without becoming public.
   const activities = await db.activity.findMany({ where: { id: { in: [...new Set(items.map((i) => i.activityId))] } } })
   for (const a of activities) {
-    if (isActivityOwner(a, userId)) {
+    if (author.activity(a)) {
       if (a.status === 'ARCHIVED') add('ACTIVITY_ARCHIVED', `"${a.title}" is archived`, 'activities', a.id)
     } else if (!isOpenlyReadable(a)) {
       add('ACTIVITY_NOT_AVAILABLE', `"${a.title}" is not available to publish with`, 'activities', a.id)
@@ -468,11 +484,12 @@ async function collectIssues(userId: string, programId: string, target?: { visib
   if (visibility !== 'PRIVATE' && (await isPublishingRestricted(userId))) add('PUBLISHING_RESTRICTED', 'Publishing is restricted on this account', 'visibility')
   if (visibility === 'PRIVATE' && accessMode !== 'OPEN') add('PRIVATE_NOT_OPEN', 'Private programs can only use open access', 'accessMode')
   if (accessMode === 'PAID') {
+    if (p.creatorId === null) add('PLATFORM_NOT_PAID', 'Platform programs cannot be sold', 'accessMode')
     if (!marketplaceEnabled()) add('MARKETPLACE_DISABLED', 'Paid programs are not available yet', 'accessMode')
     if (payout?.status !== 'ACTIVE') add('PAYOUT_ACCOUNT_REQUIRED', 'Set up payouts before selling', 'accessMode')
     if (!p.prices.length) add('PRICE_REQUIRED', 'Set a price', 'prices')
   }
-  return { program: p, version, items, activities, issues, payoutActive: payout?.status === 'ACTIVE' }
+  return { program: p, author, draft, restoring, version, items, activities, issues, payoutActive: payout?.status === 'ACTIVE' }
 }
 
 export async function publishCheck(userId: string, programId: string) {
@@ -485,11 +502,19 @@ export async function publish(userId: string, programId: string, input: { visibi
   if (check.issues.length) throw badRequest(check.issues[0]!.message, Object.fromEntries(check.issues.map((i) => [i.field ?? i.code, i.message])))
   const version = check.version!
   await db.$transaction(async (tx) => {
-    await ownedProgram(tx, userId, programId)
+    await ownedProgram(tx, userId, programId, { allowArchived: true })
     await bump(tx, programId, input.expectedRevision)
+    await auditPlatform(tx, check.author, check.program, 'PUBLISH', check.restoring ? 'Restored from archive' : `Published ${input.visibility} ${input.accessMode}`)
+    if (check.restoring) {
+      await tx.program.update({
+        where: { id: programId },
+        data: { status: 'PUBLISHED', visibility: input.visibility, policy: { upsert: { create: { accessMode: input.accessMode }, update: { accessMode: input.accessMode } } } },
+      })
+      return
+    }
     // Pin every placement to an immutable revision as of now.
     for (const a of check.activities) {
-      const revisionId = isActivityOwner(a, userId) ? await publishActivityRevision(tx, userId, a.id, a.visibility) : a.latestPublishedRevisionId!
+      const revisionId = check.author.activity(a) ? await publishActivityRevision(tx, userId, a.id, a.visibility) : a.latestPublishedRevisionId!
       await tx.programScheduleItem.updateMany({ where: { programVersionId: version.id, activityId: a.id }, data: { activityRevisionId: revisionId } })
     }
     const published = await tx.programVersion.update({ where: { id: version.id }, data: { publishedAt: new Date() } })
@@ -499,7 +524,7 @@ export async function publish(userId: string, programId: string, input: { visibi
       data: { status: 'PUBLISHED', visibility: input.visibility, latestPublishedVersionId: published.id, policy: { upsert: { create: { accessMode: input.accessMode }, update: { accessMode: input.accessMode } } } },
     })
     if (!check.program.slug) {
-      await allocateProgramSlug(tx, { programId, creatorId: userId, title: check.program.title })
+      await allocateProgramSlug(tx, { programId, creatorId: check.program.creatorId, title: check.program.title })
     }
     if (previous) {
       // 07 §6: existing participants keep their version and are offered the update.
@@ -515,9 +540,13 @@ export async function publish(userId: string, programId: string, input: { visibi
 
 export async function archive(userId: string, programId: string) {
   const p = await db.program.findUnique({ where: { id: programId } })
-  if (!p || !isProgramOwner(p, userId)) throw notFound('Program')
+  const author = await authorFor(userId)
+  if (!p || !author.program(p)) throw notFound('Program')
   // Removes discovery and new joins; enrollments, history, and access keep working (07 §6).
-  await db.program.update({ where: { id: programId }, data: { status: 'ARCHIVED' } })
+  await db.$transaction(async (tx) => {
+    await tx.program.update({ where: { id: programId }, data: { status: 'ARCHIVED' } })
+    await auditPlatform(tx, author, p, 'ARCHIVE', 'Archived')
+  })
   return workspace(userId, programId)
 }
 

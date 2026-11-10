@@ -2495,6 +2495,192 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Programs and Activities for administration
+         * @description Programs and Activities in one list, newest change first. Owner-deleted Program tombstones are excluded.
+         */
+        get: operations["listAdminContent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import platform Programs with nested Activities
+         * @description With dryRun, validates the whole batch and returns every issue without writing. Otherwise writes all Programs as platform drafts in one transaction, or nothing, and returns 400 with fieldErrors keyed by JSON path when anything is invalid. A replayed idempotencyKey returns the original result.
+         */
+        post: operations["importAdminContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content/{kind}/{id}/moderation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hide, restore or unlist a Program or Activity
+         * @description Moderation without editing; works on anyone's content and is audited.
+         */
+        post: operations["moderateAdminContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search accounts */
+        get: operations["listAdminUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect an account */
+        get: operations["getAdminUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change an account's role or status
+         * @description Audited. Suspending signs the account out. The last active ADMIN cannot be demoted or suspended (409).
+         */
+        patch: operations["updateAdminUser"];
+        trace?: never;
+    };
+    "/admin/membership/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Program prices */
+        get: operations["listAdminPrices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/membership/purchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List one-time purchases */
+        get: operations["listAdminPurchases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/membership/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Program subscriptions */
+        get: operations["listAdminSubscriptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/membership/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Program access grants
+         * @description Grant with grantProgramAccess and revoke with revokeProgramAccess.
+         */
+        get: operations["listAdminGrants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List administrative and moderation actions */
+        get: operations["listAdminAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2946,6 +3132,7 @@ export interface components {
             categoryId: string;
             focusIds?: string[];
             summary?: string | null;
+            owner?: components["schemas"]["ContentOwner"];
         };
         UpdateActivityDraftInput: {
             title?: string;
@@ -3179,7 +3366,13 @@ export interface components {
             programTypeId: string;
             /** Format: uuid */
             focusId?: string | null;
+            owner?: components["schemas"]["ContentOwner"];
         };
+        /**
+         * @description PLATFORM creates platform content (creatorId null) and requires an active ADMIN (12-SOCIAL §7a). Defaults to SELF.
+         * @enum {string}
+         */
+        ContentOwner: "SELF" | "PLATFORM";
         /** @description Changing duration, frequency, or generation mode regenerates non-manual placements. */
         UpdateProgramDraftInput: {
             title?: string;
@@ -4103,6 +4296,222 @@ export interface components {
             /** Format: date-time */
             revokedAt: string | null;
         };
+        /** @enum {string} */
+        AdminContentKind: "PROGRAM" | "ACTIVITY";
+        /** @description One row of the admin content table. Platform content (isPlatform) is edited through the ordinary authoring operations; anyone else's content is moderation-only. */
+        AdminContentItem: {
+            kind: components["schemas"]["AdminContentKind"];
+            /** Format: uuid */
+            id: string;
+            title: string;
+            status: components["schemas"]["ProgramStatus"];
+            visibility: components["schemas"]["Visibility"];
+            accessMode: components["schemas"]["AccessMode"] | null;
+            isPlatform: boolean;
+            creator: components["schemas"]["UserSummary"] | null;
+            /** @description Program type, or the Activity's category. */
+            typeLabel: string;
+            durationDays: number | null;
+            placementCount: number | null;
+            moderated: boolean;
+            hasUnpublishedChanges: boolean;
+            draftRevision: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ModerateContentInput: {
+            /** @enum {string} */
+            action: "HIDE" | "RESTORE" | "UNLIST";
+            reason: string;
+        };
+        AdminImportInput: {
+            /** @description Validate only; nothing is written. */
+            dryRun?: boolean;
+            /** @description Required unless dryRun. Replaying it returns the original result. */
+            idempotencyKey?: string;
+            programs: components["schemas"]["AdminImportProgram"][];
+        };
+        /** @description One platform Program draft. programType and focus are slugs or ids. */
+        AdminImportProgram: {
+            title: string;
+            description?: string | null;
+            programType: string;
+            focus?: string | null;
+            visibility?: components["schemas"]["Visibility"];
+            /** @description Null is an ongoing Program. Omitted uses the default (28). */
+            durationDays?: number | null;
+            frequency?: components["schemas"]["Frequency"];
+            generationMode?: components["schemas"]["GenerationMode"];
+            activities: components["schemas"]["AdminImportActivity"][];
+        };
+        /** @description Either ref (an existing Activity's slug or id) or the fields of a new platform Activity. category and focuses are slugs or ids; category defaults to the Program type's. metric and tool are catalog keys. */
+        AdminImportActivity: {
+            ref?: string;
+            title?: string;
+            summary?: string | null;
+            category?: string;
+            focuses?: string[];
+            instructions?: {
+                title?: string | null;
+                body?: string | null;
+            }[];
+            metrics?: {
+                metric: string;
+                required?: boolean;
+            }[];
+            tools?: {
+                tool: string;
+            }[];
+        };
+        AdminImportResult: {
+            dryRun: boolean;
+            valid: boolean;
+            issues: {
+                /** @description JSON path into the request, e.g. programs.0.activities.2.title */
+                path: string;
+                message: string;
+            }[];
+            programs: {
+                index: number;
+                /**
+                 * Format: uuid
+                 * @description Null in a dry run.
+                 */
+                id: string | null;
+                title: string;
+                activityCount: number;
+                newActivityCount: number;
+            }[];
+        };
+        AdminUser: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            handle: string | null;
+            displayName: string;
+            avatarUrl: string | null;
+            role: components["schemas"]["UserRole"];
+            status: components["schemas"]["UserStatus"];
+            emailVerified: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AdminUserDetail: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            handle: string | null;
+            displayName: string;
+            avatarUrl: string | null;
+            role: components["schemas"]["UserRole"];
+            status: components["schemas"]["UserStatus"];
+            emailVerified: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deactivatedAt: string | null;
+            counts: {
+                programs: number;
+                activities: number;
+                enrollments: number;
+                purchases: number;
+                subscriptions: number;
+                grants: number;
+            };
+        };
+        UpdateAdminUserInput: {
+            role?: components["schemas"]["UserRole"];
+            /** @enum {string} */
+            status?: "ACTIVE" | "SUSPENDED";
+            reason: string;
+        };
+        AdminPerson: {
+            /** Format: uuid */
+            id: string;
+            handle: string | null;
+            displayName: string;
+            avatarUrl: string | null;
+            email: string;
+        };
+        AdminProgramRef: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            isPlatform: boolean;
+        };
+        AdminPrice: {
+            /** Format: uuid */
+            id: string;
+            program: components["schemas"]["AdminProgramRef"];
+            kind: components["schemas"]["PriceKind"];
+            amountMinor: number;
+            currency: string;
+            active: boolean;
+            purchaseCount: number;
+            subscriptionCount: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AdminPurchase: {
+            /** Format: uuid */
+            id: string;
+            user: components["schemas"]["AdminPerson"];
+            program: components["schemas"]["AdminProgramRef"];
+            amountMinor: number;
+            platformFeeMinor: number;
+            currency: string;
+            status: components["schemas"]["PurchaseStatus"];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AdminSubscription: {
+            /** Format: uuid */
+            id: string;
+            user: components["schemas"]["AdminPerson"];
+            program: components["schemas"]["AdminProgramRef"];
+            amountMinor: number;
+            currency: string;
+            status: components["schemas"]["SubscriptionStatus"];
+            /** Format: date-time */
+            currentPeriodEnd: string | null;
+            cancelAtPeriodEnd: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @enum {string} */
+        AccessGrantSource: "OPEN" | "APPROVAL" | "PURCHASE" | "SUBSCRIPTION" | "ADMIN";
+        AdminGrant: {
+            /** Format: uuid */
+            id: string;
+            user: components["schemas"]["AdminPerson"];
+            program: components["schemas"]["AdminProgramRef"];
+            source: components["schemas"]["AccessGrantSource"];
+            active: boolean;
+            /** Format: date-time */
+            grantedAt: string;
+            /** Format: date-time */
+            expiresAt: string | null;
+            /** Format: date-time */
+            revokedAt: string | null;
+        };
+        AuditEntry: {
+            /** Format: uuid */
+            id: string;
+            /** @description Null for a server-side command. */
+            actor: components["schemas"]["UserSummary"] | null;
+            targetType: components["schemas"]["ReportTargetType"];
+            /** Format: uuid */
+            targetId: string;
+            /** @enum {string} */
+            action: "HIDE" | "RESTORE" | "UNLIST" | "RESTRICT_PUBLISHING" | "SUSPEND_USER" | "REVOKE_ACCESS" | "ROLE_CHANGE" | "PUBLISH" | "ARCHIVE" | "DELETE";
+            reason: string;
+            /** Format: uuid */
+            reportId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
     };
     responses: {
         /** @description Validation failed */
@@ -4161,6 +4570,8 @@ export interface components {
         };
     };
     parameters: {
+        AdminUserFilter: string;
+        AdminProgramFilter: string;
         /** @description Opaque cursor returned by the previous page. */
         Cursor: string;
         Limit: number;
@@ -9053,6 +9464,365 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    listAdminContent: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                /** @description Simple text search within this resource. */
+                q?: components["parameters"]["SearchQuery"];
+                kind?: components["schemas"]["AdminContentKind"];
+                owner?: "PLATFORM" | "USERS";
+                creatorId?: string;
+                status?: components["schemas"]["ProgramStatus"];
+                visibility?: components["schemas"]["Visibility"];
+                moderated?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminContentItem"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    importAdminContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminImportInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminImportResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    moderateAdminContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: components["schemas"]["AdminContentKind"];
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModerateContentInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminContentItem"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listAdminUsers: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                /** @description Simple text search within this resource. */
+                q?: components["parameters"]["SearchQuery"];
+                role?: components["schemas"]["UserRole"];
+                status?: components["schemas"]["UserStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminUser"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminUserDetail"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAdminUserInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminUserDetail"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listAdminPrices: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                programId?: string;
+                active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminPrice"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listAdminPurchases: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                userId?: components["parameters"]["AdminUserFilter"];
+                programId?: components["parameters"]["AdminProgramFilter"];
+                status?: components["schemas"]["PurchaseStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminPurchase"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listAdminSubscriptions: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                userId?: components["parameters"]["AdminUserFilter"];
+                programId?: components["parameters"]["AdminProgramFilter"];
+                status?: components["schemas"]["SubscriptionStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminSubscription"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listAdminGrants: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                userId?: components["parameters"]["AdminUserFilter"];
+                programId?: components["parameters"]["AdminProgramFilter"];
+                source?: components["schemas"]["AccessGrantSource"];
+                active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminGrant"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listAdminAudit: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                targetId?: string;
+                actorId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditEntry"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }

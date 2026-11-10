@@ -1545,6 +1545,11 @@ enum ModerationActionKind {
   RESTRICT_PUBLISHING
   SUSPEND_USER
   REVOKE_ACCESS
+  // Platform administration (12-SOCIAL §7a)
+  ROLE_CHANGE
+  PUBLISH
+  ARCHIVE
+  DELETE
 }
 
 model MediaReaction {
@@ -1645,7 +1650,8 @@ model ContentReport {
 
 model ModerationAction {
   id          String               @id @default(uuid()) @db.Char(36)
-  moderatorId String               @db.Char(36)
+  // Null for a server-side command (admin bootstrap), never for a request.
+  moderatorId String?              @db.Char(36)
   reportId    String?              @db.Char(36)
   targetType  ReportTargetType
   targetId    String               @db.Char(36)
@@ -1654,7 +1660,7 @@ model ModerationAction {
   createdAt   DateTime             @default(now())
   expiresAt   DateTime?
 
-  moderator User           @relation(fields: [moderatorId], references: [id])
+  moderator User?          @relation(fields: [moderatorId], references: [id], onDelete: Restrict)
   report    ContentReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
 
   @@index([targetType, targetId])

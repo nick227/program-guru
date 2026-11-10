@@ -4,6 +4,7 @@ import { db, type Prisma } from '@project/db'
 import { newToken, sha256 } from '../../lib/auth'
 import { AppError, badRequest, conflict, forbidden, unauthorized } from '../../lib/errors'
 import { enqueue } from '../../lib/outbox'
+import { assertAdminRemains } from '../admin/users.service'
 import { assertHandleAvailable, assertTimezone, normalizeHandle, suggestHandle } from './profile.service'
 
 const BCRYPT_COST = 12 // 05 §15
@@ -173,8 +174,9 @@ export async function resetPassword(token: string, password: string) {
 }
 
 export async function deactivate(userId: string) {
-  await db.$transaction([
-    db.user.update({ where: { id: userId }, data: { status: 'DEACTIVATED', deactivatedAt: new Date() } }),
-    db.session.deleteMany({ where: { userId } }),
-  ])
+  await db.$transaction(async (tx) => {
+    await assertAdminRemains(tx, userId)
+    await tx.user.update({ where: { id: userId }, data: { status: 'DEACTIVATED', deactivatedAt: new Date() } })
+    await tx.session.deleteMany({ where: { userId } })
+  })
 }

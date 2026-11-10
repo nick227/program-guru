@@ -1,4 +1,4 @@
-// Production build: one CommonJS bundle per process (API, worker, bootstrap). Workspace packages
+// Production build: one CommonJS bundle per process (API, worker, bootstrap, admin command). Workspace packages
 // (@project/*) are TypeScript source, so they are bundled in; real npm dependencies stay external and
 // load from node_modules at runtime (Prisma's engine cannot be bundled).
 import { build } from 'esbuild'
@@ -13,7 +13,7 @@ const workspaceInline = {
 
 rmSync(new URL('../dist', import.meta.url), { recursive: true, force: true })
 await build({
-  entryPoints: { index: 'src/index.ts', worker: 'src/worker.ts', bootstrap: 'src/bootstrap.ts' },
+  entryPoints: { index: 'src/index.ts', worker: 'src/worker.ts', bootstrap: 'src/bootstrap.ts', admin: 'src/admin.ts' },
   outdir: 'dist',
   bundle: true,
   platform: 'node',

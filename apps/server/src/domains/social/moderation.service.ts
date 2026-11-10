@@ -1,7 +1,8 @@
 // Reports and audited moderation actions (12-SOCIAL.md §7). Publishing is not pre-approved;
 // reporting and moderation are the safeguard. Historical personal records are never deleted.
 import { db, type Prisma } from '@project/db'
-import { badRequest, notFound } from '../../lib/errors'
+import { badRequest, forbidden, notFound } from '../../lib/errors'
+import { assertAdminRemains } from '../admin/users.service'
 import { enqueue } from '../../lib/outbox'
 import { offsetArgs, toOffsetPage, type PageQuery } from '../../lib/paging'
 import { toUserSummary } from '../users/mapper'
@@ -52,7 +53,8 @@ export async function listReports(query: PageQuery & { status?: 'OPEN' | 'RESOLV
 
 type ActionKind = 'HIDE' | 'RESTORE' | 'UNLIST' | 'RESTRICT_PUBLISHING' | 'SUSPEND_USER' | 'REVOKE_ACCESS'
 
-async function apply(tx: Prisma.TransactionClient, action: ActionKind, type: TargetType, id: string) {
+/** Applies one moderation action. Shared by report resolution and admin moderation (12 §7, §7a). */
+export async function applyModeration(tx: Prisma.TransactionClient, actorId: string, action: ActionKind, type: TargetType, id: string) {
   const now = new Date()
   const hide = action === 'HIDE'
   switch (`${type}:${action}`) {
@@ -71,9 +73,16 @@ async function apply(tx: Prisma.TransactionClient, action: ActionKind, type: Tar
     case 'COMMENT:HIDE':
     case 'COMMENT:RESTORE':
       return tx.mediaComment.update({ where: { id }, data: { status: hide ? 'HIDDEN' : 'VISIBLE' } })
-    case 'USER:SUSPEND_USER':
+    case 'USER:SUSPEND_USER': {
+      // Only an admin may suspend an admin, and never the last one (12 §7a).
+      const [target, actor] = await Promise.all([tx.user.findUnique({ where: { id } }), tx.user.findUnique({ where: { id: actorId } })])
+      if (target?.role === 'ADMIN') {
+        if (actor?.role !== 'ADMIN') throw forbidden('Only an admin can suspend an admin')
+        await assertAdminRemains(tx, id)
+      }
       await tx.session.deleteMany({ where: { userId: id } })
       return tx.user.update({ where: { id }, data: { status: 'SUSPENDED' } })
+    }
     case 'USER:RESTORE':
       return tx.user.update({ where: { id }, data: { status: 'ACTIVE' } })
     case 'USER:RESTRICT_PUBLISHING':
@@ -88,7 +97,7 @@ export async function resolve(moderatorId: string, reportId: string, input: { st
   if (!r) throw notFound('Report')
   const updated = await db.$transaction(async (tx) => {
     if (input.action) {
-      await apply(tx, input.action, r.targetType, r.targetId)
+      await applyModeration(tx, moderatorId, input.action, r.targetType, r.targetId)
       // Every action is audited (12 §7).
       await tx.moderationAction.create({
         data: { moderatorId, reportId: r.id, targetType: r.targetType, targetId: r.targetId, action: input.action, reason: input.reason, expiresAt: input.expiresAt ? new Date(input.expiresAt) : null },

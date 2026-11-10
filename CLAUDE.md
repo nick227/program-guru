@@ -29,12 +29,13 @@ Phase 2 — Server, worker, billing: complete and gated (2026-11-07). Phase 3 (f
 ## Modules Built
 
 - [x] Schema: 62 models, migrations `0001_init` and `0002_rate_limit_bucket`, 4 CHECK constraints, 2 FULLTEXT indexes, verified on MySQL 8.4.13
-- [x] OpenAPI: 159 operations across 14 tags; SDK types generated
-- [x] Server (`apps/server`): **159 of 159 operations implemented**
+- [x] OpenAPI: 170 operations across 15 tags; SDK types generated
+- [x] Server (`apps/server`): **170 of 170 operations implemented**
 - [x] Worker (`apps/server/src/worker.ts`, a second process from the same build): outbox delivery, ffmpeg media pipeline, email, timed reminders and daily summaries, calendar horizons, ranking statistics, cleanup
 - [x] Billing: Stripe Connect per `docs/adr/0001-billing-stripe-connect.md`, behind `MARKETPLACE_ENABLED` (default off)
 - [x] Seed data (`packages/db/prisma/seed.ts`): 6 Categories, 20 Focuses, 17 ProgramTypes, 11 metrics, 6 tools, 7 achievements, 81 Activities with CC0 platform media, 5 starter Programs
 - [x] Tests: 227 passing against `programs_app_test`, including all five required end-to-end tests (`01-PRODUCT.md` §6) at the API level and a contract case for every operationId (`__tests__/helpers/contract.ts`)
+- [x] Admin (`12-SOCIAL.md` §7a, guide `docs/admin-resources.md`): `/admin` Content (Programs and Activities, JSON import), Users, Membership. Built from a typed resource registry (`apps/web/src/admin/`) and five shared components; `adminOnlyAuth` operations; platform content (`creatorId = null`) authored by ADMINs through the ordinary authoring operations; migration `20261110120000_admin_audit`
 - [ ] Frontend (`apps/web`) and SDK domain hooks: partial (earlier session)
 
 ## Running
@@ -42,6 +43,7 @@ Phase 2 — Server, worker, billing: complete and gated (2026-11-07). Phase 3 (f
 | Process | Local | Railway |
 |---|---|---|
 | API | `pnpm --filter server dev` (port 3001) | `pnpm --filter server start` (esbuild bundle `dist/index.js`; pre-deploy `pnpm db:deploy && pnpm --filter server bootstrap:prod`) |
+| Admin bootstrap | `pnpm --filter server admin grant <email>` (also `revoke`, `list`) | `pnpm --filter server admin:prod grant <email>` in the API service. Never automatic |
 | Worker | started by root `pnpm dev` (`dev:worker`); alone: `pnpm --filter server worker`. Without it uploads stay PROCESSING forever | separate service, `pnpm --filter server start:worker`, same build and env, `RAILPACK_DEPLOY_APT_PACKAGES=ffmpeg` |
 | Web | `pnpm --filter web dev` (port 5173) | Vercel |
 

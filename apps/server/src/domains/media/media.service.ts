@@ -10,6 +10,7 @@ import { fromDbDate } from '../../lib/time'
 import { isStorageMiss, storage } from '../../infrastructure/storage'
 import { canReadRevision } from '../activities/access'
 import { canSeeProgram, hasActiveGrant, isProgramOwner } from '../programs/access'
+import { authorFor } from '../admin/authors'
 import { isBlockedEitherWay } from '../users/follow.service'
 import { toUserSummary } from '../users/mapper'
 import { localUploadUrl, mediaUrl, uploadToken, verifyUploadToken, type DeliveryContext, type MediaVariantName } from './urls'
@@ -482,15 +483,17 @@ async function assertTargetOwner(
   editable = true,
   client: Prisma.TransactionClient | typeof db = db,
 ) {
+  // Platform content is authored by admins (12 §7a); resolved once per call.
+  const author = kind === 'PROGRAM' || kind === 'ACTIVITY_REVISION' || kind === 'INSTRUCTION' ? await authorFor(userId, client) : null
   const draftRevisionOwned = async (revisionId: string) => {
     const rev = await client.activityRevision.findUnique({ where: { id: revisionId }, include: { activity: true } })
-    if (!rev || rev.activity.creatorId !== userId) throw notFound('Target')
+    if (!rev || !author!.activity(rev.activity)) throw notFound('Target')
     if (editable && rev.publishedAt) throw badRequest('Edit the draft to change its media', { target: 'is published' })
   }
   switch (kind) {
     case 'PROGRAM': {
       const p = await client.program.findUnique({ where: { id } })
-      if (!p || !isProgramOwner(p, userId)) throw notFound('Target')
+      if (!p || !author!.program(p)) throw notFound('Target')
       return { programId: id }
     }
     case 'ACTIVITY_REVISION':

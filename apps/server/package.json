@@ -13,6 +13,8 @@
     "dev:worker": "dotenv -e ../../.env -- tsx watch src/worker.ts",
     "start:worker": "node dist/worker.js",
     "bootstrap:prod": "node dist/bootstrap.js",
+    "admin": "dotenv -e ../../.env -- tsx src/admin.ts",
+    "admin:prod": "node dist/admin.js",
     "media:e2e": "tsx scripts/media-e2e.ts",
     "lint": "eslint src scripts"
   },

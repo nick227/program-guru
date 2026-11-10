@@ -2,13 +2,15 @@
 import { db, type Prisma } from '@project/db'
 import { notFound } from '../../lib/errors'
 import { enqueue } from '../../lib/outbox'
-import { isProgramOwner } from './access'
+import { authorFor } from '../admin/authors'
+import { audit } from '../admin/audit'
 
 type Tx = Prisma.TransactionClient
 
 /** Anything another person holds that depends on this Program, so it must be tombstoned instead. */
-async function othersInvolved(tx: Tx, ownerId: string, programId: string, versionIds: string[]) {
-  const others = { not: ownerId }
+async function othersInvolved(tx: Tx, ownerId: string | null, programId: string, versionIds: string[]) {
+  // Platform Programs have no owner: everyone tied to them is someone else.
+  const others = ownerId ? { not: ownerId } : undefined
   const counts = await Promise.all([
     tx.programEnrollment.count({ where: { programId, userId: others } }),
     tx.programAccessGrant.count({ where: { programId, userId: others } }),
@@ -40,12 +42,15 @@ async function deleteOwnRuns(tx: Tx, ownerId: string, programId: string) {
 
 export async function deleteProgram(userId: string, programId: string) {
   const program = await db.program.findUnique({ where: { id: programId } })
-  if (!program || !isProgramOwner(program, userId)) throw notFound('Program')
+  const author = await authorFor(userId)
+  if (!program || !author.program(program)) throw notFound('Program')
+  const ownerId = program.creatorId
   return db.$transaction(
     async (tx) => {
       const versionIds = (await tx.programVersion.findMany({ where: { programId }, select: { id: true } })).map((v) => v.id)
-      const retained = await othersInvolved(tx, userId, programId, versionIds)
-      await deleteOwnRuns(tx, userId, programId)
+      const retained = await othersInvolved(tx, ownerId, programId, versionIds)
+      if (ownerId) await deleteOwnRuns(tx, ownerId, programId)
+      if (ownerId === null) await audit(tx, userId, 'PROGRAM', programId, 'DELETE', retained ? 'Deleted; kept for participants' : 'Deleted')
       if (retained) {
         // Tombstone: no discovery, joins, purchases or copies, and no owner controls; participants keep everything.
         await tx.program.update({ where: { id: programId }, data: { deletedAt: new Date(), status: program.status === 'DRAFT' ? 'DRAFT' : 'ARCHIVED' } })

@@ -39,6 +39,8 @@ tags:
   description: In-app notifications and email preferences
 - name: moderation
   description: Reports and moderator actions
+- name: admin
+  description: Platform administration (ADMIN only)
 paths:
   /me/program-library:
     get:
@@ -6010,6 +6012,485 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /admin/content:
+    get:
+      operationId: listAdminContent
+      summary: List Programs and Activities for administration
+      tags:
+      - admin
+      description: Programs and Activities in one list, newest change first. Owner-deleted Program tombstones are excluded.
+      security:
+      - adminOnlyAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/SearchQuery'
+      - in: query
+        name: kind
+        schema:
+          $ref: '#/components/schemas/AdminContentKind'
+      - in: query
+        name: owner
+        schema:
+          type: string
+          enum:
+          - PLATFORM
+          - USERS
+      - in: query
+        name: creatorId
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: status
+        schema:
+          $ref: '#/components/schemas/ProgramStatus'
+      - in: query
+        name: visibility
+        schema:
+          $ref: '#/components/schemas/Visibility'
+      - in: query
+        name: moderated
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminContentItem'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/content/import:
+    post:
+      operationId: importAdminContent
+      summary: Import platform Programs with nested Activities
+      tags:
+      - admin
+      description: With dryRun, validates the whole batch and returns every issue without writing. Otherwise
+        writes all Programs as platform drafts in one transaction, or nothing, and returns 400 with fieldErrors
+        keyed by JSON path when anything is invalid. A replayed idempotencyKey returns the original result.
+      security:
+      - adminOnlyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminImportInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminImportResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/content/{kind}/{id}/moderation:
+    post:
+      operationId: moderateAdminContent
+      summary: Hide, restore or unlist a Program or Activity
+      tags:
+      - admin
+      description: Moderation without editing; works on anyone's content and is audited.
+      security:
+      - adminOnlyAuth: []
+      parameters:
+      - in: path
+        name: kind
+        required: true
+        schema:
+          $ref: '#/components/schemas/AdminContentKind'
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModerateContentInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminContentItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      summary: Search accounts
+      tags:
+      - admin
+      security:
+      - adminOnlyAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/SearchQuery'
+      - in: query
+        name: role
+        schema:
+          $ref: '#/components/schemas/UserRole'
+      - in: query
+        name: status
+        schema:
+          $ref: '#/components/schemas/UserStatus'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminUser'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/users/{userId}:
+    get:
+      operationId: getAdminUser
+      summary: Inspect an account
+      tags:
+      - admin
+      security:
+      - adminOnlyAuth: []
+      parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminUserDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateAdminUser
+      summary: Change an account's role or status
+      tags:
+      - admin
+      description: Audited. Suspending signs the account out. The last active ADMIN cannot be demoted or suspended (409).
+      security:
+      - adminOnlyAuth: []
+      parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAdminUserInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminUserDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/membership/prices:
+    get:
+      operationId: listAdminPrices
+      summary: List Program prices
+      tags:
+      - admin
+      security:
+      - adminOnlyAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - in: query
+        name: programId
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: active
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminPrice'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/membership/purchases:
+    get:
+      operationId: listAdminPurchases
+      summary: List one-time purchases
+      tags:
+      - admin
+      security:
+      - adminOnlyAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/AdminUserFilter'
+      - $ref: '#/components/parameters/AdminProgramFilter'
+      - in: query
+        name: status
+        schema:
+          $ref: '#/components/schemas/PurchaseStatus'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminPurchase'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/membership/subscriptions:
+    get:
+      operationId: listAdminSubscriptions
+      summary: List Program subscriptions
+      tags:
+      - admin
+      security:
+      - adminOnlyAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/AdminUserFilter'
+      - $ref: '#/components/parameters/AdminProgramFilter'
+      - in: query
+        name: status
+        schema:
+          $ref: '#/components/schemas/SubscriptionStatus'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminSubscription'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/membership/grants:
+    get:
+      operationId: listAdminGrants
+      summary: List Program access grants
+      tags:
+      - admin
+      description: Grant with grantProgramAccess and revoke with revokeProgramAccess.
+      security:
+      - adminOnlyAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/AdminUserFilter'
+      - $ref: '#/components/parameters/AdminProgramFilter'
+      - in: query
+        name: source
+        schema:
+          $ref: '#/components/schemas/AccessGrantSource'
+      - in: query
+        name: active
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminGrant'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/audit:
+    get:
+      operationId: listAdminAudit
+      summary: List administrative and moderation actions
+      tags:
+      - admin
+      security:
+      - adminOnlyAuth: []
+      parameters:
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - in: query
+        name: targetId
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: actorId
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEntry'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 components:
   securitySchemes:
     bearerAuth:
@@ -6020,7 +6501,23 @@ components:
       type: http
       scheme: bearer
       description: Same session as bearerAuth; the handler also requires the MODERATOR or ADMIN role.
+    adminOnlyAuth:
+      type: http
+      scheme: bearer
+      description: Same session as bearerAuth; the handler also requires an active ADMIN (12-SOCIAL §7a).
   parameters:
+    AdminUserFilter:
+      in: query
+      name: userId
+      schema:
+        type: string
+        format: uuid
+    AdminProgramFilter:
+      in: query
+      name: programId
+      schema:
+        type: string
+        format: uuid
     Cursor:
       in: query
       name: cursor
@@ -7429,6 +7926,8 @@ components:
           - 'null'
           minLength: 0
           maxLength: 500
+        owner:
+          $ref: '#/components/schemas/ContentOwner'
       additionalProperties: false
     UpdateActivityDraftInput:
       type: object
@@ -8148,7 +8647,16 @@ components:
           - string
           - 'null'
           format: uuid
+        owner:
+          $ref: '#/components/schemas/ContentOwner'
       additionalProperties: false
+    ContentOwner:
+      type: string
+      description: PLATFORM creates platform content (creatorId null) and requires an active ADMIN (12-SOCIAL §7a).
+        Defaults to SELF.
+      enum:
+      - SELF
+      - PLATFORM
     UpdateProgramDraftInput:
       type: object
       description: Changing duration, frequency, or generation mode regenerates non-manual placements.
@@ -10626,4 +11134,620 @@ components:
           type:
           - string
           - 'null'
+          format: date-time
+    AdminContentKind:
+      type: string
+      enum:
+      - PROGRAM
+      - ACTIVITY
+    AdminContentItem:
+      type: object
+      description: One row of the admin content table. Platform content (isPlatform) is edited through the ordinary
+        authoring operations; anyone else's content is moderation-only.
+      required:
+      - kind
+      - id
+      - title
+      - status
+      - visibility
+      - accessMode
+      - isPlatform
+      - creator
+      - typeLabel
+      - durationDays
+      - placementCount
+      - moderated
+      - hasUnpublishedChanges
+      - draftRevision
+      - createdAt
+      - updatedAt
+      properties:
+        kind:
+          $ref: '#/components/schemas/AdminContentKind'
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/ProgramStatus'
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        accessMode:
+          anyOf:
+          - $ref: '#/components/schemas/AccessMode'
+          - type: 'null'
+        isPlatform:
+          type: boolean
+        creator:
+          anyOf:
+          - $ref: '#/components/schemas/UserSummary'
+          - type: 'null'
+        typeLabel:
+          type: string
+          description: Program type, or the Activity's category.
+        durationDays:
+          type:
+          - integer
+          - 'null'
+        placementCount:
+          type:
+          - integer
+          - 'null'
+        moderated:
+          type: boolean
+        hasUnpublishedChanges:
+          type: boolean
+        draftRevision:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ModerateContentInput:
+      type: object
+      required:
+      - action
+      - reason
+      properties:
+        action:
+          type: string
+          enum:
+          - HIDE
+          - RESTORE
+          - UNLIST
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+      additionalProperties: false
+    AdminImportInput:
+      type: object
+      required:
+      - programs
+      properties:
+        dryRun:
+          type: boolean
+          description: Validate only; nothing is written.
+        idempotencyKey:
+          type: string
+          minLength: 8
+          maxLength: 100
+          description: Required unless dryRun. Replaying it returns the original result.
+        programs:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items:
+            $ref: '#/components/schemas/AdminImportProgram'
+      additionalProperties: false
+    AdminImportProgram:
+      type: object
+      description: One platform Program draft. programType and focus are slugs or ids.
+      required:
+      - title
+      - programType
+      - activities
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 140
+        description:
+          type:
+          - string
+          - 'null'
+          maxLength: 20000
+        programType:
+          type: string
+          minLength: 1
+        focus:
+          type:
+          - string
+          - 'null'
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        durationDays:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 3650
+          description: Null is an ongoing Program. Omitted uses the default (28).
+        frequency:
+          $ref: '#/components/schemas/Frequency'
+        generationMode:
+          $ref: '#/components/schemas/GenerationMode'
+        activities:
+          type: array
+          minItems: 1
+          maxItems: 60
+          items:
+            $ref: '#/components/schemas/AdminImportActivity'
+      additionalProperties: false
+    AdminImportActivity:
+      type: object
+      description: Either ref (an existing Activity's slug or id) or the fields of a new platform Activity. category
+        and focuses are slugs or ids; category defaults to the Program type's. metric and tool are catalog keys.
+      properties:
+        ref:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 140
+        summary:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        category:
+          type: string
+        focuses:
+          type: array
+          items:
+            type: string
+        instructions:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            properties:
+              title:
+                type:
+                - string
+                - 'null'
+                maxLength: 120
+              body:
+                type:
+                - string
+                - 'null'
+                maxLength: 20000
+            additionalProperties: false
+        metrics:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required:
+            - metric
+            properties:
+              metric:
+                type: string
+              required:
+                type: boolean
+            additionalProperties: false
+        tools:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            required:
+            - tool
+            properties:
+              tool:
+                type: string
+            additionalProperties: false
+      additionalProperties: false
+    AdminImportResult:
+      type: object
+      required:
+      - dryRun
+      - valid
+      - issues
+      - programs
+      properties:
+        dryRun:
+          type: boolean
+        valid:
+          type: boolean
+        issues:
+          type: array
+          items:
+            type: object
+            required:
+            - path
+            - message
+            properties:
+              path:
+                type: string
+                description: JSON path into the request, e.g. programs.0.activities.2.title
+              message:
+                type: string
+        programs:
+          type: array
+          items:
+            type: object
+            required:
+            - index
+            - id
+            - title
+            - activityCount
+            - newActivityCount
+            properties:
+              index:
+                type: integer
+              id:
+                type:
+                - string
+                - 'null'
+                format: uuid
+                description: Null in a dry run.
+              title:
+                type: string
+              activityCount:
+                type: integer
+              newActivityCount:
+                type: integer
+    AdminUser:
+      type: object
+      required:
+      - id
+      - email
+      - handle
+      - displayName
+      - avatarUrl
+      - role
+      - status
+      - emailVerified
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        handle:
+          type:
+          - string
+          - 'null'
+        displayName:
+          type: string
+        avatarUrl:
+          type:
+          - string
+          - 'null'
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        emailVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    AdminUserDetail:
+      type: object
+      required:
+      - id
+      - email
+      - handle
+      - displayName
+      - avatarUrl
+      - role
+      - status
+      - emailVerified
+      - createdAt
+      - deactivatedAt
+      - counts
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        handle:
+          type:
+          - string
+          - 'null'
+        displayName:
+          type: string
+        avatarUrl:
+          type:
+          - string
+          - 'null'
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        emailVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        deactivatedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        counts:
+          type: object
+          required:
+          - programs
+          - activities
+          - enrollments
+          - purchases
+          - subscriptions
+          - grants
+          properties:
+            programs:
+              type: integer
+            activities:
+              type: integer
+            enrollments:
+              type: integer
+            purchases:
+              type: integer
+            subscriptions:
+              type: integer
+            grants:
+              type: integer
+    UpdateAdminUserInput:
+      type: object
+      required:
+      - reason
+      properties:
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - SUSPENDED
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+      additionalProperties: false
+    AdminPerson:
+      type: object
+      required:
+      - id
+      - handle
+      - displayName
+      - avatarUrl
+      - email
+      properties:
+        id:
+          type: string
+          format: uuid
+        handle:
+          type:
+          - string
+          - 'null'
+        displayName:
+          type: string
+        avatarUrl:
+          type:
+          - string
+          - 'null'
+        email:
+          type: string
+    AdminProgramRef:
+      type: object
+      required:
+      - id
+      - title
+      - isPlatform
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        isPlatform:
+          type: boolean
+    AdminPrice:
+      type: object
+      required:
+      - id
+      - program
+      - kind
+      - amountMinor
+      - currency
+      - active
+      - purchaseCount
+      - subscriptionCount
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        program:
+          $ref: '#/components/schemas/AdminProgramRef'
+        kind:
+          $ref: '#/components/schemas/PriceKind'
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+        active:
+          type: boolean
+        purchaseCount:
+          type: integer
+        subscriptionCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    AdminPurchase:
+      type: object
+      required:
+      - id
+      - user
+      - program
+      - amountMinor
+      - platformFeeMinor
+      - currency
+      - status
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/AdminPerson'
+        program:
+          $ref: '#/components/schemas/AdminProgramRef'
+        amountMinor:
+          type: integer
+        platformFeeMinor:
+          type: integer
+        currency:
+          type: string
+        status:
+          $ref: '#/components/schemas/PurchaseStatus'
+        createdAt:
+          type: string
+          format: date-time
+    AdminSubscription:
+      type: object
+      required:
+      - id
+      - user
+      - program
+      - amountMinor
+      - currency
+      - status
+      - currentPeriodEnd
+      - cancelAtPeriodEnd
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/AdminPerson'
+        program:
+          $ref: '#/components/schemas/AdminProgramRef'
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+        status:
+          $ref: '#/components/schemas/SubscriptionStatus'
+        currentPeriodEnd:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        cancelAtPeriodEnd:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    AccessGrantSource:
+      type: string
+      enum:
+      - OPEN
+      - APPROVAL
+      - PURCHASE
+      - SUBSCRIPTION
+      - ADMIN
+    AdminGrant:
+      type: object
+      required:
+      - id
+      - user
+      - program
+      - source
+      - active
+      - grantedAt
+      - expiresAt
+      - revokedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/AdminPerson'
+        program:
+          $ref: '#/components/schemas/AdminProgramRef'
+        source:
+          $ref: '#/components/schemas/AccessGrantSource'
+        active:
+          type: boolean
+        grantedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        revokedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    AuditEntry:
+      type: object
+      required:
+      - id
+      - actor
+      - targetType
+      - targetId
+      - action
+      - reason
+      - reportId
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor:
+          description: Null for a server-side command.
+          anyOf:
+          - $ref: '#/components/schemas/UserSummary'
+          - type: 'null'
+        targetType:
+          $ref: '#/components/schemas/ReportTargetType'
+        targetId:
+          type: string
+          format: uuid
+        action:
+          type: string
+          enum:
+          - HIDE
+          - RESTORE
+          - UNLIST
+          - RESTRICT_PUBLISHING
+          - SUSPEND_USER
+          - REVOKE_ACCESS
+          - ROLE_CHANGE
+          - PUBLISH
+          - ARCHIVE
+          - DELETE
+        reason:
+          type: string
+        reportId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        createdAt:
+          type: string
           format: date-time

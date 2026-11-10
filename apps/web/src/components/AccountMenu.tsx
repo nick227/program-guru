@@ -214,6 +214,11 @@ export function AccountMenu() {
             <Link to="/settings" className={linkButton}>
               Settings
             </Link>
+            {me.data!.data.role === 'ADMIN' && (
+              <Link to="/admin" className={linkButton}>
+                Admin
+              </Link>
+            )}
             <InstallApp />
             <Button variant="ghost" onClick={toggleTheme}>
               Change theme

@@ -17,7 +17,8 @@ import { join } from 'path'
 
 export const testUserId = '00000000-0000-4000-8000-000000000001' // alice
 export const testOtherUserId = '00000000-0000-4000-8000-000000000002' // bob
-export const testAdminId = '00000000-0000-4000-8000-000000000003' // mod
+export const testAdminId = '00000000-0000-4000-8000-000000000003' // mod (MODERATOR)
+export const rootAdminId = '00000000-0000-4000-8000-0000000000ad' // root (ADMIN), seeded on demand
 
 let derefSpec: any
 const getSpec = async () => (derefSpec ??= await SwaggerParser.dereference(specPath))
@@ -69,6 +70,10 @@ export function buildTestApp() {
         adminAuth: async (request: any) => {
           await userFromHeader(request)
           if (!['ADMIN', 'MODERATOR'].includes(request.user.role)) throw forbidden()
+        },
+        adminOnlyAuth: async (request: any) => {
+          await userFromHeader(request)
+          if (request.user.role !== 'ADMIN') throw forbidden()
         },
       },
     })

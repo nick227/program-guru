@@ -15,3 +15,9 @@ export async function adminAuth(request: FastifyRequest) {
   const role = request.user!.role
   if (role !== 'ADMIN' && role !== 'MODERATOR') throw forbidden()
 }
+
+/** Platform administration (12-SOCIAL §7a): an active ADMIN only. Sessions already require ACTIVE. */
+export async function adminOnlyAuth(request: FastifyRequest) {
+  await bearerAuth(request)
+  if (request.user!.role !== 'ADMIN') throw forbidden()
+}

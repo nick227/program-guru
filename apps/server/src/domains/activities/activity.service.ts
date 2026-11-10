@@ -8,6 +8,8 @@ import { offsetArgs, toOffsetPage, type PageQuery } from '../../lib/paging'
 import { canReadRevision, canUseActivity, isOwner } from './access'
 import { isPublishingRestricted } from '../social/moderation.service'
 import { allocateActivitySlug } from '../programs/slug.service'
+import { authorFor } from '../admin/authors'
+import { audit } from '../admin/audit'
 import {
   activityInclude,
   loadRevisions,
@@ -30,21 +32,22 @@ async function latestRevisionId(activityId: string) {
   return r?.id ?? null
 }
 
-/** Owners see their working revision; everyone else sees the latest published one. */
-async function revisionForViewer(a: Activity, viewerId: string | null) {
-  return isOwner(a, viewerId) ? await latestRevisionId(a.id) : a.latestPublishedRevisionId
+/** Authors (owner, or an admin for platform content) see the working revision; everyone else the latest published one. */
+async function canAuthor(a: Activity, viewerId: string | null) {
+  return !!viewerId && (await authorFor(viewerId)).activity(a)
 }
 
 export async function getDetail(viewerId: string | null, activityId: string, revisionId?: string) {
   const a = await db.activity.findUnique({ where: { id: activityId }, include: activityInclude })
   if (!a) throw notFound('Activity')
-  const revId = revisionId ?? (await revisionForViewer(a, viewerId))
+  const author = await canAuthor(a, viewerId)
+  const revId = revisionId ?? (author ? await latestRevisionId(a.id) : a.latestPublishedRevisionId)
   const rev = revId ? await db.activityRevision.findFirst({ where: { id: revId, activityId }, include: revisionInclude }) : null
-  if (!rev || !(await canReadRevision(viewerId, a, rev))) throw notFound('Activity')
-  return toDetail(viewerId, a, rev)
+  if (!rev || !(author || (await canReadRevision(viewerId, a, rev)))) throw notFound('Activity')
+  return toDetail(viewerId, a, rev, author)
 }
 
-async function toDetail(viewerId: string | null, a: ActivityWithCreator, rev: RevisionFull) {
+async function toDetail(viewerId: string | null, a: ActivityWithCreator, rev: RevisionFull, owner: boolean) {
   let sourceActivity = null
   if (a.sourceActivityId) {
     const src = await db.activity.findUnique({ where: { id: a.sourceActivityId }, include: activityInclude })
@@ -53,7 +56,6 @@ async function toDetail(viewerId: string | null, a: ActivityWithCreator, rev: Re
       sourceActivity = toActivitySummary(src, srcRev)
     }
   }
-  const owner = isOwner(a, viewerId)
   return {
     ...toActivitySummary(a, rev),
     instructions: rev.instructions.map(toInstruction),
@@ -163,7 +165,7 @@ async function cloneRevision(tx: Tx, from: RevisionFull, activityId: string, rev
  */
 async function openDraft(tx: Tx, userId: string, activityId: string, expectedRevision: number) {
   const a = await tx.activity.findUnique({ where: { id: activityId } })
-  if (!a || !isOwner(a, userId)) throw notFound('Activity')
+  if (!a || !(await authorFor(userId, tx)).activity(a)) throw notFound('Activity')
   if (a.status === 'ARCHIVED') throw forbidden('Archived activities cannot be edited')
   const bumped = await tx.activity.updateMany({ where: { id: activityId, draftRevision: expectedRevision }, data: { draftRevision: { increment: 1 } } })
   if (bumped.count === 0) throw versionConflict()
@@ -185,14 +187,16 @@ async function assertTaxonomy(userId: string, categoryId?: string, focusIds?: st
   }
 }
 
-export async function create(userId: string, input: { title: string; categoryId: string; focusIds?: string[]; summary?: string | null }) {
+export async function create(userId: string, input: { title: string; categoryId: string; focusIds?: string[]; summary?: string | null; owner?: 'SELF' | 'PLATFORM' }) {
+  const platform = input.owner === 'PLATFORM'
+  if (platform && !(await authorFor(userId)).platform) throw forbidden('Only admins create platform activities')
   await assertTaxonomy(userId, input.categoryId, input.focusIds)
   const title = input.title.trim()
   if (!title) throw badRequest('Name the activity', { title: 'is required' })
   const a = await db.$transaction(async (tx) => {
     const activity = await tx.activity.create({
       data: {
-        creatorId: userId,
+        creatorId: platform ? null : userId,
         categoryId: input.categoryId,
         title,
         summary: input.summary?.trim() || null,
@@ -355,7 +359,8 @@ export async function putTools(
 /** Publishes the draft revision (if any) and sets the Activity's audience. */
 export async function publish(tx: Tx, userId: string, activityId: string, visibility: 'PRIVATE' | 'UNLISTED' | 'PUBLIC') {
   const a = await tx.activity.findUnique({ where: { id: activityId } })
-  if (!a || !isOwner(a, userId)) throw notFound('Activity')
+  const author = await authorFor(userId, tx)
+  if (!a || !author.activity(a)) throw notFound('Activity')
   if (a.status === 'ARCHIVED') throw forbidden('Archived activities cannot be published')
   const latest = await tx.activityRevision.findFirst({ where: { activityId }, orderBy: { revisionNumber: 'desc' } })
   if (!latest) throw notFound('Activity')
@@ -364,6 +369,8 @@ export async function publish(tx: Tx, userId: string, activityId: string, visibi
     if (await isPublishingRestricted(userId)) throw forbidden('Publishing is restricted on this account')
   }
   const publishedId = latest.publishedAt ? latest.id : (await tx.activityRevision.update({ where: { id: latest.id }, data: { publishedAt: new Date() } })).id
+  const changed = !latest.publishedAt || a.status !== 'PUBLISHED' || a.visibility !== visibility
+  if (a.creatorId === null && changed) await audit(tx, userId, 'ACTIVITY', activityId, 'PUBLISH', `Published ${visibility}`)
   await tx.activity.update({ where: { id: activityId }, data: { status: 'PUBLISHED', visibility, latestPublishedRevisionId: publishedId } })
   if (!a.slug) {
     await allocateActivitySlug(tx, { activityId, title: latest.titleSnapshot })
@@ -373,11 +380,10 @@ export async function publish(tx: Tx, userId: string, activityId: string, visibi
 
 export async function publishActivity(userId: string, activityId: string, input: { visibility: 'PRIVATE' | 'UNLISTED' | 'PUBLIC'; expectedRevision: number }) {
   await db.$transaction(async (tx) => {
-    const bumped = await tx.activity.updateMany({ where: { id: activityId, creatorId: userId, draftRevision: input.expectedRevision }, data: { draftRevision: { increment: 1 } } })
-    if (bumped.count === 0) {
-      if (!(await tx.activity.findFirst({ where: { id: activityId, creatorId: userId } }))) throw notFound('Activity')
-      throw versionConflict()
-    }
+    const a = await tx.activity.findUnique({ where: { id: activityId } })
+    if (!a || !(await authorFor(userId, tx)).activity(a)) throw notFound('Activity')
+    const bumped = await tx.activity.updateMany({ where: { id: activityId, draftRevision: input.expectedRevision }, data: { draftRevision: { increment: 1 } } })
+    if (bumped.count === 0) throw versionConflict()
     await publish(tx, userId, activityId, input.visibility)
   })
   return detailForOwner(userId, activityId)
@@ -385,9 +391,12 @@ export async function publishActivity(userId: string, activityId: string, input:
 
 export async function archive(userId: string, activityId: string) {
   const a = await db.activity.findUnique({ where: { id: activityId } })
-  if (!a || !isOwner(a, userId)) throw notFound('Activity')
+  if (!a || !(await authorFor(userId)).activity(a)) throw notFound('Activity')
   // Archiving removes discovery and new use; pinned revisions keep serving existing Programs (02 §4).
-  await db.activity.update({ where: { id: activityId }, data: { status: 'ARCHIVED' } })
+  await db.$transaction(async (tx) => {
+    await tx.activity.update({ where: { id: activityId }, data: { status: 'ARCHIVED' } })
+    if (a.creatorId === null) await audit(tx, userId, 'ACTIVITY', activityId, 'ARCHIVE', 'Archived')
+  })
   return detailForOwner(userId, activityId)
 }
 

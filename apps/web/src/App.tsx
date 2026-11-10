@@ -32,6 +32,7 @@ import { AchievementsPage } from '@/pages/Achievements'
 import { GroupInvitationJoinPage, GroupPage } from '@/pages/Group'
 import { UnsubscribePage } from '@/pages/Unsubscribe'
 import { StudioPage } from '@/pages/Studio'
+import { AdminApp } from '@/admin/registry'
 import { Page, Stage } from '@/components/ui/Layout'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { AccountMenu } from '@/components/AccountMenu'
@@ -213,6 +214,7 @@ const router = createBrowserRouter([
           { path: '/settings/follow-requests', element: <SettingsPage /> },
           { path: '/settings/billing', element: <SettingsPage /> },
           { path: '/studio', element: <StudioPage /> },
+          { path: '/admin/*', element: <AdminApp /> },
         ],
       },
       // After static and guarded routes, render /@handle or redirect legacy /handle.

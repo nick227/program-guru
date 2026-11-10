@@ -71,6 +71,7 @@ Favor plain functions + focused DAO/service modules. Data hooks live in `package
 | Publish Program/Activity | active user (email verification not required), policy, content validation, rights to public media |
 | Publish with PAID access | above + ACTIVE Creator Payout Account + marketplace flag enabled |
 | Moderate | `MODERATOR` or `ADMIN` role via `adminAuth`-style security handler |
+| Administer (`/admin/*`), edit platform content | active `ADMIN` via `adminOnlyAuth`; the last active `ADMIN` cannot be removed (`12-SOCIAL.md` §7a) |
 | Read personal Session/Entry | owner or explicitly scoped sharing policy |
 | View group statuses and group media | ACTIVE group membership + specific occurrence access |
 | View private media | authorized owner/recipient audience; short-lived signed URL |
