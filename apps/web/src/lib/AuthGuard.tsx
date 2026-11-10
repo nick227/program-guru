@@ -7,7 +7,7 @@ export function AuthGuard() {
   const me = useCurrentUser()
   const online = useOnline()
   const location = useLocation()
-  if (!me.data && (!online || (me.error && !(me.error instanceof ApiError && me.error.status === 401))))
+  if (!me.data && !online)
     return (
       <Page>
         <h1>Connect to load your account</h1>

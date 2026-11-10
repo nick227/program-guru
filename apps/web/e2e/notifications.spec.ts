@@ -885,11 +885,11 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
     .click()
   await expect(page).toHaveURL(new RegExp(`/programs/${programId}$`))
   await expect(
-    page.getByRole('heading', { name: 'Update available' }),
+    page.getByRole('heading', { name: 'A creator update is available' }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Accept update' }).click()
   await expect(
-    page.getByRole('heading', { name: 'Update available' }),
+    page.getByRole('heading', { name: 'A creator update is available' }),
   ).toHaveCount(0)
 
   // 2. Navigate from handle-based Group Invitation notification -> /groups/:id/invitations/:invitationId, confirm schedule, accept by ID, open personal calendar, and verify leaving revokes group access while preserving personal history

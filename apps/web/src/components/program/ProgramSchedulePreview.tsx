@@ -123,6 +123,7 @@ export function ProgramSchedulePreview({
             <div className="flex items-center gap-2">
               <Input
                 type="date"
+                aria-label="Start date"
                 value={startDate}
                 disabled={isStarting}
                 onChange={(e) => onStartDateChange?.(e.target.value)}

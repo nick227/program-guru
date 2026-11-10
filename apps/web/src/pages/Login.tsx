@@ -18,7 +18,7 @@ export function LoginPage() {
   return (
     <Page>
       <Stage className="max-w-xl flex flex-col justify-start h-screen">
-        <h1 className='page-title text-4xl'>Login bruh.</h1>
+        <h1 className='page-title text-4xl'>Sign in to your week</h1>
         <Panel>
           <Form
             schema={schema}

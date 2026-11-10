@@ -16,7 +16,7 @@ export async function journey(
   await login(page, ...credentials.author)
   await page.getByRole('link', { name: 'Add Program', exact: true }).click()
   await expect(
-    page.getByRole('heading', { name: 'Add a Program', exact: true }),
+    page.getByRole('heading', { name: 'Add Program', exact: true }),
   ).toBeVisible()
   // Step 1 · Details: type, name, then Continue into the workspace.
   await page.getByRole('button', { name: /Workout/ }).click()
@@ -44,8 +44,10 @@ export async function journey(
   // Step 3 · Publish & Share.
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(
-    page.getByRole('heading', { name: 'Publish & Share', exact: true }),
-  ).toBeVisible()
+    page
+      .getByRole('navigation', { name: 'Program editor steps' })
+      .getByRole('button', { name: /Publish & Share/ }),
+  ).toHaveAttribute('aria-current', 'step')
   await page.getByLabel('Start now').uncheck()
   await page
     .getByRole('button', { name: 'Publish Program', exact: true })
@@ -62,10 +64,10 @@ export async function journey(
   ).toBeVisible()
   await login(page, ...credentials.participant)
   await page.goto(publishedPath)
-  await page.getByRole('button', { name: 'Start Program', exact: true }).click()
-  await page.getByLabel('Start date').fill('2026-11-09')
-  await page.getByRole('button', { name: 'Preview my calendar' }).click()
-  await page.getByRole('button', { name: 'Confirm & add to Calendar' }).click()
+  // The hero CTA leads to the one Start Program section: a start date, then start (13 §4).
+  const start = page.getByRole('region', { name: 'Start Program' })
+  await start.getByLabel('Start date').fill('2026-11-09')
+  await start.getByRole('button', { name: 'Start Program', exact: true }).click()
   await expect(page).toHaveURL(/day=2026-11-09/)
   // Day view lists every item (month cells cap at four; live accounts accumulate runs).
   await page.goto('/?view=day&day=2026-11-09')

@@ -402,7 +402,7 @@ test('calendar and header span the viewport with aligned gutters', async ({ page
     await page.setViewportSize({ width, height: 1080 })
     const rail = await page.evaluate(() => {
       const header = document.querySelector<HTMLElement>('header > div')
-      const page = document.querySelector<HTMLElement>('main.page--calendar')
+      const page = document.querySelector<HTMLElement>('main.page--wide')
       const board = page?.querySelector<HTMLElement>('.calendar-month-grid')
       if (!header || !page || !board) throw new Error('Full-width calendar or header is missing')
       return {
