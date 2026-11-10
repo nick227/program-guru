@@ -33,8 +33,7 @@ function AuthShell({ title, children }: { title: string; children: React.ReactNo
   return (
     <Page>
       <Stage className="max-w-xl">
-        <p className="font-display text-muted">Programs</p>
-        <h1>{title}</h1>
+        <h1 className='page-title text-4xl'>{title}</h1>
         {children}
       </Stage>
     </Page>
@@ -60,7 +59,7 @@ export function RegisterPage() {
   const [params] = useSearchParams()
   const returnTo = safeReturn(params.get('returnTo'))
   return (
-    <AuthShell title="Create your account">
+    <AuthShell title="Join the party.">
       <Panel>
         <Form
           schema={registerSchema}

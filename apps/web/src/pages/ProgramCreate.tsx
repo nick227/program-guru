@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Outlet, useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 import {
   useCopyProgram,
   useCreateProgram,
@@ -16,8 +16,10 @@ import { ProgramStepper } from '@/components/ProgramStepper'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Back } from '@/components/Navigation'
 import {
-  useLibraryBrowser,
-  type LibraryBrowserContext,
+  buildBrowseUrl,
+  clearBrowseDraft,
+  readBrowseDraft,
+  writeBrowseDraft,
 } from '@/components/LibraryBrowser'
 import { SuggestionRail } from '@/components/SuggestionRail'
 import { MediaTray } from '@/components/MediaTray'
@@ -33,18 +35,29 @@ import { buildWorkspaceUrl } from '@/lib/urls'
 type Program = components['schemas']['ProgramSummary']
 type ProgramWorkspace = components['schemas']['ProgramWorkspace']
 
+const CREATE_DRAFT_KEY = 'program-create-browse-draft'
+
+interface ProgramCreateDraft {
+  typeId: string
+  title: string
+  description: string
+  startingPoint: Program | null
+}
+
 export function ProgramCreatePage() {
-  useDocumentTitle('Add a Program')
+  useDocumentTitle('Add Program')
   const [params, setParams] = useSearchParams()
   const backTo = safeReturn(params.get('returnTo'), '/')
   const navigate = useNavigate()
+  const location = useLocation()
+  const navType = useNavigationType()
   const online = useOnline()
   const me = useCurrentUser()
   const types = useProgramTypes()
   const create = useCreateProgram()
   const copy = useCopyProgram()
   const rename = useRenameProgram()
-  // The chosen type lives in the URL so Back, refresh and the nested browser keep it.
+  // The chosen type lives in the URL so Back, refresh and the browser keep it.
   const typeId = params.get('type') ?? ''
   const setTypeId = (next: string) =>
     setParams(
@@ -56,11 +69,39 @@ export function ProgramCreatePage() {
       },
       { replace: !next },
     )
-  const browser = useLibraryBrowser()
+  const routeState = location.state as {
+    fromBrowse?: boolean
+    pickedProgram?: Program
+  } | null
+  const returningFromBrowse = Boolean(routeState?.fromBrowse) || navType === 'POP'
+  const [initialDraft] = useState<ProgramCreateDraft | null>(() => {
+    const saved = readBrowseDraft<ProgramCreateDraft>(
+      CREATE_DRAFT_KEY,
+      returningFromBrowse,
+    )
+    return saved && saved.typeId === typeId ? saved : null
+  })
+  const pickedProgram = routeState?.pickedProgram ?? null
+  useEffect(() => {
+    if (!returningFromBrowse) clearBrowseDraft(CREATE_DRAFT_KEY)
+  }, [returningFromBrowse])
+  useEffect(() => {
+    if (pickedProgram && pickedProgram.type.id !== typeId) {
+      setTypeId(pickedProgram.type.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickedProgram])
+
   const categorySlugOf = useCategorySlugOf()
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [startingPoint, setStartingPoint] = useState<Program | null>(null)
+  const [title, setTitle] = useState(
+    () => pickedProgram?.title ?? initialDraft?.title ?? '',
+  )
+  const [description, setDescription] = useState(
+    () => initialDraft?.description ?? '',
+  )
+  const [startingPoint, setStartingPoint] = useState<Program | null>(
+    () => pickedProgram ?? initialDraft?.startingPoint ?? null,
+  )
   const [createdDraft, setCreatedDraft] = useState<ProgramWorkspace | null>(null)
   // Chosen before the draft exists; sent bound to it as soon as it is created.
   const cover = useDraftMedia({ multiple: false })
@@ -78,11 +119,21 @@ export function ProgramCreatePage() {
     setTitle(program.title)
     if (program.type.id !== typeId) setTypeId(program.type.id)
   }
-  const browserContext: LibraryBrowserContext = {
-    kind: 'programs',
-    programTypeId: typeId,
-    actionLabel: 'Use as starting point',
-    onPick: chooseStartingPoint,
+  function openBrowser() {
+    writeBrowseDraft<ProgramCreateDraft>(CREATE_DRAFT_KEY, {
+      typeId,
+      title,
+      description,
+      startingPoint,
+    })
+    navigate(
+      buildBrowseUrl({
+        kind: 'programs',
+        type: typeId,
+        pick: 'program',
+        returnTo: `${location.pathname}${location.search}`,
+      }),
+    )
   }
   const error =
     types.error || create.error || copy.error || rename.error || coverError
@@ -128,6 +179,7 @@ export function ProgramCreatePage() {
         }
       }
 
+      clearBrowseDraft(CREATE_DRAFT_KEY)
       navigate(buildWorkspaceUrl(renamed.id, { step: 'activities' }), { replace: true })
     } catch {
       // Mutation errors remain visible below; keep the selection for retry.
@@ -165,6 +217,7 @@ export function ProgramCreatePage() {
                     variant="outline"
                     className="add-program-type"
                     onClick={() => {
+                      clearBrowseDraft(CREATE_DRAFT_KEY)
                       setTypeId(item.id)
                       setTitle('')
                       setDescription('')
@@ -246,7 +299,7 @@ export function ProgramCreatePage() {
                   className="self-start"
                   disabled={!!createdDraft}
                   aria-label="Browse Program Library"
-                  onClick={browser.open}
+                  onClick={openBrowser}
                 >
                   Browse
                 </Button>
@@ -275,7 +328,6 @@ export function ProgramCreatePage() {
           </Stack>
         )}
       </Stage>
-      <Outlet context={browserContext} />
     </Page>
   )
 }

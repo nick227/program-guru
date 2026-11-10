@@ -55,7 +55,7 @@ test('Add Program filters by type and copies a selected starting point', async (
       .getByRole('button', { name: 'Use as starting point: Beginner Strength' }),
   ).toBeVisible()
 
-  // The full library is its own route above the still-mounted form.
+  // The full library is its own dedicated route.
   await page.getByLabel('Program name').fill('Draft name kept')
   const discoveryRequest = page.waitForRequest((request) => {
     const url = new URL(request.url())
@@ -68,26 +68,23 @@ test('Add Program filters by type and copies a selected starting point', async (
   })
   await page.getByRole('button', { name: 'Browse Program Library' }).click()
   await discoveryRequest
-  await expect(page).toHaveURL(/\/programs\/new\/browse\?type=/)
-  const library = page.getByRole('dialog', { name: 'Workout Library' })
-  await expect(library).toBeVisible()
+  await expect(page).toHaveURL(/\/browse\?.*type=/)
+  await expect(page.getByRole('heading', { name: 'Workout Library', exact: true })).toBeVisible()
   const searchRequest = page.waitForRequest((request) => {
     const url = new URL(request.url())
     return url.pathname === '/discover' && url.searchParams.get('q') === 'Beginner'
   })
-  await library.getByLabel('Search Programs').fill('Beginner')
+  await page.getByLabel('Search Programs').fill('Beginner')
   await searchRequest
-  await expect(page).toHaveURL(/bq=Beginner/)
-  await library.getByRole('button', { name: 'Back' }).click()
-  await expect(library).toBeHidden()
+  await expect(page).toHaveURL(/q=Beginner/)
+  await page.getByRole('link', { name: 'Back' }).click()
+  await expect(page).toHaveURL(/\/programs\/new\?type=/)
   await expect(page.getByLabel('Program name')).toHaveValue('Draft name kept')
 
   await page.getByRole('button', { name: 'Browse Program Library' }).click()
   await page
-    .getByRole('dialog', { name: 'Workout Library' })
     .getByRole('button', { name: 'Use as starting point: Beginner Strength' })
     .click()
-  await expect(page.getByRole('dialog', { name: 'Workout Library' })).toBeHidden()
   await expect(page).toHaveURL(/\/programs\/new\?type=/)
   await expect(page.getByLabel('Program name')).toHaveValue('Beginner Strength')
   await expect(page.getByText('Starting point:')).toContainText('Beginner Strength')

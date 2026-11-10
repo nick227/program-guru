@@ -114,62 +114,6 @@ export function ActivityTile({
             {!compact && <span>{completing ? 'Saving…' : 'Complete'}</span>}
           </button>
         )}
-        {canRemove && (
-          <div className="calendar-tile__menu-anchor">
-            <button
-              type="button"
-              className="calendar-tile__more"
-              aria-label={`More actions for ${item.title}`}
-              aria-expanded={menuOpen}
-              onClick={() => {
-                setMenuOpen((open) => !open)
-                setConfirmRemove(false)
-              }}
-            >
-              {menuOpen ? <X size={15} aria-hidden /> : <MoreHorizontal size={16} aria-hidden />}
-              <span>{menuOpen ? 'Close' : 'More'}</span>
-            </button>
-            {menuOpen && (
-              <div className="calendar-tile-menu">
-                {!confirmRemove ? (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmRemove(true)}
-                    className="calendar-tile-menu__item"
-                  >
-                    Remove from Calendar
-                  </button>
-                ) : (
-                  <>
-                    <span className="calendar-tile-menu__label">
-                      {item.recurrenceId
-                        ? 'Remove which activities?'
-                        : 'Remove this activity?'}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={removing}
-                      onClick={() => onRemove?.(item.id, 'THIS_ONE')}
-                      className="calendar-tile-menu__item"
-                    >
-                      {item.recurrenceId ? 'This activity only' : 'Remove activity'}
-                    </button>
-                    {item.recurrenceId && (
-                      <button
-                        type="button"
-                        disabled={removing}
-                        onClick={() => onRemove?.(item.id, 'THIS_AND_FUTURE')}
-                        className="calendar-tile-menu__item"
-                      >
-                        This and future activities
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     ) : null
 

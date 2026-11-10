@@ -1,6 +1,7 @@
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
-import { useLibraryBrowser } from '@/components/LibraryBrowser'
+import { buildBrowseUrl } from '@/components/LibraryBrowser'
 import { WorkspaceActivityRow } from './WorkspaceActivityRow'
 import { CreateActivitySection } from './CreateActivitySection'
 import type { Workspace } from '../../types'
@@ -14,8 +15,13 @@ export function ActivitiesStep({
   onBack: () => void
   onContinue: () => void
 }) {
-  const browser = useLibraryBrowser()
   const base = `/programs/${ws.id}/workspace?step=activities`
+  const browseHref = buildBrowseUrl({
+    kind: 'activities',
+    programId: ws.id,
+    facet: ws.type.categoryId || undefined,
+    returnTo: base,
+  })
 
   return (
     <Stack className="gap-6">
@@ -23,17 +29,18 @@ export function ActivitiesStep({
         <div>
           <h2 className="text-xl font-bold tracking-tight text-foreground">Activities</h2>
           <span className="text-xs text-muted">
-            {ws.activityCount} {ws.activityCount === 1 ? 'activity' : 'activities'}
+            {ws.activityCount} {ws.activityCount === 1 ? 'activity' : 'activities'} ·{' '}
+            {ws.durationDays
+              ? `${ws.durationDays / 7} ${ws.durationDays === 7 ? 'week' : 'weeks'}`
+              : 'Ongoing'}
           </span>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 px-4 font-semibold"
-          onClick={browser.open}
+        <Link
+          to={browseHref}
+          className="btn btn--outline btn--sm h-9 px-4 font-semibold"
         >
           Browse Library
-        </Button>
+        </Link>
       </Row>
 
       {/* Compact Activity Rows */}
@@ -75,7 +82,7 @@ export function ActivitiesStep({
           className="h-11 px-8 font-semibold"
           onClick={onContinue}
         >
-          Go
+          Continue
         </Button>
       </Row>
     </Stack>

@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Filter, Search, BookOpen } from 'lucide-react'
 import {
   useCalendar,
   useCalendarYear,
@@ -269,12 +269,36 @@ export function CalendarPage() {
           : dateLabel(selected, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 
   return (
-    <Page className="page--wide page--calendar mx-auto">
-      <h1 className="sr-only">Calendar</h1>
-
-      <header className="sub-header" aria-label="Calendar controls">
+    <Page className="page--wide">
+      <header className="sub-header">
         <div className="sub-header__title">
-          <div className="calendar-toolbar__navigation">
+          <h1 className="sub-header__heading">Calendar</h1>
+        </div>
+        <div className="sub-header__actions">
+          <Link
+            to={`/library?returnTo=${encodeURIComponent(origin)}`}
+            className="sub-header__btn"
+          >
+            <BookOpen size={16} aria-hidden />
+            <span>My Programs</span>
+          </Link>
+          <Link to="/browse" className="sub-header__btn">
+            <Search size={16} aria-hidden />
+            <span>Browse Programs</span>
+          </Link>
+          <Link
+            to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
+            className="sub-header__btn sub-header__btn--primary min-w-[180px]"
+          >
+            <Plus size={16} aria-hidden />
+            <span>Add Program</span>
+          </Link>
+        </div>
+      </header>
+
+      <div className="mt-4" aria-label="Calendar controls">
+        <div className="w-full my-4">
+          <div className="flex justify-start items-center">
             <Button
               variant="outline"
               size="icon"
@@ -283,7 +307,7 @@ export function CalendarPage() {
             >
               <ChevronLeft size={18} />
             </Button>
-            <h2 className="sub-header__heading calendar-toolbar__period">
+            <h2 className="px-8">
               {title}
             </h2>
             <Button
@@ -296,12 +320,15 @@ export function CalendarPage() {
             </Button>
             <Button
               variant="ghost"
-              className="calendar-toolbar__today"
+              className="calendar-toolbar__today ml-2"
               onClick={() => updateCalendarParams(view, current)}
             >
               Today
             </Button>
           </div>
+
+          </div>
+          <div className="flex wrap-nowrap justify-end gap-4">
 
           <SegmentedControl
             ariaLabel="Calendar view"
@@ -315,9 +342,7 @@ export function CalendarPage() {
               { value: 'year', label: 'Year' },
             ]}
           />
-        </div>
-
-        <div className="sub-header__actions">
+          
           <details className="calendar-filter">
             <summary className="calendar-filter__trigger sub-header__btn">
               <Filter size={15} aria-hidden />
@@ -354,22 +379,9 @@ export function CalendarPage() {
               })}
             </div>
           </details>
-          <Link
-            to={`/library?returnTo=${encodeURIComponent(origin)}`}
-            className="sub-header__btn"
-          >
-            <Plus size={16} aria-hidden />
-            <span>My Programs</span>
-          </Link>
-          <Link
-            to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
-            className="sub-header__btn sub-header__btn--primary"
-          >
-            <Plus size={16} aria-hidden />
-            <span>Add Program</span>
-          </Link>
         </div>
-      </header>
+
+      </div>
 
       <Stack className="gap-6 mt-6">
 
@@ -490,7 +502,7 @@ export function CalendarPage() {
                     to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
                     className="btn btn--primary"
                   >
-                    Add a Program
+                    + Program
                   </Link>
                   <Link
                     to={`/add-activity?day=${selected}`}

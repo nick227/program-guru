@@ -149,7 +149,6 @@ export function SettingsPage() {
           </Link>
         </Row>
         <h1>Settings</h1>
-        <InstallApp />
 
         <Panel id="reminders">
           <Stack>
@@ -459,6 +458,8 @@ export function SettingsPage() {
             </p>
           </Stack>
         </Panel>
+        
+        <InstallApp />
       </Stage>
     </Page>
   )

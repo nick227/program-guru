@@ -1,21 +1,23 @@
 import { useEffect, useState } from 'react'
 import {
+  Link,
   useLocation,
   useNavigate,
-  useOutletContext,
   useSearchParams,
-  Link,
 } from 'react-router-dom'
 import {
   useCategories,
   useDiscoverActivities,
   useDiscoverPrograms,
   useFocuses,
-  useProgramTypes,
   useProgramPrefetch,
+  useProgramTypes,
+  useProgramWorkspace,
   type components,
 } from '@project/sdk'
-import { Calendar, ChevronLeft, RotateCcw, Search, X, Plus } from 'lucide-react'
+import { ArrowLeft, BookOpen, Calendar, Plus, RotateCcw, Search, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { Page } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
@@ -25,91 +27,241 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { DiscoveryCard } from '@/components/SuggestionRail'
 import { useCategorySlugOf } from '@/components/EntityHero'
 import { activityCard, programCard } from '@/lib/discoveryCards'
+import { safeReturn } from '@/lib/dates'
+import { useDocumentTitle } from '@/lib/title'
+import { useAddExistingActivity } from '@/pages/program-workspace/hooks/useAddExistingActivity'
+import type { Workspace } from '@/pages/program-workspace/types'
 
 type S = components['schemas']
 type Sort = S['DiscoverSort']
 type Creator = 'ALL' | 'PLATFORM' | 'COMMUNITY'
+type BrowseKind = 'programs' | 'activities'
+type BrowsePick = 'program' | 'activity'
 
-/**
- * What the page under the browser provides through `<Outlet context>`.
- * The page owns its draft and decides what a pick does; the browser only
- * discovers, selects, and then closes itself.
- */
-export type LibraryBrowserContext =
-  | {
-      kind: 'programs'
-      programTypeId?: string
-      closeOnPick?: boolean
-      actionLabel: string
-      onPick: (program: S['ProgramSummary']) => void
-    }
-  | {
-      kind: 'activities'
-      categoryId?: string
-      actionLabel: string
-      exclude?: string[]
-      onPick: (activity: S['ActivitySummary']) => void
-    }
+export interface BrowseUrlOptions {
+  kind?: BrowseKind
+  type?: string
+  facet?: string
+  pick?: BrowsePick
+  programId?: string
+  returnTo?: string
+}
 
-const BROWSE = '/browse'
-/** Browser filters live in the URL beside the page's own parameters. */
-const PARAM = { q: 'bq', sort: 'bsort', creator: 'bcreator', facet: 'bfacet', type: 'btype' }
+/** Build a `/browse` URL for standalone discovery or picker flows. */
+export function buildBrowseUrl(options: BrowseUrlOptions = {}): string {
+  const query = new URLSearchParams()
+  if (options.kind && options.kind !== 'programs') query.set('kind', options.kind)
+  if (options.type) query.set('type', options.type)
+  if (options.facet) query.set('facet', options.facet)
+  if (options.pick) query.set('pick', options.pick)
+  if (options.programId) query.set('programId', options.programId)
+  if (options.returnTo) query.set('returnTo', options.returnTo)
+  const qs = query.toString()
+  return qs ? `/browse?${qs}` : '/browse'
+}
 
-/** Open/close the nested browser route without unmounting the page. */
-export function useLibraryBrowser() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  return {
-    open: () =>
-      navigate(
-        { pathname: `${location.pathname.replace(/\/$/, '')}${BROWSE}`, search: location.search },
-        { state: { browserFromApp: true } },
-      ),
+export function writeBrowseDraft<T>(key: string, value: T) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    /* ignore storage errors */
   }
 }
 
-function useCloseBrowser() {
+export function readBrowseDraft<T>(key: string, shouldRestore: boolean): T | null {
+  if (!shouldRestore) return null
+  try {
+    const raw = sessionStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : null
+  } catch {
+    return null
+  }
+}
+
+export function clearBrowseDraft(key: string) {
+  try {
+    sessionStorage.removeItem(key)
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+const PARAM = {
+  q: 'q',
+  sort: 'sort',
+  creator: 'creator',
+  facet: 'facet',
+  type: 'type',
+} as const
+
+interface BrowserMode {
+  kind: BrowseKind
+  actionLabel: string
+  lockedProgramTypeId?: string
+  exclude?: string[]
+  returnTo?: string
+  prefetchOnHover?: boolean
+  onPickProgram?: (program: S['ProgramSummary']) => void
+  onPickActivity?: (activity: S['ActivitySummary']) => void
+}
+
+/** Dedicated `/browse` page supporting standalone discovery and picker flows. */
+export function LibraryBrowserPage() {
+  const [params] = useSearchParams()
   const navigate = useNavigate()
   const location = useLocation()
-  return () => {
-    if ((location.state as { browserFromApp?: boolean } | null)?.browserFromApp) {
-      navigate(-1)
-      return
-    }
-    const search = new URLSearchParams(location.search)
-    Object.values(PARAM).forEach((key) => search.delete(key))
-    const query = search.toString()
-    navigate(
-      {
-        pathname: location.pathname.slice(0, -BROWSE.length) || '/',
-        search: query ? `?${query}` : '',
-      },
-      { replace: true },
+  const currentUrl = `${location.pathname}${location.search}`
+
+  const programId = params.get('programId') ?? ''
+  const rawReturnTo = params.get('returnTo')
+  const returnTo = rawReturnTo ? safeReturn(rawReturnTo) : undefined
+
+  if (programId) {
+    return (
+      <WorkspaceLibraryBrowser
+        programId={programId}
+        returnTo={safeReturn(
+          rawReturnTo,
+          `/programs/${programId}/workspace?step=activities`,
+        )}
+      />
     )
   }
+
+  const pick = params.get('pick')
+  const kind: BrowseKind =
+    params.get('kind') === 'activities' || pick === 'activity'
+      ? 'activities'
+      : 'programs'
+
+  if (pick === 'program' && returnTo) {
+    return (
+      <LibraryBrowser
+        mode={{
+          kind: 'programs',
+          lockedProgramTypeId: params.get('type') || undefined,
+          actionLabel: 'Use as starting point',
+          returnTo,
+          onPickProgram: (program) =>
+            navigate(returnTo, {
+              state: { fromBrowse: true, pickedProgram: program },
+            }),
+        }}
+      />
+    )
+  }
+
+  if (pick === 'activity' && returnTo) {
+    return (
+      <LibraryBrowser
+        mode={{
+          kind: 'activities',
+          actionLabel: 'Use as starting point',
+          returnTo,
+          onPickActivity: (activity) =>
+            navigate(returnTo, {
+              state: { fromBrowse: true, pickedActivity: activity },
+            }),
+        }}
+      />
+    )
+  }
+
+  return (
+    <LibraryBrowser
+      mode={{
+        kind,
+        actionLabel: kind === 'programs' ? 'View Program' : 'View Activity',
+        prefetchOnHover: kind === 'programs',
+        returnTo,
+        onPickProgram: (program) =>
+          navigate(
+            `/programs/${program.id}?returnTo=${encodeURIComponent(currentUrl)}`,
+          ),
+        onPickActivity: (activity) =>
+          navigate(
+            `/activities/${activity.id}?returnTo=${encodeURIComponent(currentUrl)}`,
+          ),
+      }}
+    />
+  )
 }
 
-export function LibraryBrowserRoute() {
-  const context = useOutletContext<LibraryBrowserContext | undefined>()
-  const close = useCloseBrowser()
-  if (!context) return null
-  return <LibraryBrowser context={context} onClose={close} />
-}
-
-function LibraryBrowser({
-  context,
-  onClose,
+function WorkspaceLibraryBrowser({
+  programId,
+  returnTo,
 }: {
-  context: LibraryBrowserContext
-  onClose: () => void
+  programId: string
+  returnTo: string
+}) {
+  const workspace = useProgramWorkspace(programId)
+  if (!workspace.data) {
+    return (
+      <LibraryBrowser
+        mode={{
+          kind: 'activities',
+          actionLabel: 'Add to Program',
+          returnTo,
+          onPickActivity: () => {},
+        }}
+      />
+    )
+  }
+  return <LoadedWorkspaceLibraryBrowser ws={workspace.data} returnTo={returnTo} />
+}
+
+function LoadedWorkspaceLibraryBrowser({
+  ws,
+  returnTo,
+}: {
+  ws: Workspace
+  returnTo: string
 }) {
   const navigate = useNavigate()
+  const addExisting = useAddExistingActivity(ws)
+  return (
+    <LibraryBrowser
+      mode={{
+        kind: 'activities',
+        exclude: ws.activities.map((a) => a.activityId),
+        actionLabel: 'Add to Program',
+        returnTo,
+        onPickActivity: (activity) => {
+          void addExisting
+            .run(activity)
+            .then(() => {
+              toast.success('Activity added')
+              navigate(returnTo)
+            })
+            .catch((error: unknown) =>
+              toast.error(
+                error instanceof Error
+                  ? error.message
+                  : 'Could not add the Activity',
+              ),
+            )
+        },
+      }}
+    />
+  )
+}
+
+function LibraryBrowser({ mode }: { mode: BrowserMode }) {
+  const location = useLocation()
   const [params, setParams] = useSearchParams()
+  const currentUrl = `${location.pathname}${location.search}`
   const categorySlugOf = useCategorySlugOf()
   const types = useProgramTypes()
   const categories = useCategories()
   const prefetch = useProgramPrefetch()
-  const programTypeId = context.kind === 'programs' ? (context.programTypeId ?? params.get(PARAM.type) ?? '') : ''
+  const prefetchProgram = (id: string) => {
+    if (mode.prefetchOnHover) prefetch(id)
+  }
+
+  const programTypeId =
+    mode.kind === 'programs'
+      ? (mode.lockedProgramTypeId ?? params.get(PARAM.type) ?? '')
+      : ''
   const focuses = useFocuses(programTypeId)
   const typeLabel = types.data?.find((t) => t.id === programTypeId)?.label
 
@@ -117,9 +269,7 @@ function LibraryBrowser({
   const search = params.get(PARAM.q) ?? ''
   const sort = (params.get(PARAM.sort) as Sort | null) ?? 'POPULAR'
   const creator = (params.get(PARAM.creator) as Creator | null) ?? 'ALL'
-  const facet =
-    params.get(PARAM.facet) ??
-    (context.kind === 'activities' ? (context.categoryId ?? '') : '')
+  const facet = params.get(PARAM.facet) ?? ''
 
   const setParam = (key: string, value: string, fallback = '') =>
     setParams(
@@ -129,7 +279,7 @@ function LibraryBrowser({
         else next.set(key, value)
         return next
       },
-      { replace: true, state: window.history.state?.usr },
+      { replace: true },
     )
 
   useEffect(() => {
@@ -140,70 +290,72 @@ function LibraryBrowser({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    const overflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = overflow
-    }
-  }, [onClose])
-
   const programs = useDiscoverPrograms({
     q: search,
     programTypeId,
     focusId: facet || undefined,
     sort,
-    enabled: context.kind === 'programs',
+    enabled: mode.kind === 'programs',
   })
   const activities = useDiscoverActivities({
     q: search,
     categoryId: facet || undefined,
     sort,
-    enabled: context.kind === 'activities',
+    enabled: mode.kind === 'activities',
   })
-  const results = context.kind === 'programs' ? programs : activities
-  const excluded = new Set(context.kind === 'activities' ? (context.exclude ?? []) : [])
+  const results = mode.kind === 'programs' ? programs : activities
+  const excluded = new Set(mode.kind === 'activities' ? (mode.exclude ?? []) : [])
   const keep = (item: { isPlatform: boolean; id: string }) =>
     !excluded.has(item.id) &&
     (creator === 'ALL' || (creator === 'PLATFORM') === item.isPlatform)
   const cards =
-    context.kind === 'programs'
+    mode.kind === 'programs'
       ? (programs.data?.pages ?? [])
           .flatMap((page) => page.data.flatMap((d) => (d.program ? [d.program] : [])))
           .filter(keep)
-          .map((program) => ({ card: programCard(program, categorySlugOf), pick: () => { context.onPick(program); if (context.closeOnPick !== false) onClose() } }))
+          .map((program) => ({
+            card: programCard(program, categorySlugOf),
+            pick: () => mode.onPickProgram?.(program),
+          }))
       : (activities.data?.pages ?? [])
           .flatMap((page) => page.data.flatMap((d) => (d.activity ? [d.activity] : [])))
           .filter(keep)
-          .map((activity) => ({ card: activityCard(activity, categorySlugOf), pick: () => { context.onPick(activity); onClose() } }))
+          .map((activity) => ({
+            card: activityCard(activity, categorySlugOf),
+            pick: () => mode.onPickActivity?.(activity),
+          }))
 
   const facets =
-    context.kind === 'programs'
+    mode.kind === 'programs'
       ? (focuses.data ?? []).map((f) => ({ id: f.id, label: f.label }))
       : (categories.data ?? []).map((c) => ({ id: c.id, label: c.label }))
-  const noun = context.kind === 'programs' ? 'Program' : 'Activity'
+  const noun = mode.kind === 'programs' ? 'Program' : 'Activity'
   const title =
-    context.kind === 'programs'
+    mode.kind === 'programs'
       ? `${typeLabel ?? 'Program'} Library`
       : 'Activity Library'
-  const filtered = !!params.get(PARAM.type) || !!search || !!params.get(PARAM.facet) || sort !== 'POPULAR' || creator !== 'ALL'
+  useDocumentTitle(title)
+
+  const filtered =
+    (!mode.lockedProgramTypeId && !!params.get(PARAM.type)) ||
+    !!search ||
+    !!params.get(PARAM.facet) ||
+    sort !== 'POPULAR' ||
+    creator !== 'ALL'
+
   const reset = () => {
     setQuery('')
     setParams(
       (previous) => {
         const next = new URLSearchParams(previous)
-        Object.values(PARAM).forEach((key) => next.delete(key))
+        next.delete(PARAM.q)
+        next.delete(PARAM.sort)
+        next.delete(PARAM.creator)
+        next.delete(PARAM.facet)
+        if (!mode.lockedProgramTypeId) next.delete(PARAM.type)
         return next
       },
-      { replace: true, state: window.history.state?.usr },
+      { replace: true },
     )
   }
 
@@ -216,54 +368,49 @@ function LibraryBrowser({
   ) => <SegmentedControl ariaLabel={label} options={options} value={value} onChange={onChange} />
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      className="fixed inset-x-0 bottom-0 top-16 z-30 flex flex-col overflow-hidden border-t border-border bg-background shadow-2xl"
-    >
-      <header className="sub-header-dialog-header">
-        <div className="mx-auto flex w-full page--wide flex-col gap-3">
-          <div className="sub-header">
-            <div className="sub-header__title">
-              <h1 className="sub-header__heading">{title}</h1>
-            </div>
-            <div className="sub-header__actions">
-              <button
-                type="button"
-                onClick={() => {
-                  onClose()
-                  navigate('/')
-                }}
-                className="sub-header__btn"
-              >
+    <Page className="page--wide">
+      <header className="sub-header">
+        <div className="sub-header__title">
+          <h1 className="sub-header__heading">{title}</h1>
+        </div>
+        <div className="sub-header__actions">
+          {mode.returnTo ? (
+            <Link
+              to={mode.returnTo}
+              state={{ fromBrowse: true }}
+              className="sub-header__btn"
+            >
+              <ArrowLeft size={16} aria-hidden />
+              <span>Back</span>
+            </Link>
+          ) : (
+            <>
+              <Link to="/" className="sub-header__btn">
                 <Calendar size={16} aria-hidden />
                 <span>Calendar</span>
-              </button>
-              <Link
-                to={`/library?returnTo=${encodeURIComponent(origin)}`}
-                onClick={onClose}
-                className="sub-header__btn"
-              >
-                <Plus size={16} aria-hidden />
+              </Link>
+              <Link to="/library" className="sub-header__btn">
+                <BookOpen size={16} aria-hidden />
                 <span>My Programs</span>
               </Link>
               <Link
-                to={`/programs/new?returnTo=${encodeURIComponent(origin)}`}
-                onClick={onClose}
-                className="sub-header__btn sub-header__btn--primary"
+                to={`/programs/new?returnTo=${encodeURIComponent(currentUrl)}`}
+                className="sub-header__btn sub-header__btn--primary min-w-[180px]"
               >
                 <Plus size={16} aria-hidden />
                 <span>Add Program</span>
               </Link>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-between pt-1">
-            <div className="flex wrap-nowrap gap-2 grow">
+            </>
+          )}
+        </div>
+      </header>
+
+      <div className="flex flex-col gap-3 py-5">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 grow">
             <div className="relative min-w-[200px] flex-1 sm:max-w-md">
               <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted" />
               <Input
-                autoFocus
                 aria-label={`Search ${noun === 'Program' ? 'Programs' : 'Activities'}`}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -302,97 +449,132 @@ function LibraryBrowser({
               (value) => setParam(PARAM.creator, value, 'ALL'),
             )}
           </div>
-          {context.kind === 'programs' && !context.programTypeId && <label className="flex wrap-nowrap items-center gap-3 text-sm text-muted"><Select aria-label="Program type" value={programTypeId} className="max-w-xs min-w-64" onChange={event => { setParams(previous => { const next = new URLSearchParams(previous); next.delete(PARAM.facet); if(event.target.value) next.set(PARAM.type, event.target.value); else next.delete(PARAM.type); return next }, { replace: true, state: window.history.state?.usr }) }}><option value="">All Program types</option>{types.data?.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}</Select></label>}
-          {facets.length > 0 && (
-            <div
-              role="group"
-              aria-label={context.kind === 'programs' ? 'Filter by focus' : 'Filter by category'}
-              className="flex flex-wrap items-center gap-1.5"
-            >
-              {[{ id: '', label: context.kind === 'programs' ? 'All focuses' : 'All categories' }, ...facets].map((option) => (
-                <button
-                  key={option.id || 'all'}
-                  type="button"
-                  aria-pressed={facet === option.id}
-                  onClick={() => setParam(PARAM.facet, option.id)}
-                  className={`min-h-8 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                    facet === option.id
-                      ? 'bg-accent text-accent-foreground'
-                      : 'border border-border bg-surface text-muted hover:border-accent hover:text-text'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-          </div>
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full page--wide">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <p role="status" className="text-sm font-medium text-muted">
-              {results.isPending
-                ? `Loading ${noun === 'Program' ? 'Programs' : 'Activities'}…`
-                : `${cards.length} ${cards.length === 1 ? noun : noun === 'Program' ? 'Programs' : 'Activities'}`}
-            </p>
-            {filtered && (
-              <Button variant="ghost" size="sm" onClick={reset} className="h-8 gap-1 text-xs">
-                <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-                Reset filters
-              </Button>
-            )}
-          </div>
-          <ErrorMessage error={results.error} retry={() => void results.refetch()} />
-          {results.isPending ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-label={`Loading ${noun === 'Program' ? 'Programs' : 'Activities'}`}>
-              {Array.from({ length: 6 }, (_, i) => (
-                <div key={i} className="space-y-3">
-                  <Skeleton className="aspect-hero w-full rounded-[var(--radius-panel)]" />
-                  <Skeleton className="h-4 w-2/3" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              ))}
-            </div>
-          ) : cards.length ? (
-            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {cards.map(({ card, pick }) => (
-                <li key={card.id} onPointerEnter={() => { if(context.kind === 'programs' && context.closeOnPick === false) prefetch(card.id) }} onFocus={() => { if(context.kind === 'programs' && context.closeOnPick === false) prefetch(card.id) }}>
-                  <DiscoveryCard item={card} actionLabel={context.actionLabel} onPick={pick} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            !results.error && (
-              <EmptyState
-                level={3}
-                title={`No ${noun === 'Program' ? 'Programs' : 'Activities'} match these filters`}
-                description={filtered ? 'Try another search, sort or creator.' : undefined}
-                action={
-                  filtered && (
-                    <Button variant="outline" size="sm" onClick={reset}>
-                      Reset filters
-                    </Button>
+          {mode.kind === 'programs' && !mode.lockedProgramTypeId && (
+            <label className="flex items-center gap-3 text-sm text-muted">
+              <Select
+                aria-label="Program type"
+                value={programTypeId}
+                className="w-full max-w-xs sm:min-w-64"
+                onChange={(event) => {
+                  setParams(
+                    (previous) => {
+                      const next = new URLSearchParams(previous)
+                      next.delete(PARAM.facet)
+                      if (event.target.value) next.set(PARAM.type, event.target.value)
+                      else next.delete(PARAM.type)
+                      return next
+                    },
+                    { replace: true },
                   )
-                }
-              />
-            )
-          )}
-          {results.hasNextPage && (
-            <div className="mt-8 flex justify-center pb-4">
-              <Button
-                variant="outline"
-                loading={results.isFetchingNextPage}
-                onClick={() => void results.fetchNextPage()}
+                }}
               >
-                Load more
-              </Button>
-            </div>
+                <option value="">All Program types</option>
+                {types.data?.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.label}
+                  </option>
+                ))}
+              </Select>
+            </label>
           )}
         </div>
+        {facets.length > 0 && (
+          <div
+            role="group"
+            aria-label={mode.kind === 'programs' ? 'Filter by focus' : 'Filter by category'}
+            className="flex flex-wrap items-center gap-1.5"
+          >
+            {[
+              { id: '', label: mode.kind === 'programs' ? 'All focuses' : 'All categories' },
+              ...facets,
+            ].map((option) => (
+              <button
+                key={option.id || 'all'}
+                type="button"
+                aria-pressed={facet === option.id}
+                onClick={() => setParam(PARAM.facet, option.id)}
+                className={`min-h-8 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  facet === option.id
+                    ? 'bg-accent text-accent-foreground'
+                    : 'border border-border bg-surface text-muted hover:border-accent hover:text-text'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+
+      <div>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <p role="status" className="text-sm font-medium text-muted">
+            {results.isPending
+              ? `Loading ${noun === 'Program' ? 'Programs' : 'Activities'}…`
+              : `${cards.length} ${cards.length === 1 ? noun : noun === 'Program' ? 'Programs' : 'Activities'}`}
+          </p>
+          {filtered && (
+            <Button variant="ghost" size="sm" onClick={reset} className="h-8 gap-1 text-xs">
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+              Reset filters
+            </Button>
+          )}
+        </div>
+        <ErrorMessage error={results.error} retry={() => void results.refetch()} />
+        {results.isPending ? (
+          <div
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            role="status"
+            aria-label={`Loading ${noun === 'Program' ? 'Programs' : 'Activities'}`}
+          >
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="aspect-hero w-full rounded-[var(--radius-panel)]" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : cards.length ? (
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {cards.map(({ card, pick }) => (
+              <li
+                key={card.id}
+                onPointerEnter={() => prefetchProgram(card.id)}
+                onFocus={() => prefetchProgram(card.id)}
+              >
+                <DiscoveryCard item={card} actionLabel={mode.actionLabel} onPick={pick} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          !results.error && (
+            <EmptyState
+              level={3}
+              title={`No ${noun === 'Program' ? 'Programs' : 'Activities'} match these filters`}
+              description={filtered ? 'Try another search, sort or creator.' : undefined}
+              action={
+                filtered && (
+                  <Button variant="outline" size="sm" onClick={reset}>
+                    Reset filters
+                  </Button>
+                )
+              }
+            />
+          )
+        )}
+        {results.hasNextPage && (
+          <div className="mt-8 flex justify-center pb-4">
+            <Button
+              variant="outline"
+              loading={results.isFetchingNextPage}
+              onClick={() => void results.fetchNextPage()}
+            >
+              Load more
+            </Button>
+          </div>
+        )}
+      </div>
+    </Page>
   )
 }

@@ -17,9 +17,8 @@ export function LoginPage() {
   const [params] = useSearchParams()
   return (
     <Page>
-      <Stage className="max-w-xl">
-        <p className="font-display text-muted">Programs</p>
-        <h1>Sign in to your week</h1>
+      <Stage className="max-w-xl flex flex-col justify-start h-screen">
+        <h1 className='page-title text-4xl'>Login bruh.</h1>
         <Panel>
           <Form
             schema={schema}
@@ -55,13 +54,10 @@ export function LoginPage() {
             to={`/register${params.get('returnTo') ? `?returnTo=${encodeURIComponent(safeReturn(params.get('returnTo')))}` : ''}`}
             className="text-accent underline"
           >
-            Create an account
+            Create account
           </Link>
           <Link to="/forgot-password" className="text-accent underline">
-            Forgot your password?
-          </Link>
-          <Link to="/discover" className="text-accent underline">
-            Add a Program
+            Forgot password?
           </Link>
         </p>
       </Stage>

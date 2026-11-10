@@ -39,10 +39,9 @@ export function ProgramHeader({
                 }
               }}
             />
-            <Pencil size={18} aria-hidden className="program-header__pencil" />
           </div>
         ) : (
-          <h1 className="page-title">{title || 'Add a Program'}</h1>
+          <h1 className="page-title">{title || 'Add Program'}</h1>
         )}
       </header>
     </div>

@@ -7,7 +7,15 @@ import { Row, Stack } from './ui/Layout'
 import { useOnline } from '@/lib/useOnline'
 
 /** Tokens exist only in this mounted control; lists and notifications never store them. */
-export function GroupInviteLink({ groupId }: { groupId: string }) {
+export function GroupInviteLink({
+  groupId,
+  variant = 'outline',
+  size = 'md',
+}: {
+  groupId: string
+  variant?: 'default' | 'outline'
+  size?: 'sm' | 'md'
+}) {
   const group = useGroup(groupId)
   const create = useCreateGroupInvitation(groupId)
   const update = useUpdateGroup(groupId)
@@ -44,7 +52,7 @@ export function GroupInviteLink({ groupId }: { groupId: string }) {
 
   return (
     <Stack className="gap-2">
-      <Button variant="outline" disabled={!g} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+      <Button variant={variant} size={size} disabled={!g} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
         Invite people
       </Button>
       <ErrorMessage error={group.error} retry={() => void group.refetch()} />

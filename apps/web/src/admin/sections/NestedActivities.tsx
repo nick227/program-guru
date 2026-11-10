@@ -10,11 +10,12 @@ import { FieldControl, FieldFrame } from '../components/fields'
 import type { Field } from '../types'
 
 type Workspace = components['schemas']['ProgramWorkspace']
-type NewActivity = { title: string; summary: string }
+type NewActivity = { title: string; summary: string; durationMinutes: number | null }
 
 const newFields: Field<NewActivity>[] = [
   { kind: 'text', name: 'title', label: 'New Activity', required: true, maxLength: 140, placeholder: 'e.g. Hollow Hold', assist: true },
   { kind: 'textarea', name: 'summary', label: 'Description', maxLength: 500, rows: 2, assist: true },
+  { kind: 'number', name: 'durationMinutes', label: 'Duration', min: 1, max: 1440, suffix: 'minutes' },
 ]
 
 /** Activities a platform Program may use: platform ones, or anyone's openly published ones. */
@@ -60,12 +61,12 @@ export function NestedActivities({ ws }: { ws: Workspace }) {
         <ResourceForm
           key={formKey}
           fields={newFields}
-          initial={{ title: '', summary: '' }}
+          initial={{ title: '', summary: '', durationMinutes: null }}
           submitLabel="Create and add"
           onSubmit={async (v) => {
             const title = v.title.trim()
             if (created.current?.title !== title) {
-              const activity = await create.mutateAsync({ title, summary: v.summary.trim() || null, categoryId: ws.type.categoryId, focusIds: ws.focus ? [ws.focus.id] : [], owner: 'PLATFORM' })
+              const activity = await create.mutateAsync({ title, summary: v.summary.trim() || null, durationMinutes: v.durationMinutes, categoryId: ws.type.categoryId, focusIds: ws.focus ? [ws.focus.id] : [], owner: 'PLATFORM' })
               created.current = { title, id: activity.id }
             }
             await add.mutateAsync({ activityIds: [created.current!.id], expectedRevision: ws.draftRevision })

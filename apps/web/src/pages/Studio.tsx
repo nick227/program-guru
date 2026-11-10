@@ -30,7 +30,7 @@ export function StudioPage() {
   useDocumentTitle(`Creator Studio · ${labels[section]}`)
   return (
     <Page>
-      <Stage className="max-w-2xl">
+      <Stage className="max-w-7xl">
         <Back to="/">Calendar</Back>
         <Stack>
           <h1>Creator Studio</h1>

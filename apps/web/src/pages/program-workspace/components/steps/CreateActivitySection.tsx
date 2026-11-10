@@ -1,3 +1,4 @@
+import { parseDurationMinutes } from '@/lib/durationMinutes'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -11,11 +12,22 @@ import { Panel, Stack } from '@/components/ui/Layout'
 import { MediaTray } from '@/components/MediaTray'
 import { useDraftMedia } from '@/lib/useEntityMedia'
 import { useOnline } from '@/lib/useOnline'
+import {
+  ActivityDurationField,
+  ActivityFrequencyButtons,
+  type Frequency,
+} from './ScheduleControls'
 import type { ActivityDetail, Workspace } from '../../types'
+
+const DEFAULT_FREQ: Frequency = { kind: 'N_PER_WEEK', n: 3 }
 
 export function CreateActivitySection({ ws }: { ws: Workspace }) {
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
+  const [duration, setDuration] = useState('')
+  const [frequency, setFrequency] = useState<Frequency>(
+    () => ws.frequency ?? DEFAULT_FREQ,
+  )
   // Kept across a failed step so a retry never creates a second Activity.
   const [created, setCreated] = useState<ActivityDetail | null>(null)
   const [mediaError, setMediaError] = useState<unknown>(null)
@@ -36,6 +48,8 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
           categoryId: programCategoryId,
           focusIds: ws.focus ? [ws.focus.id] : [],
           summary: summary.trim() || null,
+          durationMinutes: parseDurationMinutes(duration),
+          frequency,
         }))
       setCreated(activity)
       if (media.files.length && activity.revisionId) {
@@ -51,12 +65,15 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
       }
       await add.mutateAsync({
         activityIds: [activity.id],
+        frequencies: { [activity.id]: frequency },
         expectedRevision: ws.draftRevision,
       })
       toast.success('Activity added to Program')
       setCreated(null)
       setTitle('')
       setSummary('')
+      setDuration('')
+      setFrequency(ws.frequency ?? DEFAULT_FREQ)
     } catch {
       /* Mutation errors stay visible; keep the form for retry. */
     }
@@ -94,6 +111,28 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
             onChange={(e) => setSummary(e.target.value)}
           />
         </label>
+        <div className="space-y-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Frequency
+          </span>
+          <ActivityFrequencyButtons
+            value={frequency}
+            onChange={setFrequency}
+            disabled={busy}
+            ariaLabel="New activity frequency"
+          />
+        </div>
+        <div className="space-y-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Duration (optional)
+          </span>
+          <ActivityDurationField
+            value={duration}
+            onChange={setDuration}
+            disabled={!!created || busy}
+            inputAriaLabel="Activity duration (optional)"
+          />
+        </div>
         <div className="space-y-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted">
             Media (optional)

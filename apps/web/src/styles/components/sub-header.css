@@ -12,23 +12,6 @@
   border-bottom: 1px solid hsl(var(--color-border) / 0.8);
 }
 
-/* Used on the fixed dialog header for LibraryBrowser to perfectly match .page margins & padding */
-.sub-header-dialog-header {
-  border-bottom: 1px solid hsl(var(--color-border));
-  background: hsl(var(--color-surface));
-  padding-top: var(--space-6);
-  padding-inline: var(--space-4);
-  padding-bottom: var(--space-3);
-}
-
-@media (min-width: 640px) {
-  .sub-header-dialog-header {
-    padding-top: var(--space-8);
-    padding-inline: var(--space-6);
-    padding-bottom: var(--space-3);
-  }
-}
-
 .sub-header__title {
   display: flex;
   align-items: center;

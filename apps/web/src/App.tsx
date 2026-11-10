@@ -1,5 +1,5 @@
 import { PwaUpdatePrompt } from '@/components/PwaControls'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import {
   createBrowserRouter,
   RouterProvider,
@@ -36,21 +36,14 @@ import { AdminApp } from '@/admin/registry'
 import { Page, Stage } from '@/components/ui/Layout'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { AccountMenu } from '@/components/AccountMenu'
-import { LibraryBrowserRoute } from '@/components/LibraryBrowser'
+import { LibraryBrowserPage } from '@/components/LibraryBrowser'
 import { useCurrentUser } from '@project/sdk'
 
 function Root() {
   const online = useOnline()
   const location = useLocation()
   const me = useCurrentUser()
-  const previousPath = useRef(location.pathname)
   useEffect(() => {
-    const before = previousPath.current
-    previousPath.current = location.pathname
-    // Opening or closing a nested library browser keeps the page beneath in place.
-    const browse = (path: string) => path.endsWith('/browse')
-    const base = (path: string) => path.replace(/\/browse$/, '')
-    if (base(location.pathname) === base(before) && (browse(location.pathname) || browse(before))) return
     window.scrollTo(0, 0)
     const main = document.querySelector<HTMLElement>('main')
     main?.setAttribute('tabindex', '-1')
@@ -89,12 +82,6 @@ function Root() {
             <AccountMenu />
           ) : (
             <div className="flex items-center gap-3">
-              <Link
-                to="/discover"
-                className="text-sm text-muted hover:text-text"
-              >
-                Add a Program
-              </Link>
               <Link to="/login" className="text-sm font-semibold text-accent">
                 Sign in
               </Link>
@@ -161,11 +148,8 @@ const router = createBrowserRouter([
       { path: '/verify-email', element: <VerifyEmailPage /> },
       { path: '/forgot-password', element: <ForgotPasswordPage /> },
       { path: '/reset-password', element: <ResetPasswordPage /> },
-      {
-        path: '/discover',
-        element: <ProgramCreatePage />,
-        children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
-      },
+      { path: '/discover', element: <ProgramCreatePage /> },
+      { path: '/browse', element: <LibraryBrowserPage /> },
       // Friendly creator-scoped routes use a handle segment prefixed with @.
       { path: '/:handle/:slug', element: <ProgramAliasRoute /> },
       { path: '/programs/:id', element: <ProgramPage /> },
@@ -179,28 +163,12 @@ const router = createBrowserRouter([
         element: <AuthGuard />,
         children: [
           { path: '/', element: <CalendarPage /> },
-          { path: '/library', element: <LibraryPage />, children: [{ path: 'browse', element: <LibraryBrowserRoute /> }] },
-          {
-            path: '/programs/new',
-            element: <ProgramCreatePage />,
-            children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
-          },
-          {
-            path: '/programs/:id/workspace',
-            element: <ProgramWorkspacePage />,
-            children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
-          },
-          {
-            path: '/programs/:id/workspace/:step',
-            element: <ProgramWorkspacePage />,
-            children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
-          },
+          { path: '/library', element: <LibraryPage /> },
+          { path: '/programs/new', element: <ProgramCreatePage /> },
+          { path: '/programs/:id/workspace', element: <ProgramWorkspacePage /> },
+          { path: '/programs/:id/workspace/:step', element: <ProgramWorkspacePage /> },
           { path: '/occurrences/:id', element: <OccurrencePage /> },
-          {
-            path: '/add-activity',
-            element: <AddActivityPage />,
-            children: [{ path: 'browse', element: <LibraryBrowserRoute /> }],
-          },
+          { path: '/add-activity', element: <AddActivityPage /> },
           { path: '/media', element: <MediaStudioPage /> },
           { path: '/media/:id', element: <MediaPublicationPage /> },
           { path: '/notifications', element: <NotificationsPage /> },

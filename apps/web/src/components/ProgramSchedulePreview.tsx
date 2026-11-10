@@ -105,7 +105,7 @@ export function ProgramSchedulePreview({
 
 
       {/* Start Date & Action Sitting Naturally Together */}
-      <div className="pt-3">
+      <div className="">
         {isEnrolled ? (
           <div className="flex flex-wrap items-center justify-between gap-3 bg-accent/5 rounded-lg p-3 border border-accent/20">
             <div className="flex items-center gap-2 text-xs font-semibold text-accent">

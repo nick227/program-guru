@@ -14,6 +14,7 @@ export interface ProgramActivityCardProps {
   meta?: string | null
   href?: string
   actions?: ReactNode
+  variant?: 'default' | 'thumb'
   className?: string
 }
 
@@ -28,8 +29,11 @@ export function ProgramActivityCard({
   meta,
   href,
   actions,
+  variant = 'default',
   className,
 }: ProgramActivityCardProps) {
+  const isThumb = variant === 'thumb'
+
   const content = (
     <article
       className={cn(
@@ -38,7 +42,12 @@ export function ProgramActivityCard({
       )}
     >
       {/* Media container */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-surface-muted">
+      <div
+        className={cn(
+          'relative w-full overflow-hidden bg-surface-muted',
+          isThumb ? 'aspect-square' : 'aspect-[16/10]',
+        )}
+      >
         <EntityHero
           hero={hero}
           size="card"
@@ -46,23 +55,43 @@ export function ProgramActivityCard({
         />
 
         {meta && (
-          <span className="absolute left-2.5 top-2.5 z-10 inline-flex items-center rounded-md bg-black/80 px-2.5 py-1 text-xs font-bold text-white shadow-sm backdrop-blur-md">
+          <span
+            className={cn(
+              'absolute z-10 inline-flex items-center rounded-md bg-black/80 font-bold text-white shadow-sm backdrop-blur-md',
+              isThumb
+                ? 'left-2 top-2 px-1.5 py-0.5 text-[10px]'
+                : 'left-2.5 top-2.5 px-2.5 py-1 text-xs',
+            )}
+          >
             {meta}
           </span>
         )}
       </div>
 
       {/* Card Content */}
-      <div className="flex flex-1 flex-col justify-between p-4 space-y-2">
+      <div
+        className={cn(
+          'flex flex-1 flex-col justify-between',
+          isThumb ? 'p-2.5 space-y-1' : 'p-4 space-y-2',
+        )}
+      >
         <div className="space-y-1">
           <h3
-            className="font-semibold text-base leading-snug text-foreground group-hover:text-accent transition-colors line-clamp-2"
+            className={cn(
+              'font-semibold leading-snug text-foreground group-hover:text-accent transition-colors line-clamp-2',
+              isThumb ? 'text-xs sm:text-sm' : 'text-base',
+            )}
             title={title}
           >
             {title}
           </h3>
           {description && (
-            <p className="line-clamp-2 text-xs leading-relaxed text-muted">
+            <p
+              className={cn(
+                'leading-relaxed text-muted',
+                isThumb ? 'line-clamp-1 text-[11px]' : 'line-clamp-2 text-xs',
+              )}
+            >
               {description}
             </p>
           )}
@@ -76,7 +105,7 @@ export function ProgramActivityCard({
           >
             {actions}
           </div>
-        ) : href ? (
+        ) : href && !isThumb ? (
           <div className="flex items-center justify-end pt-1 text-xs font-semibold text-accent">
             <span>View</span>
             <ChevronRight size={14} className="transition-transform group-hover:translate-x-0.5" />

@@ -1,5 +1,13 @@
+import { durationInput, formatDurationMinutes, parseDurationMinutes } from '@/lib/durationMinutes'
 import { useEffect, useRef, useState } from 'react'
-import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
 import {
   useActivity,
   useActivityPublicMedia,
@@ -23,8 +31,10 @@ import { ActivityBasicsFields } from '@/components/ActivityBasicsFields'
 import { ActivityMediaTray } from '@/components/EntityMediaTray'
 import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
 import {
-  useLibraryBrowser,
-  type LibraryBrowserContext,
+  buildBrowseUrl,
+  clearBrowseDraft,
+  readBrowseDraft,
+  writeBrowseDraft,
 } from '@/components/LibraryBrowser'
 import { type RiverItem } from '@/components/RelatedMediaRiver'
 import { ActivityRelatedMedia } from '@/components/ActivityRelatedMedia'
@@ -118,6 +128,11 @@ export function ActivityPage() {
           activity.data && (
             <>
               <h1>{activity.data.title}</h1>
+              {activity.data.durationMinutes != null && (
+                <p className="text-sm font-medium text-muted">
+                  Duration: {formatDurationMinutes(activity.data.durationMinutes)}
+                </p>
+              )}
               <p className="text-muted">{activity.data.summary}</p>
               {!activity.data.canEdit && <ReportButton target={{ type: 'ACTIVITY', id: activity.data.id }} />}
               <Panel>
@@ -151,6 +166,18 @@ export function ActivityPage() {
   )
 }
 
+const ACTIVITY_DRAFT_KEY = 'add-activity-browse-draft'
+
+interface AddActivityDraft {
+  day: string
+  selected: components['schemas']['ActivitySummary'] | null
+  title: string
+  summary: string
+  duration: string
+  categoryId: string
+  instruction: string
+}
+
 export function AddActivityPage() {
   const [params] = useSearchParams()
   const me = useCurrentUser()
@@ -161,13 +188,29 @@ export function AddActivityPage() {
   const update = useUpdateActivityDraft()
   const online = useOnline()
   const navigate = useNavigate()
-  const browser = useLibraryBrowser()
+  const location = useLocation()
+  const navType = useNavigationType()
   const categorySlugOf = useCategorySlugOf()
 
   useDocumentTitle('Add Activity')
 
+  const routeState = location.state as {
+    fromBrowse?: boolean
+    pickedActivity?: components['schemas']['ActivitySummary']
+  } | null
+  const returningFromBrowse = Boolean(routeState?.fromBrowse) || navType === 'POP'
+  const [initialDraft] = useState<AddActivityDraft | null>(() =>
+    readBrowseDraft<AddActivityDraft>(ACTIVITY_DRAFT_KEY, returningFromBrowse),
+  )
+  const pickedActivity = routeState?.pickedActivity ?? null
+  useEffect(() => {
+    if (!returningFromBrowse) clearBrowseDraft(ACTIVITY_DRAFT_KEY)
+  }, [returningFromBrowse])
+
   const [day, setDay] = useState(
-    params.get('day') ??
+    () =>
+      initialDraft?.day ??
+      params.get('day') ??
       today(
         me.data?.data.preferences.timezone ??
           Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -175,12 +218,23 @@ export function AddActivityPage() {
   )
   const [selected, setSelected] = useState<
     components['schemas']['ActivitySummary'] | null
-  >(null)
-  const [title, setTitle] = useState('')
-  const [summary, setSummary] = useState('')
+  >(() => pickedActivity ?? initialDraft?.selected ?? null)
+  const [title, setTitle] = useState(
+    () => pickedActivity?.title ?? initialDraft?.title ?? '',
+  )
+  const [summary, setSummary] = useState(
+    () => (pickedActivity ? (pickedActivity.summary ?? '') : initialDraft?.summary ?? ''),
+  )
+  const [duration, setDuration] = useState(
+    () => (pickedActivity ? durationInput(pickedActivity.durationMinutes) : initialDraft?.duration ?? ''),
+  )
   const categories = useCategories()
-  const [categoryId, setCategoryId] = useState('')
-  const [instruction, setInstruction] = useState('')
+  const [categoryId, setCategoryId] = useState(
+    () => pickedActivity?.categoryId ?? initialDraft?.categoryId ?? '',
+  )
+  const [instruction, setInstruction] = useState(
+    () => (pickedActivity ? '' : initialDraft?.instruction ?? ''),
+  )
   const [createdActivity, setCreatedActivity] = useState<
     components['schemas']['ActivityDetail'] | null
   >(null)
@@ -195,15 +249,29 @@ export function AddActivityPage() {
     setInstructionSaved(false)
     setTitle(activity.title)
     setSummary(activity.summary ?? '')
+    setDuration(durationInput(activity.durationMinutes))
     setCategoryId(activity.categoryId)
     setInstruction('')
     key.current = crypto.randomUUID()
   }
-  const browserContext: LibraryBrowserContext = {
-    kind: 'activities',
-    categoryId,
-    actionLabel: 'Use as starting point',
-    onPick: chooseStartingPoint,
+  function openBrowser() {
+    writeBrowseDraft<AddActivityDraft>(ACTIVITY_DRAFT_KEY, {
+      day,
+      selected,
+      title,
+      summary,
+      duration,
+      categoryId,
+      instruction,
+    })
+    navigate(
+      buildBrowseUrl({
+        kind: 'activities',
+        facet: categoryId || undefined,
+        pick: 'activity',
+        returnTo: `${location.pathname}${location.search}`,
+      }),
+    )
   }
 
   async function addToCalendar(activityId: string) {
@@ -213,6 +281,7 @@ export function AddActivityPage() {
         localDate: day,
         idempotencyKey: key.current,
       })
+      clearBrowseDraft(ACTIVITY_DRAFT_KEY)
       navigate(calendarUrl(day))
     } catch {
       // Mutation error remains visible; keep the date and Activity for retry.
@@ -235,12 +304,14 @@ export function AddActivityPage() {
               categoryId,
               focusIds: [],
               summary: summary.trim() || null,
+              durationMinutes: parseDurationMinutes(duration),
             }))
       if (!createdActivity) setCreatedActivity(created)
 
       if (
         created.title !== title.trim() ||
         created.summary !== (summary.trim() || null) ||
+        created.durationMinutes !== parseDurationMinutes(duration) ||
         created.categoryId !== categoryId
       ) {
         created = await update.mutateAsync({
@@ -248,6 +319,9 @@ export function AddActivityPage() {
           ...(created.title !== title.trim() ? { title: title.trim() } : {}),
           ...(created.summary !== (summary.trim() || null)
             ? { summary: summary.trim() || null }
+            : {}),
+          ...(created.durationMinutes !== parseDurationMinutes(duration)
+            ? { durationMinutes: parseDurationMinutes(duration) }
             : {}),
           ...(created.categoryId !== categoryId ? { categoryId } : {}),
           expectedRevision: created.draftRevision,
@@ -360,9 +434,11 @@ export function AddActivityPage() {
                 <ActivityBasicsFields
                   title={title}
                   summary={summary}
+                  duration={duration}
                   instruction={instruction}
                   onTitleChange={setTitle}
                   onSummaryChange={setSummary}
+                  onDurationChange={setDuration}
                   onInstructionChange={setInstruction}
                 />
                 <ErrorMessage
@@ -439,7 +515,7 @@ export function AddActivityPage() {
             if (activity) chooseStartingPoint(activity)
           }}
           footer={
-            <Button variant="outline" className="self-start" onClick={browser.open}>
+            <Button variant="outline" className="self-start" onClick={openBrowser}>
               Browse Activity Library
             </Button>
           }
@@ -463,7 +539,6 @@ export function AddActivityPage() {
           </div>
         )}
       </Stage>
-      <Outlet context={browserContext} />
     </Page>
   )
 }

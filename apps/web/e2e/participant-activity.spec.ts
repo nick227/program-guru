@@ -4,15 +4,15 @@ import { itemId, groupId } from './fixtures'
 
 test('simple completion and undo preserve a single valid action and omit empty sections', async ({ page }) => {
   const state = await setup(page, { simple: true })
-  await expect(page.getByRole('heading', { name: "Today's Activity" })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'My Metrics' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Together' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Start|Resume|Undo/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Complete', exact: true }).click()
-  await expect(page).toHaveURL(/completed=/)
-  await page.goto(`/occurrences/${itemId}`)
+  await expect(page).toHaveURL(new RegExp(`/occurrences/${itemId}`))
   await expect(page.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Complete', exact: true })).toHaveCount(0)
+  await expect(page.getByText('Saving…')).toHaveCount(0)
   await page.getByRole('button', { name: 'Undo completion' }).click()
   await expect(page.getByRole('button', { name: 'Complete', exact: true })).toBeVisible()
   expect(state.o.session?.status).toBe('FINISHED') // Undo preserves the old session.
@@ -30,7 +30,8 @@ test('timed activity starts, pauses, resumes and saves only entered metrics on c
   await expect(page.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Resume', exact: true }).click()
   await page.getByRole('button', { name: 'Complete', exact: true }).click()
-  await expect(page).toHaveURL(/completed=/)
+  await expect(page).toHaveURL(new RegExp(`/occurrences/${itemId}`))
+  await expect(page.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
   expect(calls.filter(c => c.path.endsWith('/actions')).map(c => c.body.action)).toEqual(['START', 'PAUSE', 'RESUME', 'FINISH'])
   expect(calls.filter(c => c.path.endsWith('/results') && c.method === 'POST')).toHaveLength(0)
 })
@@ -98,7 +99,8 @@ test('configured results save the entered value rather than the suggested target
   await expect(page.getByLabel('Reps (reps)', { exact: true })).toHaveValue('')
   await page.getByLabel('Reps (reps)', { exact: true }).fill('12')
   await page.getByRole('button', { name: 'Complete', exact: true }).click()
-  await expect(page).toHaveURL(/completed=/)
+  await expect(page).toHaveURL(new RegExp(`/occurrences/${itemId}`))
+  await expect(page.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
   expect(calls.find(c => c.path.endsWith('/results') && c.method === 'POST')?.body.values).toEqual([{ metricDefinitionId: '00000000-0000-4000-8000-000000000023', value: 12, unit: 'reps' }])
 })
 
@@ -111,4 +113,32 @@ test('dark theme retains the same layout and usable media menu', async ({ page }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({ path: test.info().outputPath('dark-activity.png'), fullPage: true })
+})
+
+test('saving state shows inside the clicked button only and keeps user on page to add media', async ({ page }) => {
+  const state = await setup(page, { timed: true })
+  let releaseAction!: () => void
+  await page.route('**/actions', async (route) => {
+    await new Promise<void>((resolve) => {
+      releaseAction = resolve
+    })
+    await route.fallback()
+  })
+  const startBtn = page.getByRole('button', { name: 'Start', exact: true })
+  const skipBtn = page.getByRole('button', { name: 'Complete without timer', exact: true })
+  await startBtn.click()
+  await expect(startBtn).toHaveAttribute('aria-busy', 'true')
+  await expect(skipBtn).not.toHaveAttribute('aria-busy', 'true')
+  await expect(page.getByText('Saving…')).toHaveCount(0)
+  releaseAction()
+  await expect(page.getByRole('button', { name: 'Complete', exact: true })).toBeVisible()
+  await page.unroute('**/actions')
+
+  await page.getByRole('button', { name: 'Complete', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`/occurrences/${itemId}`))
+  await expect(page.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
+  await page.locator('#related-media input[type=file]').setInputFiles({ name: 'after.png', mimeType: 'image/png', buffer: Buffer.from('photo') })
+  await expect(page.getByText('Processing…', { exact: true })).toBeVisible()
+  state.ready()
+  await expect(page.getByRole('button', { name: 'Uploaded photo', exact: true })).toBeVisible()
 })

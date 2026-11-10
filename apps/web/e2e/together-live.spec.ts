@@ -28,9 +28,9 @@ test('mixed-version group: presence, reactions, My Programs, Program page and Gr
   const recent = together.getByRole('list', { name: 'Recent group activity' })
   await expect(recent.getByRole('listitem').filter({ hasText: 'Carol Chen' })).toContainText('finished just now')
   await expect(recent.getByRole('listitem').filter({ hasText: 'Dave Okafor' })).toContainText('started')
-  // Rows sit in the locked order: Today's Activity → together → Session.
+  // Rows sit in the redesigned order: Today → Together → Related Media.
   const headings = await bob.getByRole('heading', { level: 2 }).allTextContents()
-  expect(headings.slice(0, 3)).toEqual(["Today's Activity", 'My Metrics', 'Together'])
+  expect(headings.slice(0, 3)).toEqual(['Today', 'Together', 'Related Media'])
 
   const fire = together.getByRole('button', { name: 'React 🔥 to Carol Chen' })
   await fire.click()
@@ -38,9 +38,9 @@ test('mixed-version group: presence, reactions, My Programs, Program page and Gr
   await expect(fire).toHaveText('🔥 1')
   await together.screenshot({ path: test.info().outputPath('bob-activity-together.png') })
 
-  // bob (v2) finishes the same Activity carol finished on v1.
+  // bob (v2) finishes the same Activity carol finished on v1 and stays on the page.
   await bob.getByRole('button', { name: 'Complete', exact: true }).click()
-  await expect(bob.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible()
+  await expect(bob.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
 
   // ── My Programs summarizes who you're doing it with (no counts below the sample) ────────────
   await bob.goto('/library')

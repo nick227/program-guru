@@ -27,14 +27,16 @@ export async function journey(
   await expect(
     page.getByRole('heading', { name: 'Activities', exact: true }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Browse Library', exact: true }).click()
-  const library = page.getByRole('dialog', { name: 'Activity Library' })
-  await library.getByLabel('Search Activities').fill('Squats')
+  await page.getByRole('link', { name: 'Browse Library', exact: true }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Activity Library', exact: true }),
+  ).toBeVisible()
+  await page.getByLabel('Search Activities').fill('Squats')
   // Exact name: avoid matching "Chair Squats".
-  await library
+  await page
     .getByRole('button', { name: 'Add to Program: Squats', exact: true })
     .click()
-  await expect(library).toBeHidden()
+  await expect(page).toHaveURL(/\/programs\/[^/]+\/workspace\?step=activities/)
   await expect(page.getByRole('link', { name: 'Squats', exact: true })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
   await page.reload()
@@ -74,15 +76,16 @@ export async function journey(
     page.getByRole('link', { name: new RegExp(`^Squats, ${escaped}, ${status}`) }).first()
   await tile('Pending').click()
   await expect(
-    page.getByRole('heading', { name: "Today's Activity" }),
+    page.getByRole('heading', { name: 'Today' }),
   ).toBeVisible()
   await expect(page.getByLabel('Reps (reps)', { exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Increase Reps' }).click()
   await page.getByRole('button', { name: 'Complete', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
+  await page.getByRole('link', { name: 'Calendar', exact: true }).click()
   await expect(
     page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
-  await expect(page).toHaveURL(/completed=/)
   await expect(tile('Completed')).toBeVisible()
   await page.getByRole('button', { name: 'Undo', exact: true }).click()
   await expect(tile('Pending')).toBeVisible()

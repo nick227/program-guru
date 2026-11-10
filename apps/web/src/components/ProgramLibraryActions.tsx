@@ -6,16 +6,17 @@ import {
   usePersonalEnrollmentAction,
   useProgramPrefetch,
 } from '@project/sdk'
-import { ArrowUpRight, MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from './ui/Button'
 import { DeleteProgramDialog } from './DeleteProgramDialog'
 import {
-  programPrimaryAction,
   libraryProgramUrl,
+  libraryReturnUrl,
 } from '@/lib/programNavigation'
 import { buildWorkspaceUrl } from '@/lib/urls'
 import type { PersonalProgram } from '@/lib/programLibrary'
+import '@/styles/components/program-library.css'
 
 type Action =
   | 'REMOVE_LIBRARY'
@@ -23,15 +24,24 @@ type Action =
   | 'REMOVE'
   | 'ACTIVE'
   | 'PAUSED'
-/** Personal participation controls; definition editing stays in the Workspace. */
-export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
+/** Personal participation controls; definition editing lives on the Program page or Workspace. */
+export function ProgramLibraryActions({
+  entry,
+  variant = 'table',
+  onRemoved,
+  onDeleted,
+}: {
+  entry: PersonalProgram
+  variant?: 'table' | 'page'
+  onRemoved?: () => void
+  onDeleted?: () => void
+}) {
   const manage = useManagePersonalProgram()
   const enrollment = usePersonalEnrollmentAction()
   const copy = useCopyProgram()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const prefetch = useProgramPrefetch()
-  const primary = programPrimaryAction(entry, params.toString())
   const [confirm, setConfirm] = useState<
     'RESTART' | 'REMOVE' | 'REMOVE_LIBRARY' | null
   >(null)
@@ -45,6 +55,7 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
   const r = entry.current
   const busy = manage.isPending || enrollment.isPending || copy.isPending
   const detail = libraryProgramUrl(p.id, params.toString())
+  const returnTo = libraryReturnUrl(params.toString())
   async function run(action: Action) {
     try {
       if (action === 'REMOVE_LIBRARY') {
@@ -75,18 +86,23 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
         PAUSED: 'Schedule paused',
       }
       toast.success(messages[action])
+      if (action === 'REMOVE_LIBRARY') {
+        onRemoved?.()
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : 'Could not update Program',
       )
     }
   }
-  const warmStart = () => {
-    if (primary.label === 'Start')
-      prefetch(p.id, primary.href?.includes('/workspace') ? 'workspace' : 'preview')
-  }
   return (
-    <div className="library-actions">
+    <div
+      className={
+        variant === 'page'
+          ? 'library-actions library-actions--page'
+          : 'library-actions'
+      }
+    >
       <details
         ref={menu}
         className="library-menu"
@@ -101,10 +117,18 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
           <MoreHorizontal size={19} />
         </summary>
         <div>
-          <Link to={detail}>Details & insights</Link>
-          {r?.pendingVersionId && (
+          {variant === 'table' && (
             <Link
-              to={`/programs/${p.id}?returnTo=${encodeURIComponent(detail)}`}
+              to={detail}
+              onPointerEnter={() => prefetch(p.id)}
+              onFocus={() => prefetch(p.id)}
+            >
+              View Program
+            </Link>
+          )}
+          {variant === 'table' && r?.pendingVersionId && (
+            <Link
+              to={`/programs/${p.id}?returnTo=${encodeURIComponent(returnTo)}`}
               onPointerEnter={() => prefetch(p.id)}
               onFocus={() => prefetch(p.id)}
             >
@@ -117,7 +141,7 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
               onPointerEnter={() => prefetch(p.id, 'workspace')}
               onFocus={() => prefetch(p.id, 'workspace')}
             >
-              Edit Program
+              {variant === 'page' ? 'Open Workspace' : 'Edit Program'}
             </Link>
           ) : (
             <button
@@ -135,6 +159,11 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
           {r?.status === 'ACTIVE' && (
             <button disabled={busy} onClick={() => void run('PAUSED')}>
               Pause schedule
+            </button>
+          )}
+          {r?.status === 'PAUSED' && (
+            <button disabled={busy} onClick={() => void run('ACTIVE')}>
+              Resume schedule
             </button>
           )}
           {r && ['ACTIVE', 'PAUSED'].includes(r.status) && (
@@ -173,11 +202,7 @@ export function ProgramLibraryActions({ entry }: { entry: PersonalProgram }) {
           program={p}
           onClose={() => setDeleting(false)}
           onDeleted={() => {
-            // Leave a detail view of the Program that no longer exists.
-            if (params.get('program') !== p.id) return
-            const next = new URLSearchParams(params)
-            next.delete('program')
-            navigate({ search: next.toString() })
+            onDeleted?.()
           }}
         />
       )}

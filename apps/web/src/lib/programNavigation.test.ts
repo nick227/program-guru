@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { libraryProgramUrl, programPrimaryAction } from './programNavigation'
+import { libraryProgramUrl, libraryReturnUrl, programPrimaryAction } from './programNavigation'
 import type { PersonalProgram } from './programLibrary'
 const entry = (status: string, current: unknown = null, owned = true) => ({ program: { id: 'id' }, status, current, owned } as PersonalProgram)
 describe('Program navigation', () => {
@@ -21,9 +21,14 @@ describe('Program navigation', () => {
     const published = { ...entry('Not Started'), publicationStatus: 'PUBLISHED' }
     expect(programPrimaryAction(published).href).toContain('/programs/id?start=1')
   })
-  it('preserves Library filters across management and occurrence navigation', () => {
-    expect(libraryProgramUrl('id', '?q=morning&status=Active&bq=other')).toBe('/library?q=morning&status=Active&program=id')
+  it('routes My Programs entries to the standard Program page while preserving Library filters', () => {
+    expect(libraryReturnUrl('?q=morning&status=Active&bq=other&program=id')).toBe('/library?q=morning&status=Active')
+    expect(libraryProgramUrl('id', '?q=morning&status=Active&bq=other')).toBe(
+      '/programs/id?returnTo=%2Flibrary%3Fq%3Dmorning%26status%3DActive',
+    )
     const action = programPrimaryAction(entry('Active', { upcoming: [{ id: 'next' }] }), 'sort=name')
-    expect(action.href).toContain('returnTo=%2Flibrary%3Fsort%3Dname%26program%3Did')
+    expect(action.href).toContain(
+      `returnTo=${encodeURIComponent('/programs/id?returnTo=%2Flibrary%3Fsort%3Dname')}`,
+    )
   })
 })

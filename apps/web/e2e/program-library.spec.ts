@@ -39,17 +39,32 @@ test('personal library: responsive table, filters, insights and editor handoff',
     'A quieter morning',
   )
   await page.getByRole('link', { name: /Strength, with intention/ }).click()
+  await expect(page).toHaveURL(/\/programs\/00000000-0000-4000-8000-000000000010\?returnTo=/)
   await expect(
-    page.getByRole('heading', { name: 'Upcoming Activities' }),
+    page.getByRole('heading', { name: 'Upcoming Activity', exact: true }),
   ).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Activity history', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Runs & restart history', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('region', { name: 'Share Program' }).getByRole('button', { name: 'Copy link', exact: true }),
+  ).toBeVisible()
+  await expect(page.getByLabel('Program link', { exact: true })).toHaveValue(
+    /\/programs\/my-strength-workout$/,
+  )
   await expect(page.getByText('80 min', { exact: true })).toBeVisible()
   await expect(page.getByText('A creator update is available')).toBeVisible()
   await page.getByLabel('Manage Strength, with intention').click()
   await expect(
-    page.getByRole('link', { name: 'Edit Program', exact: true }),
+    page
+      .getByRole('region', { name: 'Your progress and participation' })
+      .getByRole('link', { name: 'Open Workspace', exact: true }),
   ).toHaveAttribute('href', /\/workspace$/)
   const menuBox = await page
-    .locator('.library-detail .library-menu > div')
+    .locator('.library-menu > div')
     .boundingBox()
   expect(menuBox!.x).toBeGreaterThanOrEqual(0)
   await page.getByRole('button', { name: 'Restart as a new run' }).click()
@@ -58,7 +73,21 @@ test('personal library: responsive table, filters, insights and editor handoff',
   ).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await page.getByLabel('Manage Strength, with intention').click()
+  await page.getByRole('button', { name: 'Edit Program', exact: true }).click()
+  await expect(
+    page.getByRole('region', { name: 'Edit Program' }),
+  ).toBeVisible()
+  await page.getByLabel('Title', { exact: true }).fill('Updated Strength')
+  await page.getByRole('button', { name: 'Save Details', exact: true }).click()
+  await expect(page.getByText('Program details saved')).toBeVisible()
+  await page.getByRole('button', { name: 'Edit Activities', exact: true }).click()
+  await expect(
+    page.getByRole('link', { name: 'Browse Library', exact: true }),
+  ).toBeVisible()
+  await page.getByRole('link', { name: 'My Programs', exact: true }).click()
+  await expect(page).toHaveURL(/\/library\?sort=name/)
+  await page.goto('/library?program=00000000-0000-4000-8000-000000000010&sort=name')
+  await expect(page).toHaveURL(/\/programs\/00000000-0000-4000-8000-000000000010\?returnTo=/)
   await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({
     path: `test-results/program-details-${info.project.name}.png`,
@@ -83,16 +112,17 @@ test('Library browser keeps filters and cached content through discovery and par
   await expect(page.locator('tbody tr')).toHaveCount(1)
   const readsBeforeBrowse = libraryReads
   await page
-    .getByRole('button', { name: 'Browse Programs', exact: true })
+    .getByRole('link', { name: 'Browse Programs', exact: true })
     .click()
-  const browser = page.getByRole('dialog', { name: 'Program Library' })
-  await expect(browser).toBeVisible()
-  await expect(browser.getByLabel('Program type', { exact: true })).toHaveValue(
+  await expect(
+    page.getByRole('heading', { name: 'Program Library', exact: true }),
+  ).toBeVisible()
+  await expect(page.getByLabel('Program type', { exact: true })).toHaveValue(
     '',
   )
-  await browser.getByLabel('Search Programs', { exact: true }).fill('Beginner')
-  await expect(page).toHaveURL(/bq=Beginner/)
-  await browser
+  await page.getByLabel('Search Programs', { exact: true }).fill('Beginner')
+  await expect(page).toHaveURL(/q=Beginner/)
+  await page
     .getByRole('button', { name: 'View Program: Beginner Strength' })
     .click()
   await expect(
@@ -102,25 +132,21 @@ test('Library browser keeps filters and cached content through discovery and par
     'same-document',
   )
   expect(requests.filter((r) => r.path === '/resolve-slug')).toHaveLength(0)
-  await page.getByRole('link', { name: 'Back', exact: true }).click()
+  await page.getByRole('link', { name: 'Browse Programs', exact: true }).click()
+  await expect(page).toHaveURL(/\/browse\?q=Beginner/)
   await expect(
-    page.getByRole('dialog', { name: 'Program Library' }),
+    page.getByRole('heading', { name: 'Program Library', exact: true }),
   ).toBeVisible()
   await expect(
-    page.getByRole('dialog').getByLabel('Search Programs', { exact: true }),
+    page.getByLabel('Search Programs', { exact: true }),
   ).toHaveValue('Beginner')
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Back', exact: true })
-    .click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(page.getByLabel('Search Programs', { exact: true })).toHaveValue(
-    'Strength',
-  )
-  await expect(page.getByLabel('Sort Programs')).toHaveValue('name')
+  await page.getByRole('link', { name: 'My Programs', exact: true }).click()
+  await expect(
+    page.getByRole('heading', { name: /My Programs/ }),
+  ).toBeVisible()
   expect(libraryReads).toBe(readsBeforeBrowse)
   await page
-    .getByRole('button', { name: 'Browse Programs', exact: true })
+    .getByRole('link', { name: 'Browse Programs', exact: true })
     .click()
   await page
     .getByRole('button', { name: 'View Program: Beginner Strength' })

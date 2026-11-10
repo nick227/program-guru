@@ -1,5 +1,6 @@
+import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ApiError,
   useAcceptEnrollmentUpdate,
@@ -7,7 +8,10 @@ import {
   useDismissEnrollmentUpdate,
   useEnrollment,
   useJoinProgram,
+  usePersonalEnrollmentAction,
+  useProgramLibrary,
   useProgramPreview,
+  useProgramWorkspace,
 } from '@project/sdk'
 import { toast } from 'sonner'
 import { Page, Stage } from '@/components/ui/Layout'
@@ -18,11 +22,21 @@ import { ProgramHero } from '@/components/ProgramHero'
 import { ProgramActivityCard } from '@/components/ProgramActivityCard'
 import { ProgramSchedulePreview } from '@/components/ProgramSchedulePreview'
 import { ProgramTogether } from '@/components/ProgramTogether'
+import {
+  ProgramPersonalDetailsGrid,
+  ProgramPersonalOverview,
+} from '@/components/ProgramPersonalOverview'
+import {
+  ProgramOwnerBanner,
+  ProgramOwnerEditPanel,
+} from '@/components/ProgramOwnerEditor'
+import { buildBrowseUrl } from '@/components/LibraryBrowser'
+import { WorkspaceActivityRow } from '@/pages/program-workspace/components/steps/WorkspaceActivityRow'
+import { CreateActivitySection } from '@/pages/program-workspace/components/steps/CreateActivitySection'
 import { SectionHeader } from '@/components/ui/SectionHeader'
-import { StatusText, enrollmentStatusText } from '@/components/ui/StatusText'
+import { enrollmentStatusText } from '@/components/ui/StatusText'
 import {
   calendarUrl,
-  dateLabel,
   isLocalDate,
   safeReturn,
   today,
@@ -31,10 +45,18 @@ import { hasSeenDailyEmailPrompt } from '@/lib/notifications'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { useResolveProgramTarget } from '@/lib/useResolveSlug'
-import { buildGroupUrl, buildProgramUrl, buildWorkspaceUrl } from '@/lib/urls'
+import { buildProgramUrl, buildWorkspaceUrl, toAbsoluteUrl } from '@/lib/urls'
 import { activityHero, programHero } from '@/lib/hero'
 import { useCategorySlugOf } from '@/components/EntityHero'
 import { ReportButton } from '@/components/ReportButton'
+
+function resolveBackLabel(backTo: string) {
+  if (backTo.startsWith('/library')) return 'My Programs'
+  if (backTo.startsWith('/studio')) return 'Creator Studio'
+  if (backTo.startsWith('/@')) return 'Profile'
+  if (backTo === '/' || backTo.startsWith('/?')) return 'Calendar'
+  return 'Browse Programs'
+}
 
 export function ProgramPage() {
   const paramsFromRouter = useParams()
@@ -45,6 +67,8 @@ export function ProgramPage() {
   const id = resolved.programId
 
   const [params] = useSearchParams()
+  const location = useLocation()
+  const currentUrl = `${location.pathname}${location.search}`
   const queryString = params.toString()
   const groupIdParam = params.get('groupId')?.trim() || undefined
   const program = useProgramPreview(id)
@@ -54,9 +78,24 @@ export function ProgramPage() {
   const navigate = useNavigate()
 
   const scheduleSectionRef = useRef<HTMLDivElement>(null)
+  const ownerEditRef = useRef<HTMLDivElement>(null)
+
+  const signedIn = !!me.data
+  const p = program.data
+  const isOwner = p?.viewerAccess === 'OWNER'
+  const library = useProgramLibrary(signedIn)
+  const workspace = useProgramWorkspace(id, signedIn && isOwner)
+
+  const entry = signedIn ? (library.data?.find((r) => r.program.id === id) ?? null) : null
+  const ws = isOwner ? (workspace.data ?? null) : null
+
+  const [runId, setRunId] = useState('')
+  const [editingProgram, setEditingProgram] = useState(false)
+  const [editingActivities, setEditingActivities] = useState(false)
 
   useDocumentTitle(
-    program.data?.title ??
+    ws?.title ??
+      p?.title ??
       (resolved.isLoading || program.isPending
         ? 'Program'
         : resolved.notFound
@@ -87,14 +126,20 @@ export function ProgramPage() {
     }
   }, [requestedStartDate])
 
+  useEffect(() => {
+    if (params.get('start') === '1' && p && !p.myEnrollmentId) {
+      scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [params, p])
+
   const start = date || today(tz)
   const join = useJoinProgram(id)
-  const enrollmentId = program.data?.myEnrollmentId ?? ''
+  const enrollmentId = p?.myEnrollmentId || entry?.current?.id || ''
   const enrollment = useEnrollment(enrollmentId)
+  const enrollmentAction = usePersonalEnrollmentAction()
   const acceptUpdate = useAcceptEnrollmentUpdate(enrollmentId)
   const dismissUpdate = useDismissEnrollmentUpdate(enrollmentId)
   const key = useRef(crypto.randomUUID())
-  const p = program.data
 
   if (resolved.notFound || (program.error instanceof ApiError && program.error.status === 404 && !p)) {
     return (
@@ -128,17 +173,48 @@ export function ProgramPage() {
     )
   }
 
+  const selectedRun = entry
+    ? (entry.runs.find((run) => run.id === runId) ?? entry.current)
+    : null
   const isEnrolled = !!p.myEnrollmentId
-  const isOwner = p.viewerAccess === 'OWNER'
+  const isPaused = entry?.status === 'Paused' && entry.current?.status === 'PAUSED'
+  const isDraftOnly = isOwner && !p.latestVersionId
   const canonicalUrl = buildProgramUrl(p, { scoped: !!rawHandle })
-  const signedIn = !!me.data
+  const backTo = safeReturn(params.get('returnTo'), '/discover')
+  const backLabel = resolveBackLabel(backTo)
   const groupId = enrollment.data?.groupId ?? null
   const enrolledStatus = enrollmentStatusText(enrollment.data?.status)
 
-  const publicUrl =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}${canonicalUrl}`
-      : canonicalUrl
+  const publicUrl = toAbsoluteUrl(p.canonicalUrl ?? canonicalUrl)
+
+  const displayTitle = ws?.title ?? p.title
+  const displayDescription = ws ? ws.description : p.description
+  const displayDurationDays = ws ? ws.durationDays : p.durationDays
+  const displayFrequencyLabel = ws ? ws.frequencyLabel : p.frequencyLabel
+  const displayActivityCount = ws ? ws.activities.length : p.safeActivityOutline.length
+  const displayHero = programHero(
+    ws && (ws.coverUrl || ws.coverMedia) ? ws : p,
+    categorySlugOf,
+  )
+
+  const statusBadges = isOwner && ws
+    ? [
+        ...(ws.status === 'DRAFT'
+          ? [{ label: 'Draft', tone: 'attention' as const }]
+          : ws.hasUnpublishedChanges
+            ? [{ label: 'Unpublished changes', tone: 'attention' as const }]
+            : []),
+        {
+          label:
+            ws.visibility === 'PUBLIC'
+              ? 'Public'
+              : ws.visibility === 'UNLISTED'
+                ? 'Link only'
+                : 'Private',
+          tone: 'default' as const,
+        },
+      ]
+    : undefined
 
   const body = {
     programVersionId: p.latestVersionId!,
@@ -157,21 +233,50 @@ export function ProgramPage() {
             ? 'Subscribe'
             : 'Buy Program'
           : null
-  const primaryLabel = isEnrolled
-    ? 'View Schedule'
-    : !signedIn
-      ? 'Sign in to join'
-      : p.canJoin && p.latestVersionId
-        ? (accessCta ?? 'Start Program')
-        : accessCta
+  const primaryLabel = isPaused
+    ? 'Resume Schedule'
+    : isEnrolled
+      ? 'View Schedule'
+      : !signedIn
+        ? 'Sign in to join'
+        : isDraftOnly
+          ? 'Publish Program'
+          : p.canJoin && p.latestVersionId
+            ? (accessCta ?? 'Start Program')
+            : accessCta
+
+  const handleResume = async () => {
+    if (!entry?.current) return
+    try {
+      await enrollmentAction.mutateAsync({ id: entry.current.id, action: 'ACTIVE' })
+      toast.success('Schedule resumed')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not resume schedule')
+    }
+  }
+
+  const openOwnerEditor = () => {
+    setEditingProgram(true)
+    window.setTimeout(() => {
+      ownerEditRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }, 0)
+  }
 
   const handlePrimary = () => {
+    if (isPaused) {
+      void handleResume()
+      return
+    }
     if (isEnrolled) {
       navigate('/')
       return
     }
     if (!signedIn) {
       navigate(`/login?returnTo=${encodeURIComponent(canonicalUrl)}`)
+      return
+    }
+    if (isDraftOnly) {
+      openOwnerEditor()
       return
     }
     scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -200,26 +305,47 @@ export function ProgramPage() {
     }
   }
 
+  const pendingUpdate = Boolean(
+    enrollment.data?.pendingVersionId || selectedRun?.pendingVersionId,
+  )
+  const canAcceptUpdate =
+    Boolean(enrollmentId) &&
+    (enrollment.data?.status ?? selectedRun?.status) === 'ACTIVE'
+
+  const outlineByTitle = new Map(
+    p.safeActivityOutline.map((item) => [item.title, item]),
+  )
+
   return (
-    <Page className="page--content pb-20">
+    <Page className="page--content max-w-7xl pb-20">
       <div className="w-full space-y-10 sm:space-y-12">
         {/* 01 — Program Hero */}
         <ProgramHero
-          title={p.title}
-          description={p.description}
-          hero={programHero(p, categorySlugOf)}
-          durationDays={p.durationDays}
-          frequencyLabel={p.frequencyLabel}
-          activityCount={p.safeActivityOutline.length}
+          title={displayTitle}
+          description={displayDescription}
+          hero={displayHero}
+          durationDays={displayDurationDays}
+          frequencyLabel={displayFrequencyLabel}
+          activityCount={displayActivityCount}
           categoryLabel={p.type.label}
           creator={p.creator}
           isPlatform={p.isPlatform}
           isOwner={isOwner}
+          statusBadges={statusBadges}
           primaryLabel={primaryLabel}
-          backTo={safeReturn(params.get('returnTo'), '/discover')}
-          backLabel="Browse Programs"
+          backTo={backTo}
+          backLabel={backLabel}
           onPrimary={handlePrimary}
-          onEditProgram={isOwner ? () => navigate(buildWorkspaceUrl(id)) : undefined}
+          onEditProgram={
+            isOwner
+              ? () => {
+                  if (ws) setEditingProgram((prev) => !prev)
+                  else navigate(buildWorkspaceUrl(id))
+                }
+              : undefined
+          }
+          editLabel={editingProgram ? 'Close Editor' : 'Edit Program'}
+          editExpanded={ws ? editingProgram : undefined}
         />
 
         <ErrorMessage
@@ -227,93 +353,175 @@ export function ProgramPage() {
             program.error ||
             join.error ||
             acceptUpdate.error ||
-            dismissUpdate.error
+            dismissUpdate.error ||
+            enrollmentAction.error
           }
         />
 
-        {/* Enrolled Status & Update Alerts (if applicable) */}
-        {isEnrolled && (
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-accent/30 bg-accent/5 p-4 sm:p-5">
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <StatusText status={enrolledStatus.status}>{enrolledStatus.label}</StatusText>
-                {enrollment.data?.participationStartDate && (
-                  <span className="text-xs text-muted">
-                    Joined {dateLabel(enrollment.data.participationStartDate)}
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-foreground">
-                Your program is active. Sessions appear on your schedule.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Link className="btn btn--outline btn--sm" to={`/library?program=${p.id}`}>
-                Manage Program
-              </Link>
-              {groupId && (
-                <Link className="btn btn--outline btn--sm" to={buildGroupUrl(groupId)}>
-                  Open Group
-                </Link>
-              )}
-            </div>
-
-            {enrollment.data?.pendingVersionId && (
-              <div className="w-full mt-2 space-y-2 rounded-lg border border-border bg-surface p-3.5">
-                <h3 className="text-sm font-semibold text-foreground">Update available</h3>
-                <p className="text-xs text-muted">
-                  The creator published an update. Accept to adopt the new version while preserving your past logs.
-                </p>
-                <div className="flex items-center gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    disabled={!online || enrollment.data.status !== 'ACTIVE'}
-                    loading={acceptUpdate.isPending}
-                    onClick={async () => {
-                      try {
-                        await acceptUpdate.mutateAsync()
-                        toast.success('Program updated to latest version')
-                      } catch {
-                        // shown in ErrorMessage
-                      }
-                    }}
-                  >
-                    Accept update
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!online}
-                    loading={dismissUpdate.isPending}
-                    onClick={async () => {
-                      try {
-                        await dismissUpdate.mutateAsync()
-                        toast.success('Update dismissed')
-                      } catch {
-                        // shown in ErrorMessage
-                      }
-                    }}
-                  >
-                    Dismiss
-                  </Button>
-                </div>
-              </div>
+        {/* Owner Draft / Unpublished Changes Banner & Inline Project Edit Panel */}
+        {isOwner && ws && (
+          <div ref={ownerEditRef} className="space-y-6">
+            <ProgramOwnerBanner
+              ws={ws}
+              editing={editingProgram}
+              onEdit={() => setEditingProgram(true)}
+            />
+            {editingProgram && (
+              <ProgramOwnerEditPanel
+                ws={ws}
+                online={online}
+                onClose={() => setEditingProgram(false)}
+                onDeleted={() => navigate(backTo.startsWith('/library') ? backTo : '/library')}
+              />
             )}
           </div>
         )}
 
-        {/* 02 — Activities (Visual media-led cards in responsive grid) */}
+        {/* Personal Progress, Run Switcher, Metrics & Management Controls */}
+        <ProgramPersonalOverview
+          entry={entry}
+          selectedRun={selectedRun}
+          onSelectRunId={setRunId}
+          isEnrolled={isEnrolled}
+          enrolledStatus={enrolledStatus}
+          participationStartDate={enrollment.data?.participationStartDate}
+          groupId={groupId}
+          pendingUpdate={pendingUpdate}
+          canAcceptUpdate={canAcceptUpdate}
+          online={online}
+          acceptingUpdate={acceptUpdate.isPending}
+          dismissingUpdate={dismissUpdate.isPending}
+          onAcceptUpdate={async () => {
+            try {
+              await acceptUpdate.mutateAsync()
+              toast.success('Program updated to latest version')
+            } catch {
+              // shown in ErrorMessage
+            }
+          }}
+          onDismissUpdate={async () => {
+            try {
+              await dismissUpdate.mutateAsync()
+              toast.success('Update dismissed')
+            } catch {
+              // shown in ErrorMessage
+            }
+          }}
+          onResume={handleResume}
+          resuming={enrollmentAction.isPending}
+          currentUrl={currentUrl}
+          onRemoved={() => {
+            if (backTo.startsWith('/library')) navigate(backTo)
+          }}
+          onDeleted={() => navigate(backTo.startsWith('/library') ? backTo : '/library')}
+        />
+
+        {/* 02 — Activities (Visual media-led cards + inline owner editor) */}
         <section aria-label="Program activities" className="space-y-5">
           <SectionHeader
             title="Activities"
-            description={
-              p.safeActivityOutline.length > 0
-                ? `${p.safeActivityOutline.length} ${p.safeActivityOutline.length === 1 ? 'activity' : 'activities'} included in this Program`
-                : undefined
+            action={
+              isOwner && ws ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant={editingActivities ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setEditingActivities((prev) => !prev)}
+                  >
+                    {editingActivities ? 'Done editing' : 'Edit Activities'}
+                  </Button>
+                  <Link
+                    to={buildWorkspaceUrl(ws.id, { step: 'activities' })}
+                    className="btn btn--outline btn--sm"
+                  >
+                    Schedule Editor
+                  </Link>
+                </div>
+              ) : undefined
             }
           />
-          {p.safeActivityOutline.length > 0 ? (
+          {editingActivities && isOwner && ws ? (
+            <div className="space-y-4 rounded-2xl border border-accent/30 bg-surface p-5 sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-muted">
+                  Edit activity details, frequency, or add new activities directly to this program.
+                </p>
+                <Link
+                  to={buildBrowseUrl({
+                    kind: 'activities',
+                    programId: ws.id,
+                    facet: ws.type.categoryId || undefined,
+                    returnTo: currentUrl,
+                  })}
+                  className="btn btn--outline btn--sm"
+                >
+                  Browse Library
+                </Link>
+              </div>
+              {ws.activities.length > 0 ? (
+                <div className="space-y-3">
+                  {ws.activities.map((a) => (
+                    <WorkspaceActivityRow
+                      key={a.activityId}
+                      activity={a}
+                      ws={ws}
+                      returnTo={currentUrl}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-6 text-center text-sm text-muted">
+                  No activities yet. Create one below or browse the library to add existing ones.
+                </div>
+              )}
+              <CreateActivitySection ws={ws} />
+            </div>
+          ) : isOwner && ws && (isDraftOnly || ws.activities.length > 0) ? (
+            ws.activities.length > 0 ? (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {ws.activities.map((a) => {
+                  const outlineMatch = outlineByTitle.get(a.title)
+                  return (
+                    <ProgramActivityCard
+                      key={a.activityId}
+                      title={a.title}
+                      href={`/activities/${a.activityId}?returnTo=${encodeURIComponent(currentUrl)}`}
+                      hero={activityHero(
+                        {
+                          title: a.title,
+                          thumbnailUrl: outlineMatch?.mediaPreviewUrl,
+                          categoryId: p.type?.categoryId,
+                        },
+                        categorySlugOf,
+                      )}
+                      meta={
+                        [
+                          outlineMatch?.dayIndex != null
+                            ? `Day ${outlineMatch.dayIndex + 1}`
+                            : null,
+                          formatDurationMinutes(a.durationMinutes),
+                          a.frequencyLabel,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') || undefined
+                      }
+                    />
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-8 text-center text-sm text-muted space-y-3">
+                <p>No activities added yet.</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditingActivities(true)}
+                >
+                  Add Activities
+                </Button>
+              </div>
+            )
+          ) : p.safeActivityOutline.length > 0 ? (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {p.safeActivityOutline.map((item, idx) => (
                 <ProgramActivityCard
@@ -327,7 +535,14 @@ export function ProgramPage() {
                     },
                     categorySlugOf,
                   )}
-                  meta={item.dayIndex != null ? `Day ${item.dayIndex + 1}` : undefined}
+                  meta={
+                    [
+                      item.dayIndex != null ? `Day ${item.dayIndex + 1}` : null,
+                      formatDurationMinutes(item.durationMinutes),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || undefined
+                  }
                 />
               ))}
             </div>
@@ -338,38 +553,71 @@ export function ProgramPage() {
           )}
         </section>
 
-        {/* 03 & 04 — Schedule & Share Program (Balanced 2-Column Section) */}
-        <div ref={scheduleSectionRef} className="grid grid-cols-1 gap-6 items-start">
-          {/* 03 — Schedule */}
-          <ProgramSchedulePreview
-            durationDays={p.durationDays}
-            frequencyLabel={p.frequencyLabel}
-            programDays={p.programDays}
-            placements={p.placements}
-            activities={p.safeActivityOutline}
-            startDate={start}
-            onStartDateChange={(newDate) => {
-              setDate(newDate)
-              key.current = crypto.randomUUID()
-            }}
-            onStartProgram={handleStartProgram}
-            isStarting={join.isPending}
-            isEnrolled={isEnrolled}
-            signedIn={signedIn}
-            loginUrl={`/login?returnTo=${encodeURIComponent(canonicalUrl)}`}
-            timezone={tz}
-            onViewSchedule={() => navigate('/')}
+        {/* Personal Upcoming Activity, History, Source & Runs */}
+        {entry && (
+          <ProgramPersonalDetailsGrid
+            entry={entry}
+            selectedRun={selectedRun}
+            currentUrl={currentUrl}
+            onSetupSchedule={() =>
+              scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+            }
           />
+        )}
+
+        {/* 03 & 04 — Schedule & Share Program (Balanced 2-Column Section) */}
+        <div
+          ref={scheduleSectionRef}
+          className="grid grid-cols-1 gap-6 items-start md:grid-cols-2"
+        >
+          {/* 03 — Schedule */}
+          {isDraftOnly ? (
+            <section
+              aria-label="Draft program publishing"
+              className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-3"
+            >
+              <SectionHeader title="Start Program" className="pb-0" />
+              <p className="text-sm text-muted">
+                Publish this draft first to add it to your Calendar or share it with others.
+              </p>
+              <Button size="sm" onClick={openOwnerEditor}>
+                Review & Publish
+              </Button>
+            </section>
+          ) : (
+            <ProgramSchedulePreview
+              durationDays={displayDurationDays}
+              frequencyLabel={displayFrequencyLabel}
+              programDays={ws?.programDays ?? p.programDays}
+              placements={ws?.placements ?? p.placements}
+              activities={p.safeActivityOutline}
+              startDate={start}
+              onStartDateChange={(newDate) => {
+                setDate(newDate)
+                key.current = crypto.randomUUID()
+              }}
+              onStartProgram={handleStartProgram}
+              isStarting={join.isPending}
+              isEnrolled={isEnrolled}
+              signedIn={signedIn}
+              loginUrl={`/login?returnTo=${encodeURIComponent(canonicalUrl)}`}
+              timezone={tz}
+              onViewSchedule={() => navigate('/')}
+            />
+          )}
 
           {/* 04 — Share Program */}
           <ProgramTogether
             programId={id}
             groupId={groupId}
-            participantCount={p.enrollmentCount}
+            participantCount={
+              entry?.participation?.participantCount ?? p.enrollmentCount
+            }
             completionRate={p.completionRate}
             publicUrl={publicUrl}
           />
         </div>
+
         <div className="flex justify-end">
           <ReportButton target={{ type: 'PROGRAM', id: p.id }} ownerId={p.creator?.id} />
         </div>

@@ -10,7 +10,7 @@ import { statusBadges } from './content'
 import { label } from './shared'
 
 type Detail = components['schemas']['ActivityDetail']
-type Details = { title: string; summary: string; categoryId: string }
+type Details = { title: string; summary: string; durationMinutes: number | null; categoryId: string }
 type Publish = { visibility: Detail['visibility'] }
 
 const useCategoryOptions = (): Option[] => (useCategories().data ?? []).map((c) => ({ value: c.id, label: c.label }))
@@ -18,6 +18,7 @@ const useCategoryOptions = (): Option[] => (useCategories().data ?? []).map((c) 
 const detailFields: Field<Details>[] = [
   { kind: 'text', name: 'title', label: 'Title', required: true, maxLength: 140, assist: true },
   { kind: 'textarea', name: 'summary', label: 'Description', maxLength: 500, rows: 3, assist: true },
+  { kind: 'number', name: 'durationMinutes', label: 'Duration', min: 1, max: 1440, suffix: 'minutes' },
   { kind: 'select', name: 'categoryId', label: 'Category', required: true, options: useCategoryOptions },
 ]
 
@@ -26,8 +27,8 @@ function DetailsForm({ activity }: { activity: Detail }) {
   return (
     <ResourceForm
       fields={detailFields}
-      initial={{ title: activity.title, summary: activity.summary ?? '', categoryId: activity.categoryId }}
-      onSubmit={(_, c) => update.mutateAsync({ ...c, ...(c.summary !== undefined ? { summary: c.summary.trim() || null } : {}), expectedRevision: activity.draftRevision })}
+      initial={{ title: activity.title, summary: activity.summary ?? '', durationMinutes: activity.durationMinutes ?? null, categoryId: activity.categoryId }}
+      onSubmit={(_, c) => update.mutateAsync({ ...c, ...(c.summary !== undefined ? { summary: c.summary.trim() || null } : {}),  expectedRevision: activity.draftRevision })}
     />
   )
 }
@@ -79,11 +80,11 @@ export const activities = defineResource<unknown, Detail>({
   create: {
     title: 'New platform Activity',
     submitLabel: 'Create draft',
-    initial: { title: '', summary: '', categoryId: '' } satisfies Details,
+    initial: { title: '', summary: '', durationMinutes: null, categoryId: '' } satisfies Details,
     fields: detailFields,
     useCreate: () => {
       const m = useCreateActivity()
-      return async (v: Details) => (await m.mutateAsync({ title: v.title.trim(), summary: v.summary.trim() || null, categoryId: v.categoryId, owner: 'PLATFORM' })).id
+      return async (v: Details) => (await m.mutateAsync({ title: v.title.trim(), summary: v.summary.trim() || null, durationMinutes: v.durationMinutes, categoryId: v.categoryId, owner: 'PLATFORM' })).id
     },
   },
 })

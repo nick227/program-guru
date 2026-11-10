@@ -86,15 +86,13 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
     await expect(page.getByRole('heading', { name: 'Activities', exact: true })).toBeVisible()
 
     // Create a new activity inline without losing the program draft
-    // Verify Instructions are cut per user instruction
+    // Verify Instructions are cut, and each New Activity has Frequency and Duration buttons + minutes input
     await page.getByLabel('Activity title').fill('Push-ups')
     await page.getByLabel('Description (optional)').fill('Chest and triceps strength.')
+    await page.getByRole('group', { name: 'New activity frequency' }).getByRole('button', { name: '4 days/week', exact: true }).click()
+    await page.getByRole('group', { name: 'Activity duration presets' }).getByRole('button', { name: '20 min', exact: true }).click()
+    await expect(page.getByLabel('Activity duration (optional)')).toHaveValue('20')
     await expect(page.getByLabel('Instructions (optional)')).toHaveCount(0)
-
-    // No per-Activity duration or frequency: Program scheduling owns frequency, and these
-    // values were never saved.
-    await expect(page.getByLabel('Duration')).toHaveCount(0)
-    await expect(page.getByLabel('Frequency')).toHaveCount(0)
 
     // Suggested Activities section is cut per user instruction
     await expect(page.getByText('Suggested Activities')).toHaveCount(0)
@@ -112,6 +110,8 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
       requests.filter((r) => r.path === '/media/uploads' && r.method === 'POST').length,
     ).toBe(2)
     await expect(newMedia.getByRole('button', { name: /^Remove/ })).toHaveCount(0)
+    await expect(page.getByText('20 min', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('16 days scheduled')).toBeVisible()
 
     // Advance to Step 3 (Publish & Share) via consistent Continue button
     await page.getByRole('button', { name: 'Continue', exact: true }).click()
@@ -205,5 +205,81 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
     await expect(
       page.getByRole('heading', { name: 'Visibility & Group Sharing', exact: true }),
     ).toBeVisible()
+  })
+
+  test('each new activity has frequency & duration buttons, a minutes input, and distributes across program duration', async ({
+    page,
+  }) => {
+    const { requests } = await mockApi(page)
+    await login(page, 'author@test.local', 'password')
+    await page.goto(`/programs/${programId}/workspace?step=activities`)
+
+    await expect(page.getByRole('heading', { name: 'Activities', exact: true })).toBeVisible()
+    // Overall Program frequency/duration controls should not be in ActivitiesStep
+    await expect(page.getByRole('group', { name: 'Program frequency' })).toHaveCount(0)
+    await expect(page.getByRole('group', { name: 'Program duration' })).toHaveCount(0)
+
+    // Individual New Activity has frequency and duration buttons + minutes input
+    const newFreqGroup = page.getByRole('group', { name: 'New activity frequency' })
+    const newDurPresets = page.getByRole('group', { name: 'Activity duration presets' })
+    await expect(newFreqGroup).toBeVisible()
+    await expect(newDurPresets).toBeVisible()
+
+    await page.getByLabel('Activity title').fill('Push-ups')
+    await page.getByLabel('Description (optional)').fill('Chest and triceps strength.')
+    await newFreqGroup.getByRole('button', { name: '4 days/week', exact: true }).click()
+    await newDurPresets.getByRole('button', { name: '20 min', exact: true }).click()
+    await expect(page.getByLabel('Activity duration (optional)')).toHaveValue('20')
+    await page.getByRole('button', { name: 'Add to Program', exact: true }).click()
+
+    await expect.poll(() =>
+      requests.some(
+        (r) =>
+          r.path === '/activities' &&
+          r.method === 'POST' &&
+          r.body.durationMinutes === 20 &&
+          (r.body.frequency as { kind?: string; n?: number } | undefined)?.n === 4,
+      ),
+    ).toBe(true)
+    await expect.poll(() =>
+      requests.some(
+        (r) =>
+          r.path === `/programs/${programId}/draft/activities` &&
+          r.method === 'POST' &&
+          !!r.body.frequencies,
+      ),
+    ).toBe(true)
+
+    // Activity row displays formatted duration, frequency label, and scheduled days across 4-week program (4 days/wk * 4 wks = 16)
+    const row = page.locator('article').filter({ hasText: 'Push-ups' })
+    await expect(row).toContainText('20 min')
+    await expect(row).toContainText('4 days/week')
+    await expect(row).toContainText('16 days scheduled')
+
+    // Edit individual activity frequency & duration minutes inline
+    await row.getByRole('button', { name: 'Edit', exact: true }).click()
+    await row.getByRole('group', { name: 'Frequency for Push-ups' }).getByRole('button', { name: 'Daily', exact: true }).click()
+    await expect.poll(() =>
+      requests.some(
+        (r) =>
+          r.path.includes('/draft/activities/') &&
+          r.method === 'PATCH' &&
+          (r.body.frequency as { kind?: string } | undefined)?.kind === 'DAILY',
+      ),
+    ).toBe(true)
+    await expect(row).toContainText('Daily')
+    await expect(row).toContainText('28 days scheduled')
+
+    await row.getByLabel('Duration for Push-ups').fill('90')
+    await row.getByRole('button', { name: 'Save Changes', exact: true }).click()
+    await expect.poll(() =>
+      requests.some(
+        (r) =>
+          r.path.endsWith('/draft') &&
+          r.method === 'PATCH' &&
+          r.body.durationMinutes === 90,
+      ),
+    ).toBe(true)
+    await expect(row).toContainText('1 hr 30 min')
   })
 })

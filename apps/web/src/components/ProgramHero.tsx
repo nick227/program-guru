@@ -5,6 +5,7 @@ import {
   Calendar,
   Layers,
   Pencil,
+  Tag,
   Play,
   Repeat,
   Share2,
@@ -34,6 +35,7 @@ export interface ProgramHeroProps {
   } | null
   isPlatform?: boolean
   isOwner?: boolean
+  statusBadges?: { label: string; tone?: 'default' | 'accent' | 'attention' }[]
   /** Primary action label for the viewer's access state; omitted when there is no action. */
   primaryLabel?: string | null
   backTo?: string
@@ -42,6 +44,8 @@ export interface ProgramHeroProps {
   onShare?: () => void
   onDoTogether?: () => void
   onEditProgram?: () => void
+  editLabel?: string
+  editExpanded?: boolean
   className?: string
 }
 
@@ -59,12 +63,15 @@ export function ProgramHero({
   creator,
   isPlatform = false,
   isOwner = false,
+  statusBadges,
   primaryLabel,
   backTo = '/discover',
   backLabel = 'Browse Programs',
   onPrimary,
   onShare,
   onEditProgram,
+  editLabel = 'Edit Program',
+  editExpanded,
   className,
 }: ProgramHeroProps) {
   const [watching, setWatching] = useState(false)
@@ -100,7 +107,7 @@ export function ProgramHero({
         className,
       )}
     >
-      <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-12">
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-12">
         {/* Left Column: Dominant Information & Primary Hierarchy */}
         <div className="flex flex-col justify-between space-y-6 lg:col-span-7">
           <div className="flex items-center justify-between gap-4">
@@ -111,20 +118,25 @@ export function ProgramHero({
               <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
               <span>{backLabel}</span>
             </Link>
-
-            <div className="flex items-center gap-2">
-              {categoryLabel && (
-                <span className="inline-flex items-center rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
-                  {categoryLabel}
-                </span>
-              )}
-              {isOwner && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-foreground border border-border">
-                  <Pencil size={12} />
-                  Your Program
-                </span>
-              )}
-            </div>
+            {statusBadges && statusBadges.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {statusBadges.map((badge) => (
+                  <span
+                    key={badge.label}
+                    className={cn(
+                      'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                      badge.tone === 'accent'
+                        ? 'bg-accent/15 text-accent'
+                        : badge.tone === 'attention'
+                          ? 'bg-attention/15 text-attention'
+                          : 'bg-surface-muted text-muted',
+                    )}
+                  >
+                    {badge.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -159,6 +171,12 @@ export function ProgramHero({
 
             {/* Commitments & Specs */}
             <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-medium text-muted sm:gap-5 sm:text-sm">
+              {categoryLabel && (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-2.5 py-1 text-foreground">
+                  <Tag size={14} className="text-accent" />
+                  {categoryLabel}
+                </span>
+              )}
               <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-2.5 py-1 text-foreground">
                 <Calendar size={14} className="text-accent" />
                 {durationText}
@@ -199,13 +217,14 @@ export function ProgramHero({
             )}
             {isOwner && onEditProgram && (
               <Button
-                variant="outline"
+                variant={editExpanded ? 'default' : 'outline'}
                 size="lg"
+                aria-expanded={editExpanded}
                 onClick={onEditProgram}
                 className="gap-2 px-5 font-semibold"
               >
                 <Pencil size={15} />
-                <span>Edit Program</span>
+                <span>{editLabel}</span>
               </Button>
             )}
             <Button
@@ -218,6 +237,7 @@ export function ProgramHero({
               <span>Share</span>
             </Button>
           </div>
+          
         </div>
 
         {/* Right Column: Clean Framed Artwork */}

@@ -25,10 +25,9 @@ export function OccurrenceInstructions({
     <div className="activity-instructions">
       <Row className="justify-between gap-3">
         <h3>
-          How to do it
           {instructions.length > 1 && (
             <span className="activity-instructions__step">
-              {' '}· Step {index + 1} of {instructions.length}
+              {' '}Step {index + 1} of {instructions.length}
             </span>
           )}
         </h3>

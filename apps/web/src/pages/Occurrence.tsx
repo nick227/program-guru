@@ -1,9 +1,9 @@
+import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { usePwaReloadBlocker } from '@/lib/pwaSafety'
 import { useEffect, useRef, useState } from 'react'
 import {
   useBeforeUnload,
   useBlocker,
-  useNavigate,
   useParams,
   useSearchParams,
 } from 'react-router-dom'
@@ -20,12 +20,25 @@ import {
   type components,
 } from '@project/sdk'
 import { toast } from 'sonner'
-import { Users } from 'lucide-react'
-import { Avatar } from '@/components/ui/Avatar'
-import { Page, Panel, Stack, Row } from '@/components/ui/Layout'
-import { SectionHeader } from '@/components/ui/SectionHeader'
+import {
+  Calendar,
+  Check,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Flame,
+  Pause,
+  Play,
+  RotateCcw,
+  Target,
+  TrendingUp,
+  Upload,
+  Users,
+} from 'lucide-react'
+import { Page, Panel, Stack } from '@/components/ui/Layout'
 import { StatusText, type ParticipationStatus } from '@/components/ui/StatusText'
 import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
+import { CategoryIcon } from '@/components/CategoryIcon'
 import { activityHero } from '@/lib/hero'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
@@ -34,12 +47,16 @@ import { MetricInput } from '@/components/MetricInput'
 import { ActivityTogether } from '@/components/ActivityTogether'
 import { OccurrenceInstructions } from '@/components/OccurrenceInstructions'
 import { OccurrenceMedia } from '@/components/OccurrenceMedia'
-import { calendarUrl, dateLabel, safeReturn } from '@/lib/dates'
+import { calendarUrl, dateLabel, safeReturn, today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
+import { cn } from '@/lib/utils'
+
 type S = components['schemas']
+
 const metricKey = (m: S['MetricInput']) =>
   `${m.instructionId ?? ''}:${m.metricDefinitionId}`
+
 function formatElapsed(totalSeconds: number) {
   const seconds = Math.max(0, Math.floor(totalSeconds))
   const hours = Math.floor(seconds / 3600)
@@ -49,6 +66,7 @@ function formatElapsed(totalSeconds: number) {
   if (minutes) return `${minutes}m ${remainder}s`
   return `${remainder}s`
 }
+
 export function OccurrencePage() {
   const { id = '' } = useParams()
   const occurrence = useOccurrence(id)
@@ -59,9 +77,7 @@ export function OccurrencePage() {
             ? ` (Day ${occurrence.data.item.programDayIndex + 1})`
             : ''
         }`
-      : occurrence.isPending
-        ? 'Occurrence'
-        : 'Occurrence',
+      : 'Occurrence',
   )
   return (
     <Page className="page--content">
@@ -85,6 +101,16 @@ export function OccurrencePage() {
     </Page>
   )
 }
+
+type PendingButton =
+  | 'start'
+  | 'finish'
+  | 'finish-no-timer'
+  | 'pause'
+  | 'resume'
+  | 'save'
+  | null
+
 function OccurrenceContent({
   occurrence: o,
   refresh,
@@ -93,7 +119,6 @@ function OccurrenceContent({
   refresh: () => void
 }) {
   const [params] = useSearchParams()
-  const navigate = useNavigate()
   const origin = safeReturn(
     params.get('returnTo'),
     calendarUrl(o.item.localDate),
@@ -105,32 +130,36 @@ function OccurrenceContent({
   const undo = useUndoCompletion()
   const attach = useAttachSessionMedia()
   const me = useCurrentUser()
+  const activity = useActivity(o.item.locked ? '' : o.item.activityId)
+
   const [dirty, setDirty] = useState<Record<string, string | number | boolean>>(
     {},
   )
   const [busy, setBusy] = useState(false)
+  const [pendingButton, setPendingButton] = useState<PendingButton>(null)
   const [failure, setFailure] = useState<unknown>(null)
   const working = useRef(false)
   const createKey = useRef(crypto.randomUUID())
   const created = useRef<S['ActivitySession'] | null>(null)
-  const leavingAfterFinish = useRef(false)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
   const unsaved = Object.keys(dirty).length > 0
+
   usePwaReloadBlocker(unsaved || busy)
-  const blocker = useBlocker(
-    () => (unsaved || busy) && !leavingAfterFinish.current,
-  )
+  const blocker = useBlocker(() => unsaved || busy)
   useBeforeUnload((event) => {
     if (unsaved || busy) {
       event.preventDefault()
       event.returnValue = ''
     }
   })
+
   const session = o.session
   const status = session?.status ?? 'READY'
   const disabled = busy || !online
   const resultInputs = o.resultInputs.filter(
     (metric) => metric.valueType !== 'DURATION',
   )
+
   async function getSession() {
     if (session && !['FINISHED', 'ABANDONED'].includes(session.status))
       return session
@@ -143,6 +172,7 @@ function OccurrenceContent({
     created.current = next
     return next
   }
+
   /** Personal media goes to the current attempt, creating an unstarted one if needed. */
   async function attachToSession(mediaId: string) {
     if (!online) throw new Error('Connect to attach media.')
@@ -160,23 +190,35 @@ function OccurrenceContent({
       setBusy(false)
     }
   }
+
   async function prepareMediaUpload(): Promise<S['AttachmentTarget']> {
     if (!online) throw new Error('Connect to upload media.')
     if (working.current) throw new Error('Wait for the current save to finish.')
     working.current = true
     setBusy(true)
     try {
-      const current = o.session && o.session.status !== 'ABANDONED' ? o.session : await getSession()
-      return { kind: 'RESULT_ENTRY', id: await getOrCreateSessionResultEntry(current.id) }
+      const current =
+        o.session && o.session.status !== 'ABANDONED'
+          ? o.session
+          : await getSession()
+      return {
+        kind: 'RESULT_ENTRY',
+        id: await getOrCreateSessionResultEntry(current.id),
+      }
     } finally {
       working.current = false
       setBusy(false)
     }
   }
-  async function perform(nextAction?: S['SessionAction']) {
+
+  async function perform(
+    nextAction?: S['SessionAction'],
+    button: PendingButton = null,
+  ) {
     if (working.current) return
     working.current = true
     setBusy(true)
+    setPendingButton(button)
     setFailure(null)
     try {
       const current = await getSession()
@@ -212,10 +254,6 @@ function OccurrenceContent({
         if (nextAction === 'FINISH') {
           createKey.current = crypto.randomUUID()
           created.current = null
-          const url = new URL(origin, window.location.origin)
-          url.searchParams.set('completed', o.item.id)
-          leavingAfterFinish.current = true
-          navigate(url.pathname + url.search)
           toast.success('Activity finished')
         }
       } else toast.success('Results saved')
@@ -224,19 +262,44 @@ function OccurrenceContent({
     } finally {
       working.current = false
       setBusy(false)
+      setPendingButton(null)
     }
   }
+
+  function handleMetricChange(metric: S['MetricInput'], val: string | number | boolean) {
+    const key = metricKey(metric)
+    setDirty((prev) => {
+      const next = { ...prev }
+      if (val === '' && metric.valueType !== 'TEXT') {
+        delete next[key]
+      } else {
+        next[key] = val
+      }
+      return next
+    })
+  }
+
+  function triggerMediaUpload() {
+    const input = uploadInputRef.current
+    if (input) {
+      input.click()
+      return
+    }
+    document.getElementById('related-media')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
   // One state for the whole page, so the header and the session never disagree.
   const itemDone = o.item.status === 'DONE'
-  const phase: Phase = status === 'ACTIVE'
-    ? 'active'
-    : status === 'PAUSED'
-      ? 'paused'
-      : itemDone
-        ? 'completed'
-        : o.item.status === 'NOT_PARTICIPATING'
-          ? 'not-participating'
-          : 'ready'
+  const phase: Phase =
+    status === 'ACTIVE'
+      ? 'active'
+      : status === 'PAUSED'
+        ? 'paused'
+        : itemDone
+          ? 'completed'
+          : o.item.status === 'NOT_PARTICIPATING'
+            ? 'not-participating'
+            : 'ready'
   const timed = o.resultInputs.some((metric) => metric.valueType === 'DURATION')
   const community = o.communityStats
   const communityLine = community
@@ -248,9 +311,21 @@ function OccurrenceContent({
         .filter(Boolean)
         .join(' · ')
     : ''
+
+  const viewerTz =
+    me.data?.data.preferences.timezone ??
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  const isToday = o.item.localDate === today(viewerTz)
+
   return (
     <div className="activity-page">
-      <Back to={origin}>{origin.startsWith('/library') ? 'My Programs' : 'Calendar'}</Back>
+      <Back to={origin}>
+        {origin.startsWith('/library')
+          ? 'My Programs'
+          : origin.startsWith('/programs/')
+            ? 'Program'
+            : 'Calendar'}
+      </Back>
       {blocker.state === 'blocked' && (
         <Panel aria-label="Unsaved results">
           <Stack>
@@ -273,58 +348,59 @@ function OccurrenceContent({
         </Panel>
       )}
 
-      {/* 1 · Identity */}
-      <ActivityIdentity occurrence={o} phase={phase} />
+      {/* 1 · Hero Identity Card */}
+      <ActivityIdentity
+        occurrence={o}
+        activity={activity.data}
+        phase={phase}
+        isToday={isToday}
+        session={session}
+        timed={timed}
+        disabled={disabled}
+        pendingButton={pendingButton}
+        online={online}
+        unsaved={unsaved}
+        error={failure || undo.error}
+        undoPending={undo.isPending}
+        onPerform={(nextAction, button) => void perform(nextAction, button)}
+        onUndo={() => undo.mutate(o.item.id)}
+        onRefresh={refresh}
+        onUploadMedia={triggerMediaUpload}
+      />
 
-      <div className="activity-layout">
-        <section aria-labelledby="today-heading" className="activity-today">
-          <SectionHeader id="today-heading" title="Today's Activity" />
-          <OccurrenceInstructions instructions={o.instructions} locked={o.item.locked} />
-          <div className="activity-actions">
-            <ErrorMessage error={failure || undo.error} />
-            {!!failure && <Button variant="outline" onClick={refresh}>Refresh Activity</Button>}
-            <div className="activity-session__actions">
-              {(phase === 'ready' || phase === 'not-participating') && (
-                timed ? <>
-                  <Button size="lg" disabled={disabled} onClick={() => void perform('START')}>Start</Button>
-                  <Button variant="ghost" disabled={disabled} onClick={() => void perform('FINISH')}>Complete without timer</Button>
-                </> : <Button size="lg" disabled={disabled} onClick={() => void perform('FINISH')}>Complete</Button>
-              )}
-              {phase === 'active' && <>
-                <Button size="lg" disabled={disabled} onClick={() => void perform('FINISH')}>Complete</Button>
-                <Button variant="outline" disabled={disabled} onClick={() => void perform('PAUSE')}>Pause</Button>
-              </>}
-              {phase === 'paused' && <>
-                <Button size="lg" disabled={disabled} onClick={() => void perform('RESUME')}>Resume</Button>
-                <Button variant="outline" disabled={disabled} onClick={() => void perform('FINISH')}>Complete</Button>
-              </>}
-              {phase === 'completed' && <Button variant="outline" disabled={disabled || undo.isPending} onClick={() => undo.mutate(o.item.id)}>Undo completion</Button>}
-            </div>
-            {session && (phase === 'active' || phase === 'paused' || (phase === 'completed' && !session.isManualCompletion)) && <SessionElapsed session={session} />}
-            {busy && <p role="status" className="text-sm text-muted">Saving…</p>}
+      {/* 2 · Bento Grid: Today + Together + Related Media */}
+      <div className={cn('activity-layout', o.collaborators && 'activity-layout--split')}>
+        <OccurrenceToday
+          occurrence={o}
+          activity={activity.data}
+          phase={phase}
+          resultInputs={resultInputs}
+          dirty={dirty}
+          disabled={disabled}
+          onMetricChange={handleMetricChange}
+        />
+
+        {o.collaborators && (
+          <div className="activity-social">
+            <ActivityTogether
+              collaborators={o.collaborators}
+              viewerId={me.data?.data.id}
+              sharedMediaCount={o.sharedMedia.length}
+              sharedCommentCount={o.sharedMedia.reduce((n, m) => n + m.commentCount, 0)}
+              disabled={disabled}
+            />
           </div>
-        </section>
+        )}
 
-        {(resultInputs.length > 0 || o.personalStats.length > 0) && <section aria-labelledby="metrics-heading" className="activity-my-metrics">
-          <SectionHeader id="metrics-heading" title="My Metrics" />
-          {o.personalStats.length > 0 && <dl className="activity-stat-list">
-            {o.personalStats.map(stat => <div key={stat.key}><dt>{stat.label}</dt><dd>{stat.value}</dd></div>)}
-          </dl>}
-          {resultInputs.length > 0 && <div className="activity-metrics">
-            {resultInputs.map(m => <MetricInput key={metricKey(m)} metric={m} value={dirty[metricKey(m)] ?? m.recorded} disabled={disabled || phase === 'completed'} onChange={value => setDirty(prev => ({ ...prev, [metricKey(m)]: value }))} />)}
-          </div>}
-          {unsaved && <Button variant="outline" disabled={disabled} onClick={() => void perform()}>Save results</Button>}
-        </section>}
-
-        {o.collaborators && <div className="activity-social">
-          <ActivityTogether collaborators={o.collaborators} viewerId={me.data?.data.id} sharedMediaCount={o.sharedMedia.length} sharedCommentCount={o.sharedMedia.reduce((n, m) => n + m.commentCount, 0)} disabled={disabled} />
-        </div>}
-
-        {/* 5 · Related Media: one compact section */}
+        {/* 3 · Related Media */}
         <div className="activity-gallery">
           <OccurrenceMedia
             activityId={o.item.activityId}
-            siteMedia={o.item.locked ? [] : o.instructions.flatMap(instruction => instruction.media ?? [])}
+            siteMedia={
+              o.item.locked
+                ? []
+                : o.instructions.flatMap((instruction) => instruction.media ?? [])
+            }
             sessionId={o.session?.id}
             prepareUpload={prepareMediaUpload}
             onAttach={(asset) => attachToSession(asset.id)}
@@ -334,16 +410,20 @@ function OccurrenceContent({
             locked={o.item.locked}
             group={
               o.collaborators?.occurrenceKey
-                ? { groupId: o.collaborators.groupId, occurrenceKey: o.collaborators.occurrenceKey }
+                ? {
+                    groupId: o.collaborators.groupId,
+                    occurrenceKey: o.collaborators.occurrenceKey,
+                  }
                 : null
             }
             onShared={refresh}
+            uploadInputRef={uploadInputRef}
           />
         </div>
 
-        {/* 6 · Community (only when there is something to say; small counts are withheld) */}
+        {/* 4 · Community stats (privacy-safe aggregates when available) */}
         {communityLine && (
-          <p className="activity-layout__main activity-community">
+          <p className="activity-community">
             <Users size={16} aria-hidden />
             <span>
               <span className="sr-only">Community: </span>
@@ -380,50 +460,452 @@ function SessionElapsed({ session }: { session: S['ActivitySession'] }) {
     setSeconds(session.activeSeconds)
     if (session.status !== 'ACTIVE') return
     const receivedAt = Date.now()
-    const timer = window.setInterval(() => setSeconds(session.activeSeconds + Math.floor((Date.now() - receivedAt) / 1000)), 1000)
+    const timer = window.setInterval(
+      () =>
+        setSeconds(
+          session.activeSeconds + Math.floor((Date.now() - receivedAt) / 1000),
+        ),
+      1000,
+    )
     return () => window.clearInterval(timer)
   }, [session.id, session.status, session.activeSeconds, session.revision])
-  return <p className="activity-timer"><span>{session.status === 'PAUSED' ? 'Paused' : 'Active time'}</span> <time>{formatElapsed(seconds)}</time></p>
+  return (
+    <p className="activity-timer">
+      <span>{session.status === 'PAUSED' ? 'Paused' : 'Active time'}</span>
+      <time>{formatElapsed(seconds)}</time>
+    </p>
+  )
 }
 
-/** Row 1: artwork, Program context, title, state and what the Activity is about. */
-function ActivityIdentity({ occurrence: o, phase }: { occurrence: S['ActivityOccurrence']; phase: Phase }) {
-  // The Activity summary and category come from the Activity itself; both are optional.
-  const activity = useActivity(o.item.locked ? '' : o.item.activityId)
+/** Hero card: category icon, context, title, status pill, summary, actions and artwork. */
+function ActivityIdentity({
+  occurrence: o,
+  activity,
+  phase,
+  isToday,
+  session,
+  timed,
+  disabled,
+  pendingButton,
+  online,
+  unsaved,
+  error,
+  undoPending,
+  onPerform,
+  onUndo,
+  onRefresh,
+  onUploadMedia,
+}: {
+  occurrence: S['ActivityOccurrence']
+  activity?: S['ActivityDetail']
+  phase: Phase
+  isToday: boolean
+  session: S['ActivitySession'] | null
+  timed: boolean
+  disabled: boolean
+  pendingButton: PendingButton
+  online: boolean
+  unsaved: boolean
+  error: unknown
+  undoPending: boolean
+  onPerform: (nextAction?: S['SessionAction'], button?: PendingButton) => void
+  onUndo: () => void
+  onRefresh: () => void
+  onUploadMedia: () => void
+}) {
   const categorySlugOf = useCategorySlugOf()
   const hero = activityHero(
     {
       title: o.item.title,
       thumbnailUrl: o.item.thumbnailUrl,
-      categoryId: activity.data?.categoryId,
+      categoryId: activity?.categoryId,
     },
     categorySlugOf,
   )
+  const dateText = isToday
+    ? `${dateLabel(o.item.localDate)} (Today)`
+    : dateLabel(o.item.localDate)
   const context = [
     o.item.programTitle,
     o.item.programDayIndex !== null ? `Day ${o.item.programDayIndex + 1}` : null,
-    dateLabel(o.item.localDate),
+    dateText,
   ].filter(Boolean)
+
   return (
-    <header className={`activity-identity ${hero.src ? 'activity-identity--photo' : ''}`}>
-      {hero.src && <EntityHero hero={hero} size="banner" className="activity-identity__art" />}
-      <div className="activity-identity__text">
-        <p className="activity-identity__context">{context.join(' · ')}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1>{o.item.title}</h1>
-          <span role="status"><StatusText status={PHASE_TONE[phase]}>{PHASE_LABEL[phase]}</StatusText></span>
+    <header className={cn('activity-identity', hero.src && 'activity-identity--photo')}>
+      {hero.src && (
+        <div className="activity-identity__art-wrap" aria-hidden>
+          <EntityHero hero={hero} size="banner" className="activity-identity__art" />
         </div>
-        {activity.data?.summary && (
-          <p className="activity-identity__summary">{activity.data.summary}</p>
+      )}
+      <div className="activity-identity__body">
+        <div className="activity-identity__header">
+          <span className="activity-identity__icon" aria-hidden>
+            <CategoryIcon category={hero.category} size={22} strokeWidth={1.85} />
+          </span>
+          <div className="activity-identity__title-group">
+            <p className="activity-identity__context">{context.join(' · ')}</p>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1>{o.item.title}</h1>
+              <span role="status">
+                <StatusText status={PHASE_TONE[phase]} className="activity-status-pill">
+                  {PHASE_LABEL[phase]}
+                </StatusText>
+              </span>
+            </div>
+            {(activity?.durationMinutes != null ||
+              (session &&
+                (phase === 'active' ||
+                  phase === 'paused' ||
+                  (phase === 'completed' && !session.isManualCompletion)))) && (
+              <div className="activity-identity__meta">
+                {activity?.durationMinutes != null && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock size={14} aria-hidden />
+                    {formatDurationMinutes(activity.durationMinutes)}
+                  </span>
+                )}
+                {session &&
+                  (phase === 'active' ||
+                    phase === 'paused' ||
+                    (phase === 'completed' && !session.isManualCompletion)) && (
+                    <SessionElapsed session={session} />
+                  )}
+              </div>
+            )}
+
+        {activity?.summary && (
+          <p className="activity-identity__summary">{activity.summary}</p>
         )}
+          </div>
+        </div>
+
+        <div className="activity-actions">
+          <ErrorMessage error={error} />
+          {!!error && (
+            <Button variant="outline" size="sm" onClick={onRefresh}>
+              Refresh Activity
+            </Button>
+          )}
+          <div className="activity-session__actions">
+            {(phase === 'ready' || phase === 'not-participating') &&
+              (timed ? (
+                <>
+                  <Button
+                    size="lg"
+                    disabled={disabled}
+                    loading={pendingButton === 'start'}
+                    onClick={() => onPerform('START', 'start')}
+                  >
+                    {pendingButton !== 'start' && <Play size={16} aria-hidden />}
+                    Start
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={disabled}
+                    loading={pendingButton === 'finish-no-timer'}
+                    onClick={() => onPerform('FINISH', 'finish-no-timer')}
+                  >
+                    Complete without timer
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="lg"
+                  disabled={disabled}
+                  loading={pendingButton === 'finish'}
+                  onClick={() => onPerform('FINISH', 'finish')}
+                >
+                  {pendingButton !== 'finish' && <Check size={16} aria-hidden />}
+                  Complete
+                </Button>
+              ))}
+            {phase === 'active' && (
+              <>
+                <Button
+                  size="lg"
+                  disabled={disabled}
+                  loading={pendingButton === 'finish'}
+                  onClick={() => onPerform('FINISH', 'finish')}
+                >
+                  {pendingButton !== 'finish' && <Check size={16} aria-hidden />}
+                  Complete
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={disabled}
+                  loading={pendingButton === 'pause'}
+                  onClick={() => onPerform('PAUSE', 'pause')}
+                >
+                  {pendingButton !== 'pause' && <Pause size={16} aria-hidden />}
+                  Pause
+                </Button>
+              </>
+            )}
+            {phase === 'paused' && (
+              <>
+                <Button
+                  size="lg"
+                  disabled={disabled}
+                  loading={pendingButton === 'resume'}
+                  onClick={() => onPerform('RESUME', 'resume')}
+                >
+                  {pendingButton !== 'resume' && <Play size={16} aria-hidden />}
+                  Resume
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={disabled}
+                  loading={pendingButton === 'finish'}
+                  onClick={() => onPerform('FINISH', 'finish')}
+                >
+                  {pendingButton !== 'finish' && <Check size={16} aria-hidden />}
+                  Complete
+                </Button>
+              </>
+            )}
+            {phase === 'completed' && (
+              <Button
+                variant="outline"
+                disabled={disabled}
+                loading={undoPending}
+                onClick={onUndo}
+              >
+                {!undoPending && <RotateCcw size={16} aria-hidden />}
+                Undo completion
+              </Button>
+            )}
+            {unsaved && (
+              <Button
+                variant="outline"
+                disabled={disabled}
+                loading={pendingButton === 'save'}
+                onClick={() => onPerform(undefined, 'save')}
+              >
+                Save results
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              disabled={!online}
+              onClick={onUploadMedia}
+            >
+              <Upload size={16} aria-hidden />
+              Upload media
+            </Button>
+          </div>
+        </div>
       </div>
-      {(o.personalStats.length > 0 || !!o.collaborators?.members.length) && <div className="activity-identity__progress">
-        {o.personalStats.slice(0, 2).map(stat => <span key={stat.key}><strong>{stat.value}</strong> {stat.label}</span>)}
-        {!!o.collaborators?.members.length && <a href="#together" className="inline-flex items-center gap-3">
-          <span className="flex -space-x-2" aria-hidden>{o.collaborators.members.slice(0, 3).map(member => <Avatar key={member.user.id} src={member.user.avatarUrl} name={member.user.displayName} size="sm" />)}</span>
-          Together · {o.collaborators.finishedCount} of {o.collaborators.totalCount} finished
-        </a>}
-      </div>}
     </header>
+  )
+}
+
+/** Today card: goal progress bar, metric inputs, instructions, and compact stat tiles. */
+function OccurrenceToday({
+  occurrence: o,
+  activity,
+  phase,
+  resultInputs,
+  dirty,
+  disabled,
+  onMetricChange,
+}: {
+  occurrence: S['ActivityOccurrence']
+  activity?: S['ActivityDetail']
+  phase: Phase
+  resultInputs: S['MetricInput'][]
+  dirty: Record<string, string | number | boolean>
+  disabled: boolean
+  onMetricChange: (metric: S['MetricInput'], value: string | number | boolean) => void
+}) {
+  const categorySlugOf = useCategorySlugOf()
+  const category = activityHero(
+    { title: o.item.title, categoryId: activity?.categoryId },
+    categorySlugOf,
+  ).category
+
+  const primaryMetric =
+    resultInputs.find((m) => m.isPrimary) ?? resultInputs[0] ?? null
+  const primaryValue = primaryMetric
+    ? dirty[metricKey(primaryMetric)] !== undefined
+      ? dirty[metricKey(primaryMetric)]
+      : primaryMetric.recorded
+    : null
+  const numericTarget =
+    primaryMetric &&
+    typeof primaryMetric.target === 'number' &&
+    primaryMetric.target > 0
+      ? primaryMetric.target
+      : null
+  const numericCurrent =
+    typeof primaryValue === 'number' && Number.isFinite(primaryValue)
+      ? Math.max(0, primaryValue)
+      : 0
+  const progressPct =
+    phase === 'completed'
+      ? 100
+      : numericTarget !== null
+        ? Math.min(100, Math.round((numericCurrent / numericTarget) * 100))
+        : 0
+
+  const statTiles = [
+    ...(o.item.programDayIndex !== null
+      ? [
+          {
+            key: 'program-day',
+            icon: <Flame size={16} aria-hidden />,
+            tone: 'warm' as const,
+            value: `Day ${o.item.programDayIndex + 1}`,
+            label: o.item.programTitle ?? 'Program progress',
+          },
+        ]
+      : []),
+    ...(activity?.durationMinutes != null
+      ? [
+          {
+            key: 'duration',
+            icon: <Calendar size={16} aria-hidden />,
+            tone: 'accent' as const,
+            value: formatDurationMinutes(activity.durationMinutes),
+            label: 'Target duration',
+          },
+        ]
+      : []),
+    ...(numericTarget !== null && primaryMetric
+      ? [
+          {
+            key: 'goal',
+            icon: <CategoryIcon category={category} size={16} aria-hidden />,
+            tone: 'accent' as const,
+            value: `${numericTarget}${primaryMetric.unit ? ` ${primaryMetric.unit}` : ''}`,
+            label: "Today's goal",
+          },
+        ]
+      : [
+          {
+            key: 'goal',
+            icon: <CategoryIcon category={category} size={16} aria-hidden />,
+            tone: 'accent' as const,
+            value: o.item.title,
+            label: "Today's goal",
+          },
+        ]),
+    ...o.personalStats.slice(0, 2).map((stat) => ({
+      key: `stat-${stat.key}`,
+      icon: <TrendingUp size={16} aria-hidden />,
+      tone: 'done' as const,
+      value: stat.value,
+      label: stat.label,
+    })),
+  ]
+
+  return (
+    <section
+      aria-labelledby="today-heading"
+      className="activity-card activity-today"
+    >
+      <div className="activity-card__header">
+        <div className="activity-card__title">
+          <Target size={18} className="shrink-0 text-accent" aria-hidden />
+          <h2 id="today-heading">Today</h2>
+        </div>
+      </div>
+
+      <div className="activity-today__task">
+        <div className="activity-today__task-row">
+          <span className="flex min-w-0 items-center gap-2.5 text-sm font-medium">
+            {phase === 'completed' ? (
+              <CheckCircle2
+                size={18}
+                className="shrink-0 text-status-completed"
+                aria-hidden
+              />
+            ) : (
+              <Circle size={18} className="shrink-0 text-muted" aria-hidden />
+            )}
+            <span className="truncate">
+              {phase === 'completed' ? o.item.title : `Complete ${o.item.title}`}
+            </span>
+          </span>
+          {numericTarget !== null ? (
+            <span className="shrink-0 rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted">
+              {numericCurrent} / {numericTarget}
+            </span>
+          ) : (
+            phase === 'completed' && (
+              <span className="shrink-0 rounded-full border border-status-completed/40 bg-status-completed/15 px-2.5 py-0.5 text-xs font-semibold text-status-completed">
+                Done
+              </span>
+            )
+          )}
+        </div>
+        <div
+          className="activity-progress-track"
+          role="progressbar"
+          aria-label="Activity progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progressPct}
+        >
+          <div
+            className={cn(
+              'activity-progress-fill',
+              (phase === 'completed' || progressPct >= 100) &&
+                'activity-progress-fill--done',
+            )}
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      </div>
+
+      {resultInputs.length > 0 && (
+        <div className="activity-metrics">
+          {resultInputs.map((metric) => {
+            const key = metricKey(metric)
+            const current =
+              dirty[key] !== undefined ? dirty[key]! : metric.recorded
+            return (
+              <div key={key} className="activity-metric-card">
+                <MetricInput
+                  metric={metric}
+                  value={current}
+                  disabled={disabled}
+                  onChange={(val) => onMetricChange(metric, val)}
+                />
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <OccurrenceInstructions
+        instructions={o.instructions}
+        locked={o.item.locked}
+      />
+
+      {statTiles.length > 0 && (
+        <div className="activity-stat-grid">
+          {statTiles.map((tile) => (
+            <div key={tile.key} className="activity-stat-tile">
+              <span
+                className={cn(
+                  'activity-stat-tile__icon',
+                  tile.tone === 'warm' && 'activity-stat-tile__icon--warm',
+                  tile.tone === 'done' && 'activity-stat-tile__icon--done',
+                )}
+              >
+                {tile.icon}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold tabular-nums text-text">
+                  {tile.value}
+                </p>
+                <p className="truncate text-xs text-muted">{tile.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }

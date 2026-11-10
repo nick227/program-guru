@@ -7,6 +7,7 @@ import { Panel, Row, Stack } from '@/components/ui/Layout'
 import { linkButton } from '@/components/Navigation'
 import { ProgramMediaTray } from '@/components/EntityMediaTray'
 import { useOnline } from '@/lib/useOnline'
+import { ProgramDurationButtons } from './ScheduleControls'
 import type { Workspace } from '../../types'
 
 export function DetailsStep({
@@ -90,25 +91,7 @@ export function DetailsStep({
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted">
           Duration
         </h3>
-        <Row className="flex-wrap gap-2">
-          {[7, 14, 28, 56, null].map((days) => (
-            <Button
-              key={days ?? 'ongoing'}
-              variant={ws.durationDays === days ? 'default' : 'outline'}
-              disabled={!online || update.isPending}
-              onClick={() =>
-                update.mutate({
-                  durationDays: days,
-                  expectedRevision: ws.draftRevision,
-                })
-              }
-            >
-              {days === null
-                ? 'Ongoing'
-                : `${days / 7} ${days === 7 ? 'week' : 'weeks'}`}
-            </Button>
-          ))}
-        </Row>
+        <ProgramDurationButtons ws={ws} />
       </Panel>
 
       {/* Consistent Bottom Navigation */}

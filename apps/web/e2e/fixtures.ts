@@ -27,6 +27,7 @@ const activity: S['ActivitySummary'] = {
   revisionId: uid(21),
   title: 'Squats',
   summary: 'A controlled squat.',
+  durationMinutes: null,
   creator: null,
   categoryId: uid(3),
   focusIds: [uid(4)],
@@ -93,6 +94,10 @@ export async function mockApi(
   let activityRevision = 1
   let copied = false
   let activeActivitySummary = activity.summary
+  let activeActivityDuration: number | null = activity.durationMinutes
+  let activeActivityFrequency: NonNullable<S['ProgramWorkspace']['frequency']> = { kind: 'N_PER_WEEK', n: 3 }
+  let programDurationDays: number | null = 28
+  let programFrequency: NonNullable<S['ProgramWorkspace']['frequency']> = { kind: 'N_PER_WEEK', n: 3 }
   let activityInstructions: S['Instruction'][] = []
   let placementExists = true
   let placementDay = 0
@@ -104,6 +109,21 @@ export async function mockApi(
     method: string
     body: Record<string, unknown>
   }[] = []
+  const freqDaysPerWeek = (f: NonNullable<S['ProgramWorkspace']['frequency']>) =>
+    f.kind === 'DAILY' ? 7 : f.kind === 'WEEKDAYS' ? 5 : f.kind === 'N_PER_WEEK' ? (f.n ?? 3) : 3
+  const freqLabel = (f: NonNullable<S['ProgramWorkspace']['frequency']>) =>
+    f.kind === 'DAILY'
+      ? 'Daily'
+      : f.kind === 'WEEKDAYS'
+        ? 'Weekdays'
+        : f.kind === 'FLEXIBLE'
+          ? 'Flexible'
+          : `${freqDaysPerWeek(f)} ${freqDaysPerWeek(f) === 1 ? 'day' : 'days'}/week`
+  const computedProgramDays = (freq = programFrequency) => {
+    const span = programDurationDays ?? 7
+    const perWeek = freqDaysPerWeek(freq)
+    return Math.round((span / 7) * perWeek)
+  }
   const summary = (seed = false): S['ProgramSummary'] => ({
     id: seed ? uid(11) : programId,
     title: seed ? 'Beginner Strength' : title,
@@ -111,10 +131,10 @@ export async function mockApi(
     focus,
     creator: null,
     coverUrl: seed ? null : cover,
-    durationDays: 28,
-    programDays: 12,
-    placements: 12,
-    frequencyLabel: '3 days/week',
+    durationDays: seed ? 28 : programDurationDays,
+    programDays: seed ? 12 : added ? computedProgramDays(activeActivityFrequency) : computedProgramDays(),
+    placements: seed ? 12 : added ? computedProgramDays(activeActivityFrequency) : 0,
+    frequencyLabel: seed ? '3 days/week' : freqLabel(programFrequency),
     visibility: seed ? 'PUBLIC' : programVisibility,
     accessMode: 'OPEN',
     prices: [],
@@ -126,7 +146,7 @@ export async function mockApi(
     visibility: published ? programVisibility : 'PRIVATE',
     accessMode: 'OPEN',
     status: published ? 'PUBLISHED' : 'DRAFT',
-    frequency: { kind: 'N_PER_WEEK', n: 3 },
+    frequency: programFrequency,
     generationMode: 'ALL_EACH_DAY',
     description: null,
     activityCount: added ? 1 : 0,
@@ -137,10 +157,13 @@ export async function mockApi(
             activityId: activeActivityId,
             revisionId: activeActivityRevisionId,
             title: activeActivityTitle,
+            durationMinutes: activeActivityDuration,
+            frequency: activeActivityFrequency,
+            frequencyLabel: freqLabel(activeActivityFrequency),
             instructionCount: activityInstructions.length,
             mediaCount: 0,
             metrics: ['Reps'],
-            placementCount: 12,
+            placementCount: computedProgramDays(activeActivityFrequency),
             canEdit: copied,
           },
         ]
@@ -179,6 +202,7 @@ export async function mockApi(
     revisionId: activeActivityRevisionId,
     title: activeActivityTitle,
     summary: activeActivitySummary,
+    durationMinutes: activeActivityDuration,
     instructionCount: activityInstructions.length,
     isCopy: copied,
     isPlatform: !copied,
@@ -368,6 +392,9 @@ export async function mockApi(
       activeActivityTitle = String(body.title)
       activeActivitySummary =
         typeof body.summary === 'string' ? body.summary : null
+      activeActivityDuration =
+        typeof body.durationMinutes === 'number' ? body.durationMinutes : null
+      if (body.frequency) activeActivityFrequency = body.frequency
       activityInstructions = []
       activityRevision = 1
       copied = true
@@ -380,6 +407,7 @@ export async function mockApi(
       activeActivityRevisionId = uid(21)
       activeActivityTitle = activity.title
       activeActivitySummary = activity.summary
+      activeActivityDuration = activity.durationMinutes
       activityInstructions = [instruction]
       activityRevision = 1
       copied = true
@@ -412,6 +440,8 @@ export async function mockApi(
       if (typeof body.title === 'string') activeActivityTitle = body.title
       if (typeof body.summary === 'string' || body.summary === null)
         activeActivitySummary = body.summary
+      if (typeof body.durationMinutes === 'number' || body.durationMinutes === null)
+        activeActivityDuration = body.durationMinutes
       activityRevision++
       return send(activityDetail())
     }
@@ -567,6 +597,14 @@ export async function mockApi(
     if (path.endsWith('/workspace')) return send(workspace())
     if (path.endsWith('/draft/activities')) {
       added = true
+      if (body.frequencies && body.frequencies[activeActivityId]) {
+        activeActivityFrequency = body.frequencies[activeActivityId]
+      }
+      revision++
+      return send(workspace())
+    }
+    if (path.includes('/draft/activities/') && method === 'PATCH') {
+      if (body.frequency) activeActivityFrequency = body.frequency
       revision++
       return send(workspace())
     }
@@ -589,6 +627,8 @@ export async function mockApi(
       if (body.expectedRevision !== revision)
         return error(409, 'VERSION_CONFLICT', 'Stale draft')
       if (body.title) title = body.title
+      if (body.durationDays !== undefined) programDurationDays = body.durationDays
+      if (body.frequency) programFrequency = body.frequency
       if (body.coverMediaId === null) cover = null
       else if (typeof body.coverMediaId === 'string') cover = '/uploaded.jpg'
       revision++

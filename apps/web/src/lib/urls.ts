@@ -143,3 +143,9 @@ export function buildGroupUrl(groupId: string): string {
   return `/groups/${groupId}`
 }
 
+/** Resolves an app-relative path to a full origin URL in the browser. */
+export function toAbsoluteUrl(path: string): string {
+  if (/^https?:\/\//.test(path)) return path
+  return typeof window !== 'undefined' ? `${window.location.origin}${path}` : path
+}
+

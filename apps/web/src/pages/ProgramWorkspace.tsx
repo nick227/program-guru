@@ -7,7 +7,6 @@ import { ProgramStepper } from '@/components/ProgramStepper'
 import { useDocumentTitle } from '@/lib/title'
 import { useWorkspaceStep } from './program-workspace/hooks/useWorkspaceStep'
 import { WorkspaceHeader } from './program-workspace/components/WorkspaceHeader'
-import { WorkspaceBrowserOutlet } from './program-workspace/components/WorkspaceBrowserOutlet'
 import { TitleEditor } from './program-workspace/components/steps/TitleEditor'
 import { DetailsStep } from './program-workspace/components/steps/DetailsStep'
 import { ActivitiesStep } from './program-workspace/components/steps/ActivitiesStep'
@@ -81,7 +80,6 @@ export function ProgramWorkspacePage() {
           />
         )}
       </Stage>
-      <WorkspaceBrowserOutlet ws={ws} />
     </Page>
   )
 }
