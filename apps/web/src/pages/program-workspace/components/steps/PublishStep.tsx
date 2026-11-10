@@ -12,7 +12,7 @@ import {
 } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
-import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
+import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { programHero } from '@/lib/hero'
 import { today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'

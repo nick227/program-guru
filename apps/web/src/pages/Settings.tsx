@@ -1,4 +1,4 @@
-import { InstallApp } from '@/components/PwaControls'
+import { InstallApp } from '@/components/account/PwaControls'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -15,8 +15,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back, linkButton } from '@/components/Navigation'
-import { UpcomingRemindersPanel } from '@/components/UpcomingRemindersPanel'
+import { Back, linkButton } from '@/components/shared/Navigation'
+import { UpcomingRemindersPanel } from '@/components/account/UpcomingRemindersPanel'
 import {
   formatLocalTime,
   getAvailableTimezones,

@@ -2,7 +2,7 @@ import { formatProgramDuration } from '@/components/program-authoring/programFie
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
-import { buildBrowseUrl } from '@/components/LibraryBrowser'
+import { buildBrowseUrl } from '@/pages/Browse'
 import { WorkspaceActivityRow } from '@/components/program-authoring/WorkspaceActivityRow'
 import { CreateActivitySection } from '@/components/program-authoring/CreateActivitySection'
 import type { Workspace } from '@/components/program-authoring/types'

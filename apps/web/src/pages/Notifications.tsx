@@ -9,10 +9,10 @@ import {
 import { Page, Stage, Stack, Panel, Row } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back, linkButton } from '@/components/Navigation'
-import { UnreadDot } from '@/components/UnreadDot'
-import { NotificationRow } from '@/components/NotificationRow'
-import { UpcomingRemindersPanel } from '@/components/UpcomingRemindersPanel'
+import { Back, linkButton } from '@/components/shared/Navigation'
+import { UnreadDot } from '@/components/shared/UnreadDot'
+import { NotificationRow } from '@/components/account/NotificationRow'
+import { UpcomingRemindersPanel } from '@/components/account/UpcomingRemindersPanel'
 import {
   getNotificationMeta,
   type NotificationCategory,

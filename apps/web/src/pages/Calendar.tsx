@@ -16,8 +16,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { CalendarSurface } from '@/components/CalendarSurface'
-import type { SurfaceItem } from '@/components/CalendarSurface'
+import { CalendarSurface } from '@/components/calendar/CalendarSurface'
+import type { SurfaceItem } from '@/components/calendar/CalendarSurface'
 import { resolveActivityCategory } from '@/lib/activityCategory'
 import {
   addDays,

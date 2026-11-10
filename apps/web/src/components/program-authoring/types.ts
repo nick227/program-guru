@@ -1,5 +1,5 @@
 import type { components } from '@project/sdk'
-import type { ProgramStep } from '@/components/ProgramStepper'
+import type { ProgramStep } from '@/components/program/ProgramStepper'
 
 export type Workspace = components['schemas']['ProgramWorkspace']
 export type ActivityDetail = components['schemas']['ActivityDetail']

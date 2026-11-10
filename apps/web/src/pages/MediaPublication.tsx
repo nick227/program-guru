@@ -10,12 +10,12 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back, linkButton } from '@/components/Navigation'
+import { Back, linkButton } from '@/components/shared/Navigation'
 import { dateLabel } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { buildGroupUrl, buildProfileUrl } from '@/lib/urls'
-import { ReportButton } from '@/components/ReportButton'
+import { ReportButton } from '@/components/shared/ReportButton'
 
 export function MediaPublicationPage() {
   const { id = '' } = useParams()

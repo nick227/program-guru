@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { Page, Stage, Row, Stack } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
-import { Back } from '@/components/Navigation'
+import { Back } from '@/components/shared/Navigation'
 import { LibraryPanel } from './studio/LibraryPanel'
 import { PublishingPanel } from './studio/PublishingPanel'
 import { ChannelPanel } from './studio/ChannelPanel'

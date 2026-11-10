@@ -1,6 +1,6 @@
 // Standalone platform Activity editor: details, media (the existing tray), instructions, publish.
 import { useActivity, useAdminArchive, useCategories, useCreateActivity, usePublishActivity, useUpdateActivityDraft, type components } from '@project/sdk'
-import { ActivityMediaTray } from '@/components/EntityMediaTray'
+import { ActivityMediaTray } from '@/components/media/EntityMediaTray'
 import { ResourceForm } from '../components/ResourceForm'
 import { ResourceTable } from '../components/ResourceTable'
 import { InstructionsEditor } from '../sections/InstructionsEditor'

@@ -1,7 +1,7 @@
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import type { components } from '@project/sdk'
 import { activityHero, programHero, type CategorySlugOf } from './hero'
-import type { DiscoveryCardModel } from '@/components/SuggestionRail'
+import type { DiscoveryCardModel } from '@/components/shared/SuggestionRail'
 
 type S = components['schemas']
 

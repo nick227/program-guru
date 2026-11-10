@@ -11,6 +11,8 @@ Status: analysis, 2026-11-10. Taken from the working tree, uncommitted files inc
 
 ---
 
+> **2026-11-10:** `src/components/` is now organized by feature (`ui/`, `program/`, `program-authoring/`, `activity/`, `calendar/`, `media/`, `social/`, `account/`, `shared/`; see `apps/web/src/components/README.md`). `LibraryBrowser` is now `pages/Browse.tsx`. File paths below predate that move; the component names are unchanged.
+
 ## 1. Site map
 
 All routes are declared in `src/App.tsx` under one `Root` layout. **Guard** means the route sits under `<AuthGuard />`.

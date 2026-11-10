@@ -26,19 +26,19 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back } from '@/components/Navigation'
-import { ActivityBasicsFields } from '@/components/ActivityBasicsFields'
-import { ActivityMediaTray } from '@/components/EntityMediaTray'
-import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
+import { Back } from '@/components/shared/Navigation'
+import { ActivityBasicsFields } from '@/components/activity/ActivityBasicsFields'
+import { ActivityMediaTray } from '@/components/media/EntityMediaTray'
+import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import {
   buildBrowseUrl,
   clearBrowseDraft,
   readBrowseDraft,
   writeBrowseDraft,
-} from '@/components/LibraryBrowser'
-import { type RiverItem } from '@/components/RelatedMedia'
-import { ActivityRelatedMedia } from '@/components/ActivityRelatedMedia'
-import { SuggestionRail } from '@/components/SuggestionRail'
+} from '@/pages/Browse'
+import { type RiverItem } from '@/components/media/RelatedMedia'
+import { ActivityRelatedMedia } from '@/components/activity/ActivityRelatedMedia'
+import { SuggestionRail } from '@/components/shared/SuggestionRail'
 import { activityCard } from '@/lib/discoveryCards'
 import { activityHero } from '@/lib/hero'
 import { calendarUrl, isLocalDate, safeReturn, today } from '@/lib/dates'
@@ -46,7 +46,7 @@ import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { useResolveActivityTarget } from '@/lib/useResolveSlug'
 import { buildActivityUrl } from '@/lib/urls'
-import { ReportButton } from '@/components/ReportButton'
+import { ReportButton } from '@/components/shared/ReportButton'
 
 export function ActivityPage() {
   const { id: rawSlugOrId = '' } = useParams()

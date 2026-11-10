@@ -1,7 +1,7 @@
 // The shared detail/edit surface: one header (back, title, badges, contextual actions) and a stack
 // of sections. Sections are generated forms, embedded ResourceTables, or a resource's unique parts.
 import { useNavigate, useParams } from 'react-router-dom'
-import { Back } from '@/components/Navigation'
+import { Back } from '@/components/shared/Navigation'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { useDocumentTitle } from '@/lib/title'

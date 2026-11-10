@@ -17,20 +17,20 @@ import { toast } from 'sonner'
 import { Page, Stage } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back } from '@/components/Navigation'
-import { ProgramHero } from '@/components/ProgramHero'
-import { ProgramActivityCard } from '@/components/ProgramActivityCard'
-import { ProgramSchedulePreview } from '@/components/ProgramSchedulePreview'
-import { ProgramTogether } from '@/components/ProgramTogether'
+import { Back } from '@/components/shared/Navigation'
+import { ProgramHero } from '@/components/program/ProgramHero'
+import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
+import { ProgramSchedulePreview } from '@/components/program/ProgramSchedulePreview'
+import { ProgramTogether } from '@/components/program/ProgramTogether'
 import {
   ProgramPersonalDetailsGrid,
   ProgramPersonalOverview,
-} from '@/components/ProgramPersonalOverview'
+} from '@/components/program/ProgramPersonalOverview'
 import {
   ProgramOwnerBanner,
   ProgramOwnerEditPanel,
-} from '@/components/ProgramOwnerEditor'
-import { buildBrowseUrl } from '@/components/LibraryBrowser'
+} from '@/components/program/ProgramOwnerEditor'
+import { buildBrowseUrl } from '@/pages/Browse'
 import { WorkspaceActivityRow } from '@/components/program-authoring/WorkspaceActivityRow'
 import { CreateActivitySection } from '@/components/program-authoring/CreateActivitySection'
 import { SectionHeader } from '@/components/ui/SectionHeader'
@@ -47,8 +47,8 @@ import { useDocumentTitle } from '@/lib/title'
 import { useResolveProgramTarget } from '@/lib/useResolveSlug'
 import { buildProgramUrl, buildWorkspaceUrl, toAbsoluteUrl } from '@/lib/urls'
 import { activityHero, programHero } from '@/lib/hero'
-import { useCategorySlugOf } from '@/components/EntityHero'
-import { ReportButton } from '@/components/ReportButton'
+import { useCategorySlugOf } from '@/components/shared/EntityHero'
+import { ReportButton } from '@/components/shared/ReportButton'
 
 function resolveBackLabel(backTo: string) {
   if (backTo.startsWith('/library')) return 'My Programs'

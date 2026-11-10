@@ -1,5 +1,5 @@
 import { ApiError, useUpdateProgram } from '@project/sdk'
-import { ProgramHeader } from '@/components/ProgramHeader'
+import { ProgramHeader } from '@/components/program/ProgramHeader'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { Panel, Row, Stack } from '@/components/ui/Layout'

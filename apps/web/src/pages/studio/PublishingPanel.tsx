@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
-import { linkButton } from '@/components/Navigation'
+import { linkButton } from '@/components/shared/Navigation'
 import { buildWorkspaceUrl } from '@/lib/urls'
 
 export function PublishingPanel() {

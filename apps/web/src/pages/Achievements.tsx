@@ -7,7 +7,7 @@ import {
 } from '@project/sdk'
 import { Page, Stage, Stack, Panel, Row } from '@/components/ui/Layout'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back, linkButton } from '@/components/Navigation'
+import { Back, linkButton } from '@/components/shared/Navigation'
 import { dateLabel } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'

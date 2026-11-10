@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
 import { Row } from '@/components/ui/Layout'
-import { Back } from '@/components/Navigation'
+import { Back } from '@/components/shared/Navigation'
 import { buildProgramUrl } from '@/lib/urls'
 import type { Workspace } from '@/components/program-authoring/types'
 

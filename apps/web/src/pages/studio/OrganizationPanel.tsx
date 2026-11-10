@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useMyPrograms } from '@project/sdk'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Panel, Row, Stack } from '@/components/ui/Layout'
-import { linkButton } from '@/components/Navigation'
+import { linkButton } from '@/components/shared/Navigation'
 import { buildProgramUrl } from '@/lib/urls'
 
 /** Catalog preview until Featured/Collection APIs exist — no local fake featured order. */

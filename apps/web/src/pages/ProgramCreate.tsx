@@ -12,20 +12,20 @@ import {
 } from '@project/sdk'
 import { Page, Stage, Stack, Row, Grid } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
-import { ProgramHeader } from '@/components/ProgramHeader'
-import { ProgramStepper } from '@/components/ProgramStepper'
+import { ProgramHeader } from '@/components/program/ProgramHeader'
+import { ProgramStepper } from '@/components/program/ProgramStepper'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back } from '@/components/Navigation'
+import { Back } from '@/components/shared/Navigation'
 import {
   buildBrowseUrl,
   clearBrowseDraft,
   readBrowseDraft,
   writeBrowseDraft,
-} from '@/components/LibraryBrowser'
-import { SuggestionRail } from '@/components/SuggestionRail'
-import { MediaTray } from '@/components/MediaTray'
+} from '@/pages/Browse'
+import { SuggestionRail } from '@/components/shared/SuggestionRail'
+import { MediaTray } from '@/components/media/MediaTray'
 import { useDraftMedia } from '@/lib/useEntityMedia'
-import { EntityHero, useCategorySlugOf } from '@/components/EntityHero'
+import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { programCard } from '@/lib/discoveryCards'
 import { programHero } from '@/lib/hero'
 import { safeReturn } from '@/lib/dates'

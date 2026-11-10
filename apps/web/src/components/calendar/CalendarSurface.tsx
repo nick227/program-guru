@@ -1,0 +1,378 @@
+import React from 'react'
+import { ActivityTile, type ActivityTileDensity, type ActivityTileItem } from '@/components/calendar/ActivityTile'
+import { cn } from '@/lib/utils'
+
+export type SurfaceItem = ActivityTileItem
+
+export type CalendarDay = {
+  id: string
+  label: string
+  number: string
+  today?: boolean
+  inCurrentMonth?: boolean
+}
+
+function DayItems({
+  day,
+  items,
+  density = 'card',
+  onComplete,
+  onRemove,
+  completing,
+  removing,
+  showEmpty = true,
+  onExpand,
+}: {
+  day: CalendarDay
+  items: SurfaceItem[]
+  density?: ActivityTileDensity
+  onComplete?: (itemId: string) => void
+  onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
+  completing?: boolean
+  removing?: boolean
+  showEmpty?: boolean
+  onExpand?: () => void
+}) {
+  const rows = items.filter((item) => item.day === day.id)
+
+  if (!rows.length) {
+    if (density !== 'month' && showEmpty) {
+      return (
+        <div className="calendar-empty-day">
+          <p>No activities planned</p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  const renderTile = (item: SurfaceItem) => (
+    <ActivityTile
+      key={item.id}
+      item={item}
+      density={density}
+      onComplete={onComplete}
+      onRemove={onRemove}
+      completing={completing}
+      removing={removing}
+    />
+  )
+
+  if (density === 'day') {
+    // Local wall-clock times are already in the calendar's timezone. Do not
+    // convert them through the browser timezone or infer a session duration.
+    const slots = new Map<string, SurfaceItem[]>()
+    for (const item of rows) {
+      const time = item.localTime?.slice(0, 5) || ''
+      const slot = slots.get(time) ?? []
+      slot.push(item)
+      slots.set(time, slot)
+    }
+    const times = [...slots.keys()].sort((a, b) => {
+      if (!a) return 1
+      if (!b) return -1
+      return a.localeCompare(b)
+    })
+    return (
+      <ol className="calendar-agenda" aria-label="Activities by start time">
+        {times.map((time) => (
+          <li key={time || 'untimed'} className="calendar-agenda__slot">
+            <h3 className="calendar-agenda__time">
+              {time ? <time dateTime={`${day.id}T${time}`}>{time}</time> : 'Any time'}
+            </h3>
+            <div className="calendar-agenda__items">
+              {slots.get(time)!.map(renderTile)}
+            </div>
+          </li>
+        ))}
+      </ol>
+    )
+  }
+
+  return (
+    <div className="calendar-day-items">
+      {(density === 'month' ? rows.slice(0, 4) : rows).map(renderTile)}
+      {density === 'month' && rows.length > 4 && <button type="button" className="calendar-month-more" onClick={onExpand}>+{rows.length - 4} more</button>}
+    </div>
+  )
+}
+
+export function CalendarSurface({
+  days,
+  selected,
+  onSelect,
+  items,
+  view = 'week',
+  onComplete,
+  onRemove,
+  completing = false,
+  removing = false,
+}: {
+  days: CalendarDay[]
+  selected: string
+  onSelect: (day: string) => void
+  items: SurfaceItem[]
+  view?: 'day' | 'week' | 'month'
+  onComplete?: (itemId: string) => void
+  onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
+  completing?: boolean
+  removing?: boolean
+}) {
+  const selectedDay = days.find((day) => day.id === selected) ?? days[0]
+  if (!selectedDay) return null
+
+  // --- MONTH VIEW ---
+  if (view === 'month') {
+    return (
+      <div className="calendar">
+        {/* Weekday column headers */}
+        <div className="calendar-month-weekdays hidden xl:grid" aria-hidden>
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+            <span key={day} className="py-1">
+              {day}
+            </span>
+          ))}
+        </div>
+
+        {/* Mobile quick day strip */}
+        <div className="calendar-month-picker xl:hidden" aria-label="Select a day">
+          {days.map((day) => {
+            const dayItems = items.filter((item) => item.day === day.id)
+            const count = dayItems.length
+            const isCompleted = count > 0 && dayItems.every((it) => it.done || it.status === 'DONE')
+
+            return (
+              <button
+                key={day.id}
+                type="button"
+                aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
+                aria-pressed={selected === day.id}
+                aria-current={day.today ? 'date' : undefined}
+                disabled={!day.inCurrentMonth}
+                onClick={() => onSelect(day.id)}
+                className={cn(
+                  'calendar-month-date',
+                  selected === day.id && 'calendar-month-date--selected',
+                  day.today && 'calendar-month-date--today',
+                  count > 0 && 'calendar-month-date--active',
+                )}
+              >
+                <span>{day.number}</span>
+                {count > 0 && (
+                  <span
+                    className={cn(
+                      'calendar-month-count',
+                      isCompleted && 'text-success font-bold',
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Desktop/Tablet Month Grid */}
+        <div className="calendar-month-grid hidden xl:grid" aria-label="Monthly calendar">
+          {days.map((day) => {
+            const dayItems = items.filter((item) => item.day === day.id)
+            const count = dayItems.length
+            const isSelected = selected === day.id
+
+            return (
+              <section
+                key={day.id}
+                className={cn(
+                  'calendar-month-cell border border-border px-2',
+                  !day.inCurrentMonth && 'calendar-month-cell--outside opacity-40',
+                  isSelected && 'calendar-month-cell--selected',
+                  day.today && 'calendar-month-cell--today',
+                )}
+              >
+                <div className="flex items-center justify-end mb-1.5">
+                  <button
+                    type="button"
+                    disabled={!day.inCurrentMonth}
+                    aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
+                    aria-pressed={isSelected}
+                    aria-current={day.today ? 'date' : undefined}
+                    onClick={() => onSelect(day.id)}
+                    className={cn(
+                      'inline-flex min-h-8 min-w-10 items-center gap-1.5 flex justify-center font-mono text-lg font-semibold transition-colors',
+                      day.today && 'font-bold',
+                      !day.today && isSelected && 'bg-surface-raised font-bold text-foreground',
+                      !day.today && !isSelected && 'text-muted group-hover:text-foreground',
+                    )}
+                  >
+                    <span>{day.number}</span>
+                  </button>
+
+                </div>
+
+                <DayItems
+                  day={day}
+                  items={items}
+                  density="month"
+                  onExpand={() => onSelect(day.id)}
+                  onComplete={onComplete}
+                  onRemove={onRemove}
+                  completing={completing}
+                  removing={removing}
+                  showEmpty={false}
+                />
+              </section>
+            )
+          })}
+        </div>
+
+        {/* Selected Day Agenda Drawer / Section beneath the month grid */}
+        <section className="calendar-selected-day calendar-selected-day--mobile-only mt-6 pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-display text-lg font-bold">
+              {selectedDay.today ? 'Today' : `${selectedDay.label} ${selectedDay.number}`}
+            </h3>
+            <span className="text-xs text-muted">
+              {items.filter((item) => item.day === selectedDay.id).length}{' '}
+              {items.filter((item) => item.day === selectedDay.id).length === 1
+                ? 'activity'
+                : 'activities'}{' '}
+              scheduled
+            </span>
+          </div>
+          <DayItems
+            day={selectedDay}
+            items={items}
+            density="day"
+            onComplete={onComplete}
+            onRemove={onRemove}
+            completing={completing}
+            removing={removing}
+          />
+        </section>
+      </div>
+    )
+  }
+
+  // --- DAY VIEW ---
+  if (view === 'day') {
+    return (
+      <section className="calendar-selected-day">
+        <DayItems
+          day={selectedDay}
+          items={items}
+          density="day"
+          onComplete={onComplete}
+          onRemove={onRemove}
+          completing={completing}
+          removing={removing}
+        />
+      </section>
+    )
+  }
+
+  // --- WEEK VIEW ---
+  return (
+    <div className="calendar">
+      {/* Modern Week Strip with date headers */}
+      <div className="calendar-weekstrip" aria-label="Select a day">
+        {days.map((day) => {
+          const dayItems = items.filter((item) => item.day === day.id)
+          const count = dayItems.length
+          const isSelected = selected === day.id
+          const completedCount = dayItems.filter((it) => it.done || it.status === 'DONE').length
+
+          return (
+            <button
+              key={day.id}
+              type="button"
+              aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
+              aria-pressed={isSelected}
+              aria-current={day.today ? 'date' : undefined}
+              onClick={() => onSelect(day.id)}
+              className={cn(
+                'calendar-day p-2 transition-all duration-fast',
+                isSelected && 'calendar-day--selected',
+                day.today && 'calendar-day--today',
+              )}
+            >
+              <span className="calendar-day__label text-xs uppercase" aria-hidden>
+                {day.today ? 'Today' : day.label}
+              </span>
+              <span className="calendar-day__number font-mono text-xl font-bold my-0.5" aria-hidden>
+                {day.number}
+              </span>
+
+              {count > 0 && (
+                <span
+                  className={cn(
+                    'mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                    isSelected
+                      ? 'bg-surface-muted text-foreground'
+                      : completedCount === count
+                        ? 'bg-success/20 text-success'
+                        : 'bg-surface-muted text-muted',
+                  )}
+                  aria-hidden
+                >
+                  {completedCount}/{count}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* 7-Day Board Grid */}
+      <div className="calendar-board mt-4">
+        {days.map((day) => {
+          const dayItems = items.filter((item) => item.day === day.id)
+          const count = dayItems.length
+          const isSelected = selected === day.id
+
+          return (
+            <section
+              key={day.id}
+              aria-label={day.label}
+              className={cn(
+                'calendar-column flex flex-col gap-3',
+                !isSelected && 'calendar-column--hidden-mobile',
+                day.today && 'calendar-column--today',
+              )}
+            >
+              <button
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => onSelect(day.id)}
+                className={cn(
+                  'calendar-column__heading flex items-center justify-between p-2 rounded-lg transition-colors',
+                  isSelected ? 'bg-surface-raised font-bold' : 'hover:bg-surface-muted',
+                  day.today && 'calendar-column__heading--today',
+                )}
+              >
+                <span className="font-display text-sm font-semibold">
+                  {day.today ? `Today · ${day.label} ${day.number}` : `${day.label} ${day.number}`}
+                </span>
+                {count > 0 && (
+                  <span className="font-mono text-xs text-muted">
+                    {count}
+                  </span>
+                )}
+              </button>
+
+              <DayItems
+                day={day}
+                items={items}
+                density="week"
+                onComplete={onComplete}
+                onRemove={onRemove}
+                completing={completing}
+                removing={removing}
+              />
+            </section>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

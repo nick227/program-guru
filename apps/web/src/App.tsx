@@ -1,4 +1,4 @@
-import { PwaUpdatePrompt } from '@/components/PwaControls'
+import { PwaUpdatePrompt } from '@/components/account/PwaControls'
 import { useEffect } from 'react'
 import {
   createBrowserRouter,
@@ -35,8 +35,8 @@ import { StudioPage } from '@/pages/Studio'
 import { AdminApp } from '@/admin/registry'
 import { Page, Stage } from '@/components/ui/Layout'
 import { ErrorMessage } from '@/components/ui/Feedback'
-import { AccountMenu } from '@/components/AccountMenu'
-import { LibraryBrowserPage } from '@/components/LibraryBrowser'
+import { AccountMenu } from '@/components/account/AccountMenu'
+import { LibraryBrowserPage } from '@/pages/Browse'
 import { useCurrentUser } from '@project/sdk'
 
 function Root() {

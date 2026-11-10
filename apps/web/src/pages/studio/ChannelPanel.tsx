@@ -9,7 +9,7 @@ import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Input } from '@/components/ui/Input'
 import { Panel, Stack } from '@/components/ui/Layout'
 import { Link } from 'react-router-dom'
-import { linkButton } from '@/components/Navigation'
+import { linkButton } from '@/components/shared/Navigation'
 
 export function ChannelPanel() {
   const me = useCurrentUser()

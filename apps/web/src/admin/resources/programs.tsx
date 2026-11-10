@@ -2,7 +2,7 @@
 // Activities, and history. Every save is an ordinary authoring operation (07 §6, 12 §7a).
 import { useCreateProgram, useDeleteProgram, useFocuses, useProgramTypes, useProgramWorkspace, usePublishCheck, usePublishProgram, useUpdateProgram, useAdminArchive, type components } from '@project/sdk'
 import { useNavigate } from 'react-router-dom'
-import { ProgramMediaTray } from '@/components/EntityMediaTray'
+import { ProgramMediaTray } from '@/components/media/EntityMediaTray'
 import { formatProgramDuration, PROGRAM_DESCRIPTION_MAX, PROGRAM_TITLE_MAX, programDescriptionInput } from '@/components/program-authoring/programFields'
 import { ResourceForm } from '../components/ResourceForm'
 import { ResourceTable } from '../components/ResourceTable'

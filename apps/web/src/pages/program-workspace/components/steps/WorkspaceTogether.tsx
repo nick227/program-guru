@@ -1,5 +1,5 @@
 import { useCurrentUser, useMyEnrollments } from '@project/sdk'
-import { ProgramGroups } from '@/components/ProgramGroups'
+import { ProgramGroups } from '@/components/program/ProgramGroups'
 import type { Workspace } from '@/components/program-authoring/types'
 
 export function WorkspaceTogether({ ws }: { ws: Workspace }) {

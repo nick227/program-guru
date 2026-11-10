@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { Input } from '@/components/ui/Input'
 import { Panel, Stack } from '@/components/ui/Layout'
-import { MediaTray } from '@/components/MediaTray'
+import { MediaTray } from '@/components/media/MediaTray'
 import { useDraftMedia } from '@/lib/useEntityMedia'
 import { useOnline } from '@/lib/useOnline'
 import {

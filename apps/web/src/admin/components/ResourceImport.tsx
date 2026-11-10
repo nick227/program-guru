@@ -4,7 +4,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError } from '@project/sdk'
-import { Back } from '@/components/Navigation'
+import { Back } from '@/components/shared/Navigation'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { Textarea } from '@/components/ui/Textarea'

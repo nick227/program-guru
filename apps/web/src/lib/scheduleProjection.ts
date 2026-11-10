@@ -1,4 +1,4 @@
-import type { SurfaceItem } from '@/components/CalendarSurface'
+import type { SurfaceItem } from '@/components/calendar/CalendarSurface'
 import { addDays } from './dates'
 
 export type PlacementLike = {

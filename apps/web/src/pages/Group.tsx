@@ -1,4 +1,4 @@
-import { GroupInviteLink } from '@/components/GroupInviteLink'
+import { GroupInviteLink } from '@/components/social/GroupInviteLink'
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -30,7 +30,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back, linkButton } from '@/components/Navigation'
+import { Back, linkButton } from '@/components/shared/Navigation'
 import { calendarUrl, dateLabel, isLocalDate, today } from '@/lib/dates'
 import {
   getAvailableTimezones,

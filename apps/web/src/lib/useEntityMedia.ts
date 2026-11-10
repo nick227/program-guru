@@ -9,7 +9,7 @@ import {
   useUpdateProgram,
   type components,
 } from '@project/sdk'
-import type { MediaTrayItem } from '@/components/MediaTray'
+import type { MediaTrayItem } from '@/components/media/MediaTray'
 import {
   localPreview,
   useMediaUploads,

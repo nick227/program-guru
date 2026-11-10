@@ -4,7 +4,7 @@ import { useUnsubscribeDailyEmail } from '@project/sdk'
 import { Page, Stage, Stack, Panel, Row } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back, linkButton } from '@/components/Navigation'
+import { Back, linkButton } from '@/components/shared/Navigation'
 import { useDocumentTitle } from '@/lib/title'
 
 export function UnsubscribePage() {
