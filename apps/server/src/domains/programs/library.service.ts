@@ -7,6 +7,25 @@ import { enrollInTx, joinableVersion, notInProgress } from './enrollment.service
 import { participationSummaries } from './participation.service'
 
 const live = ['ACTIVE', 'PAUSED', 'PENDING_ACCESS'] as const
+
+/** Per Activity: the next PLANNED occurrence from today, else the latest one. Items arrive date-ordered. */
+function nextByActivity(
+  items: { id: string; activityId: string; status: string; localDate: Date; pausedByEnrollment: boolean }[],
+  today: string,
+) {
+  const next = new Map<string, string>()
+  const latest = new Map<string, string>()
+  for (const i of items) {
+    if (i.pausedByEnrollment) continue
+    latest.set(i.activityId, i.id)
+    if (!next.has(i.activityId) && i.status === 'PLANNED' && fromDbDate(i.localDate) >= today)
+      next.set(i.activityId, i.id)
+  }
+  return [...latest.keys()].map((activityId) => ({
+    activityId,
+    calendarItemId: next.get(activityId) ?? latest.get(activityId)!,
+  }))
+}
 export async function library(userId: string, programId?: string) {
   const programs = await db.program.findMany({
     where: {
@@ -112,6 +131,7 @@ export async function library(userId: string, programId?: string) {
             .map(activity),
           customizedCount: e.calendarItems.filter((i) => i.isUserAdjusted)
             .length,
+          nextByActivity: nextByActivity(eligible, today),
         }
       })
       const current =

@@ -9071,6 +9071,7 @@ components:
         - upcoming
         - history
         - customizedCount
+        - nextByActivity
       properties:
         id:
           type: string
@@ -9120,6 +9121,19 @@ components:
             $ref: '#/components/schemas/PersonalProgramActivity'
         customizedCount:
           type: integer
+        nextByActivity:
+          type: array
+          description: One entry per Activity in this run, for opening the participant's own dated occurrence
+            from Program Detail (03-UX §3). The next PLANNED occurrence on or after today, else the latest
+            eligible one.
+          items:
+            type: object
+            required: [activityId, calendarItemId]
+            properties:
+              activityId:
+                type: string
+              calendarItemId:
+                type: string
     ProgramParticipation:
       type: object
       description: Privacy-safe participation signals. Counts are distinct people with a live run (restarts and

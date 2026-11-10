@@ -3512,6 +3512,11 @@ export interface components {
             upcoming: components["schemas"]["PersonalProgramActivity"][];
             history: components["schemas"]["PersonalProgramActivity"][];
             customizedCount: number;
+            /** @description One entry per Activity in this run, for opening the participant's own dated occurrence from Program Detail (03-UX §3). The next PLANNED occurrence on or after today, else the latest eligible one. */
+            nextByActivity: {
+                activityId: string;
+                calendarItemId: string;
+            }[];
         };
         /** @description Privacy-safe participation signals. Counts are distinct people with a live run (restarts and departed users are not counted) and are null below the minimum public sample. Friends are fellow members of the viewer's own group for this Program who share completion; a follow alone never reveals participation. */
         ProgramParticipation: {

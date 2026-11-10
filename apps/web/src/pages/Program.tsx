@@ -49,7 +49,13 @@ import { hasSeenDailyEmailPrompt } from '@/lib/notifications'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { useResolveProgramTarget } from '@/lib/useResolveSlug'
-import { buildProgramUrl, buildWorkspaceUrl, toAbsoluteUrl } from '@/lib/urls'
+import {
+  buildActivityUrl,
+  buildOccurrenceUrl,
+  buildProgramUrl,
+  buildWorkspaceUrl,
+  toAbsoluteUrl,
+} from '@/lib/urls'
 import { activityHero, programHero } from '@/lib/hero'
 import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { ReportButton } from '@/components/shared/ReportButton'
@@ -356,6 +362,16 @@ export function ProgramPage() {
   const outlineByTitle = new Map(
     p.safeActivityOutline.map((item) => [item.title, item]),
   )
+  // A participant opens their own dated occurrence, not the reusable Activity (03-UX §3).
+  const occurrenceByActivity = new Map(
+    (selectedRun?.nextByActivity ?? []).map((n) => [n.activityId, n.calendarItemId]),
+  )
+  const activityHref = (activityId: string) => {
+    const occurrenceId = occurrenceByActivity.get(activityId)
+    return occurrenceId
+      ? buildOccurrenceUrl(occurrenceId, { returnTo: currentUrl })
+      : buildActivityUrl({ id: activityId }, { returnTo: currentUrl })
+  }
 
   return (
     <Page className="page--wide pb-20">
@@ -533,7 +549,7 @@ export function ProgramPage() {
                     <ProgramActivityCard
                       key={a.activityId}
                       title={a.title}
-                      href={`/activities/${a.activityId}?returnTo=${encodeURIComponent(currentUrl)}`}
+                      href={activityHref(a.activityId)}
                       hero={activityHero(
                         {
                           title: a.title,
@@ -581,7 +597,7 @@ export function ProgramPage() {
                     key={a.id}
                     title={a.title}
                     description={a.summary}
-                    href={`/activities/${a.id}?returnTo=${encodeURIComponent(currentUrl)}`}
+                    href={activityHref(a.id)}
                     hero={activityHero(
                       {
                         title: a.title,

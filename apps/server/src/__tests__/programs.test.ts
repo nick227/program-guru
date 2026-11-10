@@ -478,6 +478,15 @@ describe('Personal Program library', () => {
     expect((await alice.patch(`/enrollments/${e.id}`, { status: 'PAUSED' })).statusCode).toBe(404)
     const before = (await bob.get('/me/program-library')).json().data[0]
     expect(before).toMatchObject({ owned: false, status: 'Active', current: { completed: 1, activeSeconds: 125, customizedCount: 1 } })
+    // Program Detail opens the participant's own next occurrence per Activity (03-UX §3); a DONE one is skipped.
+    const fresh = await db.calendarItem.findMany({ where: { enrollmentId: e.id }, orderBy: [{ localDate: 'asc' }, { localTime: 'asc' }] })
+    const expected = [...new Set(fresh.map((i) => i.activityId))].map((activityId) => ({
+      activityId,
+      calendarItemId: (fresh.find((i) => i.activityId === activityId && i.status === 'PLANNED') ?? fresh.filter((i) => i.activityId === activityId).at(-1))!.id,
+    }))
+    expect(before.current.nextByActivity).toHaveLength(expected.length)
+    expect(before.current.nextByActivity).toEqual(expect.arrayContaining(expected))
+    expect(before.current.nextByActivity.map((n: any) => n.calendarItemId)).not.toContain(items[0]!.id)
     expect((await bob.patch(`/enrollments/${e.id}`, { status: 'PAUSED' })).statusCode).toBe(200)
     const paused = (await bob.get('/me/program-library')).json().data[0]
     expect(paused.status).toBe('Paused')

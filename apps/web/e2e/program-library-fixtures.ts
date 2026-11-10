@@ -40,6 +40,7 @@ export function libraryRows() {
     ],
     history: [],
     customizedCount: 2,
+    nextByActivity: [],
   }
   const rows = [
     {
