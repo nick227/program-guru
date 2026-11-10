@@ -214,3 +214,95 @@ test('Paused programs can be resumed; programs can be removed from library', asy
     .click()
   await expect.poll(() => actions).toContain('ARCHIVE')
 })
+
+test('ProgramPage resets edit/run state on id change, scrolls ?start=1 once, and redirects on private removal', async ({
+  page,
+}) => {
+  await mockApi(page)
+  const rows = libraryRows() as any[]
+  const baseRun = rows[0].current
+  rows[0].runs = [
+    baseRun,
+    { ...baseRun, id: 'run-prev', startDate: '2026-10-01' },
+  ]
+  rows[1].program.id = '00000000-0000-4000-8000-000000000011'
+  rows[1].program.visibility = 'PRIVATE'
+  rows[1].owned = false
+  rows[1].status = 'Active'
+  rows[1].current = { ...baseRun, id: 'run-other' }
+  rows[1].runs = [rows[1].current]
+
+  await page.route('**/me/program-library', (route) =>
+    route.fulfill({ json: { data: rows } }),
+  )
+  await page.route('**/me/program-library/*', (route) =>
+    route.fulfill({ json: { data: rows[1] } }),
+  )
+  await page.route('**/enrollments/**', (route) =>
+    route.fulfill({ json: { data: {} } }),
+  )
+
+  await page.addInitScript(() => {
+    const origFetch = window.fetch.bind(window)
+    window.fetch = async (input, init) => {
+      const response = await origFetch(input, init)
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url
+      if (new URL(url, window.location.origin).pathname === '/programs/00000000-0000-4000-8000-000000000011') {
+        const json = await response.clone().json()
+        if (json?.data) {
+          json.data.visibility = 'PRIVATE'
+          json.data.viewerAccess = 'GRANTED'
+        }
+        return new Response(JSON.stringify(json), {
+          status: response.status,
+          headers: response.headers,
+        })
+      }
+      return response
+    }
+    ;(window as any).__scrollCalls = 0
+    const origScroll = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (...args) {
+      ;(window as any).__scrollCalls++
+      return origScroll.apply(this, args)
+    }
+  })
+
+  await login(page, 'author@test.local', 'password')
+  await page.goto('/programs/00000000-0000-4000-8000-000000000010')
+  await expect(page.getByLabel('Choose Program run')).toHaveValue('run')
+  await page.getByLabel('Choose Program run').selectOption('run-prev')
+  await page.getByRole('button', { name: 'Edit Program', exact: true }).click()
+  await page.getByRole('button', { name: 'Edit Activities', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Edit Program' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Browse Library', exact: true })).toBeVisible()
+
+  // Same-instance SPA navigation to a different program ID resets editor and run state.
+  await page.evaluate(() => {
+    window.history.pushState({}, '', '/programs/00000000-0000-4000-8000-000000000011?start=1&returnTo=%2Fbrowse')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  })
+  await expect(page.getByRole('heading', { name: 'Beginner Strength', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Edit Program' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Browse Library', exact: true })).toHaveCount(0)
+
+  // ?start=1 scrolls once on navigation, not again on subsequent data refetches.
+  await expect.poll(() => page.evaluate(() => (window as any).__scrollCalls)).toBe(1)
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
+  await page.waitForTimeout(150)
+  expect(await page.evaluate(() => (window as any).__scrollCalls)).toBe(1)
+
+  // Removing a PRIVATE non-owned program opened outside /library redirects safely to /library.
+  await page.getByLabel('Manage A quieter morning').click()
+  await page.getByRole('button', { name: 'Remove from Programs' }).click()
+  await page
+    .getByRole('dialog', { name: 'Remove Program' })
+    .getByRole('button', { name: 'Remove Program' })
+    .click()
+  await expect(page).toHaveURL(/\/library$/)
+})

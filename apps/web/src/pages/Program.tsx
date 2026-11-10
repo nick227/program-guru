@@ -79,6 +79,7 @@ export function ProgramPage() {
 
   const scheduleSectionRef = useRef<HTMLDivElement>(null)
   const ownerEditRef = useRef<HTMLDivElement>(null)
+  const lastAutoScrollKey = useRef('')
 
   const signedIn = !!me.data
   const p = program.data
@@ -92,6 +93,12 @@ export function ProgramPage() {
   const [runId, setRunId] = useState('')
   const [editingProgram, setEditingProgram] = useState(false)
   const [editingActivities, setEditingActivities] = useState(false)
+
+  useEffect(() => {
+    setRunId('')
+    setEditingProgram(false)
+    setEditingActivities(false)
+  }, [id])
 
   useDocumentTitle(
     ws?.title ??
@@ -126,11 +133,21 @@ export function ProgramPage() {
     }
   }, [requestedStartDate])
 
+  const autoScrollKey = params.get('start') === '1' && id ? `${id}:start=1` : ''
   useEffect(() => {
-    if (params.get('start') === '1' && p && !p.myEnrollmentId) {
+    if (!autoScrollKey) {
+      lastAutoScrollKey.current = ''
+      return
+    }
+    if (
+      autoScrollKey !== lastAutoScrollKey.current &&
+      p &&
+      !p.myEnrollmentId
+    ) {
+      lastAutoScrollKey.current = autoScrollKey
       scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [params, p])
+  }, [autoScrollKey, p])
 
   const start = date || today(tz)
   const join = useJoinProgram(id)
@@ -412,6 +429,9 @@ export function ProgramPage() {
           currentUrl={currentUrl}
           onRemoved={() => {
             if (backTo.startsWith('/library')) navigate(backTo)
+            else if (!isOwner && (p.visibility === 'PRIVATE' || p.accessMode !== 'OPEN')) {
+              navigate('/library')
+            }
           }}
           onDeleted={() => navigate(backTo.startsWith('/library') ? backTo : '/library')}
         />
