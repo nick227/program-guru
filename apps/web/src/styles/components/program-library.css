@@ -384,6 +384,14 @@
   }
 }
 
+/* Tablets: Privacy leaves too, so the row's action fits (768px must fit every remaining column). */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .library-table th[data-label='Privacy'],
+  .library-table td[data-label='Privacy'] {
+    display: none;
+  }
+}
+
 /* Phones and small tablets: each row becomes a two-column grid */
 @media (max-width: 767.98px) {
   .library-heading {

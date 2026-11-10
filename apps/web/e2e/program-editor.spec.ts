@@ -57,7 +57,7 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
     const coverGroup = page.getByRole('group', { name: 'Program cover' })
     await expect(coverGroup).toBeVisible()
     // One add tile; no separate upload or library buttons
-    await expect(coverGroup.getByRole('button', { name: 'Add image' })).toBeVisible()
+    await expect(coverGroup.getByRole('button', { name: 'Add media' })).toBeVisible()
     await expect(
       coverGroup.getByRole('button', { name: /Attach Program image|Upload image|Choose from library/ }),
     ).toHaveCount(0)
@@ -122,14 +122,8 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
       'aria-current',
       'step',
     )
-    await expect(
-      page.getByRole('heading', { name: 'Publish & Share', exact: true }),
-    ).toBeVisible()
-
     // Visibility & Group Sharing combined section without sentence titles
-    await expect(
-      page.getByRole('heading', { name: 'Visibility & Group Sharing', exact: true }),
-    ).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Program visibility' })).toBeVisible()
     await expect(page.getByText('Who can find it?')).toHaveCount(0)
     await expect(page.getByText('Do this together')).toHaveCount(0)
 
@@ -178,7 +172,10 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
 
     // Move to Step 3 (Publish & Share)
     await stepper.getByRole('button', { name: /Publish & Share/ }).click()
-    await expect(page.getByRole('heading', { name: 'Publish & Share', exact: true })).toBeVisible()
+    await expect(stepper.getByRole('button', { name: /Publish & Share/ })).toHaveAttribute(
+      'aria-current',
+      'step',
+    )
 
     // Navigate back to Step 1 using Previous button
     await page.getByRole('button', { name: 'Back', exact: true }).click()
@@ -199,12 +196,13 @@ test.describe('Unified Program Editor (Details → Activities → Publish & Shar
     // Jump directly to Step 3 (Publish & Share) without completing activities
     await stepper.getByRole('button', { name: /Publish & Share/ }).click()
     await expect(page).toHaveURL(new RegExp(`/programs/${programId}/workspace\\?step=publish`))
-    await expect(page.getByRole('heading', { name: 'Publish & Share', exact: true })).toBeVisible()
+    await expect(stepper.getByRole('button', { name: /Publish & Share/ })).toHaveAttribute(
+      'aria-current',
+      'step',
+    )
 
     // Combined Visibility & Group Sharing is present
-    await expect(
-      page.getByRole('heading', { name: 'Visibility & Group Sharing', exact: true }),
-    ).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Program visibility' })).toBeVisible()
   })
 
   test('each new activity has frequency & duration buttons, a minutes input, and distributes across program duration', async ({

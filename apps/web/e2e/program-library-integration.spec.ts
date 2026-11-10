@@ -59,9 +59,15 @@ test('Library browser keeps filters and cached content through discovery and par
   await page
     .getByRole('button', { name: 'View Program: Beginner Strength' })
     .click()
-  await page.getByRole('button', { name: 'Start Program', exact: true }).click()
-  await page.getByRole('button', { name: 'Preview my calendar' }).click()
-  await page.getByRole('button', { name: 'Confirm & add to Calendar' }).click()
+  // The hero's primary action leads to the Start section, whose button joins on the chosen date.
+  await page
+    .getByRole('region', { name: 'Beginner Strength hero' })
+    .getByRole('button', { name: 'Start Program' })
+    .click()
+  await page
+    .getByRole('region', { name: 'Start Program' })
+    .getByRole('button', { name: 'Start Program', exact: true })
+    .click()
   await expect(
     page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
@@ -147,6 +153,8 @@ test('published owned Programs start through enrollment and fit tablet widths', 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   const own = page.locator('tbody tr').filter({ hasText: 'Strength, with intention' })
   await own.getByRole('link', { name: 'Start', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'When do you want to start?' })).toBeVisible()
+  // Start opens the Program at its Start section (?start=1), where the date is chosen.
+  await expect(page).toHaveURL(/[?&]start=1/)
+  await expect(page.getByRole('region', { name: 'Start Program' })).toBeVisible()
   expect(requests.some(r => r.path.endsWith('/publish') && r.method === 'POST')).toBe(false)
 })

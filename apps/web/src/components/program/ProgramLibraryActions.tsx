@@ -7,13 +7,14 @@ import {
   usePersonalEnrollmentAction,
   useProgramPrefetch,
 } from '@project/sdk'
-import { MoreHorizontal } from 'lucide-react'
+import { ArrowUpRight, MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { DeleteProgramDialog } from '@/components/program/DeleteProgramDialog'
 import {
   libraryProgramUrl,
   libraryReturnUrl,
+  programPrimaryAction,
 } from '@/lib/programNavigation'
 import { buildWorkspaceUrl } from '@/lib/urls'
 import type { PersonalProgram } from '@/lib/programLibrary'
@@ -53,6 +54,12 @@ export function ProgramLibraryActions({
   const busy = manage.isPending || enrollment.isPending || copy.isPending
   const detail = libraryProgramUrl(p.id, params.toString())
   const returnTo = libraryReturnUrl(params.toString())
+  // The row's one contextual action (13 §5: Start, Continue, Resume or View). The Program page has its own.
+  const primary = programPrimaryAction(entry, params.toString())
+  const warmStart = () => {
+    if (primary.label === 'Start')
+      prefetch(p.id, primary.href?.includes('/workspace') ? 'workspace' : 'preview')
+  }
   async function run(action: Action) {
     try {
       if (action === 'REMOVE_LIBRARY') {
@@ -100,6 +107,26 @@ export function ProgramLibraryActions({
           : 'library-actions'
       }
     >
+      {variant === 'table' &&
+        (primary.label === 'Resume' ? (
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => void run('ACTIVE')}
+          >
+            Resume
+          </Button>
+        ) : (
+          <Link
+            className="library-open"
+            to={primary.href!}
+            onPointerEnter={warmStart}
+            onFocus={warmStart}
+          >
+            {primary.label}
+            <ArrowUpRight size={14} />
+          </Link>
+        ))}
       <details
         ref={menu}
         className="library-menu"

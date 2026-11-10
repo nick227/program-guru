@@ -151,9 +151,15 @@ test('Library browser keeps filters and cached content through discovery and par
   await page
     .getByRole('button', { name: 'View Program: Beginner Strength' })
     .click()
-  await page.getByRole('button', { name: 'Start Program', exact: true }).click()
-  await page.getByRole('button', { name: 'Preview my calendar' }).click()
-  await page.getByRole('button', { name: 'Confirm & add to Calendar' }).click()
+  // The hero's primary action leads to the Start section, whose button joins on the chosen date.
+  await page
+    .getByRole('region', { name: 'Beginner Strength hero' })
+    .getByRole('button', { name: 'Start Program' })
+    .click()
+  await page
+    .getByRole('region', { name: 'Start Program' })
+    .getByRole('button', { name: 'Start Program', exact: true })
+    .click()
   await expect(
     page.getByRole('heading', { name: 'Calendar', exact: true }),
   ).toBeVisible()
