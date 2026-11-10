@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, onTestFinished } from 'vitest'
 import { db } from '@project/db'
-import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, testAdminId } from './helpers'
+import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, testAdminId, pinToday, unpinToday } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 import { contractCase } from './helpers/contract'
 
@@ -199,6 +199,9 @@ describe('Adopting a Program (01 §6 required test 1)', () => {
   })
 
   it('keeps participants on their version until they accept an update', async () => {
+    // Dates below assume today is the start date, 2026-11-09 (America/Chicago).
+    pinToday('2026-11-09T18:00:00Z')
+    onTestFinished(unpinToday)
     const { ws } = await buildProgram()
     const v1 = (await publish(ws.id)).json().data.latestPublishedVersionId
     const joined = (await bob.post(`/programs/${ws.id}/enrollments`, { programVersionId: v1, startLocalDate: '2026-11-09', timezone: 'America/Chicago', idempotencyKey: 'join-update' })).json().data

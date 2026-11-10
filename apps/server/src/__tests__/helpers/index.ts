@@ -1,7 +1,7 @@
 // Adapted from the factory template: builds the real app (same error handler and routing) with a
 // session-free security handler that trusts "Bearer <userId>". Tests exercise business rules;
 // the real session transport has its own tests in auth.test.ts.
-import { beforeAll, beforeEach, afterAll } from 'vitest'
+import { beforeAll, beforeEach, afterAll, vi } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import SwaggerParser from '@apidevtools/swagger-parser'
 import Ajv from 'ajv/dist/2020'
@@ -111,4 +111,18 @@ export async function validateResponse(operationId: string, status: number, body
     }
   }
   throw new Error(`Unknown operationId ${operationId}`)
+}
+
+/**
+ * Pins the app clock (Date only; timers stay real) for a test whose fixed dates assume a given
+ * "today". Joining before the start date or after it changes which items are NOT_PARTICIPATING
+ * (09 §11, 10 §3), so these tests must not depend on the real date. Pair with `unpinToday`.
+ */
+export function pinToday(instant: string) {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(instant))
+}
+
+export function unpinToday() {
+  vi.useRealTimers()
 }

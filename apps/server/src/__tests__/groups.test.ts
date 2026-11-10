@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, onTestFinished } from 'vitest'
 import { db } from '@project/db'
-import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, seedUser } from './helpers'
+import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, seedUser, pinToday, unpinToday } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 import { contractCase } from './helpers/contract'
 
@@ -37,6 +37,9 @@ async function finish(userId: string, itemId: string) {
 
 describe('two friends follow the same Program (01 §6 required test 3)', () => {
   it('invite by handle, independent calendars, permitted progress, reactions; private results stay private', async () => {
+    // Dates below assume today is the start date, 2026-11-09 (America/Chicago).
+    pinToday('2026-11-09T18:00:00Z')
+    onTestFinished(unpinToday)
     const { versionId } = await challenge()
     const group = await req('POST', '/groups', { programVersionId: versionId, name: 'Morning crew', mode: 'SYNC' })
     expect(group.statusCode).toBe(201)
