@@ -598,6 +598,11 @@ enum ProgramLevel {
   ALL_LEVELS
 }
 
+enum SessionPresentation {
+  SEPARATE
+  GROUPED
+}
+
 enum EnrollmentStatus {
   PENDING_ACCESS
   ACTIVE
@@ -632,6 +637,7 @@ model Program {
   focusId                  String?       @db.Char(36)
   level                    ProgramLevel  @default(ALL_LEVELS)
   sessionMinutes           Int?
+  sessionPresentation      SessionPresentation @default(SEPARATE)
   coverMediaId             String?       @db.Char(36)
   visibility               Visibility    @default(PRIVATE)
   status                   ProgramStatus @default(DRAFT)
@@ -714,6 +720,7 @@ model ProgramVersion {
   focusId         String?                @db.Char(36)
   level           ProgramLevel           @default(ALL_LEVELS)
   sessionMinutes  Int?
+  sessionPresentation SessionPresentation @default(SEPARATE)
   durationDays    Int?
   cycleDays       Int?
   frequency       Json

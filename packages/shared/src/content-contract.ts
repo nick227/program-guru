@@ -4,6 +4,9 @@
 export const PROGRAM_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'ALL_LEVELS'] as const
 export type ProgramLevel = (typeof PROGRAM_LEVELS)[number]
 
+export const SESSION_PRESENTATIONS = ['SEPARATE', 'GROUPED'] as const
+export type SessionPresentation = (typeof SESSION_PRESENTATIONS)[number]
+
 export const TOOL_KEYS = ['TIMER', 'COUNTER', 'CHECKLIST', 'NOTES', 'CALCULATOR', 'MEDIA_CAPTURE'] as const
 export type ToolKey = (typeof TOOL_KEYS)[number]
 
@@ -144,6 +147,7 @@ export type ProgramPlacement = {
   position: number
   localTime?: string | null
   frequency?: FrequencyRule | null
+  targetOverrides?: Record<string, number | string | boolean> | null
 }
 
 export type ProgramContent = {
@@ -155,6 +159,7 @@ export type ProgramContent = {
   focusSlug?: string | null
   level?: ProgramLevel
   sessionMinutes?: number | null
+  sessionPresentation?: SessionPresentation
   tagSlugs?: string[]
   durationDays: number | null
   frequency: FrequencyRule
@@ -411,6 +416,9 @@ export function validateContentPack(
     if (prog.level && !PROGRAM_LEVELS.includes(prog.level)) {
       issues.push({ path: `${path}.level`, message: `Invalid program level "${prog.level}"` })
     }
+    if (prog.sessionPresentation && !SESSION_PRESENTATIONS.includes(prog.sessionPresentation)) {
+      issues.push({ path: `${path}.sessionPresentation`, message: `Invalid sessionPresentation "${prog.sessionPresentation}"` })
+    }
     if (prog.sessionMinutes != null && !isValidMinutes(prog.sessionMinutes)) {
       issues.push({ path: `${path}.sessionMinutes`, message: `sessionMinutes must be an integer between 1 and ${MAX_MINUTES_PER_DAY}` })
     }
@@ -448,6 +456,16 @@ export function validateContentPack(
         issues.push({ path: `${plPath}.localTime`, message: 'localTime must be HH:MM (24-hour)' })
       }
       if (pl.frequency) validateFrequencyRule(pl.frequency, `${plPath}.frequency`, issues)
+      if (pl.targetOverrides) {
+        for (const [k, v] of Object.entries(pl.targetOverrides)) {
+          if (metricSet && !metricSet.has(k)) {
+            issues.push({ path: `${plPath}.targetOverrides.${k}`, message: `Unknown metric "${k}" in targetOverrides` })
+          }
+          if (typeof v === 'number' && !Number.isFinite(v)) {
+            issues.push({ path: `${plPath}.targetOverrides.${k}`, message: 'targetOverrides value must be finite' })
+          }
+        }
+      }
     })
   })
 

@@ -39,6 +39,7 @@ export function toProgramSummary(p: ProgramFull, viewerAccess: ViewerAccess, ver
     focus: p.focus ? { id: p.focus.id, categoryId: p.focus.categoryId, slug: p.focus.slug, label: p.focus.label } : null,
     level: version?.level ?? p.level,
     sessionMinutes: version ? version.sessionMinutes : p.sessionMinutes,
+    sessionPresentation: version?.sessionPresentation ?? p.sessionPresentation,
     tags: p.tags
       .filter((pt) => pt.tag.isActive)
       .map((pt) => ({ id: pt.tag.id, slug: pt.tag.slug, label: pt.tag.label, group: pt.tag.group ?? null })),

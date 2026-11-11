@@ -13,7 +13,7 @@ import { statusBadges } from './content'
 import { label } from './shared'
 
 type Workspace = components['schemas']['ProgramWorkspace']
-type Details = Pick<Workspace, 'title' | 'description' | 'durationDays' | 'generationMode' | 'level' | 'sessionMinutes'> & { programTypeId: string; focusId: string | null }
+type Details = Pick<Workspace, 'title' | 'description' | 'durationDays' | 'generationMode' | 'level' | 'sessionMinutes' | 'sessionPresentation'> & { programTypeId: string; focusId: string | null }
 type Publish = { visibility: Workspace['visibility']; accessMode: Workspace['accessMode'] }
 type Create = { programTypeId: string; focusId: string | null }
 
@@ -27,6 +27,7 @@ const detailFields: Field<Details>[] = [
   { kind: 'select', name: 'focusId', label: 'Focus', options: useFocusOptions },
   { kind: 'select', name: 'level', label: 'Level', options: [{ value: 'ALL_LEVELS', label: 'All levels' }, { value: 'BEGINNER', label: 'Beginner' }, { value: 'INTERMEDIATE', label: 'Intermediate' }, { value: 'ADVANCED', label: 'Advanced' }] },
   { kind: 'number', name: 'sessionMinutes', label: 'Typical session', min: 1, max: 1440, suffix: 'min' },
+  { kind: 'select', name: 'sessionPresentation', label: 'Calendar presentation', options: [{ value: 'SEPARATE', label: 'Separate Activity tiles' }, { value: 'GROUPED', label: 'One expandable workout tile per day' }] },
   { kind: 'duration', name: 'durationDays', label: 'Duration' },
   { kind: 'select', name: 'generationMode', label: 'Schedule', options: [{ value: 'ALL_EACH_DAY', label: 'Every Activity each scheduled day' }, { value: 'ROTATE', label: 'Rotate Activities' }], help: 'Changing duration or schedule regenerates automatic placements. Each Activity keeps its own frequency.' },
 ]
@@ -37,7 +38,7 @@ const publishFields: Field<Publish>[] = [
 
 function DetailsForm({ ws }: { ws: Workspace }) {
   const update = useUpdateProgram(ws.id)
-  const initial: Details = { title: ws.title, description: ws.description ?? '', programTypeId: ws.type.id, focusId: ws.focus?.id ?? null, level: ws.level, sessionMinutes: ws.sessionMinutes, durationDays: ws.durationDays, generationMode: ws.generationMode }
+  const initial: Details = { title: ws.title, description: ws.description ?? '', programTypeId: ws.type.id, focusId: ws.focus?.id ?? null, level: ws.level, sessionMinutes: ws.sessionMinutes, sessionPresentation: ws.sessionPresentation, durationDays: ws.durationDays, generationMode: ws.generationMode }
   return (
     <ResourceForm
       fields={detailFields}

@@ -68,20 +68,23 @@ describe('declarative content contract & taxonomy', () => {
             programTypeSlug: 'writing-habit',
             focusSlug: 'writing',
             tagSlugs: ['unknown-tag'],
+            sessionPresentation: 'GROUPED',
             durationDays: 7,
             frequency: { kind: 'DAILY' },
             generationMode: 'ALL_EACH_DAY',
             activitySlugs: ['freewrite'],
-            placements: [{ relativeDay: 10, activitySlug: 'freewrite', position: 0 }],
+            placements: [{ relativeDay: 10, activitySlug: 'freewrite', position: 0, targetOverrides: { missingMetric: 10 } }],
           },
         ],
       },
       compiled,
+      { knownMetricKeys: ['duration'], knownToolKeys: ['TIMER'] },
     )
     expect(packIssues).toEqual([
       { path: 'activities.0.targetTime', message: 'targetTime must be HH:MM (24-hour)' },
       { path: 'programs.0.tagSlugs.0', message: 'Unknown tag "unknown-tag"' },
       { path: 'programs.0.placements.0.relativeDay', message: 'relativeDay 10 exceeds durationDays 7' },
+      { path: 'programs.0.placements.0.targetOverrides.missingMetric', message: 'Unknown metric "missingMetric" in targetOverrides' },
     ])
   })
 

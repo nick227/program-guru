@@ -2986,6 +2986,11 @@ export interface components {
         };
         /** @enum {string} */
         ProgramLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ALL_LEVELS";
+        /**
+         * @description Whether scheduled Program Activities display as separate Calendar items or one expandable workout tile per scheduled day.
+         * @enum {string}
+         */
+        SessionPresentation: "SEPARATE" | "GROUPED";
         /** @enum {string} */
         DiscoverDuration: "SHORT" | "MEDIUM" | "LONG" | "ONGOING";
         MetricDefinition: {
@@ -3267,6 +3272,7 @@ export interface components {
             focus: components["schemas"]["Focus"] | null;
             level: components["schemas"]["ProgramLevel"];
             sessionMinutes: number | null;
+            sessionPresentation?: components["schemas"]["SessionPresentation"];
             tags: components["schemas"]["Tag"][];
             creator: components["schemas"]["UserSummary"] | null;
             coverUrl: string | null;
@@ -3320,6 +3326,7 @@ export interface components {
             focus: components["schemas"]["Focus"] | null;
             level: components["schemas"]["ProgramLevel"];
             sessionMinutes: number | null;
+            sessionPresentation?: components["schemas"]["SessionPresentation"];
             tags: components["schemas"]["Tag"][];
             creator: components["schemas"]["UserSummary"] | null;
             coverUrl: string | null;
@@ -3367,6 +3374,7 @@ export interface components {
             focus: components["schemas"]["Focus"] | null;
             level: components["schemas"]["ProgramLevel"];
             sessionMinutes: number | null;
+            sessionPresentation?: components["schemas"]["SessionPresentation"];
             tags: components["schemas"]["Tag"][];
             creator: components["schemas"]["UserSummary"] | null;
             coverUrl: string | null;
@@ -3453,6 +3461,7 @@ export interface components {
             focusId?: string | null;
             level?: components["schemas"]["ProgramLevel"];
             sessionMinutes?: number | null;
+            sessionPresentation?: components["schemas"]["SessionPresentation"];
             tagSlugs?: string[];
             /** Format: uuid */
             coverMediaId?: string | null;
@@ -3726,6 +3735,9 @@ export interface components {
             /** Format: uuid */
             enrollmentId: string | null;
             programDayIndex: number | null;
+            sessionPresentation?: components["schemas"]["SessionPresentation"];
+            /** @description Estimated Activity duration from its pinned ActivityRevision. */
+            durationMinutes?: number | null;
             /** Format: uuid */
             recurrenceId: string | null;
             conflict: boolean;
@@ -4424,6 +4436,7 @@ export interface components {
             focus?: string | null;
             level?: components["schemas"]["ProgramLevel"];
             sessionMinutes?: number | null;
+            sessionPresentation?: components["schemas"]["SessionPresentation"];
             tags?: string[];
             visibility?: components["schemas"]["Visibility"];
             /** @description Null is an ongoing Program. Omitted uses the default (28). */

@@ -1,7 +1,7 @@
 // Program authoring (07-PROGRAMS.md §6–7, 03-UX.md §3–4).
 // The draft is a ProgramVersion with publishedAt = null. Publishing freezes it; the next edit opens
 // a new draft copied from the latest published version. Program.draftRevision guards concurrent edits.
-import { Prisma, db, type ProgramLevel, type ProgramVersion } from '@project/db'
+import { Prisma, db, type ProgramLevel, type ProgramVersion, type SessionPresentation } from '@project/db'
 import { badRequest, forbidden, notFound, versionConflict } from '../../lib/errors'
 import { enqueue } from '../../lib/outbox'
 import { afterCursor, pageArgs, pageOrder, toPage } from '../../lib/paging'
@@ -285,6 +285,7 @@ export async function updateDraft(
     focusId?: string | null
     level?: ProgramLevel
     sessionMinutes?: number | null
+    sessionPresentation?: SessionPresentation
     tagSlugs?: string[]
     coverMediaId?: string | null
     durationDays?: number | null
@@ -335,6 +336,7 @@ export async function updateDraft(
         focusId: input.focusId,
         level: input.level,
         sessionMinutes: input.sessionMinutes,
+        sessionPresentation: input.sessionPresentation,
         durationDays: input.durationDays,
         cycleDays: input.durationDays === null ? 7 : input.durationDays !== undefined ? null : undefined,
         frequency: input.frequency as Prisma.InputJsonValue | undefined,
@@ -351,6 +353,7 @@ export async function updateDraft(
         focusId: input.focusId,
         level: input.level,
         sessionMinutes: input.sessionMinutes,
+        sessionPresentation: input.sessionPresentation,
         coverMediaId: input.coverMediaId,
         visibility: input.visibility,
       },
@@ -711,6 +714,7 @@ export async function copy(userId: string, programId: string) {
         focusId: from.focusId,
         level: from.level,
         sessionMinutes: from.sessionMinutes,
+        sessionPresentation: from.sessionPresentation,
         coverMediaId: src.coverMediaId,
         visibility: 'PRIVATE',
         policy: { create: { accessMode: 'OPEN' } },
@@ -728,6 +732,7 @@ export async function copy(userId: string, programId: string) {
         focusId: from.focusId,
         level: from.level,
         sessionMinutes: from.sessionMinutes,
+        sessionPresentation: from.sessionPresentation,
         durationDays: from.durationDays,
         cycleDays: from.cycleDays,
         frequency: from.frequency as Prisma.InputJsonValue,

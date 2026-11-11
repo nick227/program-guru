@@ -14,10 +14,10 @@ Program is **not** Calendar. `ProgramScheduleItem` is a template placement and n
 
 | Model | Essential columns | Constraints |
 |---|---|---|
-| `Program` | `id`, `slug?`, `creatorId`, `title`, `description?`, `categoryId`, `programTypeId`, `focusId?`, `level`, `sessionMinutes?`, `coverMediaId?`, `visibility`, `status`, `latestPublishedVersionId?`, `draftRevision`, timestamps | creator FK; unique `(creatorId,slug)`; indexes by category/type/focus/level/sessionMinutes/status |
+| `Program` | `id`, `slug?`, `creatorId`, `title`, `description?`, `categoryId`, `programTypeId`, `focusId?`, `level`, `sessionMinutes?`, `sessionPresentation`, `coverMediaId?`, `visibility`, `status`, `latestPublishedVersionId?`, `draftRevision`, timestamps | creator FK; unique `(creatorId,slug)`; indexes by category/type/focus/level/sessionMinutes/status |
 | `ProgramTag` | `programId`, `tagId`, `position` | composite PK `(programId,tagId)`; links Program to cross-category `Tag` records |
 | `ProgramSlugAlias` | `id`, `programId`, `creatorId?`, `slug`, `createdAt` | unique `(creatorId,slug)`; preserves historical slugs across renames |
-| `ProgramVersion` | `id`, `programId`, `versionNumber`, `title`, `description?`, `programTypeId`, `focusId?`, `level`, `sessionMinutes?`, `durationDays?`, `cycleDays?`, `frequency`, `generationMode`, `programDayCount`, `placementCount`, `publishedAt?`, `createdById` | unique `(programId,versionNumber)`; `publishedAt` null = the single editable draft; immutable once published |
+| `ProgramVersion` | `id`, `programId`, `versionNumber`, `title`, `description?`, `programTypeId`, `focusId?`, `level`, `sessionMinutes?`, `sessionPresentation`, `durationDays?`, `cycleDays?`, `frequency`, `generationMode`, `programDayCount`, `placementCount`, `publishedAt?`, `createdById` | unique `(programId,versionNumber)`; `publishedAt` null = the single editable draft; immutable once published |
 | `ProgramScheduleItem` | `id`, `programVersionId`, `activityId`, `activityRevisionId`, `relativeDay`, `localTime?`, `position`, `targetOverrides JSON?`, `isManual` | FK, valid offsets, ordered index; `isManual` placements survive regeneration |
 | `ProgramAccessPolicy` | `programId PK`, `accessMode OPEN/APPROVAL/PAID`, `previewPolicy JSON?` | PAID requires an active `ProgramPrice` and ACTIVE payout account |
 | `ProgramPrice` | `id`, `programId`, `kind ONE_TIME/MONTHLY`, `currency USD`, `amountMinor`, `providerPriceId?`, `active` | at most one active price of each kind |
@@ -37,7 +37,7 @@ Taxonomy tables `Category`, `ProgramType`, `Focus` live in shared classification
 
 ```ts
 interface ProgramSummaryDto { id:string; title:string; type:{id:string;label:string}; focus?:{id:string;label:string};
-  level:'BEGINNER'|'INTERMEDIATE'|'ADVANCED'|'ALL_LEVELS'; sessionMinutes:number|null; tags:{id:string;slug:string;label:string;group:string|null}[];
+  level:'BEGINNER'|'INTERMEDIATE'|'ADVANCED'|'ALL_LEVELS'; sessionMinutes:number|null; sessionPresentation:'SEPARATE'|'GROUPED'; tags:{id:string;slug:string;label:string;group:string|null}[];
   creator:UserSummaryDto; coverUrl:string|null; durationDays:number|null; programDays:number|null;
   placements:number|null; prices:ProgramPriceDto[];
   visibility:'PRIVATE'|'UNLISTED'|'PUBLIC'; accessMode:'OPEN'|'APPROVAL'|'PAID';
@@ -53,7 +53,7 @@ interface ProgramPreviewDto extends ProgramSummaryDto { description:string|null;
 interface CreateProgramDto { programTypeId:string; focusId?:string|null; }
 interface UpdateProgramDraftDto { title?:string; description?:string|null; categoryId?:string;
   programTypeId?:string; focusId?:string|null; level?:'BEGINNER'|'INTERMEDIATE'|'ADVANCED'|'ALL_LEVELS';
-  sessionMinutes?:number|null; tagSlugs?:string[]; durationDays?:number|null;
+  sessionMinutes?:number|null; sessionPresentation?:'SEPARATE'|'GROUPED'; tagSlugs?:string[]; durationDays?:number|null;
   frequency?:FrequencyDto; generationMode?:'ALL_EACH_DAY'|'ROTATE'; visibility?:'PRIVATE'|'UNLISTED'|'PUBLIC';
   expectedRevision:number; }
 interface FrequencyDto { kind:'DAILY'|'WEEKDAYS'|'N_PER_WEEK'|'FLEXIBLE'|'CUSTOM'; n?:number; offsets?:number[]; }

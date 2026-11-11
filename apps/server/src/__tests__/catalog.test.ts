@@ -68,16 +68,34 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
     expect(await db.mediaAsset.count({ where: { ownerId: null, license: null } })).toBe(0)
     // Activities receive durationMinutes and default frequency snapshots; ProgramStats start neutral (no fake counts).
     const squats = await db.activity.findUniqueOrThrow({ where: { slug: 'squats' }, include: { latestPublished: true } })
-    expect(squats.durationMinutes).toBe(8)
-    expect(squats.latestPublished?.durationMinutesSnapshot).toBe(8)
+    expect(squats.durationMinutes).toBe(9)
+    expect(squats.latestPublished?.durationMinutesSnapshot).toBe(9)
     expect(squats.latestPublished?.frequencySnapshot).toEqual({ kind: 'N_PER_WEEK', n: 3 })
     const core = await db.program.findFirstOrThrow({
       where: { slug: 'beginner-core-strength', creatorId: null },
-      include: { tags: { include: { tag: true }, orderBy: { position: 'asc' } } },
+      include: {
+        tags: { include: { tag: true }, orderBy: { position: 'asc' } },
+        latestPublished: { include: { items: { orderBy: [{ relativeDay: 'asc' }, { position: 'asc' }] } } },
+      },
     })
     expect(core.level).toBe('BEGINNER')
     expect(core.sessionMinutes).toBe(40)
+    expect(core.sessionPresentation).toBe('GROUPED')
+    expect(core.latestPublished?.sessionPresentation).toBe('GROUPED')
+    const day1Items = core.latestPublished!.items.filter((i) => i.relativeDay === 1)
+    expect(day1Items).toHaveLength(6)
+    const day1Revs = await db.activityRevision.findMany({ where: { id: { in: day1Items.map((i) => i.activityRevisionId) } } })
+    const revById = new Map(day1Revs.map((r) => [r.id, r]))
+    expect(day1Items.reduce((sum, i) => sum + (revById.get(i.activityRevisionId)?.durationMinutesSnapshot ?? 0), 0)).toBe(40)
+    expect(day1Items.find((i) => i.position === 1)?.targetOverrides).toEqual({ repetitions: 10, sets: 3 })
+    const week4Squats = core.latestPublished!.items.find((i) => i.relativeDay === 22 && i.position === 1)
+    expect(week4Squats?.targetOverrides).toEqual({ repetitions: 16, sets: 3 })
     expect(core.tags.map((t) => t.tag.slug)).toEqual(['no-equipment', 'at-home', 'guided'])
+    const mindfulness = await db.program.findFirstOrThrow({
+      where: { slug: 'daily-mindfulness-reflection', creatorId: null },
+      select: { sessionPresentation: true },
+    })
+    expect(mindfulness.sessionPresentation).toBe('SEPARATE')
     const tagsRes = await app.inject({ method: 'GET', url: '/catalog/tags' })
     expect(tagsRes.statusCode).toBe(200)
     await validateResponse('listTags', 200, tagsRes.json())

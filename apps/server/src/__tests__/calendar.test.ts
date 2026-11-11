@@ -290,6 +290,64 @@ describe('locked Program occurrences withhold instructional content while preser
   })
 })
 
+describe('sessionPresentation grouping and week-specific targetOverrides', () => {
+  it('exposes GROUPED vs SEPARATE on calendar items, keeps targets separate from recorded, and supports independent moves', async () => {
+    const { seedDatabase } = await import('@project/db')
+    await seedDatabase(db)
+
+    const core = await db.program.findFirstOrThrow({ where: { slug: 'beginner-core-strength', creatorId: null } })
+    const mind = await db.program.findFirstOrThrow({ where: { slug: 'daily-mindfulness-reflection', creatorId: null } })
+
+    const joinCore = await req('POST', `/programs/${core.id}/enrollments`, {
+      programVersionId: core.latestPublishedVersionId,
+      startLocalDate: '2026-11-09',
+      timezone: 'UTC',
+      idempotencyKey: key(),
+    })
+    expect(joinCore.statusCode).toBe(201)
+
+    const joinMind = await req('POST', `/programs/${mind.id}/enrollments`, {
+      programVersionId: mind.latestPublishedVersionId,
+      startLocalDate: '2026-11-09',
+      timezone: 'UTC',
+      idempotencyKey: key(),
+    })
+    expect(joinMind.statusCode).toBe(201)
+
+    const listRes = await req('GET', '/calendar/items?start=2026-11-09&end=2026-12-06')
+    expect(listRes.statusCode).toBe(200)
+    await validateResponse('listCalendarItems', 200, listRes.json())
+    const allItems = listRes.json().data as any[]
+
+    const day1Core = allItems.filter((it) => it.localDate === '2026-11-10' && it.programTitle === 'Beginner Core & Strength')
+    expect(day1Core).toHaveLength(6)
+    expect(day1Core.every((it) => it.sessionPresentation === 'GROUPED')).toBe(true)
+    expect(day1Core.reduce((sum, it) => sum + (it.durationMinutes ?? 0), 0)).toBe(40)
+
+    const dayMind = allItems.filter((it) => it.localDate === '2026-11-10' && it.programTitle === 'Daily Mindfulness & Reflection')
+    expect(dayMind).toHaveLength(3)
+    expect(dayMind.every((it) => it.sessionPresentation === 'SEPARATE')).toBe(true)
+
+    // Week 1 Squats vs Week 4 Squats: targetOverrides evolve 10 -> 16 while recorded stays null.
+    const wk1Squats = day1Core.find((it) => it.title === 'Squats')!
+    const wk4Squats = allItems.find((it) => it.localDate === '2026-12-01' && it.title === 'Squats' && it.programTitle === 'Beginner Core & Strength')!
+    const occ1 = (await req('GET', `/calendar-items/${wk1Squats.id}/occurrence`)).json().data
+    const occ4 = (await req('GET', `/calendar-items/${wk4Squats.id}/occurrence`)).json().data
+    expect(occ1.resultInputs.find((m: any) => m.key === 'repetitions')).toMatchObject({ target: 10, recorded: null })
+    expect(occ4.resultInputs.find((m: any) => m.key === 'repetitions')).toMatchObject({ target: 16, recorded: null })
+
+    // Moving one workout Activity to another date updates its date without affecting its siblings.
+    const moveRes = await req('PATCH', `/calendar-items/${wk1Squats.id}`, {
+      localDate: '2026-11-11',
+      expectedUpdatedAt: wk1Squats.updatedAt,
+    })
+    expect(moveRes.statusCode).toBe(200)
+    const afterMove = (await req('GET', '/calendar/items?start=2026-11-10&end=2026-11-11')).json().data as any[]
+    expect(afterMove.filter((it) => it.localDate === '2026-11-10' && it.programTitle === 'Beginner Core & Strength')).toHaveLength(5)
+    expect(afterMove.filter((it) => it.localDate === '2026-11-11' && it.programTitle === 'Beginner Core & Strength')).toHaveLength(1)
+  }, 30000)
+})
+
 // ── Contract: one block per operationId (pnpm test:generate recognizes these) ──
 
 describe('listCalendarItems', () => {

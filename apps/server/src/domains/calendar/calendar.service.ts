@@ -102,6 +102,8 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
       programTitle: i.enrollment?.version.title ?? null,
       enrollmentId: i.enrollmentId,
       programDayIndex: i.programDayIndex,
+      sessionPresentation: i.enrollment?.version.sessionPresentation ?? i.enrollment?.program.sessionPresentation ?? 'SEPARATE',
+      durationMinutes: rev?.durationMinutesSnapshot ?? null,
       recurrenceId: i.recurrenceId,
       conflict: !!i.localTime && (slots.get(`${date} ${i.localTime}`) ?? 0) > 1,
       locked,

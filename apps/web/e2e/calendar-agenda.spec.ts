@@ -121,3 +121,75 @@ test('activity target time is displayed on Activity and can be set by user', asy
   await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByText('Target time: 8:15 AM')).toBeVisible()
 })
+
+test('grouped workout renders one expandable tile while separate programs stay individual', async ({ page }) => {
+  await mockApi(page)
+  const items = [
+    { id: 'w1', title: 'Warm-up', localTime: '07:30', durationMinutes: 5 },
+    { id: 'w2', title: 'Squats', localTime: '07:35', durationMinutes: 9 },
+    { id: 'w3', title: 'Push-ups', localTime: '07:44', durationMinutes: 9 },
+    { id: 'w4', title: 'Plank', localTime: '07:53', durationMinutes: 5 },
+    { id: 'w5', title: 'Glute Bridge', localTime: '07:58', durationMinutes: 7 },
+    { id: 'w6', title: 'Cool-down', localTime: '08:05', durationMinutes: 5 },
+  ].map((it, idx) => ({
+    ...it,
+    localDate: '2026-11-10',
+    status: 'PLANNED',
+    activityId: `act-${idx}`,
+    activityRevisionId: `rev-${idx}`,
+    programTitle: 'Beginner Core & Strength',
+    enrollmentId: 'enroll-fitness',
+    programDayIndex: 1,
+    sessionPresentation: 'GROUPED',
+    recurrenceId: null,
+    conflict: false,
+    locked: false,
+    thumbnailUrl: null,
+    participantAvatars: [],
+    unreadCount: 0,
+    updatedAt: '2026-11-10T06:00:00Z',
+  }))
+
+  items.push({
+    id: 'm1',
+    title: 'Morning Routine',
+    localTime: '08:00',
+    durationMinutes: 5,
+    localDate: '2026-11-10',
+    status: 'PLANNED',
+    activityId: 'act-m1',
+    activityRevisionId: 'rev-m1',
+    programTitle: 'Daily Mindfulness & Reflection',
+    enrollmentId: 'enroll-mind',
+    programDayIndex: 1,
+    sessionPresentation: 'SEPARATE',
+    recurrenceId: null,
+    conflict: false,
+    locked: false,
+    thumbnailUrl: null,
+    participantAvatars: [],
+    unreadCount: 0,
+    updatedAt: '2026-11-10T06:00:00Z',
+  })
+
+  await page.route('**/calendar/items?*', (route) => route.fulfill({ json: { data: items } }))
+
+  await page.goto('/login')
+  await page.getByLabel('Email', { exact: true }).fill('author@test.local')
+  await page.getByLabel('Password', { exact: true }).fill('password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await page.goto('/?view=day&day=2026-11-10')
+
+  const groupTile = page.locator('[data-workout-group="enroll-fitness"]')
+  await expect(groupTile).toHaveCount(1)
+  await expect(groupTile).toContainText('Beginner Core & Strength')
+  await expect(groupTile).toContainText('6 exercises · 40 min')
+  await expect(groupTile).toContainText('0/6 done')
+  await expect(page.getByText('Morning Routine')).toBeVisible()
+  await expect(page.getByText('Squats')).toHaveCount(0)
+
+  await groupTile.getByRole('button', { name: 'Show workout' }).click()
+  await expect(groupTile.getByText('Warm-up')).toBeVisible()
+  await expect(groupTile.getByText('Squats')).toBeVisible()
+  await expect(groupTile.getByText('Cool-down')).toBeVisible()
+})

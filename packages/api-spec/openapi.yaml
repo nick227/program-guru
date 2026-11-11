@@ -7501,6 +7501,12 @@ components:
       - INTERMEDIATE
       - ADVANCED
       - ALL_LEVELS
+    SessionPresentation:
+      type: string
+      enum:
+      - SEPARATE
+      - GROUPED
+      description: Whether scheduled Program Activities display as separate Calendar items or one expandable workout tile per scheduled day.
     DiscoverDuration:
       type: string
       enum:
@@ -8367,6 +8373,8 @@ components:
           - 'null'
           minimum: 1
           maximum: 1440
+        sessionPresentation:
+          $ref: '#/components/schemas/SessionPresentation'
         tags:
           type: array
           items:
@@ -8557,6 +8565,8 @@ components:
           - 'null'
           minimum: 1
           maximum: 1440
+        sessionPresentation:
+          $ref: '#/components/schemas/SessionPresentation'
         tags:
           type: array
           items:
@@ -8724,6 +8734,8 @@ components:
           - 'null'
           minimum: 1
           maximum: 1440
+        sessionPresentation:
+          $ref: '#/components/schemas/SessionPresentation'
         tags:
           type: array
           items:
@@ -8966,6 +8978,8 @@ components:
           - 'null'
           minimum: 1
           maximum: 1440
+        sessionPresentation:
+          $ref: '#/components/schemas/SessionPresentation'
         tagSlugs:
           type: array
           maxItems: 10
@@ -9716,6 +9730,13 @@ components:
           type:
           - integer
           - 'null'
+        sessionPresentation:
+          $ref: '#/components/schemas/SessionPresentation'
+        durationMinutes:
+          type:
+          - integer
+          - 'null'
+          description: Estimated Activity duration from its pinned ActivityRevision.
         recurrenceId:
           type:
           - string
@@ -11591,6 +11612,8 @@ components:
           - 'null'
           minimum: 1
           maximum: 1440
+        sessionPresentation:
+          $ref: '#/components/schemas/SessionPresentation'
         tags:
           type: array
           maxItems: 10

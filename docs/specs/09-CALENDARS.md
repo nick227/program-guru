@@ -6,7 +6,7 @@
 
 **Each user owns their calendar.** In P1 the calendar is the set of Calendar Items and Recurrences owned by the user, shown in their preference timezone; there is no separate calendar record. Programs supply schedule templates; individual enrollments generate Calendar Items. Standalone Activities can be placed directly. Multiple programs coexist on one calendar. Friends do not share a writable calendar merely because they join the same program; collaboration overlays participants' independent records through a Program Group.
 
-**Each scheduled Activity executes independently.** A Program Day with three Activities yields three Calendar Items. Each has its own status, Activity Sessions, timer, and results, and can be started, finished, moved, or skipped without touching the others. There is no day-level session, result, or completion.
+**Each scheduled Activity executes independently.** A Program Day with three Activities yields three Calendar Items. Each has its own status, Activity Sessions, timer, and results, and can be started, finished, moved, or skipped without touching the others. There is no day-level session, result, or completion. When a Program sets `sessionPresentation: 'GROUPED'`, the Calendar groups non-cancelled items sharing `(enrollmentId, localDate)` into one expandable workout tile for display while preserving every underlying Calendar Item’s independent execution, metrics, history, and editing.
 
 **Standalone Activities and recurring personal entries are P1.** A user can place any Activity on their calendar once or on a repeating rule with no Program involved.
 

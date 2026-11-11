@@ -1,9 +1,11 @@
 import React, { useRef, useState } from 'react'
-import { ActivityTile, type ActivityTileDensity, type ActivityTileItem } from '@/components/calendar/ActivityTile'
+import { ActivityTile, type ActivityTileDensity } from '@/components/calendar/ActivityTile'
+import { WorkoutGroupTile } from '@/components/calendar/WorkoutGroupTile'
+import { groupCalendarEntries, type CalendarRenderEntry, type SurfaceItem } from '@/lib/calendarGrouping'
 import { formatHourLabel, formatTargetTime, isValidTargetTime } from '@/lib/targetTime'
 import { cn } from '@/lib/utils'
 
-export type SurfaceItem = ActivityTileItem
+export type { SurfaceItem }
 
 export type CalendarDay = {
   id: string
@@ -37,13 +39,14 @@ function DayHourlyTable({
   const draggingIdRef = useRef<string | null>(null)
 
   const dayItems = items.filter((item) => item.day === day.id)
-  const untimedItems = dayItems.filter((item) => !isValidTargetTime(item.localTime))
-  const byHour = new Map<string, SurfaceItem[]>()
-  for (const item of dayItems) {
-    if (!isValidTargetTime(item.localTime)) continue
-    const hourKey = item.localTime.slice(0, 2)
+  const dayEntries = groupCalendarEntries(dayItems)
+  const untimedEntries = dayEntries.filter((entry) => !isValidTargetTime(entry.localTime))
+  const byHour = new Map<string, CalendarRenderEntry[]>()
+  for (const entry of dayEntries) {
+    if (!isValidTargetTime(entry.localTime)) continue
+    const hourKey = entry.localTime!.slice(0, 2)
     const list = byHour.get(hourKey) ?? []
-    list.push(item)
+    list.push(entry)
     byHour.set(hourKey, list)
   }
   for (const list of byHour.values()) {
@@ -102,22 +105,38 @@ function DayHourlyTable({
     }
   }
 
-  const renderDayTile = (item: SurfaceItem) => (
-    <ActivityTile
-      key={item.id}
-      item={item}
-      density="day"
-      onComplete={onComplete}
-      onRemove={onRemove}
-      onChangeTime={onChangeTime}
-      draggable={Boolean(onChangeTime)}
-      isDragging={draggingId === item.id}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      completing={completing}
-      removing={removing}
-    />
-  )
+  const renderDayEntry = (entry: CalendarRenderEntry) =>
+    entry.kind === 'group' ? (
+      <WorkoutGroupTile
+        key={entry.key}
+        group={entry}
+        density="day"
+        onComplete={onComplete}
+        onRemove={onRemove}
+        onChangeTime={onChangeTime}
+        draggable={Boolean(onChangeTime)}
+        draggingId={draggingId}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        completing={completing}
+        removing={removing}
+      />
+    ) : (
+      <ActivityTile
+        key={entry.key}
+        item={entry.item}
+        density="day"
+        onComplete={onComplete}
+        onRemove={onRemove}
+        onChangeTime={onChangeTime}
+        draggable={Boolean(onChangeTime)}
+        isDragging={draggingId === entry.item.id}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        completing={completing}
+        removing={removing}
+      />
+    )
 
   return (
     <div className="calendar-day-schedule">
@@ -131,7 +150,7 @@ function DayHourlyTable({
             onDrop={(event) => handleDrop(event, 'anytime', null)}
             className={cn(
               'calendar-day-table__row calendar-day-table__row--anytime',
-              untimedItems.length > 0 && 'calendar-day-table__row--populated',
+              untimedEntries.length > 0 && 'calendar-day-table__row--populated',
               dropSlot === 'anytime' && 'calendar-day-table__row--drop',
             )}
           >
@@ -139,9 +158,9 @@ function DayHourlyTable({
               Any time
             </th>
             <td className="calendar-day-table__items">
-              {untimedItems.length > 0 ? (
+              {untimedEntries.length > 0 ? (
                 <div className="calendar-day-table__list">
-                  {untimedItems.map(renderDayTile)}
+                  {untimedEntries.map(renderDayEntry)}
                 </div>
               ) : (
                 <span className="calendar-day-table__empty-hint">
@@ -154,7 +173,7 @@ function DayHourlyTable({
           {HOURS.map((hour) => {
             const hourKey = String(hour).padStart(2, '0')
             const slotTime = `${hourKey}:00`
-            const hourItems = byHour.get(hourKey) ?? []
+            const hourEntries = byHour.get(hourKey) ?? []
             return (
               <tr
                 key={hourKey}
@@ -166,7 +185,7 @@ function DayHourlyTable({
                 onDrop={(event) => handleDrop(event, hourKey, slotTime)}
                 className={cn(
                   'calendar-day-table__row',
-                  hourItems.length > 0 && 'calendar-day-table__row--populated',
+                  hourEntries.length > 0 && 'calendar-day-table__row--populated',
                   dropSlot === hourKey && 'calendar-day-table__row--drop',
                 )}
               >
@@ -174,9 +193,9 @@ function DayHourlyTable({
                   <time dateTime={`${day.id}T${slotTime}`}>{formatHourLabel(hour)}</time>
                 </th>
                 <td className="calendar-day-table__items">
-                  {hourItems.length > 0 && (
+                  {hourEntries.length > 0 && (
                     <div className="calendar-day-table__list">
-                      {hourItems.map(renderDayTile)}
+                      {hourEntries.map(renderDayEntry)}
                     </div>
                   )}
                 </td>
@@ -230,26 +249,38 @@ function DayItems({
     return null
   }
 
-  const renderTile = (item: SurfaceItem) => (
-    <ActivityTile
-      key={item.id}
-      item={item}
-      density={density}
-      onComplete={onComplete}
-      onRemove={onRemove}
-      completing={completing}
-      removing={removing}
-    />
-  )
+  const entries = groupCalendarEntries(rows)
+  const renderEntry = (entry: CalendarRenderEntry) =>
+    entry.kind === 'group' ? (
+      <WorkoutGroupTile
+        key={entry.key}
+        group={entry}
+        density={density}
+        onComplete={onComplete}
+        onRemove={onRemove}
+        completing={completing}
+        removing={removing}
+      />
+    ) : (
+      <ActivityTile
+        key={entry.key}
+        item={entry.item}
+        density={density}
+        onComplete={onComplete}
+        onRemove={onRemove}
+        completing={completing}
+        removing={removing}
+      />
+    )
 
   if (density === 'day') {
     // Local wall-clock times are already in the calendar's timezone. Do not
     // convert them through the browser timezone or infer a session duration.
-    const slots = new Map<string, SurfaceItem[]>()
-    for (const item of rows) {
-      const time = item.localTime?.slice(0, 5) || ''
+    const slots = new Map<string, CalendarRenderEntry[]>()
+    for (const entry of entries) {
+      const time = entry.localTime?.slice(0, 5) || ''
       const slot = slots.get(time) ?? []
-      slot.push(item)
+      slot.push(entry)
       slots.set(time, slot)
     }
     const times = [...slots.keys()].sort((a, b) => {
@@ -266,7 +297,7 @@ function DayItems({
               {time ? <time dateTime={`${day.id}T${time}`}>{formatTargetTime(time) ?? time}</time> : 'Any time'}
             </h3>
             <div className="calendar-agenda__items">
-              {slots.get(time)!.map(renderTile)}
+              {slots.get(time)!.map(renderEntry)}
             </div>
           </li>
         ))}
@@ -276,8 +307,8 @@ function DayItems({
 
   return (
     <div className="calendar-day-items">
-      {(density === 'month' ? rows.slice(0, 4) : rows).map(renderTile)}
-      {density === 'month' && rows.length > 4 && <button type="button" className="calendar-month-more" onClick={onExpand}>+{rows.length - 4} more</button>}
+      {(density === 'month' ? entries.slice(0, 4) : entries).map(renderEntry)}
+      {density === 'month' && entries.length > 4 && <button type="button" className="calendar-month-more" onClick={onExpand}>+{entries.length - 4} more</button>}
     </div>
   )
 }

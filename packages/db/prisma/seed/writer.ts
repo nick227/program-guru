@@ -457,12 +457,14 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
     const canonicalSlug = sp.slug.replace(/^starter-/, '')
     const programLevel = sp.level ?? 'ALL_LEVELS'
     const programSessionMinutes = sp.sessionMinutes ?? null
+    const programSessionPresentation = sp.sessionPresentation ?? 'SEPARATE'
     const programContent = {
       categoryId,
       programTypeId,
       focusId,
       level: programLevel,
       sessionMinutes: programSessionMinutes,
+      sessionPresentation: programSessionPresentation,
       title: sp.title,
       description: sp.description,
       coverMediaId,
@@ -521,6 +523,7 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
       focusId,
       level: programLevel,
       sessionMinutes: programSessionMinutes,
+      sessionPresentation: programSessionPresentation,
       durationDays: sp.durationDays,
       frequency: sp.frequency as Prisma.InputJsonValue,
       generationMode: sp.generationMode,
@@ -561,6 +564,7 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
         position: pl.position,
         localTime: pl.localTime ?? null,
         frequency: pl.frequency ? (pl.frequency as Prisma.InputJsonValue) : Prisma.DbNull,
+        targetOverrides: pl.targetOverrides ? (pl.targetOverrides as Prisma.InputJsonValue) : Prisma.DbNull,
       }
       await prisma.programScheduleItem.upsert({
         where: { id: scheduleItemId },

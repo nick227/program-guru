@@ -3,8 +3,8 @@
 // rules, reporting every issue before anything is written. A valid import is written in one
 // transaction (all or nothing) and is replay-safe through its idempotency key.
 import { randomUUID } from 'crypto'
-import { db, type Prisma, type ProgramLevel } from '@project/db'
-import { isValidMinutes, isValidTargetTime, PROGRAM_LEVELS, validateFrequencyRule, type ContentIssue } from '@project/shared'
+import { db, type Prisma, type ProgramLevel, type SessionPresentation } from '@project/db'
+import { isValidMinutes, isValidTargetTime, PROGRAM_LEVELS, SESSION_PRESENTATIONS, validateFrequencyRule, type ContentIssue } from '@project/shared'
 import { badRequest } from '../../lib/errors'
 import { requestHash, withIdempotency } from '../../lib/idempotency'
 import { isOpenlyReadable } from '../activities/access'
@@ -34,6 +34,7 @@ export type ImportProgram = {
   focus?: string | null
   level?: ProgramLevel
   sessionMinutes?: number | null
+  sessionPresentation?: SessionPresentation
   tags?: string[]
   visibility?: Visibility
   durationDays?: number | null
@@ -101,6 +102,9 @@ async function check(input: ImportInput) {
     const focus = p.focus && type ? refs.focus(p.focus, type.categoryId) : null
     if (p.focus && type && !focus) add(`${at}.focus`, `no approved focus "${p.focus}"`)
     if (p.level && !PROGRAM_LEVELS.includes(p.level)) add(`${at}.level`, `invalid level "${p.level}"`)
+    if (p.sessionPresentation && !SESSION_PRESENTATIONS.includes(p.sessionPresentation)) {
+      add(`${at}.sessionPresentation`, `invalid sessionPresentation "${p.sessionPresentation}"`)
+    }
     if (p.sessionMinutes !== undefined && p.sessionMinutes !== null && !isValidMinutes(p.sessionMinutes)) {
       add(`${at}.sessionMinutes`, 'must be between 1 and 1440')
     }
@@ -235,6 +239,7 @@ async function writeProgram(tx: Prisma.TransactionClient, adminId: string, p: Pl
   const durationDays = p.input.durationDays === undefined ? DEFAULT_DURATION_DAYS : p.input.durationDays
   const level = p.input.level ?? 'ALL_LEVELS'
   const sessionMinutes = p.input.sessionMinutes ?? null
+  const sessionPresentation = p.input.sessionPresentation ?? 'SEPARATE'
   const program = await tx.program.create({
     data: {
       creatorId: null,
@@ -245,6 +250,7 @@ async function writeProgram(tx: Prisma.TransactionClient, adminId: string, p: Pl
       focusId: p.focus?.id ?? null,
       level,
       sessionMinutes,
+      sessionPresentation,
       visibility: p.input.visibility ?? 'PRIVATE',
       policy: { create: { accessMode: 'OPEN' } },
       ...(p.tagIds.length ? { tags: { create: p.tagIds.map((tagId, position) => ({ tagId, position })) } } : {}),
@@ -260,6 +266,7 @@ async function writeProgram(tx: Prisma.TransactionClient, adminId: string, p: Pl
       focusId: p.focus?.id ?? null,
       level,
       sessionMinutes,
+      sessionPresentation,
       durationDays,
       cycleDays: durationDays === null ? 7 : null,
       frequency: (p.input.frequency ?? DEFAULT_FREQUENCY) as Prisma.InputJsonValue,
