@@ -743,6 +743,11 @@ export function ProgramPage() {
               signedIn={signedIn}
               participantCount={participantCount}
               completionRate={p.completionRate}
+              activityOptions={
+                isOwner && ws?.activities.length
+                  ? ws.activities.map((a) => ({ id: a.activityId, title: a.title }))
+                  : programVersion.data?.activities.map((a) => ({ id: a.id, title: a.title }))
+              }
               returnTo={currentUrl}
             />
 

@@ -11,6 +11,7 @@ import { occurrenceKey, sameDayOrdinals } from '../calendar/materialize'
 import { blockedIds, isBlockedEitherWay } from '../users/follow.service'
 import { normalizeEmail } from '../users/auth.service'
 import { toUserSummary } from '../users/mapper'
+import { canUseActivity } from '../activities/access'
 import { canSeeProgram, discoverableProgramWhere, hasActiveGrant, isProgramOwner } from '../programs/access'
 import { preview as programPreview } from '../programs/browse.service'
 import { thumbFor } from '../media/media.service'
@@ -34,10 +35,15 @@ async function ownedGroup(userId: string, groupId: string) {
   return m.group
 }
 
-async function toSummary(g: ProgramGroup & { version: { title: string; programId: string } }, userId: string) {
-  const [memberCount, me] = await Promise.all([
+async function toSummary(
+  g: ProgramGroup & { version: { title: string; programId: string } },
+  userId: string,
+  agg?: GroupAggregates,
+) {
+  const [memberCount, me, fallbackAgg] = await Promise.all([
     db.groupMember.count({ where: { groupId: g.id, status: 'ACTIVE' } }),
     db.groupMember.findUnique({ where: { groupId_userId: { groupId: g.id, userId } } }),
+    agg ? Promise.resolve(agg) : loadGroupAggregates(userId, [g.id]),
   ])
   return {
     id: g.id,
@@ -52,6 +58,9 @@ async function toSummary(g: ProgramGroup & { version: { title: string; programId
     timezone: g.timezone,
     memberCount,
     myRole: me?.role ?? 'MEMBER',
+    memberAvatars: fallbackAgg.avatars.get(g.id) ?? [],
+    recentCheckInCount: fallbackAgg.checkInCounts.get(g.id) ?? 0,
+    latestCheckIn: fallbackAgg.latestCheckIn.get(g.id) ?? null,
   }
 }
 
@@ -64,6 +73,19 @@ export function isStartingSoonGroup(g: Pick<ProgramGroup, 'mode' | 'startLocalDa
 }
 
 const VALID_STAGE_THEMES = ['constellation', 'campfire', 'sprout'] as const
+
+type RecentCheckInDto = {
+  id: string
+  user: ReturnType<typeof toUserSummary>
+  activityTitle: string
+  completedAt: string
+}
+
+type GroupAggregates = {
+  avatars: Map<string, ReturnType<typeof toUserSummary>[]>
+  checkInCounts: Map<string, number>
+  latestCheckIn: Map<string, RecentCheckInDto | null>
+}
 
 async function recentCheckInCounts(groupIds: string[], now = new Date()): Promise<Map<string, number>> {
   const counts = new Map<string, number>()
@@ -78,11 +100,72 @@ async function recentCheckInCounts(groupIds: string[], now = new Date()): Promis
   return counts
 }
 
+async function loadGroupAggregates(
+  viewerId: string | null,
+  groupIds: string[],
+  now = new Date(),
+  memberGroupIds = groupIds,
+): Promise<GroupAggregates> {
+  const avatars = new Map<string, ReturnType<typeof toUserSummary>[]>()
+  const latestCheckIn = new Map<string, RecentCheckInDto | null>()
+  if (!groupIds.length) {
+    return { avatars, checkInCounts: new Map(), latestCheckIn }
+  }
+  const blocked = memberGroupIds.length ? await blockedIds(viewerId) : []
+  const [members, checkInCounts, recentShares] = await Promise.all([
+    memberGroupIds.length
+      ? db.groupMember.findMany({
+          where: {
+            groupId: { in: memberGroupIds },
+            status: 'ACTIVE',
+            user: { status: 'ACTIVE', ...(blocked.length ? { id: { notIn: blocked } } : {}) },
+          },
+          orderBy: [{ role: 'desc' }, { joinedAt: 'asc' }, { createdAt: 'asc' }],
+          include: { user: { include: { profile: true } } },
+        })
+      : Promise.resolve([]),
+    recentCheckInCounts(groupIds, now),
+    memberGroupIds.length
+      ? db.completionShare.findMany({
+          where: {
+            groupId: { in: memberGroupIds },
+            revokedAt: null,
+            ...(blocked.length ? { userId: { notIn: blocked } } : {}),
+            user: { status: 'ACTIVE' },
+          },
+          orderBy: [{ completedAt: 'desc' }, { id: 'desc' }],
+          distinct: ['groupId'],
+          include: { user: { include: { profile: true } }, activity: { select: { title: true } } },
+        })
+      : Promise.resolve([]),
+  ])
+
+  for (const m of members) {
+    if (!m.user.profile) continue
+    const list = avatars.get(m.groupId) ?? []
+    if (list.length < 4) {
+      list.push(toUserSummary(m.user.profile))
+      avatars.set(m.groupId, list)
+    }
+  }
+  for (const share of recentShares) {
+    if (!share.user.profile) continue
+    latestCheckIn.set(share.groupId, {
+      id: share.id,
+      user: toUserSummary(share.user.profile),
+      activityTitle: share.activity.title,
+      completedAt: share.completedAt.toISOString(),
+    })
+  }
+  return { avatars, checkInCounts, latestCheckIn }
+}
+
 function toPublicGroupSummary(
   g: ProgramGroup & { version: { title: string; programId: string }; _count: { members: number }; members?: { userId: string }[] },
   now = new Date(),
-  recentCheckInCount = 0,
+  agg?: GroupAggregates,
 ) {
+  const viewerIsMember = (g.members?.length ?? 0) > 0
   return {
     id: g.id,
     programId: g.version.programId,
@@ -96,8 +179,10 @@ function toPublicGroupSummary(
     startLocalDate: g.startLocalDate ? fromDbDate(g.startLocalDate) : null,
     timezone: g.timezone,
     startingSoon: isStartingSoonGroup(g, now),
-    viewerIsMember: (g.members?.length ?? 0) > 0,
-    recentCheckInCount,
+    viewerIsMember,
+    memberAvatars: viewerIsMember ? (agg?.avatars.get(g.id) ?? []) : [],
+    recentCheckInCount: agg?.checkInCounts.get(g.id) ?? 0,
+    latestCheckIn: viewerIsMember ? (agg?.latestCheckIn.get(g.id) ?? null) : null,
   }
 }
 
@@ -160,11 +245,16 @@ export async function featuredGroupsForPrograms(
       ...(viewerId ? { members: { where: { userId: viewerId, status: 'ACTIVE' }, select: { userId: true } } } : {}),
     },
   })
-  const checkIns = await recentCheckInCounts(rows.map((r) => r.id), now)
+  const agg = await loadGroupAggregates(
+    viewerId,
+    rows.map((r) => r.id),
+    now,
+    rows.filter((r) => (r.members?.length ?? 0) > 0).map((r) => r.id),
+  )
   const grouped = new Map<string, (ReturnType<typeof toPublicGroupSummary> & { createdAt: Date })[]>()
   for (const r of rows) {
     if (timing === 'STARTING_SOON' && !isStartingSoonGroup(r, now)) continue
-    const summary = { ...toPublicGroupSummary(r, now, checkIns.get(r.id) ?? 0), createdAt: r.createdAt }
+    const summary = { ...toPublicGroupSummary(r, now, agg), createdAt: r.createdAt }
     const list = grouped.get(summary.programId) ?? []
     list.push(summary)
     grouped.set(summary.programId, list)
@@ -211,11 +301,84 @@ export async function listByProgram(
       ...(viewerId ? { members: { where: { userId: viewerId, status: 'ACTIVE' }, select: { userId: true } } } : {}),
     },
   })
-  const checkIns = await recentCheckInCounts(rows.map((r) => r.id), now)
+  const agg = await loadGroupAggregates(
+    viewerId,
+    rows.map((r) => r.id),
+    now,
+    rows.filter((r) => (r.members?.length ?? 0) > 0).map((r) => r.id),
+  )
   const items = rows
     .filter((r) => query.timing !== 'STARTING_SOON' || isStartingSoonGroup(r, now))
-    .map((r) => ({ ...toPublicGroupSummary(r, now, checkIns.get(r.id) ?? 0), createdAt: r.createdAt }))
+    .map((r) => ({ ...toPublicGroupSummary(r, now, agg), createdAt: r.createdAt }))
     .sort((a, b) => comparePublicGroups(a, b, false))
+  const window = items.slice(skip, skip + limit + 1)
+  return toOffsetPage(window, limit, skip, ({ createdAt: _c, ...g }) => g)
+}
+
+export async function listByActivity(
+  viewerId: string | null,
+  activityId: string,
+  query: PageQuery & { programId?: string },
+  now = new Date(),
+) {
+  const activity = await db.activity.findUnique({ where: { id: activityId } })
+  if (!activity || activity.moderatedAt) throw notFound('Activity')
+  let canRead = canUseActivity(activity, viewerId)
+  if (!canRead && viewerId) {
+    const enrolled = await db.programScheduleItem.findFirst({
+      where: {
+        activityId,
+        version: {
+          program: {
+            deletedAt: null,
+            moderatedAt: null,
+            OR: [
+              { creatorId: viewerId },
+              { enrollments: { some: { userId: viewerId, status: { in: ['ACTIVE', 'PAUSED', 'COMPLETED'] } } } },
+              { accessGrants: { some: { userId: viewerId, revokedAt: null } } },
+            ],
+          },
+        },
+      },
+      select: { id: true },
+    })
+    canRead = !!enrolled
+  }
+  if (!canRead) throw notFound('Activity')
+
+  const { limit, skip } = offsetArgs(query)
+  const blocked = await blockedIds(viewerId)
+  const rows = await db.programGroup.findMany({
+    where: {
+      status: 'ACTIVE',
+      version: {
+        ...(query.programId ? { programId: query.programId } : {}),
+        items: { some: { activityId } },
+      },
+      OR: [
+        ...(viewerId ? [{ members: { some: { userId: viewerId, status: 'ACTIVE' as const } } }] : []),
+        {
+          visibility: 'PUBLIC',
+          owner: { status: 'ACTIVE', ...(blocked.length ? { id: { notIn: blocked } } : {}) },
+          version: { program: discoverableProgramWhere },
+        },
+      ],
+    },
+    include: {
+      version: { select: { title: true, programId: true } },
+      _count: { select: { members: { where: { status: 'ACTIVE' } } } },
+      ...(viewerId ? { members: { where: { userId: viewerId, status: 'ACTIVE' }, select: { userId: true } } } : {}),
+    },
+  })
+  const agg = await loadGroupAggregates(
+    viewerId,
+    rows.map((r) => r.id),
+    now,
+    rows.filter((r) => (r.members?.length ?? 0) > 0).map((r) => r.id),
+  )
+  const items = rows
+    .map((r) => ({ ...toPublicGroupSummary(r, now, agg), createdAt: r.createdAt }))
+    .sort((a, b) => comparePublicGroups(a, b, true))
   const window = items.slice(skip, skip + limit + 1)
   return toOffsetPage(window, limit, skip, ({ createdAt: _c, ...g }) => g)
 }
@@ -313,7 +476,8 @@ export async function listMine(userId: string, query: PageQuery) {
     include: { version: true },
   })
   const page = toPage(rows, limit, (g) => g)
-  return { data: await Promise.all(page.data.map((g) => toSummary(g, userId))), meta: page.meta }
+  const agg = await loadGroupAggregates(userId, page.data.map((g) => g.id))
+  return { data: await Promise.all(page.data.map((g) => toSummary(g, userId, agg))), meta: page.meta }
 }
 
 export async function create(

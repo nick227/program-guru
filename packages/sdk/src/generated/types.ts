@@ -773,6 +773,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/activities/{activityId}/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List accessible or discoverable groups centered on this Activity */
+        get: operations["listActivityGroups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/resolve-slug": {
         parameters: {
             query?: never;
@@ -4114,6 +4131,17 @@ export interface components {
             timezone: string | null;
             memberCount: number;
             myRole: components["schemas"]["GroupRole"];
+            memberAvatars?: components["schemas"]["UserSummary"][];
+            recentCheckInCount?: number;
+            latestCheckIn?: components["schemas"]["GroupRecentCheckIn"] | null;
+        };
+        GroupRecentCheckIn: {
+            /** Format: uuid */
+            id: string;
+            user: components["schemas"]["UserSummary"];
+            activityTitle: string;
+            /** Format: date-time */
+            completedAt: string;
         };
         PublicGroupSummary: {
             /** Format: uuid */
@@ -4133,7 +4161,9 @@ export interface components {
             timezone: string | null;
             startingSoon: boolean;
             viewerIsMember: boolean;
+            memberAvatars?: components["schemas"]["UserSummary"][];
             recentCheckInCount?: number;
+            latestCheckIn?: components["schemas"]["GroupRecentCheckIn"] | null;
         };
         PublicGroupPreview: {
             /** Format: uuid */
@@ -6330,6 +6360,37 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listActivityGroups: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                programId?: string;
+            };
+            header?: never;
+            path: {
+                activityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicGroupSummary"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };

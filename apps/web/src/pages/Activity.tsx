@@ -35,6 +35,7 @@ import { ActivitySection } from '@/components/activity/ActivitySection'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { ActivityShare } from '@/components/activity/ActivityShare'
 import { ActivityDetailsEditor } from '@/components/activity/ActivityDetailsEditor'
+import { GroupStatus } from '@/components/social/GroupStatus'
 import { formatFrequency } from '@/components/program-authoring/ScheduleControls'
 import {
   buildActivityBreadcrumbs,
@@ -271,6 +272,13 @@ export function ActivityPage() {
               {editing && a.canEdit && (
                 <ActivityDetailsEditor activity={a} onDone={() => setEditing(false)} />
               )}
+
+              <GroupStatus
+                activityId={a.id}
+                activityTitle={a.title}
+                programId={parentTarget ? resolvedParent.programId : undefined}
+                returnTo={currentUrl}
+              />
 
               <div
                 className={cn(

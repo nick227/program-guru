@@ -1,23 +1,28 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useCreateGroup, useJoinPublicGroupById, useMyGroupInvitations, useMyGroups, useProgramGroups } from '@project/sdk'
+import { useCreateGroup, useMyGroupInvitations, useMyGroups, useProgramGroups } from '@project/sdk'
 import type { components } from '@project/sdk'
 import { toast } from 'sonner'
-import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { ErrorMessage } from '@/components/ui/Feedback'
-import { dateLabel, isLocalDate, today } from '@/lib/dates'
-import { buildGroupUrl } from '@/lib/urls'
+import {
+  GroupStatus,
+  fromMyGroupSummary,
+  fromPublicGroupSummary,
+  type GroupStatusItem,
+} from '@/components/social/GroupStatus'
+import { type CheckInActivityOption } from '@/components/group-stage/GroupCheckInModal'
+import { isLocalDate, today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 
 type GroupSummary = components['schemas']['GroupSummary']
 
 /**
- * Compact Community panel for the Program page: real participation, the viewer's own groups for
- * this Program, pending invitations, discoverable public groups, and Create Group. Private groups
- * remain invisible to non-members (10 §2).
+ * Compact Community panel for the Program page: real participation, GroupStatus widget for
+ * the viewer's own groups, pending invitations, and discoverable public groups, plus Create Group.
+ * Private groups remain invisible to non-members (10 §2).
  */
 export function ProgramGroups({
   programId,
@@ -29,6 +34,7 @@ export function ProgramGroups({
   signedIn,
   participantCount,
   completionRate,
+  activityOptions,
   returnTo,
 }: {
   programId: string
@@ -42,6 +48,8 @@ export function ProgramGroups({
   participantCount?: number | null
   /** Real completion rate (0..1), null below the public sample size. */
   completionRate?: number | null
+  /** Activities in this Program available for group check-in. */
+  activityOptions?: CheckInActivityOption[]
   returnTo?: string
 }) {
   const online = useOnline()
@@ -49,8 +57,6 @@ export function ProgramGroups({
   const invitations = useMyGroupInvitations(signedIn)
   const publicGroups = useProgramGroups(programId, { enabled: isPublicProgram })
   const create = useCreateGroup()
-  const joinById = useJoinPublicGroupById()
-  const [joiningId, setJoiningId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [mode, setMode] = useState<'SYNC' | 'ASYNC'>('ASYNC')
   const [visibility, setVisibility] = useState<'PRIVATE' | 'PUBLIC'>('PRIVATE')
@@ -113,45 +119,27 @@ export function ProgramGroups({
           !invited.some((inv) => inv.groupId === group.id),
       )
     : []
-  const allRows = [
-    ...mine.map((group) => ({
-      key: group.id,
-      groupId: group.id,
-      name: group.name ?? 'Your group',
-      detail: `${group.memberCount} ${group.memberCount === 1 ? 'member' : 'members'} · ${group.mode === 'ASYNC' ? 'Flexible pace' : group.startLocalDate ? `Starts ${dateLabel(group.startLocalDate)}` : 'Shared start'}`,
-      action: 'Open Group' as const,
-      quickJoin: false,
+  const allStatusItems: GroupStatusItem[] = [
+    ...mine.map(fromMyGroupSummary),
+    ...invited.map((invitation): GroupStatusItem => ({
+      id: invitation.groupId,
+      name: invitation.preview.groupName ?? null,
+      visibility: 'PRIVATE',
+      joinPolicy: 'INVITE_ONLY',
+      mode: invitation.preview.mode,
+      memberCount: 0,
+      startLocalDate: null,
+      viewerIsMember: false,
+      memberAvatars: [],
+      recentCheckInCount: 0,
+      latestCheckIn: null,
+      isPendingInvite: true,
+      invitedByName: invitation.preview.inviter?.displayName ?? null,
     })),
-    ...invited.map((invitation) => ({
-      key: invitation.id,
-      groupId: invitation.groupId,
-      name: invitation.preview.groupName ?? 'Group invitation',
-      detail: invitation.preview.inviter
-        ? `Invited by ${invitation.preview.inviter.displayName}`
-        : 'Invitation',
-      action: 'Join' as const,
-      quickJoin: false,
-    })),
-    ...discoverable.map((group) => ({
-      key: `pub-${group.id}`,
-      groupId: group.id,
-      name: group.name ?? 'Community group',
-      detail: [
-        `${group.memberCount} ${group.memberCount === 1 ? 'member' : 'members'}`,
-        (group.recentCheckInCount ?? 0) > 0
-          ? `${group.recentCheckInCount} recent ${group.recentCheckInCount === 1 ? 'check-in' : 'check-ins'}`
-          : null,
-        group.startLocalDate ? `Starts ${dateLabel(group.startLocalDate)}` : 'Flexible pace',
-        group.joinPolicy === 'INVITE_ONLY' ? 'Invite only' : null,
-      ]
-        .filter(Boolean)
-        .join(' · '),
-      action: group.joinPolicy === 'OPEN' ? ('Join' as const) : ('View' as const),
-      quickJoin: signedIn && group.joinPolicy === 'OPEN',
-    })),
+    ...discoverable.map(fromPublicGroupSummary),
   ]
-  const rows = allRows.slice(0, 5)
-  const hasMoreInvites = allRows.length > rows.length && invited.length > 0
+  const statusItems = allStatusItems.slice(0, 5)
+  const hasMoreInvites = allStatusItems.length > statusItems.length && invited.length > 0
   // One group per person and Program (10 §2): creating is offered until they are in one.
   const canCreate =
     signedIn &&
@@ -214,48 +202,15 @@ export function ProgramGroups({
         />
       )}
 
-      {rows.length > 0 && (
-        <ul className="divide-y divide-border/60 border-t border-border/60">
-          {rows.map((row) => (
-            <li key={row.key} className="flex items-center gap-3 py-3">
-              <Avatar name={row.name} size="md" className="rounded-lg" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-foreground">{row.name}</p>
-                <p className="truncate text-xs text-muted">{row.detail}</p>
-              </div>
-              {row.quickJoin ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  loading={joiningId === row.groupId}
-                  disabled={!online || joiningId === row.groupId}
-                  aria-label={`Join ${row.name}`}
-                  onClick={async () => {
-                    setJoiningId(row.groupId)
-                    try {
-                      await joinById.mutateAsync({ groupId: row.groupId })
-                      toast.success('Joined group')
-                    } catch (err) {
-                      toast.error(err instanceof Error ? err.message : 'Could not join group')
-                    } finally {
-                      setJoiningId(null)
-                    }
-                  }}
-                >
-                  {row.action}
-                </Button>
-              ) : (
-                <Link
-                  to={buildGroupUrl(row.groupId, returnTo ? { returnTo } : undefined)}
-                  className="btn btn--outline btn--sm shrink-0"
-                  aria-label={`${row.action} ${row.name}`}
-                >
-                  {row.action}
-                </Link>
-              )}
-            </li>
-          ))}
-        </ul>
+      {statusItems.length > 0 && (
+        <GroupStatus
+          programId={programId}
+          isPublicProgram={isPublicProgram}
+          items={statusItems}
+          activityOptions={activityOptions}
+          canCheckIn={Boolean(enrollmentId && activityOptions?.length)}
+          returnTo={returnTo}
+        />
       )}
 
       {hasMoreInvites && (
@@ -340,13 +295,13 @@ export function ProgramGroups({
           </Button>
         ))}
 
-      {!signedIn && !rows.length && (
+      {!signedIn && !statusItems.length && (
         <p className="text-sm text-muted">Sign in to start a private group or view your invitations.</p>
       )}
-      {signedIn && !rows.length && !canCreate && isProgramOwner && !versionId && (
+      {signedIn && !statusItems.length && !canCreate && isProgramOwner && !versionId && (
         <p className="text-sm text-muted">Publish the Program to create a group.</p>
       )}
-      {signedIn && !rows.length && !canCreate && !enrollmentId && !isProgramOwner && (
+      {signedIn && !statusItems.length && !canCreate && !enrollmentId && !isProgramOwner && (
         <p className="text-sm text-muted">Start the Program to create a group.</p>
       )}
     </section>

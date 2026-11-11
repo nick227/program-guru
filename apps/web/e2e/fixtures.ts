@@ -879,6 +879,8 @@ export async function mockApi(
       session = null
       return send(item())
     }
+    if (method === 'GET' && /^\/activities\/[^/]+\/(groups|my-attempts)$/.test(path))
+      return send([], 200, true)
     return error(404, 'NOT_FOUND', `Unhandled mock: ${method} ${path}`)
   })
   return { requests }

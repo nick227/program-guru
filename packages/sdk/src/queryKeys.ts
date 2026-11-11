@@ -81,6 +81,8 @@ export const queryKeys = {
   groups: ['groups'] as const,
   programGroups: (programId: string, timing = 'ALL') =>
     ['programs', programId, 'groups', timing] as const,
+  activityGroups: (activityId: string, programId = '') =>
+    ['activities', activityId, 'groups', programId] as const,
   group: (id: string) => ['groups', id] as const,
   publicGroupPreview: (id: string) => ['groups', id, 'preview'] as const,
   groupInvitations: (id: string) => ['groups', id, 'invitations'] as const,

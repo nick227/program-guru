@@ -367,6 +367,7 @@ export const cases: Record<string, Case> = {
   // ── groups
   listMyGroups: { as: 'bob', protected: true, request: async (w) => (await w.group(), { method: 'GET', url: '/groups' }) },
   listProgramGroups: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/programs/${(await w.publicGroup()).programId}/groups` }) },
+  listActivityGroups: { as: 'anon', request: async (w) => { const g = await w.publicGroup(); return { method: 'GET', url: `/activities/${(await w.cat()).squats.activity.id}/groups?programId=${g.programId}` } } },
   getPublicGroupPreview: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/groups/${(await w.publicGroup()).id}/preview` }) },
   joinGroup: { as: 'bob', protected: true, request: async (w) => ({ method: 'POST', url: `/groups/${(await w.publicGroup()).id}/join`, payload: { enrollment: { timezone: 'America/Chicago', idempotencyKey: 'contract-bob-public-join' } } }) },
   createGroup: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: '/groups', payload: { programVersionId: (await w.program()).versionId, mode: 'ASYNC' } }) },

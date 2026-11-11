@@ -404,7 +404,7 @@ test('Program page layout: clean hero, Community pending invitations, group crea
   await expect.poll(() =>
     requests.some((r) => r.path === '/groups' && r.method === 'POST'),
   ).toBe(true)
-  await expect(community.getByRole('link', { name: 'Open Home Gym Squad' })).toBeVisible()
+  await expect(community.getByRole('link', { name: 'Open Group Home Gym Squad' })).toBeVisible()
 
   await page.evaluate(() => window.scrollTo(0, 0))
   await page.screenshot({

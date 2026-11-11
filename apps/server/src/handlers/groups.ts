@@ -10,6 +10,10 @@ export async function listProgramGroups(request: any) {
   const viewer = await resolveViewer(request)
   return groups.listByProgram(viewer?.id ?? null, request.params.programId, request.query)
 }
+export async function listActivityGroups(request: any) {
+  const viewer = await resolveViewer(request)
+  return groups.listByActivity(viewer?.id ?? null, request.params.activityId, request.query)
+}
 export async function getPublicGroupPreview(request: any) {
   const viewer = await resolveViewer(request)
   return { data: await groups.previewPublic(viewer?.id ?? null, request.params.groupId) }

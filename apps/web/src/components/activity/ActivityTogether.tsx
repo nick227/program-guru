@@ -2,25 +2,20 @@
 // Activity with you. It shows permitted states only — finished (with when), started, not yet,
 // private — and never claims anyone is online. Reactions sit on each shared completion; shared
 // photos and their comments stay in Related Media (one media section), linked from here.
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   useAddCompletionReaction,
   useGroupCompletions,
   useRemoveCompletionReaction,
   type components,
 } from '@project/sdk'
-import { Check, CheckCircle2, Timer, Users } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { Check, Timer, Users } from 'lucide-react'
 import { Row, Stack } from '@/components/ui/Layout'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage } from '@/components/ui/Feedback'
-import { linkButton } from '@/components/shared/Navigation'
 import { UnreadDot } from '@/components/shared/UnreadDot'
 import { GroupInviteLink } from '@/components/social/GroupInviteLink'
+import { GroupStatus, type GroupStatusItem } from '@/components/social/GroupStatus'
 import { GroupCheckInFeed } from '@/components/group-stage/GroupCheckInFeed'
-import { GroupCheckInModal } from '@/components/group-stage/GroupCheckInModal'
-import { buildGroupUrl } from '@/lib/urls'
 import { orderMembers, stateLabel } from '@/lib/together'
 import { cn } from '@/lib/utils'
 
@@ -52,7 +47,6 @@ export function ActivityTogether({
   const addReaction = useAddCompletionReaction()
   const removeReaction = useRemoveCompletionReaction()
   const completions = useGroupCompletions(c.groupId, c.occurrenceKey ?? undefined)
-  const [checkInOpen, setCheckInOpen] = useState(false)
   const checkInRows = completions.data?.pages.flatMap((page) => page.data) ?? []
   const members = orderMembers(c.members, viewerId)
   const others = members.filter((m) => m.user.id !== viewerId)
@@ -75,7 +69,27 @@ export function ActivityTogether({
           ? 'Nobody else has started yet. You could be first.'
           : null
         : 'Invite someone to do this with you.'
-  const extraCount = Math.max(0, members.length - 3)
+  const latestShare = checkInRows[0] ?? null
+  const groupStatusItem: GroupStatusItem = {
+    id: c.groupId,
+    name: null,
+    visibility: 'PRIVATE',
+    joinPolicy: 'INVITE_ONLY',
+    mode: 'ASYNC',
+    memberCount: c.totalCount || members.length,
+    startLocalDate: null,
+    viewerIsMember: true,
+    memberAvatars: members.map((m) => m.user),
+    recentCheckInCount: checkInRows.length,
+    latestCheckIn: latestShare
+      ? {
+          id: latestShare.id,
+          user: latestShare.user,
+          activityTitle: latestShare.activityTitle,
+          completedAt: latestShare.completedAt,
+        }
+      : null,
+  }
 
   return (
     <section
@@ -91,45 +105,17 @@ export function ActivityTogether({
             <UnreadDot count={c.unreadCount} inline />
           </h2>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {members.length > 0 && (
-            <div className="flex items-center -space-x-2" aria-hidden>
-              {members.slice(0, 3).map((m) => (
-                <Avatar
-                  key={m.user.id}
-                  src={m.user.avatarUrl}
-                  name={m.user.displayName}
-                  size="sm"
-                  className="ring-2 ring-surface"
-                />
-              ))}
-              {extraCount > 0 && (
-                <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-surface-muted px-1.5 text-[11px] font-semibold text-text ring-2 ring-surface">
-                  +{extraCount}
-                </span>
-              )}
-            </div>
-          )}
-          <span aria-label="Group progress" className="text-xs font-medium text-muted">
-            {c.finishedCount} of {c.totalCount} finished
-          </span>
-          {canCheckIn && activityId && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={disabled}
-              onClick={() => setCheckInOpen(true)}
-              className="gap-1.5 text-xs"
-            >
-              <CheckCircle2 size={14} aria-hidden />
-              <span>Share Check-in</span>
-            </Button>
-          )}
-          <Link to={buildGroupUrl(c.groupId)} className={cn(linkButton, 'text-xs')}>
-            Open Group
-          </Link>
-        </div>
+        <GroupStatus
+          variant="inline"
+          items={[groupStatusItem]}
+          activityId={activityId}
+          activityTitle={activityTitle}
+          occurrenceId={calendarItemId}
+          canCheckIn={canCheckIn && !!activityId}
+          checkInLabel="Share Check-in"
+          progressSummary={`${c.finishedCount} of ${c.totalCount} finished`}
+          disabled={disabled}
+        />
       </div>
 
       {c.totalCount > 0 && (
@@ -294,17 +280,6 @@ export function ActivityTogether({
             ? 'The group can see that you finished — never your results.'
             : 'When you finish, the group sees that you did — never your results.'}
       </p>
-
-      {activityId && (
-        <GroupCheckInModal
-          open={checkInOpen}
-          onClose={() => setCheckInOpen(false)}
-          defaultGroupId={c.groupId}
-          activityId={activityId}
-          activityTitle={activityTitle}
-          calendarItemId={calendarItemId}
-        />
-      )}
     </section>
   )
 }

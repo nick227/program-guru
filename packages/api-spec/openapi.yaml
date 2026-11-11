@@ -1725,6 +1725,46 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /activities/{activityId}/groups:
+    get:
+      operationId: listActivityGroups
+      summary: List accessible or discoverable groups centered on this Activity
+      tags:
+      - groups
+      security: []
+      parameters:
+      - in: path
+        name: activityId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - in: query
+        name: programId
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PublicGroupSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /resolve-slug:
     get:
       operationId: resolveSlug
@@ -10748,6 +10788,35 @@ components:
           type: integer
         myRole:
           $ref: '#/components/schemas/GroupRole'
+        memberAvatars:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        recentCheckInCount:
+          type: integer
+          minimum: 0
+        latestCheckIn:
+          anyOf:
+          - $ref: '#/components/schemas/GroupRecentCheckIn'
+          - type: 'null'
+    GroupRecentCheckIn:
+      type: object
+      required:
+      - id
+      - user
+      - activityTitle
+      - completedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: '#/components/schemas/UserSummary'
+        activityTitle:
+          type: string
+        completedAt:
+          type: string
+          format: date-time
     PublicGroupSummary:
       type: object
       required:
@@ -10801,9 +10870,17 @@ components:
           type: boolean
         viewerIsMember:
           type: boolean
+        memberAvatars:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
         recentCheckInCount:
           type: integer
           minimum: 0
+        latestCheckIn:
+          anyOf:
+          - $ref: '#/components/schemas/GroupRecentCheckIn'
+          - type: 'null'
     PublicGroupPreview:
       type: object
       required:

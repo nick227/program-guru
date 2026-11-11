@@ -59,6 +59,34 @@ export function useProgramGroups(
   })
 }
 
+export function useActivityGroups(
+  activityId: string,
+  opts: { programId?: string; enabled?: boolean } = {},
+) {
+  const programId = opts.programId || undefined
+  const enabled = (opts.enabled ?? true) && !!activityId
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.activityGroups(activityId, programId ?? '')),
+    enabled,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/activities/{activityId}/groups', {
+          signal,
+          params: {
+            path: { activityId },
+            query: {
+              cursor: pageParam,
+              limit: 10,
+              programId,
+            },
+          },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+
 export function usePublicGroupPreview(groupId: string, enabled = true) {
   return useQuery({
     queryKey: useViewerKey(keys.publicGroupPreview(groupId)),
@@ -111,7 +139,7 @@ export function useJoinPublicGroupById() {
           body: enrollment ? { enrollment } : undefined,
         }),
       ).data,
-    [keys.groups, keys.programs, keys.discover, keys.enrollments, keys.calendar, keys.occurrences],
+    [keys.groups, keys.programs, ['activities'], keys.discover, keys.enrollments, keys.calendar, keys.occurrences],
   )
 }
 
@@ -500,7 +528,7 @@ export function useCreateCheckIns() {
   return useApiMutation(
     async (body: S['CreateCheckInInput']) =>
       apiData(await getApiClient().POST('/check-ins', { body })).data,
-    [keys.groups, keys.occurrences, keys.discover, keys.programs],
+    [keys.groups, keys.occurrences, keys.discover, keys.programs, ['activities']],
   )
 }
 

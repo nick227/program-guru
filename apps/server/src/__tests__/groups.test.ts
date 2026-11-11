@@ -650,5 +650,30 @@ describe('Check-in centered Groups, multi-group sharing, media, comments, and St
     expect(themed.json().data.stageTheme).toBe('sprout')
     const preview = await req('GET', `/groups/${g1.id}/preview`, undefined, carolId)
     expect(preview.json().data.recentCheckInCount).toBeGreaterThanOrEqual(1)
+
+    // Activity group status listing returns member + discoverable groups with avatars & latestCheckIn, hiding private groups from non-members
+    const aliceGroups = await req('GET', `/activities/${activityId}/groups`)
+    expect(aliceGroups.statusCode).toBe(200)
+    const aliceIds = aliceGroups.json().data.map((g: any) => g.id)
+    expect(aliceIds).toEqual(expect.arrayContaining([g1.id, g2.id]))
+    const aliceG1 = aliceGroups.json().data.find((g: any) => g.id === g1.id)
+    expect(aliceG1.memberAvatars.length).toBeGreaterThanOrEqual(2)
+    expect(aliceG1.recentCheckInCount).toBeGreaterThanOrEqual(2)
+    expect(aliceG1.latestCheckIn?.id).toBeTruthy()
+    expect(aliceG1.latestCheckIn?.user?.id).toBe(testUserId)
+
+    // Non-member (bob) cannot see private group g2 or its member/check-in data
+    const bobGroups = await req('GET', `/activities/${activityId}/groups`, undefined, testOtherUserId)
+    expect(bobGroups.statusCode).toBe(200)
+    const bobIds = bobGroups.json().data.map((g: any) => g.id)
+    expect(bobIds).toContain(g1.id)
+    expect(bobIds).not.toContain(g2.id)
+    expect(JSON.stringify(bobGroups.json().data)).not.toContain('alice')
+    const bobG1 = bobGroups.json().data.find((g: any) => g.id === g1.id)
+    expect(bobG1.recentCheckInCount).toBeGreaterThanOrEqual(2)
+    expect(bobG1.memberAvatars).toEqual([])
+    expect(bobG1.latestCheckIn).toBeNull()
+
+    await contractCase(app, 'listActivityGroups')
   })
 })
