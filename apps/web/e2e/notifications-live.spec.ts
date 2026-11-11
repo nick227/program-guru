@@ -155,8 +155,9 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   expect(groupRes.ok()).toBe(true)
   const group = (await groupRes.json()).data
 
-  // Owner invites collaborator by handle in the Group UI
+  // Owner invites collaborator by handle in the Group Info drawer
   await page.goto(`/groups/${group.id}`)
+  await page.getByRole('button', { name: 'Group Info' }).click()
   await page.getByLabel('Invite by handle').fill(collabHandle)
   await page.getByRole('button', { name: 'Invite user' }).click()
   await expect(page.getByText(`@${collabHandle}`)).toBeVisible()
@@ -194,8 +195,9 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   ).toBeVisible()
   await collabPage.getByRole('button', { name: 'Accept invitation' }).click()
 
-  // Transitions to active group page with Your Personal Schedule -> Joined on label -> Open Calendar
+  // Transitions to active group stage -> open Group Info -> Your Personal Schedule -> Joined on label -> Open Calendar
   await expect(collabPage).toHaveURL(new RegExp(`/groups/${group.id}$`))
+  await collabPage.getByRole('button', { name: 'Group Info' }).click()
   await expect(
     collabPage.getByRole('heading', { name: 'Your Personal Schedule' }),
   ).toBeVisible()
@@ -231,6 +233,7 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
 
   // Collaborator leaves the group -> group access is revoked immediately while personal calendar items stay intact
   await collabPage.goto(`/groups/${group.id}`)
+  await collabPage.getByRole('button', { name: 'Group Info' }).click()
   await collabPage.getByRole('button', { name: 'Leave group' }).click()
   await expect(
     collabPage.getByRole('heading', { name: 'Calendar', exact: true }),
@@ -258,6 +261,7 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
 
   // Re-invite collaborator by handle -> now join.status === 'READY_TO_JOIN' (links existing enrollment)
   await page.goto(`/groups/${group.id}`)
+  await page.getByRole('button', { name: 'Group Info' }).click()
   await page.getByLabel('Invite by handle').fill(collabHandle)
   await page.getByRole('button', { name: 'Invite user' }).click()
   await expect(page.getByText(`@${collabHandle}`)).toBeVisible()

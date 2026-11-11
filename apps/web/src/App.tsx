@@ -160,6 +160,7 @@ const router = createBrowserRouter([
       { path: '/:handle/:slug', element: <ProgramAliasRoute /> },
       { path: '/programs/:id', element: <ProgramPage /> },
       { path: '/activities/:id', element: <ActivityPage /> },
+      { path: '/groups/:id', element: <GroupPage /> },
       { path: '/join/:token', element: <GroupInvitationJoinPage /> },
       { path: '/unsubscribe', element: <UnsubscribePage /> },
       { path: '/email/unsubscribe', element: <UnsubscribePage /> },
@@ -179,7 +180,6 @@ const router = createBrowserRouter([
           { path: '/media/:id', element: <MediaPublicationPage /> },
           { path: '/notifications', element: <NotificationsPage /> },
           { path: '/achievements', element: <AchievementsPage /> },
-          { path: '/groups/:id', element: <GroupPage /> },
           {
             path: '/groups/:id/invitations/:invitationId',
             element: <GroupPage />,

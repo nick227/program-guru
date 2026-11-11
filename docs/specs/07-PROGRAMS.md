@@ -56,6 +56,7 @@ interface UpdateProgramDraftDto { title?:string; description?:string|null; categ
   sessionMinutes?:number|null; sessionPresentation?:'SEPARATE'|'GROUPED'; tagSlugs?:string[]; durationDays?:number|null;
   frequency?:FrequencyDto; generationMode?:'ALL_EACH_DAY'|'ROTATE'; visibility?:'PRIVATE'|'UNLISTED'|'PUBLIC';
   expectedRevision:number; }
+interface UpdateProgramVisibilityDto { visibility:'PRIVATE'|'UNLISTED'|'PUBLIC'; expectedRevision:number; }
 interface FrequencyDto { kind:'DAILY'|'WEEKDAYS'|'N_PER_WEEK'|'FLEXIBLE'|'CUSTOM'|'MONTHLY'; n?:number; offsets?:number[]; }
 interface PlaceActivityDto { activityId:string; activityRevisionId?:string; relativeDay:number;
   time?:string|null; position?:number; targetOverrides?:Record<string,unknown>; }
@@ -113,6 +114,7 @@ PRIVATE + PAID/APPROVAL is rejected at publish. Profile privacy, group membershi
 Draft created in a single action from Type (other wizard answers editable later) → autosaved indefinitely → preview even when incomplete → publish runs basic validation: meaningful title, at least one Activity placement, valid referenced revisions, noncontradictory schedule, media rights and chosen access → immutable Version 1 → further edit produces new draft Version N+1 → publish update → Program remains published with latest public version. Existing Enrollments keep their pinned Version. Publishing an update sets `pendingVersionId` and offers an `Update available` prompt; **nothing changes until the participant accepts**, and accepting keeps past results and personal overrides while replacing future unadjusted items. Archive removes discovery/new joins but retains historical records and valid access policy as required.
 
 **Three distinct actions.**
+- **Visibility control** (`PATCH /programs/:id/visibility`, owner): updates `PRIVATE | UNLISTED | PUBLIC` directly from the Program page without opening a draft version; enforces `PRIVATE_NOT_OPEN` and publishing restrictions. A `DRAFT` program retains its chosen visibility and still requires publishing to appear publicly.
 - **Remove from My Programs** (participant): stops participating (leaves the run) and hides the Program from the person's library and Calendar. The source Program is untouched.
 - **Archive** (owner): hides from discovery and blocks new joins; the owner keeps it in Creator Studio and can restore it by publishing.
 - **Delete** (owner, `DELETE /programs/:id`, explicit destructive confirmation): permanent. In one transaction it deletes the owner's own runs of the Program with their Calendar Items, sessions, results, completion shares and result-media attachments (the media assets themselves stay in the owner's library). Calendar Items are deleted, never detached into standalone entries. Then:

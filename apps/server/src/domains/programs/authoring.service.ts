@@ -383,8 +383,32 @@ export async function updateDraft(
       const order = input.frequency !== undefined
         ? current.map((c) => ({ ...c, frequency: input.frequency! }))
         : current
-      await regenerate(tx, updated, order)
+    await regenerate(tx, updated, order)
     }
+  })
+  return workspace(userId, programId)
+}
+
+export async function updateVisibility(
+  userId: string,
+  programId: string,
+  input: { visibility: Visibility; expectedRevision: number },
+) {
+  if (input.visibility !== 'PRIVATE' && (await isPublishingRestricted(userId))) {
+    throw badRequest('Publishing is restricted on this account', { visibility: 'Publishing is restricted on this account' })
+  }
+  await db.$transaction(async (tx) => {
+    const p = await ownedProgram(tx, userId, programId, { allowArchived: true })
+    const policy = await tx.programAccessPolicy.findUnique({ where: { programId: p.id } })
+    const accessMode = policy?.accessMode ?? 'OPEN'
+    if (input.visibility === 'PRIVATE' && accessMode !== 'OPEN') {
+      throw badRequest('Private programs can only use open access', { visibility: 'Private programs can only use open access' })
+    }
+    await bump(tx, programId, input.expectedRevision)
+    await tx.program.update({
+      where: { id: programId },
+      data: { visibility: input.visibility },
+    })
   })
   return workspace(userId, programId)
 }

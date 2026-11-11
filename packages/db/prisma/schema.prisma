@@ -109,6 +109,7 @@ model User {
   groupInvitesGot     GroupInvitation[]    @relation("InvitationInvited")
   completionShares    CompletionShare[]
   completionReactions CompletionReaction[]
+  completionComments  CompletionComment[]
 
   mediaAssets          MediaAsset[]
   mediaPublications    MediaPublication[] @relation("PublicationPublisher")
@@ -1081,9 +1082,9 @@ model CalendarItem {
   enrollment      ProgramEnrollment?   @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
   scheduleItem    ProgramScheduleItem? @relation(fields: [sourceScheduleItemId], references: [id], onDelete: SetNull)
   recurrence      CalendarRecurrence?  @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
-  sessions        ActivitySession[]
-  completionShare CompletionShare?
-  achievements    UserAchievement[]
+  sessions         ActivitySession[]
+  completionShares CompletionShare[]
+  achievements     UserAchievement[]
 
   @@index([ownerId, localDate, status])
   @@index([ownerId, activityId, status])
@@ -1201,6 +1202,16 @@ enum GroupMode {
   ASYNC
 }
 
+enum GroupVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+enum GroupJoinPolicy {
+  INVITE_ONLY
+  OPEN
+}
+
 enum GroupStatus {
   ACTIVE
   CLOSED
@@ -1232,18 +1243,21 @@ enum InviteStatus {
 }
 
 model ProgramGroup {
-  id               String      @id @default(uuid()) @db.Char(36)
-  programVersionId String      @db.Char(36)
-  ownerId          String      @db.Char(36)
-  name             String?     @db.VarChar(100)
-  mode             GroupMode   @default(SYNC)
-  joinLinkEnabled  Boolean     @default(false)
-  memberLinkSharingEnabled Boolean @default(false)
-  startLocalDate   DateTime?   @db.Date
-  timezone         String?     @db.VarChar(64)
-  status           GroupStatus @default(ACTIVE)
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  id                       String          @id @default(uuid()) @db.Char(36)
+  programVersionId         String          @db.Char(36)
+  ownerId                  String          @db.Char(36)
+  name                     String?         @db.VarChar(100)
+  mode                     GroupMode       @default(SYNC)
+  visibility               GroupVisibility @default(PRIVATE)
+  joinPolicy               GroupJoinPolicy @default(INVITE_ONLY)
+  joinLinkEnabled          Boolean         @default(false)
+  memberLinkSharingEnabled Boolean         @default(false)
+  startLocalDate           DateTime?       @db.Date
+  timezone                 String?         @db.VarChar(64)
+  stageTheme               String          @default("constellation") @db.VarChar(40)
+  status                   GroupStatus     @default(ACTIVE)
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
 
   version      ProgramVersion      @relation(fields: [programVersionId], references: [id])
   owner        User                @relation(fields: [ownerId], references: [id])
@@ -1254,6 +1268,7 @@ model ProgramGroup {
   publications MediaPublication[]
 
   @@index([programVersionId, status])
+  @@index([visibility, status, startLocalDate])
   @@index([ownerId])
 }
 
@@ -1296,26 +1311,49 @@ model GroupInvitation {
 }
 
 model CompletionShare {
-  id              String    @id @default(uuid()) @db.Char(36)
-  groupId         String    @db.Char(36)
-  occurrenceKey   String    @db.VarChar(140)
-  calendarItemId  String    @unique @db.Char(36)
-  userId          String    @db.Char(36)
-  activityId      String    @db.Char(36)
-  programDayIndex Int?
-  completedAt     DateTime
-  revokedAt       DateTime?
+  id                 String    @id @default(uuid()) @db.Char(36)
+  groupId            String    @db.Char(36)
+  occurrenceKey      String    @db.VarChar(140)
+  calendarItemId     String?   @db.Char(36)
+  userId             String    @db.Char(36)
+  activityId         String    @db.Char(36)
+  programDayIndex    Int?
+  note               String?   @db.VarChar(500)
+  mediaPublicationId String?   @db.Char(36)
+  completedAt        DateTime
+  revokedAt          DateTime?
 
-  group        ProgramGroup         @relation(fields: [groupId], references: [id])
-  calendarItem CalendarItem         @relation(fields: [calendarItemId], references: [id])
-  user         User                 @relation(fields: [userId], references: [id])
-  activity     Activity             @relation(fields: [activityId], references: [id])
-  reactions    CompletionReaction[]
+  group            ProgramGroup         @relation(fields: [groupId], references: [id])
+  calendarItem     CalendarItem?        @relation(fields: [calendarItemId], references: [id], onDelete: SetNull)
+  user             User                 @relation(fields: [userId], references: [id])
+  activity         Activity             @relation(fields: [activityId], references: [id])
+  mediaPublication MediaPublication?    @relation(fields: [mediaPublicationId], references: [id], onDelete: SetNull)
+  reactions        CompletionReaction[]
+  comments         CompletionComment[]
 
+  @@unique([groupId, calendarItemId])
   @@index([groupId, occurrenceKey])
   @@index([groupId, completedAt])
+  @@index([groupId, revokedAt, completedAt])
   @@index([userId])
-  @@index([activityId])
+  @@index([activityId, userId])
+  @@index([mediaPublicationId])
+}
+
+model CompletionComment {
+  id                String        @id @default(uuid()) @db.Char(36)
+  completionShareId String        @db.Char(36)
+  authorId          String        @db.Char(36)
+  body              String        @db.VarChar(1000)
+  status            CommentStatus @default(VISIBLE)
+  createdAt         DateTime      @default(now())
+  deletedAt         DateTime?
+
+  share  CompletionShare @relation(fields: [completionShareId], references: [id], onDelete: Cascade)
+  author User            @relation(fields: [authorId], references: [id])
+
+  @@index([completionShareId, createdAt, id])
+  @@index([authorId])
 }
 
 model CompletionReaction {
@@ -1522,9 +1560,10 @@ model MediaPublication {
   group       ProgramGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
   activity    Activity?         @relation(fields: [activityId], references: [id], onDelete: SetNull)
   program     Program?          @relation(fields: [programId], references: [id], onDelete: SetNull)
-  reactions   MediaReaction[]
-  comments    MediaComment[]
-  views       PublicationView[]
+  reactions        MediaReaction[]
+  comments         MediaComment[]
+  views            PublicationView[]
+  completionShares CompletionShare[]
 
   @@index([activityId, audience, status, rankScore])
   @@index([groupId, occurrenceKey, status])
@@ -1562,6 +1601,7 @@ enum NotificationType {
   PROGRAM_UPDATE
   ACHIEVEMENT_EARNED
   PAYMENT_ISSUE
+  COMPLETION_COMMENT
 }
 
 enum ReminderChannel {
@@ -1790,3 +1830,4 @@ model ProgramLibraryState {
   @@id([userId, programId])
   @@index([programId])
 }
+

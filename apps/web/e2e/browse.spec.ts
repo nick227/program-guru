@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mockApi } from './fixtures'
+import { login } from './journey'
 
 const uid = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -106,6 +107,21 @@ async function setupRichBrowseMocks(page: Page) {
       coverUrl: '/valid-cover.svg',
       isPlatform: true,
       creator: null,
+      featuredGroup: {
+        id: uid(901),
+        programId: uid(11),
+        programVersionId: uid(801),
+        programTitle: 'Beginner Strength',
+        name: 'Morning Strength Crew',
+        mode: 'SYNC',
+        visibility: 'PUBLIC',
+        joinPolicy: 'OPEN',
+        memberCount: 6,
+        startLocalDate: '2026-11-15',
+        timezone: 'America/Chicago',
+        startingSoon: true,
+        viewerIsMember: false,
+      },
     }),
     makeProgram(2, {
       title: 'Morning Mobility Flow',
@@ -114,6 +130,21 @@ async function setupRichBrowseMocks(page: Page) {
       durationDays: 14,
       frequencyLabel: '5 days/week',
       coverUrl: '/broken-cover.jpg',
+      featuredGroup: {
+        id: uid(902),
+        programId: uid(402),
+        programVersionId: uid(802),
+        programTitle: 'Morning Mobility Flow',
+        name: 'Mobility Circle',
+        mode: 'ASYNC',
+        visibility: 'PUBLIC',
+        joinPolicy: 'INVITE_ONLY',
+        memberCount: 3,
+        startLocalDate: null,
+        timezone: 'America/Chicago',
+        startingSoon: false,
+        viewerIsMember: false,
+      },
     }),
     makeProgram(3, {
       title: 'Quiet Breath Cadence',
@@ -200,6 +231,7 @@ async function setupRichBrowseMocks(page: Page) {
     const categoryId = url.searchParams.get('categoryId')
     const programTypeId = url.searchParams.get('programTypeId')
     const focusId = url.searchParams.get('focusId')
+    const timing = url.searchParams.get('timing')
     const cursor = url.searchParams.get('cursor')
 
     if (kind === 'ACTIVITY') {
@@ -222,11 +254,12 @@ async function setupRichBrowseMocks(page: Page) {
       })
     }
 
-    const matched = programs.filter((p) => {
+    const matched = programs.filter((p: any) => {
       if (q && !p.title.toLowerCase().includes(q)) return false
       if (categoryId && p.type.categoryId !== categoryId) return false
       if (programTypeId && p.type.id !== programTypeId) return false
       if (focusId && p.focus?.id !== focusId) return false
+      if (timing === 'STARTING_SOON' && !p.featuredGroup?.startingSoon) return false
       return true
     })
 
@@ -235,11 +268,12 @@ async function setupRichBrowseMocks(page: Page) {
     const hasMore = offset + 8 < matched.length
     return route.fulfill({
       json: {
-        data: slice.map((program) => ({
+        data: slice.map(({ featuredGroup = null, ...program }: any) => ({
           kind: 'PROGRAM',
           program,
           activity: null,
           creator: null,
+          featuredGroup,
         })),
         meta: { hasMore, nextCursor: hasMore ? 'page-2' : null },
       },
@@ -395,5 +429,299 @@ test('Community responsive layout (tablet & mobile drawer) and dark/light themes
   await page.getByRole('button', { name: /^Show / }).click()
   await expect(filtersButton).toHaveAttribute('aria-expanded', 'false')
   await expect(page.getByRole('status').filter({ hasText: '1 Program' })).toBeVisible()
+})
+
+test('Community displays discoverable Groups beneath Programs and supports Starting Soon vs disabled Happening Now', async ({
+  page,
+}, info) => {
+  test.skip(info.project.name === 'mobile', 'Desktop social group discovery test')
+  const { discoverRequests } = await setupRichBrowseMocks(page)
+
+  await page.goto('/browse')
+  await expect(page.getByText('Morning Strength Crew')).toBeVisible()
+  await expect(page.getByText('6 members')).toBeVisible()
+  await expect(page.getByText('Starts Nov 15')).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'Join Morning Strength Crew' }),
+  ).toHaveAttribute('href', `/groups/${uid(901)}?returnTo=%2Fbrowse`)
+
+  await expect(page.getByText('Mobility Circle')).toBeVisible()
+  await expect(page.getByText('3 members')).toBeVisible()
+  await expect(page.getByText('Invite only')).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'View Mobility Circle' }),
+  ).toHaveAttribute('href', `/groups/${uid(902)}?returnTo=%2Fbrowse`)
+
+  const timingGroup = page.getByRole('group', { name: 'Filter by group timing' })
+  await expect(timingGroup.getByRole('button', { name: 'All Programs' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(timingGroup.getByRole('button', { name: /Happening Now/ })).toBeDisabled()
+
+  await timingGroup.getByRole('button', { name: 'Starting Soon' }).click()
+  await expect(page).toHaveURL(/timing=STARTING_SOON/)
+  expect(discoverRequests.some((u) => u.searchParams.get('timing') === 'STARTING_SOON')).toBe(true)
+  await expect(page.getByRole('status').filter({ hasText: '1 Program' })).toBeVisible()
+  await expect(page.getByText('Morning Strength Crew')).toBeVisible()
+})
+
+test('Community Join action opens public group preview and joins in one step', async ({
+  page,
+}, info) => {
+  test.skip(info.project.name === 'mobile', 'Desktop public group join test')
+  await setupRichBrowseMocks(page)
+  await login(page, 'author@test.local', 'password')
+
+  const groupUuid = uid(901)
+  const programUuid = uid(11)
+  let joined = false
+  let joinPayload: any = null
+
+  await page.route(`http://localhost:3001/groups/${groupUuid}`, (route) => {
+    if (!joined) {
+      return route.fulfill({
+        status: 404,
+        json: { code: 'NOT_FOUND', message: 'Group not found', requestId: 'r1' },
+      })
+    }
+    return route.fulfill({
+      json: {
+        data: {
+          id: groupUuid,
+          programVersionId: uid(801),
+          programTitle: 'Beginner Strength',
+          name: 'Morning Strength Crew',
+          mode: 'SYNC',
+          visibility: 'PUBLIC',
+          joinPolicy: 'OPEN',
+          memberCount: 7,
+          myRole: 'MEMBER',
+          startLocalDate: '2026-11-15',
+          timezone: 'America/Chicago',
+          joinLinkEnabled: false,
+          memberLinkSharingEnabled: false,
+          members: [
+            {
+              user: {
+                id: uid(1),
+                handle: 'author',
+                displayName: 'Author',
+                avatarUrl: null,
+              },
+              role: 'MEMBER',
+              status: 'ACTIVE',
+              sharedCompletion: true,
+            },
+          ],
+          mySharedCompletion: true,
+          myEnrollment: {
+            enrollmentId: uid(40),
+            startLocalDate: '2026-11-15',
+            startDateDiffers: false,
+          },
+        },
+      },
+    })
+  })
+
+  await page.route(`http://localhost:3001/groups/${groupUuid}/preview`, (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          id: groupUuid,
+          groupName: 'Morning Strength Crew',
+          mode: 'SYNC',
+          visibility: 'PUBLIC',
+          joinPolicy: 'OPEN',
+          memberCount: 6,
+          startLocalDate: '2026-11-15',
+          timezone: 'America/Chicago',
+          program: makeProgram(1, {
+            id: programUuid,
+            title: 'Beginner Strength',
+            description: 'Build a foundation.',
+            latestVersionId: uid(801),
+            safeActivityOutline: [],
+            enrollmentCount: null,
+            completionRate: null,
+            canJoin: true,
+            canRequestAccess: false,
+            canPurchase: false,
+            myEnrollmentId: null,
+          }),
+          canJoin: true,
+          requiresAccess: false,
+          join: {
+            status: 'CONFIRM_ENROLLMENT',
+            enrollmentId: null,
+            startLocalDate: '2026-11-15',
+            startDateDiffers: false,
+          },
+        },
+      },
+    }),
+  )
+
+  await page.route(`http://localhost:3001/groups/${groupUuid}/join`, async (route) => {
+    joined = true
+    joinPayload = route.request().postDataJSON()
+    await route.fulfill({
+      json: {
+        data: {
+          id: groupUuid,
+          programVersionId: uid(801),
+          programTitle: 'Beginner Strength',
+          name: 'Morning Strength Crew',
+          mode: 'SYNC',
+          visibility: 'PUBLIC',
+          joinPolicy: 'OPEN',
+          memberCount: 7,
+          myRole: 'MEMBER',
+          startLocalDate: '2026-11-15',
+          timezone: 'America/Chicago',
+          joinLinkEnabled: false,
+          memberLinkSharingEnabled: false,
+          members: [],
+          mySharedCompletion: true,
+          myEnrollment: {
+            enrollmentId: uid(40),
+            startLocalDate: '2026-11-15',
+            startDateDiffers: false,
+          },
+        },
+      },
+    })
+  })
+
+  await page.route(`http://localhost:3001/groups/${groupUuid}/completions*`, (route) =>
+    route.fulfill({ json: { data: [], meta: { hasMore: false, nextCursor: null } } }),
+  )
+  await page.route(`http://localhost:3001/groups/${groupUuid}/media*`, (route) =>
+    route.fulfill({ json: { data: [], meta: { hasMore: false, nextCursor: null } } }),
+  )
+  await page.route(`http://localhost:3001/groups/${groupUuid}/invitations*`, (route) =>
+    route.fulfill({ json: { data: [] } }),
+  )
+
+  await page.goto('/browse')
+  await page.getByRole('button', { name: 'Join Morning Strength Crew' }).click()
+  await expect(page.getByText('Joined group')).toBeVisible()
+  expect(joinPayload).toBeFalsy()
+
+  const openGroup = page.getByRole('link', { name: 'Open Group Morning Strength Crew' })
+  await expect(openGroup).toBeVisible()
+  await openGroup.click()
+  await expect(page).toHaveURL(new RegExp(`/groups/${groupUuid}`))
+  await expect(page.getByRole('heading', { name: 'Morning Strength Crew', level: 1 })).toBeVisible()
+  await expect(page.getByText(/7 members/)).toBeVisible()
+})
+
+test('Program page displays first-class owner visibility control beside title', async ({
+  page,
+}, info) => {
+  test.skip(info.project.name === 'mobile', 'Desktop Program visibility test')
+  await setupRichBrowseMocks(page)
+  await login(page, 'author@test.local', 'password')
+
+  const programUuid = uid(11)
+  let currentVisibility: 'PRIVATE' | 'UNLISTED' | 'PUBLIC' = 'PRIVATE'
+
+  await page.route(`http://localhost:3001/programs/${programUuid}`, (route) =>
+    route.fulfill({
+      json: {
+        data: makeProgram(1, {
+          id: programUuid,
+          title: 'Beginner Strength',
+          description: 'Build a foundation.',
+          visibility: currentVisibility,
+          viewerAccess: 'OWNER',
+          latestVersionId: uid(801),
+          safeActivityOutline: [],
+          canJoin: true,
+          canRequestAccess: false,
+          canPurchase: false,
+          myEnrollmentId: null,
+        }),
+      },
+    }),
+  )
+  await page.route(`http://localhost:3001/programs/${programUuid}/workspace`, (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          ...makeProgram(1, {
+            id: programUuid,
+            title: 'Beginner Strength',
+            visibility: currentVisibility,
+            viewerAccess: 'OWNER',
+            latestVersionId: uid(801),
+          }),
+          status: 'PUBLISHED',
+          frequency: { kind: 'WEEKDAYS' },
+          generationMode: 'ALL_EACH_DAY',
+          description: 'Build a foundation.',
+          activityCount: 1,
+          instructionCount: 1,
+          activities: [],
+          draftRevision: 2,
+          draftVersionId: null,
+          latestPublishedVersionId: uid(801),
+          hasUnpublishedChanges: false,
+        },
+      },
+    }),
+  )
+  await page.route(`http://localhost:3001/programs/${programUuid}/visibility`, async (route) => {
+    const body = route.request().postDataJSON()
+    currentVisibility = body.visibility
+    await route.fulfill({
+      json: {
+        data: {
+          ...makeProgram(1, {
+            id: programUuid,
+            title: 'Beginner Strength',
+            visibility: currentVisibility,
+            viewerAccess: 'OWNER',
+            latestVersionId: uid(801),
+          }),
+          status: 'PUBLISHED',
+          frequency: { kind: 'WEEKDAYS' },
+          generationMode: 'ALL_EACH_DAY',
+          description: 'Build a foundation.',
+          activityCount: 1,
+          instructionCount: 1,
+          activities: [],
+          draftRevision: 3,
+          draftVersionId: null,
+          latestPublishedVersionId: uid(801),
+          hasUnpublishedChanges: false,
+        },
+      },
+    })
+  })
+  await page.route(`http://localhost:3001/programs/${programUuid}/groups*`, (route) =>
+    route.fulfill({ json: { data: [], meta: { hasMore: false, nextCursor: null } } }),
+  )
+  await page.route(`http://localhost:3001/program-versions/${uid(801)}`, (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          id: uid(801),
+          programId: programUuid,
+          versionNumber: 1,
+          title: 'Beginner Strength',
+          activities: [],
+          placements: [],
+        },
+      },
+    }),
+  )
+
+  await page.goto(`/programs/${programUuid}`)
+  const visGroup = page.getByRole('group', { name: 'Program visibility' })
+  await expect(visGroup).toBeVisible()
+  await expect(visGroup.getByRole('button', { name: 'Private' })).toHaveAttribute('aria-pressed', 'true')
+
+  await visGroup.getByRole('button', { name: 'Public' }).click()
+  await expect(page.getByText('Program is now Public')).toBeVisible()
+  await expect(visGroup.getByRole('button', { name: 'Public' })).toHaveAttribute('aria-pressed', 'true')
 })
 

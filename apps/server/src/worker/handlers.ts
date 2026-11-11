@@ -121,6 +121,23 @@ export const handlers: Record<string, Handler> = {
     })
   },
 
+  async CompletionCommentAdded(e) {
+    if (e.payload.recipientId === e.payload.userId) return
+    const item = await db.calendarItem.findFirst({ where: { ownerId: e.payload.recipientId, groupOccurrenceKey: e.payload.occurrenceKey }, select: { id: true } })
+    await notify({
+      recipientId: e.payload.recipientId,
+      actorId: e.payload.userId,
+      type: 'COMPLETION_COMMENT',
+      title: `${await displayName(e.payload.userId)} commented on your check-in`,
+      deepLink: item ? `/occurrences/${item.id}` : `/groups/${e.payload.groupId}`,
+      entityKind: 'COMPLETION_SHARE',
+      entityId: e.payload.shareId,
+      groupId: e.payload.groupId,
+      groupOccurrenceKey: e.payload.occurrenceKey,
+      dedupeKey: `${e.id}`,
+    })
+  },
+
   async GroupInvitationCreated(e) {
     const group = await db.programGroup.findUnique({ where: { id: e.payload.groupId }, include: { version: true } })
     if (!group) return

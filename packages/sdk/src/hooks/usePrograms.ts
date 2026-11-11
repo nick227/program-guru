@@ -16,6 +16,7 @@ export type DiscoverProgramsOptions = {
   maxSessionMinutes?: number
   tags?: string[]
   sort?: S['DiscoverSort']
+  timing?: S['DiscoverTiming']
   accessMode?: S['AccessMode']
   enabled?: boolean
 }
@@ -43,6 +44,7 @@ export function useDiscoverPrograms(
   const queryMaxSessionMinutes = opts.maxSessionMinutes || undefined
   const queryTags = opts.tags?.length ? opts.tags.join(',') : undefined
   const querySort = opts.sort || undefined
+  const queryTiming = opts.timing && opts.timing !== 'ALL' ? opts.timing : undefined
   const queryAccessMode = opts.accessMode || undefined
   const queryEnabled =
     opts.enabled ?? (!!opts.categoryId || !!opts.programTypeId || !!opts.q)
@@ -62,6 +64,7 @@ export function useDiscoverPrograms(
         maxSessionMinutes: queryMaxSessionMinutes,
         tags: queryTags,
         sort: querySort,
+        timing: queryTiming,
         accessMode: queryAccessMode,
       },
     ]),
@@ -83,6 +86,7 @@ export function useDiscoverPrograms(
               maxSessionMinutes: queryMaxSessionMinutes,
               tags: queryTags,
               sort: querySort,
+              timing: queryTiming,
               accessMode: queryAccessMode,
               cursor: pageParam,
               limit: 20,
@@ -529,6 +533,18 @@ export function usePublishProgram(programId: string) {
       ).data,
     [keys.programs, keys.discover, keys.mine],
     `draft:${programId}`,
+  )
+}
+export function useUpdateProgramVisibility(programId: string) {
+  return useApiMutation(
+    async (body: S['UpdateProgramVisibilityInput']) =>
+      apiData(
+        await getApiClient().PATCH('/programs/{programId}/visibility', {
+          params: { path: { programId } },
+          body,
+        }),
+      ).data,
+    [keys.programs, keys.discover, keys.mine],
   )
 }
 export function useArchiveProgram() {

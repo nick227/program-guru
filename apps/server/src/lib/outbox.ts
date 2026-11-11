@@ -11,6 +11,7 @@ export type OutboxEventType =
   | 'CompletionUndone'
   | 'CompletionShared'
   | 'CompletionReacted'
+  | 'CompletionCommentAdded'
   | 'GroupInvitationCreated'
   | 'GroupMemberJoined'
   | 'GroupMediaShared'

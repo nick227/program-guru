@@ -7,8 +7,10 @@ type ClientConfig = {
 }
 
 let _client: ReturnType<typeof createClient<paths>> | null = null
+let _baseUrl = ''
 
 export function createApiClient(config: ClientConfig) {
+  _baseUrl = config.baseUrl.replace(/\/$/, '')
   const client = createClient<paths>({
     baseUrl: config.baseUrl,
     credentials: 'include', // send httpOnly session cookie automatically
@@ -32,6 +34,10 @@ export function createApiClient(config: ClientConfig) {
 export function getApiClient() {
   if (!_client) throw new Error('Call createApiClient() before using hooks.')
   return _client
+}
+
+export function getApiBaseUrl() {
+  return _baseUrl
 }
 
 export class ApiError extends Error {

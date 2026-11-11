@@ -35,6 +35,9 @@ export async function getProgramWorkspace(request: any) {
 export async function updateProgramDraft(request: any) {
   return { data: await authoring.updateDraft(uid(request), request.params.programId, request.body) }
 }
+export async function updateProgramVisibility(request: any) {
+  return { data: await authoring.updateVisibility(uid(request), request.params.programId, request.body) }
+}
 export async function addProgramActivities(request: any) {
   return { data: await authoring.addActivities(uid(request), request.params.programId, request.body) }
 }

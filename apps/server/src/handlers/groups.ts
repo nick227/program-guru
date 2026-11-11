@@ -6,6 +6,17 @@ const uid = (request: any) => requireUser(request).id
 export async function listMyGroups(request: any) {
   return groups.listMine(uid(request), request.query)
 }
+export async function listProgramGroups(request: any) {
+  const viewer = await resolveViewer(request)
+  return groups.listByProgram(viewer?.id ?? null, request.params.programId, request.query)
+}
+export async function getPublicGroupPreview(request: any) {
+  const viewer = await resolveViewer(request)
+  return { data: await groups.previewPublic(viewer?.id ?? null, request.params.groupId) }
+}
+export async function joinGroup(request: any) {
+  return { data: await groups.joinPublic(uid(request), request.params.groupId, request.body ?? undefined) }
+}
 export async function createGroup(request: any) {
   return { data: await groups.create(uid(request), request.body) }
 }
@@ -64,4 +75,17 @@ export async function removeCompletionReaction(request: any) {
 }
 export async function listGroupMedia(request: any) {
   return groups.listMedia(uid(request), request.params.groupId, request.query)
+}
+export async function createCheckIns(request: any) {
+  return { data: await groups.createCheckIns(uid(request), request.body) }
+}
+export async function listCompletionComments(request: any) {
+  return groups.listCompletionComments(uid(request), request.params.shareId, request.query)
+}
+export async function addCompletionComment(request: any) {
+  return { data: await groups.addCompletionComment(uid(request), request.params.shareId, request.body) }
+}
+export async function deleteCompletionComment(request: any) {
+  await groups.deleteCompletionComment(uid(request), request.params.commentId)
+  return { data: { ok: true } }
 }

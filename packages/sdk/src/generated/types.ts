@@ -866,6 +866,23 @@ export interface paths {
         patch: operations["updateProgramDraft"];
         trace?: never;
     };
+    "/programs/{programId}/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update program visibility */
+        patch: operations["updateProgramVisibility"];
+        trace?: never;
+    };
     "/programs/{programId}/draft/activities": {
         parameters: {
             query?: never;
@@ -1693,6 +1710,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/programs/{programId}/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List discoverable groups for a program */
+        get: operations["listProgramGroups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/groups": {
         parameters: {
             query?: never;
@@ -1727,6 +1761,43 @@ export interface paths {
         head?: never;
         /** Update group */
         patch: operations["updateGroup"];
+        trace?: never;
+    };
+    "/groups/{groupId}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get public group preview */
+        get: operations["getPublicGroupPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/groups/{groupId}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join an open public group
+         * @description Never bypasses Program access. Check `join.status` on the public preview first; send `enrollment` when the participant must confirm or choose a schedule.
+         */
+        post: operations["joinGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/groups/{groupId}/members/me": {
@@ -1904,6 +1975,58 @@ export interface paths {
         post?: never;
         /** Remove completion reaction */
         delete: operations["removeCompletionReaction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/check-ins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Share an Activity check-in with one or more active Groups */
+        post: operations["createCheckIns"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/completion-shares/{shareId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List discussion comments on a Group check-in */
+        get: operations["listCompletionComments"];
+        put?: never;
+        /** Comment on a Group check-in */
+        post: operations["addCompletionComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/completion-comments/{commentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a Group check-in comment */
+        delete: operations["deleteCompletionComment"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2775,6 +2898,10 @@ export interface components {
         /** @enum {string} */
         GroupMode: "SYNC" | "ASYNC";
         /** @enum {string} */
+        GroupVisibility: "PRIVATE" | "PUBLIC";
+        /** @enum {string} */
+        GroupJoinPolicy: "INVITE_ONLY" | "OPEN";
+        /** @enum {string} */
         GroupRole: "OWNER" | "MEMBER";
         /** @enum {string} */
         GroupMemberStatus: "INVITED" | "ACTIVE" | "LEFT" | "REMOVED";
@@ -2800,7 +2927,7 @@ export interface components {
         /** @enum {string} */
         AttachmentTargetKind: "PROGRAM" | "ACTIVITY_REVISION" | "INSTRUCTION" | "RESULT_ENTRY" | "PROFILE";
         /** @enum {string} */
-        NotificationType: "ACTIVITY_REMINDER" | "DAILY_SUMMARY" | "FOLLOW_REQUEST" | "FOLLOW_ACCEPTED" | "GROUP_INVITE" | "MEMBER_JOINED" | "COMPLETION_SHARED" | "COMPLETION_REACTION" | "GROUP_MEDIA_SHARED" | "GROUP_MEDIA_COMMENT" | "CONTRIBUTION_APPROVED" | "PROGRAM_ACCESS" | "PROGRAM_UPDATE" | "ACHIEVEMENT_EARNED" | "PAYMENT_ISSUE";
+        NotificationType: "ACTIVITY_REMINDER" | "DAILY_SUMMARY" | "FOLLOW_REQUEST" | "FOLLOW_ACCEPTED" | "GROUP_INVITE" | "MEMBER_JOINED" | "COMPLETION_SHARED" | "COMPLETION_REACTION" | "GROUP_MEDIA_SHARED" | "GROUP_MEDIA_COMMENT" | "CONTRIBUTION_APPROVED" | "PROGRAM_ACCESS" | "PROGRAM_UPDATE" | "ACHIEVEMENT_EARNED" | "PAYMENT_ISSUE" | "COMPLETION_COMMENT";
         /** @enum {string} */
         ReportTargetType: "PROGRAM" | "ACTIVITY" | "MEDIA" | "COMMENT" | "USER";
         /** @enum {string} */
@@ -2813,6 +2940,8 @@ export interface components {
         DiscoverKind: "PROGRAM" | "ACTIVITY" | "CREATOR";
         /** @enum {string} */
         DiscoverSort: "RELEVANT" | "NEW" | "POPULAR";
+        /** @enum {string} */
+        DiscoverTiming: "ALL" | "STARTING_SOON" | "HAPPENING_NOW";
         /** @enum {string} */
         ActivitySource: "PLATFORM" | "MINE" | "PUBLIC";
         /** @enum {string} */
@@ -3978,8 +4107,50 @@ export interface components {
             programTitle: string;
             name: string | null;
             mode: components["schemas"]["GroupMode"];
+            visibility: components["schemas"]["GroupVisibility"];
+            joinPolicy: components["schemas"]["GroupJoinPolicy"];
+            /** Format: date */
+            startLocalDate: string | null;
+            timezone: string | null;
             memberCount: number;
             myRole: components["schemas"]["GroupRole"];
+        };
+        PublicGroupSummary: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            programId: string;
+            /** Format: uuid */
+            programVersionId: string;
+            programTitle: string;
+            name: string | null;
+            mode: components["schemas"]["GroupMode"];
+            visibility: components["schemas"]["GroupVisibility"];
+            joinPolicy: components["schemas"]["GroupJoinPolicy"];
+            memberCount: number;
+            /** Format: date */
+            startLocalDate: string | null;
+            timezone: string | null;
+            startingSoon: boolean;
+            viewerIsMember: boolean;
+            recentCheckInCount?: number;
+        };
+        PublicGroupPreview: {
+            /** Format: uuid */
+            id: string;
+            groupName: string | null;
+            mode: components["schemas"]["GroupMode"];
+            visibility: components["schemas"]["GroupVisibility"];
+            joinPolicy: components["schemas"]["GroupJoinPolicy"];
+            memberCount: number;
+            /** Format: date */
+            startLocalDate: string | null;
+            timezone: string | null;
+            program: components["schemas"]["ProgramPreview"];
+            canJoin: boolean;
+            requiresAccess: boolean;
+            join: components["schemas"]["GroupJoinState"];
+            recentCheckInCount?: number;
         };
         GroupMember: {
             user: components["schemas"]["UserSummary"];
@@ -3995,6 +4166,8 @@ export interface components {
             programTitle: string;
             name: string | null;
             mode: components["schemas"]["GroupMode"];
+            visibility: components["schemas"]["GroupVisibility"];
+            joinPolicy: components["schemas"]["GroupJoinPolicy"];
             memberCount: number;
             myRole: components["schemas"]["GroupRole"];
             /** Format: date */
@@ -4007,6 +4180,9 @@ export interface components {
             mySharedCompletion: boolean;
             /** @description The viewer's enrollment linked to this group, or null when they follow it without one (for example a Program owner hosting the group). */
             myEnrollment: components["schemas"]["GroupEnrollmentLink"] | null;
+            /** @enum {string} */
+            stageTheme?: "constellation" | "campfire" | "sprout";
+            recentCheckInCount?: number;
         };
         GroupEnrollmentLink: {
             /** Format: uuid */
@@ -4060,16 +4236,22 @@ export interface components {
             programVersionId: string;
             name?: string | null;
             mode: components["schemas"]["GroupMode"];
+            visibility?: components["schemas"]["GroupVisibility"];
+            joinPolicy?: components["schemas"]["GroupJoinPolicy"];
             /** Format: date */
             startLocalDate?: string | null;
             timezone?: string;
         };
         UpdateGroupInput: {
             name?: string | null;
+            visibility?: components["schemas"]["GroupVisibility"];
+            joinPolicy?: components["schemas"]["GroupJoinPolicy"];
             joinLinkEnabled?: boolean;
             /** @description Owner permission for active members to issue reshareable links while link joining is enabled. */
             memberLinkSharingEnabled?: boolean;
             closed?: boolean;
+            /** @enum {string} */
+            stageTheme?: "constellation" | "campfire" | "sprout";
         };
         UpdateMyMembershipInput: {
             sharedCompletion?: boolean;
@@ -4105,6 +4287,7 @@ export interface components {
             canAccept: boolean;
             requiresAccess: boolean;
             join: components["schemas"]["GroupJoinState"];
+            recentCheckInCount?: number;
         };
         /** @description Activity, day, and status only: never metric values. */
         CompletionShare: {
@@ -4119,6 +4302,35 @@ export interface components {
             /** Format: date-time */
             completedAt: string;
             reactions: components["schemas"]["ReactionCount"][];
+            /** Format: uuid */
+            groupId?: string;
+            note?: string | null;
+            /** Format: uuid */
+            mediaPublicationId?: string | null;
+            media?: components["schemas"]["GroupMediaThumb"] | null;
+            commentCount?: number;
+        };
+        CreateCheckInInput: {
+            /** Format: uuid */
+            activityId: string;
+            groupIds: string[];
+            /** Format: uuid */
+            calendarItemId?: string | null;
+            note?: string | null;
+            /** Format: uuid */
+            mediaId?: string | null;
+            idempotencyKey?: string;
+        };
+        CompletionComment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            completionShareId: string;
+            author: components["schemas"]["UserSummary"];
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+            canDelete: boolean;
         };
         AddReactionInput: {
             emoji: string;
@@ -4295,6 +4507,7 @@ export interface components {
             program: components["schemas"]["ProgramSummary"] | null;
             activity: components["schemas"]["ActivitySummary"] | null;
             creator: components["schemas"]["UserSummary"] | null;
+            featuredGroup?: components["schemas"]["PublicGroupSummary"] | null;
         };
         MediaComment: {
             /** Format: uuid */
@@ -4613,6 +4826,10 @@ export interface components {
             reportId: string | null;
             /** Format: date-time */
             createdAt: string;
+        };
+        UpdateProgramVisibilityInput: {
+            visibility: components["schemas"]["Visibility"];
+            expectedRevision: number;
         };
     };
     responses: {
@@ -6324,6 +6541,40 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
+    updateProgramVisibility: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProgramVisibilityInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProgramWorkspace"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
     addProgramActivities: {
         parameters: {
             query?: never;
@@ -7957,6 +8208,38 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    listProgramGroups: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                timing?: components["schemas"]["DiscoverTiming"];
+            };
+            header?: never;
+            path: {
+                programId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicGroupSummary"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listMyGroups: {
         parameters: {
             query?: {
@@ -8058,6 +8341,66 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UpdateGroupInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GroupDetail"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    getPublicGroupPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                groupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicGroupPreview"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    joinGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                groupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AcceptGroupInvitationInput"];
             };
         };
         responses: {
@@ -8425,6 +8768,130 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    createCheckIns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCheckInInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CompletionShare"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listCompletionComments: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                shareId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CompletionComment"][];
+                        meta: components["schemas"]["PaginatedMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    addCompletionComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shareId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddCommentInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CompletionComment"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    deleteCompletionComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            ok: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listGroupMedia: {
@@ -8992,6 +9459,7 @@ export interface operations {
                 /** @description Comma-separated tag slugs (all listed tags must match). */
                 tags?: string;
                 sort?: components["schemas"]["DiscoverSort"];
+                timing?: components["schemas"]["DiscoverTiming"];
             };
             header?: never;
             path?: never;

@@ -403,6 +403,10 @@ function OccurrenceContent({
             <ActivityTogether
               collaborators={o.collaborators}
               viewerId={me.data?.data.id}
+              activityId={o.item.activityId}
+              activityTitle={o.item.title}
+              calendarItemId={o.item.id}
+              canCheckIn={phase === 'completed'}
               sharedMediaCount={o.sharedMedia.length}
               sharedCommentCount={o.sharedMedia.reduce((n, m) => n + m.commentCount, 0)}
               disabled={disabled}

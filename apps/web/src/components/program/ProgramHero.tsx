@@ -1,11 +1,16 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Pencil, Play, Share2 } from 'lucide-react'
+import { Check, Globe, Link2, Lock, Pencil, Play, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { EntityHero } from '@/components/shared/EntityHero'
 import { MediaViewer } from '@/components/media/MediaViewer'
+import {
+  PROGRAM_VISIBILITIES,
+  programVisibilityLabel,
+  type ProgramVisibility,
+} from '@/components/program-authoring/programFields'
 import type { Hero } from '@/lib/hero'
 import { buildProfileUrl } from '@/lib/urls'
 import { cn } from '@/lib/utils'
@@ -44,6 +49,13 @@ export interface ProgramHeroProps {
   onEditProgram?: () => void
   editLabel?: string
   editExpanded?: boolean
+  ownerVisibility?: {
+    value: ProgramVisibility
+    status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+    pending?: boolean
+    disabled?: boolean
+    onChange: (next: ProgramVisibility) => void
+  }
   className?: string
 }
 
@@ -73,6 +85,7 @@ export function ProgramHero({
   onEditProgram,
   editLabel = 'Edit Program',
   editExpanded,
+  ownerVisibility,
   className,
 }: ProgramHeroProps) {
   const [watching, setWatching] = useState(false)
@@ -113,9 +126,50 @@ export function ProgramHero({
 
       <div className="min-w-0 space-y-5">
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-            {categoryLabel ? `Program · ${categoryLabel}` : 'Program'}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+              {categoryLabel ? `Program · ${categoryLabel}` : 'Program'}
+            </p>
+            {isOwner && ownerVisibility && (
+              <div className="flex flex-wrap items-center gap-2">
+                {ownerVisibility.status !== 'PUBLISHED' && (
+                  <span className="rounded-full border border-border bg-surface-muted px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    {ownerVisibility.status === 'DRAFT' ? 'Draft' : 'Archived'}
+                  </span>
+                )}
+                <div
+                  role="group"
+                  aria-label="Program visibility"
+                  className="inline-flex items-center rounded-full border border-border/80 bg-surface p-0.5"
+                >
+                  {PROGRAM_VISIBILITIES.map((v) => {
+                    const active = ownerVisibility.value === v
+                    const Icon = v === 'PUBLIC' ? Globe : v === 'UNLISTED' ? Link2 : Lock
+                    return (
+                      <button
+                        key={v}
+                        type="button"
+                        aria-pressed={active}
+                        disabled={ownerVisibility.disabled || ownerVisibility.pending}
+                        onClick={() => {
+                          if (!active) ownerVisibility.onChange(v)
+                        }}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60',
+                          active
+                            ? 'bg-accent text-accent-foreground shadow-sm'
+                            : 'text-muted hover:text-foreground',
+                        )}
+                      >
+                        <Icon size={12} aria-hidden />
+                        <span>{programVisibilityLabel(v)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
           <h1 className="font-display text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
             {title}
           </h1>

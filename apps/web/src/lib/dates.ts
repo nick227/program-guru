@@ -68,3 +68,16 @@ export function safeReturn(value: string | null, fallback = '/') {
     ? value
     : fallback
 }
+
+export function formatRelativeTime(iso: string, nowMs = Date.now()) {
+  const diffSeconds = Math.max(0, Math.floor((nowMs - Date.parse(iso)) / 1000))
+  if (Number.isNaN(diffSeconds)) return ''
+  if (diffSeconds < 60) return 'Just now'
+  const minutes = Math.floor(diffSeconds / 60)
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days} ${days === 1 ? 'day' : 'days'} ago`
+  return dateLabel(iso.slice(0, 10))
+}

@@ -5,18 +5,19 @@ import { newToken, sha256 } from '../../lib/auth'
 import { AppError, badRequest, conflict, forbidden, notFound } from '../../lib/errors'
 import { withIdempotency } from '../../lib/idempotency'
 import { enqueue } from '../../lib/outbox'
-import { afterCursor, pageArgs, pageOrder, toPage, type PageQuery } from '../../lib/paging'
-import { fromDbDate, isValidTimeZone, toDbDate } from '../../lib/time'
+import { afterCursor, offsetArgs, pageArgs, pageOrder, toOffsetPage, toPage, type PageQuery } from '../../lib/paging'
+import { addDays, fromDbDate, isValidTimeZone, toDbDate, todayIn } from '../../lib/time'
 import { occurrenceKey, sameDayOrdinals } from '../calendar/materialize'
-import { isBlockedEitherWay } from '../users/follow.service'
+import { blockedIds, isBlockedEitherWay } from '../users/follow.service'
 import { normalizeEmail } from '../users/auth.service'
 import { toUserSummary } from '../users/mapper'
-import { canSeeProgram, hasActiveGrant, isProgramOwner } from '../programs/access'
+import { canSeeProgram, discoverableProgramWhere, hasActiveGrant, isProgramOwner } from '../programs/access'
 import { preview as programPreview } from '../programs/browse.service'
 import { thumbFor } from '../media/media.service'
 import { enrollInTx, joinableVersion } from '../programs/enrollment.service'
 
 const INVITE_TTL_MS = 14 * 24 * 3600_000
+export const STARTING_SOON_DAYS = 14
 export const REACTIONS = ['👏', '🔥', '💪', '❤️', '🎉', '👍'] // a small fixed set (10 §2)
 
 const appBase = () => (process.env.PUBLIC_APP_URL ?? 'http://localhost:5173').replace(/\/$/, '')
@@ -38,15 +39,199 @@ async function toSummary(g: ProgramGroup & { version: { title: string; programId
     db.groupMember.count({ where: { groupId: g.id, status: 'ACTIVE' } }),
     db.groupMember.findUnique({ where: { groupId_userId: { groupId: g.id, userId } } }),
   ])
-  return { id: g.id, programId: g.version.programId, programVersionId: g.programVersionId, programTitle: g.version.title, name: g.name, mode: g.mode, memberCount, myRole: me?.role ?? 'MEMBER' }
+  return {
+    id: g.id,
+    programId: g.version.programId,
+    programVersionId: g.programVersionId,
+    programTitle: g.version.title,
+    name: g.name,
+    mode: g.mode,
+    visibility: g.visibility,
+    joinPolicy: g.joinPolicy,
+    startLocalDate: g.startLocalDate ? fromDbDate(g.startLocalDate) : null,
+    timezone: g.timezone,
+    memberCount,
+    myRole: me?.role ?? 'MEMBER',
+  }
+}
+
+export function isStartingSoonGroup(g: Pick<ProgramGroup, 'mode' | 'startLocalDate' | 'timezone'>, now = new Date()): boolean {
+  if (g.mode !== 'SYNC' || !g.startLocalDate) return false
+  const tz = g.timezone && isValidTimeZone(g.timezone) ? g.timezone : 'UTC'
+  const today = todayIn(tz, now)
+  const start = fromDbDate(g.startLocalDate)
+  return start >= today && start <= addDays(today, STARTING_SOON_DAYS)
+}
+
+const VALID_STAGE_THEMES = ['constellation', 'campfire', 'sprout'] as const
+
+async function recentCheckInCounts(groupIds: string[], now = new Date()): Promise<Map<string, number>> {
+  const counts = new Map<string, number>()
+  if (!groupIds.length) return counts
+  const cutoff = new Date(now.getTime() - 7 * 86_400_000)
+  const grouped = await db.completionShare.groupBy({
+    by: ['groupId'],
+    where: { groupId: { in: groupIds }, revokedAt: null, completedAt: { gte: cutoff } },
+    _count: { _all: true },
+  })
+  for (const row of grouped) counts.set(row.groupId, row._count._all)
+  return counts
+}
+
+function toPublicGroupSummary(
+  g: ProgramGroup & { version: { title: string; programId: string }; _count: { members: number }; members?: { userId: string }[] },
+  now = new Date(),
+  recentCheckInCount = 0,
+) {
+  return {
+    id: g.id,
+    programId: g.version.programId,
+    programVersionId: g.programVersionId,
+    programTitle: g.version.title,
+    name: g.name,
+    mode: g.mode,
+    visibility: g.visibility,
+    joinPolicy: g.joinPolicy,
+    memberCount: g._count.members,
+    startLocalDate: g.startLocalDate ? fromDbDate(g.startLocalDate) : null,
+    timezone: g.timezone,
+    startingSoon: isStartingSoonGroup(g, now),
+    viewerIsMember: (g.members?.length ?? 0) > 0,
+    recentCheckInCount,
+  }
+}
+
+function comparePublicGroups(
+  a: ReturnType<typeof toPublicGroupSummary> & { createdAt: Date },
+  b: ReturnType<typeof toPublicGroupSummary> & { createdAt: Date },
+  preferMember = false,
+) {
+  if (preferMember && a.viewerIsMember !== b.viewerIsMember) return a.viewerIsMember ? -1 : 1
+  if (a.joinPolicy !== b.joinPolicy) return a.joinPolicy === 'OPEN' ? -1 : 1
+  if (a.startingSoon !== b.startingSoon) return a.startingSoon ? -1 : 1
+  if (a.startingSoon && b.startingSoon && a.startLocalDate && b.startLocalDate && a.startLocalDate !== b.startLocalDate) {
+    return a.startLocalDate.localeCompare(b.startLocalDate)
+  }
+  if (a.memberCount !== b.memberCount) return b.memberCount - a.memberCount
+  const timeDiff = b.createdAt.getTime() - a.createdAt.getTime()
+  return timeDiff !== 0 ? timeDiff : b.id.localeCompare(a.id)
+}
+
+export async function startingSoonProgramIds(viewerId: string | null, now = new Date()) {
+  const blocked = await blockedIds(viewerId)
+  const minDate = toDbDate(addDays(fromDbDate(now), -1))
+  const maxDate = toDbDate(addDays(fromDbDate(now), STARTING_SOON_DAYS + 1))
+  const groups = await db.programGroup.findMany({
+    where: {
+      status: 'ACTIVE',
+      visibility: 'PUBLIC',
+      mode: 'SYNC',
+      startLocalDate: { gte: minDate, lte: maxDate },
+      owner: { status: 'ACTIVE', ...(blocked.length ? { id: { notIn: blocked } } : {}) },
+      version: { program: discoverableProgramWhere },
+    },
+    select: { mode: true, startLocalDate: true, timezone: true, version: { select: { programId: true } } },
+  })
+  const ids = new Set<string>()
+  for (const g of groups) if (isStartingSoonGroup(g, now)) ids.add(g.version.programId)
+  return [...ids]
+}
+
+/** Batch-load up to one relevant discoverable public Group per Program for discovery feeds. */
+export async function featuredGroupsForPrograms(
+  viewerId: string | null,
+  programIds: string[],
+  timing?: 'ALL' | 'STARTING_SOON' | 'HAPPENING_NOW',
+  now = new Date(),
+) {
+  const out = new Map<string, ReturnType<typeof toPublicGroupSummary>>()
+  if (!programIds.length || timing === 'HAPPENING_NOW') return out
+  const blocked = await blockedIds(viewerId)
+  const rows = await db.programGroup.findMany({
+    where: {
+      status: 'ACTIVE',
+      visibility: 'PUBLIC',
+      owner: { status: 'ACTIVE', ...(blocked.length ? { id: { notIn: blocked } } : {}) },
+      version: { programId: { in: programIds }, program: discoverableProgramWhere },
+    },
+    include: {
+      version: { select: { title: true, programId: true } },
+      _count: { select: { members: { where: { status: 'ACTIVE' } } } },
+      ...(viewerId ? { members: { where: { userId: viewerId, status: 'ACTIVE' }, select: { userId: true } } } : {}),
+    },
+  })
+  const checkIns = await recentCheckInCounts(rows.map((r) => r.id), now)
+  const grouped = new Map<string, (ReturnType<typeof toPublicGroupSummary> & { createdAt: Date })[]>()
+  for (const r of rows) {
+    if (timing === 'STARTING_SOON' && !isStartingSoonGroup(r, now)) continue
+    const summary = { ...toPublicGroupSummary(r, now, checkIns.get(r.id) ?? 0), createdAt: r.createdAt }
+    const list = grouped.get(summary.programId) ?? []
+    list.push(summary)
+    grouped.set(summary.programId, list)
+  }
+  for (const [programId, list] of grouped) {
+    list.sort((a, b) => comparePublicGroups(a, b, true))
+    const { createdAt: _c, ...best } = list[0]!
+    out.set(programId, best)
+  }
+  return out
+}
+
+export async function listByProgram(
+  viewerId: string | null,
+  programId: string,
+  query: PageQuery & { timing?: 'ALL' | 'STARTING_SOON' | 'HAPPENING_NOW' },
+  now = new Date(),
+) {
+  const program = await db.program.findUnique({ where: { id: programId } })
+  if (!program || !(await canSeeProgram(viewerId, program))) throw notFound('Program')
+  const { limit, skip } = offsetArgs(query)
+  const emptyPage = () => toOffsetPage([] as ReturnType<typeof toPublicGroupSummary>[], limit, skip, (g) => g)
+  if (
+    program.status !== 'PUBLISHED' ||
+    program.visibility !== 'PUBLIC' ||
+    program.moderatedAt ||
+    program.deletedAt ||
+    !program.latestPublishedVersionId ||
+    query.timing === 'HAPPENING_NOW'
+  ) {
+    return emptyPage()
+  }
+  const blocked = await blockedIds(viewerId)
+  const rows = await db.programGroup.findMany({
+    where: {
+      status: 'ACTIVE',
+      visibility: 'PUBLIC',
+      owner: { status: 'ACTIVE', ...(blocked.length ? { id: { notIn: blocked } } : {}) },
+      version: { programId },
+    },
+    include: {
+      version: { select: { title: true, programId: true } },
+      _count: { select: { members: { where: { status: 'ACTIVE' } } } },
+      ...(viewerId ? { members: { where: { userId: viewerId, status: 'ACTIVE' }, select: { userId: true } } } : {}),
+    },
+  })
+  const checkIns = await recentCheckInCounts(rows.map((r) => r.id), now)
+  const items = rows
+    .filter((r) => query.timing !== 'STARTING_SOON' || isStartingSoonGroup(r, now))
+    .map((r) => ({ ...toPublicGroupSummary(r, now, checkIns.get(r.id) ?? 0), createdAt: r.createdAt }))
+    .sort((a, b) => comparePublicGroups(a, b, false))
+  const window = items.slice(skip, skip + limit + 1)
+  return toOffsetPage(window, limit, skip, ({ createdAt: _c, ...g }) => g)
 }
 
 async function toDetail(groupId: string, userId: string) {
   const g = await db.programGroup.findUniqueOrThrow({ where: { id: groupId }, include: { version: true } })
-  const members = await db.groupMember.findMany({ where: { groupId, status: 'ACTIVE' }, include: { user: { include: { profile: true } } }, orderBy: { createdAt: 'asc' } })
+  const [members, mine, checkInMap] = await Promise.all([
+    db.groupMember.findMany({ where: { groupId, status: 'ACTIVE' }, include: { user: { include: { profile: true } } }, orderBy: { createdAt: 'asc' } }),
+    db.programEnrollment.findFirst({ where: { userId, groupId, status: { in: ['ACTIVE', 'PAUSED'] } }, orderBy: { createdAt: 'desc' } }),
+    recentCheckInCounts([groupId]),
+  ])
   const me = members.find((m) => m.userId === userId)
-  const mine = await db.programEnrollment.findFirst({ where: { userId, groupId, status: { in: ['ACTIVE', 'PAUSED'] } } , orderBy: { createdAt: 'desc' } })
   const shared = g.mode === 'SYNC' && g.startLocalDate ? fromDbDate(g.startLocalDate) : null
+  const stageTheme = VALID_STAGE_THEMES.includes(g.stageTheme as (typeof VALID_STAGE_THEMES)[number])
+    ? (g.stageTheme as (typeof VALID_STAGE_THEMES)[number])
+    : 'constellation'
   return {
     ...(await toSummary(g, userId)),
     startLocalDate: g.startLocalDate ? fromDbDate(g.startLocalDate) : null,
@@ -58,6 +243,8 @@ async function toDetail(groupId: string, userId: string) {
     myEnrollment: mine
       ? { enrollmentId: mine.id, startLocalDate: fromDbDate(mine.startLocalDate), startDateDiffers: !!shared && shared !== fromDbDate(mine.startLocalDate) }
       : null,
+    stageTheme,
+    recentCheckInCount: checkInMap.get(groupId) ?? 0,
   }
 }
 
@@ -129,9 +316,28 @@ export async function listMine(userId: string, query: PageQuery) {
   return { data: await Promise.all(page.data.map((g) => toSummary(g, userId))), meta: page.meta }
 }
 
-export async function create(userId: string, input: { programVersionId: string; name?: string | null; mode: 'SYNC' | 'ASYNC'; startLocalDate?: string | null; timezone?: string }) {
+export async function create(
+  userId: string,
+  input: {
+    programVersionId: string
+    name?: string | null
+    mode: 'SYNC' | 'ASYNC'
+    visibility?: 'PRIVATE' | 'PUBLIC'
+    joinPolicy?: 'INVITE_ONLY' | 'OPEN'
+    startLocalDate?: string | null
+    timezone?: string
+  },
+) {
   const version = await db.programVersion.findUnique({ where: { id: input.programVersionId }, include: { program: true } })
   if (!version?.publishedAt || !(await canSeeProgram(userId, version.program))) throw notFound('Program')
+  const visibility = input.visibility ?? 'PRIVATE'
+  const joinPolicy = input.joinPolicy ?? (visibility === 'PUBLIC' ? 'OPEN' : 'INVITE_ONLY')
+  if (visibility === 'PRIVATE' && joinPolicy === 'OPEN') {
+    throw badRequest('Private groups must be invite-only', { joinPolicy: 'cannot be OPEN for a PRIVATE group' })
+  }
+  if (visibility === 'PUBLIC' && (version.program.visibility !== 'PUBLIC' || version.program.status !== 'PUBLISHED' || version.program.moderatedAt || version.program.deletedAt)) {
+    throw badRequest('Public groups are only allowed on public published programs', { visibility: 'requires a public published program' })
+  }
   const enrolled = await db.programEnrollment.findFirst({ where: { userId, programId: version.programId, status: { in: ['ACTIVE', 'PAUSED'] } } , orderBy: { createdAt: 'desc' } })
   // 10 §3: created by an enrolled participant or the Program owner.
   if (!enrolled && !isProgramOwner(version.program, userId)) throw forbidden('Join this program before starting a group')
@@ -142,7 +348,17 @@ export async function create(userId: string, input: { programVersionId: string; 
   const tz = input.timezone ?? enrolled?.timezone ?? (await db.userPreference.findUnique({ where: { userId } }))?.timezone ?? 'UTC'
   const g = await db.$transaction(async (tx) => {
     const group = await tx.programGroup.create({
-      data: { programVersionId: version.id, ownerId: userId, name: input.name?.trim() || null, mode: input.mode, startLocalDate: start ? toDbDate(start) : null, timezone: tz, members: { create: { userId, role: 'OWNER', status: 'ACTIVE', joinedAt: new Date() } } },
+      data: {
+        programVersionId: version.id,
+        ownerId: userId,
+        name: input.name?.trim() || null,
+        mode: input.mode,
+        visibility,
+        joinPolicy,
+        startLocalDate: start ? toDbDate(start) : null,
+        timezone: tz,
+        members: { create: { userId, role: 'OWNER', status: 'ACTIVE', joinedAt: new Date() } },
+      },
     })
     await linkEnrollment(tx, userId, { ...group, version: { programId: version.programId } })
     return group
@@ -155,12 +371,50 @@ export async function get(userId: string, groupId: string) {
   return toDetail(groupId, userId)
 }
 
-export async function update(userId: string, groupId: string, input: { name?: string | null; joinLinkEnabled?: boolean; memberLinkSharingEnabled?: boolean; closed?: boolean }) {
-  await ownedGroup(userId, groupId)
+export async function update(
+  userId: string,
+  groupId: string,
+  input: {
+    name?: string | null
+    visibility?: 'PRIVATE' | 'PUBLIC'
+    joinPolicy?: 'INVITE_ONLY' | 'OPEN'
+    joinLinkEnabled?: boolean
+    memberLinkSharingEnabled?: boolean
+    closed?: boolean
+    stageTheme?: 'constellation' | 'campfire' | 'sprout'
+  },
+) {
+  const current = await ownedGroup(userId, groupId)
+  const nextVisibility = input.visibility ?? current.visibility
+  const nextJoinPolicy =
+    input.visibility === 'PRIVATE' && input.joinPolicy === undefined
+      ? 'INVITE_ONLY'
+      : (input.joinPolicy ?? current.joinPolicy)
+  if (nextVisibility === 'PRIVATE' && nextJoinPolicy === 'OPEN') {
+    throw badRequest('Private groups must be invite-only', { joinPolicy: 'cannot be OPEN for a PRIVATE group' })
+  }
+  if (nextVisibility === 'PUBLIC') {
+    const withProgram = await db.programGroup.findUniqueOrThrow({
+      where: { id: groupId },
+      include: { version: { include: { program: true } } },
+    })
+    const program = withProgram.version.program
+    if (program.visibility !== 'PUBLIC' || program.status !== 'PUBLISHED' || program.moderatedAt || program.deletedAt) {
+      throw badRequest('Public groups are only allowed on public published programs', { visibility: 'requires a public published program' })
+    }
+  }
   await db.$transaction(async (tx) => {
     await tx.programGroup.update({
       where: { id: groupId },
-      data: { name: input.name === undefined ? undefined : input.name?.trim() || null, joinLinkEnabled: input.joinLinkEnabled, memberLinkSharingEnabled: input.memberLinkSharingEnabled, status: input.closed ? 'CLOSED' : undefined },
+      data: {
+        name: input.name === undefined ? undefined : input.name?.trim() || null,
+        visibility: input.visibility,
+        joinPolicy: input.visibility !== undefined || input.joinPolicy !== undefined ? nextJoinPolicy : undefined,
+        joinLinkEnabled: input.joinLinkEnabled,
+        memberLinkSharingEnabled: input.memberLinkSharingEnabled,
+        stageTheme: input.stageTheme,
+        status: input.closed ? 'CLOSED' : undefined,
+      },
     })
     if (input.memberLinkSharingEnabled === false) await tx.groupInvitation.updateMany({ where: { groupId, kind: 'LINK', createdById: { not: userId }, status: 'PENDING' }, data: { status: 'REVOKED' } })
     if (input.joinLinkEnabled === false) await tx.groupInvitation.updateMany({ where: { groupId, kind: 'LINK', status: 'PENDING' }, data: { status: 'REVOKED' } })
@@ -322,9 +576,12 @@ type JoinStatus =
   | 'SIGN_IN_REQUIRED' | 'UNAVAILABLE' | 'ACCESS_REQUIRED' | 'PAYMENT_REQUIRED' | 'ALREADY_MEMBER'
   | 'READY_TO_JOIN' | 'CONFIRM_ENROLLMENT' | 'SELECT_SCHEDULE' | 'ENROLLED_OTHER_VERSION' | 'LEAVE_OTHER_GROUP'
 
-/** What this viewer must do to join through this invitation (10 §3, join state table). */
-async function joinState(viewerId: string | null, inv: InvitationRow) {
-  const group = inv.group
+/** What this viewer must do to join a group via invitation or public open join (10 §3). */
+async function evaluateGroupJoinState(
+  viewerId: string | null,
+  group: GroupWithProgram,
+  opts: { inv?: InvitationRow; directPublic?: boolean } = {},
+) {
   const program = group.version.program
   const state = (status: JoinStatus, e?: { id: string; startLocalDate: Date } | null) => ({
     status,
@@ -333,12 +590,19 @@ async function joinState(viewerId: string | null, inv: InvitationRow) {
     startDateDiffers: !!e && !!syncStart(group) && syncStart(group) !== fromDbDate(e.startLocalDate),
   })
   if (!viewerId) return state('SIGN_IN_REQUIRED')
-  if (!openForJoins(group) || !(await addressedTo(viewerId, inv)) || (await isBlockedEitherWay(viewerId, group.ownerId))) return state('UNAVAILABLE')
+  if (
+    !openForJoins(group) ||
+    (opts.inv && !(await addressedTo(viewerId, opts.inv))) ||
+    (await isBlockedEitherWay(viewerId, group.ownerId))
+  ) {
+    return state('UNAVAILABLE')
+  }
   const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: group.id, userId: viewerId } } })
   const enrollment = await db.programEnrollment.findFirst({ where: { userId: viewerId, programId: program.id, status: { in: [...LIVE_ENROLLMENT] } } , orderBy: { createdAt: 'desc' } })
   if (member?.status === 'ACTIVE') return state('ALREADY_MEMBER', enrollment?.groupId === group.id ? enrollment : null)
-  // A removed member needs a fresh invitation from the owner; a reusable link is not one.
-  if (member?.status === 'REMOVED' && inv.kind === 'LINK') return state('UNAVAILABLE')
+  // A removed member needs a fresh invitation from the owner; a reusable link or open direct join is not one.
+  if (member?.status === 'REMOVED' && (opts.directPublic || opts.inv?.kind === 'LINK')) return state('UNAVAILABLE')
+  if (opts.directPublic && (group.visibility !== 'PUBLIC' || group.joinPolicy !== 'OPEN')) return state('UNAVAILABLE')
   const mode = program.policy?.accessMode ?? 'OPEN'
   if (mode !== 'OPEN' && !isProgramOwner(program, viewerId) && !(await hasActiveGrant(viewerId, program.id))) {
     return state(mode === 'PAID' ? 'PAYMENT_REQUIRED' : 'ACCESS_REQUIRED')
@@ -352,6 +616,10 @@ async function joinState(viewerId: string | null, inv: InvitationRow) {
     return state('READY_TO_JOIN', enrollment)
   }
   return state(group.mode === 'SYNC' ? 'CONFIRM_ENROLLMENT' : 'SELECT_SCHEDULE')
+}
+
+async function joinState(viewerId: string | null, inv: InvitationRow) {
+  return evaluateGroupJoinState(viewerId, inv.group, { inv })
 }
 
 const ACCEPTABLE: JoinStatus[] = ['ALREADY_MEMBER', 'READY_TO_JOIN', 'CONFIRM_ENROLLMENT', 'SELECT_SCHEDULE']
@@ -401,16 +669,20 @@ type AcceptInput = { enrollment?: { startLocalDate?: string; timezone: string; i
 
 /**
  * Membership, entitlement, enrollment and calendar in one transaction, after the participant
- * confirmed the schedule. A failure anywhere leaves no membership behind (10 §3).
+ * confirmed the schedule. Shared by invitation acceptance and direct open-group join (10 §3).
  */
-async function acceptInvitation(userId: string, inv: InvitationRow, input: AcceptInput = {}) {
-  const group = inv.group
+async function executeGroupJoin(
+  userId: string,
+  group: GroupWithProgram,
+  join: Awaited<ReturnType<typeof evaluateGroupJoinState>>,
+  input: AcceptInput,
+  opts: { inv?: InvitationRow; unavailableMessage: string; allowMembershipWithoutEnrollment?: boolean },
+) {
   const program = group.version.program
-  const join = await joinState(userId, inv)
   switch (join.status) {
     case 'SIGN_IN_REQUIRED':
     case 'UNAVAILABLE':
-      throw notFound('Invitation')
+      throw notFound(opts.unavailableMessage)
     case 'ACCESS_REQUIRED':
     case 'PAYMENT_REQUIRED':
       // Never bypasses entitlement: locked Programs need access first.
@@ -418,12 +690,13 @@ async function acceptInvitation(userId: string, inv: InvitationRow, input: Accep
     case 'ENROLLED_OTHER_VERSION':
       throw conflict('You follow a different version of this program. Update or leave it, then accept again')
     case 'LEAVE_OTHER_GROUP':
-      throw conflict('You follow this program with another group. Leave that group, then accept again')
+      throw conflict('You follow this program with another group. Leave that group, then join again')
     default:
   }
   const needsEnrollment = join.status === 'CONFIRM_ENROLLMENT' || join.status === 'SELECT_SCHEDULE'
+  const shouldCreateEnrollment = needsEnrollment && (!!input.enrollment || !opts.allowMembershipWithoutEnrollment)
   let schedule: { startLocalDate: string; timezone: string } | null = null
-  if (needsEnrollment) {
+  if (shouldCreateEnrollment) {
     const e = input.enrollment
     if (!e) throw badRequest('Confirm your schedule to join this group', { enrollment: join.status === 'CONFIRM_ENROLLMENT' ? 'confirm the group start date' : 'choose a start date' })
     if (!isValidTimeZone(e.timezone)) throw badRequest('Unknown timezone', { 'enrollment.timezone': 'is not a valid IANA timezone' })
@@ -434,40 +707,107 @@ async function acceptInvitation(userId: string, inv: InvitationRow, input: Accep
     schedule = { startLocalDate: start, timezone: e.timezone }
   }
   // Newcomers start on the version available now; the group's creation version may be older.
-  const joinable = needsEnrollment ? await joinableVersion(userId, program.id, program.latestPublishedVersionId ?? group.programVersionId, { invited: true }) : null
+  const joinable = shouldCreateEnrollment
+    ? await joinableVersion(userId, program.id, program.latestPublishedVersionId ?? group.programVersionId, { invited: !!opts.inv })
+    : null
 
-  const apply = () =>
-    db.$transaction(
-      async (tx) => {
-        // Re-check single-use invitations inside the transaction: two accepts cannot both consume one.
-        if (inv.kind !== 'LINK') {
-          const consumed = await tx.groupInvitation.updateMany({ where: { id: inv.id, status: 'PENDING' }, data: { status: 'ACCEPTED' } })
-          if (!consumed.count && join.status !== 'ALREADY_MEMBER') throw notFound('Invitation')
-        }
-        if (join.status === 'ALREADY_MEMBER') return
-        await tx.groupMember.upsert({
-          where: { groupId_userId: { groupId: group.id, userId } },
-          create: { groupId: group.id, userId, role: 'MEMBER', status: 'ACTIVE', joinedAt: new Date() },
-          update: { status: 'ACTIVE', role: 'MEMBER', joinedAt: new Date() },
+  await db.$transaction(
+    async (tx) => {
+      // Re-check single-use invitations inside the transaction: two accepts cannot both consume one.
+      if (opts.inv && opts.inv.kind !== 'LINK') {
+        const consumed = await tx.groupInvitation.updateMany({ where: { id: opts.inv.id, status: 'PENDING' }, data: { status: 'ACCEPTED' } })
+        if (!consumed.count && join.status !== 'ALREADY_MEMBER') throw notFound('Invitation')
+      }
+      if (join.status === 'ALREADY_MEMBER') return
+      await tx.groupMember.upsert({
+        where: { groupId_userId: { groupId: group.id, userId } },
+        create: { groupId: group.id, userId, role: 'MEMBER', status: 'ACTIVE', joinedAt: new Date() },
+        update: { status: 'ACTIVE', role: 'MEMBER', joinedAt: new Date() },
+      })
+      const mode = program.policy?.accessMode ?? 'OPEN'
+      // The invitation is the explicit authorization a PRIVATE, open Program needs (07 §5).
+      if (program.visibility === 'PRIVATE' && mode === 'OPEN' && !isProgramOwner(program, userId)) {
+        await tx.programAccessGrant.upsert({
+          where: { source_sourceRef: { source: 'OPEN', sourceRef: `${userId}:${program.id}` } },
+          create: { userId, programId: program.id, source: 'OPEN', sourceRef: `${userId}:${program.id}` },
+          update: { revokedAt: null },
         })
-        const mode = program.policy?.accessMode ?? 'OPEN'
-        // The invitation is the explicit authorization a PRIVATE, open Program needs (07 §5).
-        if (program.visibility === 'PRIVATE' && mode === 'OPEN' && !isProgramOwner(program, userId)) {
-          await tx.programAccessGrant.upsert({
-            where: { source_sourceRef: { source: 'OPEN', sourceRef: `${userId}:${program.id}` } },
-            create: { userId, programId: program.id, source: 'OPEN', sourceRef: `${userId}:${program.id}` },
-            update: { revokedAt: null },
-          })
-        }
-        if (joinable && schedule) await enrollInTx(tx, userId, joinable.program, joinable.version, { ...schedule, groupId: group.id })
-        else await linkEnrollment(tx, userId, group)
-        await enqueue(tx, 'GroupMemberJoined', { groupId: group.id, userId })
-      },
-      { timeout: 30_000 },
-    )
-
-  await apply()
+      }
+      // Guard against concurrent enrollment creation between pre-check and tx commit.
+      const liveInTx = await tx.programEnrollment.findFirst({
+        where: { userId, programId: program.id, status: { in: ['ACTIVE', 'PAUSED'] } },
+        select: { id: true },
+      })
+      if (joinable && schedule && !liveInTx) {
+        await enrollInTx(tx, userId, joinable.program, joinable.version, { ...schedule, groupId: group.id })
+      } else {
+        await linkEnrollment(tx, userId, group)
+      }
+      await enqueue(tx, 'GroupMemberJoined', { groupId: group.id, userId })
+    },
+    { timeout: 30_000 },
+  )
   return toDetail(group.id, userId)
+}
+
+async function acceptInvitation(userId: string, inv: InvitationRow, input: AcceptInput = {}) {
+  const join = await joinState(userId, inv)
+  return executeGroupJoin(userId, inv.group, join, input, { inv, unavailableMessage: 'Invitation' })
+}
+
+async function loadPublicGroup(viewerId: string | null, groupId: string) {
+  const group = await db.programGroup.findUnique({ where: { id: groupId }, include: invitationInclude.group.include })
+  if (
+    !group ||
+    group.visibility !== 'PUBLIC' ||
+    !openForJoins(group) ||
+    group.version.program.visibility !== 'PUBLIC' ||
+    group.version.program.deletedAt ||
+    (viewerId && (await isBlockedEitherWay(viewerId, group.ownerId)))
+  ) {
+    throw notFound('Group')
+  }
+  return group
+}
+
+export async function previewPublic(viewerId: string | null, groupId: string) {
+  const group = await loadPublicGroup(viewerId, groupId)
+  const [memberCount, join, program, checkInMap] = await Promise.all([
+    db.groupMember.count({ where: { groupId: group.id, status: 'ACTIVE' } }),
+    evaluateGroupJoinState(viewerId, group, { directPublic: true }),
+    programPreview(viewerId, group.version.programId),
+    recentCheckInCounts([group.id]),
+  ])
+  return {
+    id: group.id,
+    groupName: group.name,
+    mode: group.mode,
+    visibility: group.visibility,
+    joinPolicy: group.joinPolicy,
+    memberCount,
+    startLocalDate: group.startLocalDate ? fromDbDate(group.startLocalDate) : null,
+    timezone: group.timezone,
+    program,
+    canJoin: ACCEPTABLE.includes(join.status),
+    requiresAccess: join.status === 'ACCESS_REQUIRED' || join.status === 'PAYMENT_REQUIRED',
+    join,
+    recentCheckInCount: checkInMap.get(group.id) ?? 0,
+  }
+}
+
+export async function joinPublic(userId: string, groupId: string, input: AcceptInput = {}) {
+  return idempotentAccept(userId, `group-join:${groupId}`, input, async () => {
+    const group = await loadPublicGroup(userId, groupId)
+    if (group.joinPolicy !== 'OPEN') throw forbidden('This group requires an invitation')
+    const join = await evaluateGroupJoinState(userId, group, { directPublic: true })
+    return {
+      groupId: group.id,
+      detail: await executeGroupJoin(userId, group, join, input, {
+        unavailableMessage: 'Group',
+        allowMembershipWithoutEnrollment: true,
+      }),
+    }
+  })
 }
 
 /**
@@ -528,7 +868,31 @@ export async function expireInvitations(now = new Date()) {
 
 // ── Completions, reactions, shared media ────────────────────────────────────
 
-const shareInclude = { user: { include: { profile: true } }, reactions: true, activity: true } satisfies Prisma.CompletionShareInclude
+const groupMediaInclude = { media: true, publishedBy: { include: { profile: true } } } satisfies Prisma.MediaPublicationInclude
+type GroupMediaRow = Prisma.MediaPublicationGetPayload<{ include: typeof groupMediaInclude }>
+
+function toGroupMediaThumb(p: GroupMediaRow) {
+  return {
+    id: p.media.id,
+    thumbnailUrl: thumbFor(p.media, { publicationId: p.id }),
+    type: p.media.type,
+    durationMs: p.media.durationMs,
+    alt: p.media.alt ?? '',
+    canSelect: false,
+    publicationId: p.id,
+    owner: toUserSummary(p.publishedBy.profile!),
+    commentCount: p.commentCount,
+    caption: p.caption,
+  }
+}
+
+const shareInclude = {
+  user: { include: { profile: true } },
+  reactions: true,
+  activity: true,
+  mediaPublication: { include: groupMediaInclude },
+  _count: { select: { comments: { where: { status: 'VISIBLE', deletedAt: null } } } },
+} satisfies Prisma.CompletionShareInclude
 type ShareRow = Prisma.CompletionShareGetPayload<{ include: typeof shareInclude }>
 
 export function reactionCounts(rows: { emoji: string; userId: string }[], viewerId: string) {
@@ -542,20 +906,35 @@ export function reactionCounts(rows: { emoji: string; userId: string }[], viewer
 
 const toShare = (s: ShareRow, viewerId: string) => ({
   id: s.id,
+  groupId: s.groupId,
   user: toUserSummary(s.user.profile!),
   activityId: s.activityId,
   activityTitle: s.activity.title,
   programDayIndex: s.programDayIndex,
   occurrenceKey: s.occurrenceKey,
+  note: s.note ?? null,
+  mediaPublicationId: s.mediaPublicationId ?? null,
+  media:
+    s.mediaPublication && s.mediaPublication.status === 'APPROVED' && !s.mediaPublication.media.deletedAt
+      ? toGroupMediaThumb(s.mediaPublication)
+      : null,
+  commentCount: s._count.comments,
   completedAt: s.completedAt.toISOString(),
   reactions: reactionCounts(s.reactions, viewerId),
 })
 
 export async function listCompletions(userId: string, groupId: string, query: PageQuery & { occurrenceKey?: string }) {
   await activeMember(userId, groupId)
+  const blocked = await blockedIds(userId)
   const { limit, take } = pageArgs(query)
   const rows = await db.completionShare.findMany({
-    where: { groupId, revokedAt: null, ...(query.occurrenceKey ? { occurrenceKey: query.occurrenceKey } : {}), ...completedCursor(query.cursor) },
+    where: {
+      groupId,
+      revokedAt: null,
+      ...(blocked.length ? { userId: { notIn: blocked } } : {}),
+      ...(query.occurrenceKey ? { occurrenceKey: query.occurrenceKey } : {}),
+      ...completedCursor(query.cursor),
+    },
     orderBy: [{ completedAt: 'desc' }, { id: 'desc' }],
     take,
     include: shareInclude,
@@ -612,18 +991,246 @@ export async function listMedia(userId: string, groupId: string, query: PageQuer
     where: { groupId, audience: 'GROUP', status: 'APPROVED', media: { deletedAt: null }, ...(query.occurrenceKey ? { occurrenceKey: query.occurrenceKey } : {}), ...afterCursor(query.cursor) },
     orderBy: pageOrder,
     take,
-    include: { media: true, publishedBy: { include: { profile: true } } },
+    include: groupMediaInclude,
   })
-  return toPage(rows, limit, (p) => ({
-    id: p.media.id,
-    thumbnailUrl: thumbFor(p.media, { publicationId: p.id }),
-    type: p.media.type,
-    durationMs: p.media.durationMs,
-    alt: p.media.alt ?? '',
-    canSelect: false,
-    publicationId: p.id,
-    owner: toUserSummary(p.publishedBy.profile!),
-    commentCount: p.commentCount,
-    caption: p.caption,
-  }))
+  return toPage(rows, limit, toGroupMediaThumb)
+}
+
+export async function createCheckIns(
+  userId: string,
+  input: {
+    activityId: string
+    groupIds: string[]
+    calendarItemId?: string | null
+    note?: string | null
+    mediaId?: string | null
+    idempotencyKey?: string
+  },
+) {
+  const groupIds = [...new Set(input.groupIds)]
+  if (!groupIds.length) throw badRequest('Choose at least one group', { groupIds: 'is required' })
+
+  const activity = await db.activity.findUnique({ where: { id: input.activityId } })
+  if (!activity || activity.moderatedAt) throw notFound('Activity')
+
+  let resolvedCalendarItem: { id: string; groupOccurrenceKey: string | null; programDayIndex: number | null; completedAt: Date | null } | null = null
+  if (input.calendarItemId) {
+    const item = await db.calendarItem.findUnique({ where: { id: input.calendarItemId } })
+    if (!item || item.ownerId !== userId || item.activityId !== activity.id || item.status !== 'DONE') {
+      throw badRequest('Complete this activity before checking in', { calendarItemId: 'must be completed first' })
+    }
+    resolvedCalendarItem = {
+      id: item.id,
+      groupOccurrenceKey: item.groupOccurrenceKey,
+      programDayIndex: item.programDayIndex,
+      completedAt: item.updatedAt,
+    }
+  } else {
+    const completedItem = await db.calendarItem.findFirst({
+      where: { ownerId: userId, activityId: activity.id, status: 'DONE' },
+      orderBy: { updatedAt: 'desc' },
+    })
+    const finishedSession = completedItem
+      ? null
+      : await db.activitySession.findFirst({
+          where: { userId, status: 'FINISHED', calendarItem: { activityId: activity.id } },
+          select: { id: true },
+        })
+    if (!completedItem && !finishedSession) {
+      throw badRequest('Complete this activity before checking in', { activityId: 'complete the activity first' })
+    }
+  }
+
+  const memberships = await db.groupMember.findMany({
+    where: { userId, groupId: { in: groupIds }, status: 'ACTIVE', group: { status: 'ACTIVE' } },
+    select: { groupId: true },
+  })
+  if (memberships.length !== groupIds.length) {
+    throw forbidden('Join every selected group before checking in')
+  }
+
+  let validatedMedia: { id: string } | null = null
+  if (input.mediaId) {
+    const asset = await db.mediaAsset.findFirst({
+      where: { id: input.mediaId, deletedAt: null, OR: [{ ownerId: userId }, { ownerId: null }] },
+    })
+    if (!asset || (asset.type !== 'PHOTO' && asset.type !== 'VIDEO')) {
+      throw badRequest('Choose a photo or video from your media library', { mediaId: 'not available' })
+    }
+    if (asset.state !== 'READY') {
+      throw badRequest('Wait until this media finishes processing', { mediaId: 'is not ready' })
+    }
+    validatedMedia = { id: asset.id }
+  }
+
+  const cleanNote = input.note?.trim() ? input.note.trim().slice(0, 500) : null
+  const occKey = resolvedCalendarItem?.groupOccurrenceKey ?? `activity:${activity.id}`
+  const completedAt = new Date()
+
+  const shareIds = await db.$transaction(async (tx) => {
+    const ids: string[] = []
+    for (const gid of groupIds) {
+      let mediaPublicationId: string | null = null
+      if (validatedMedia) {
+        const pub = await tx.mediaPublication.create({
+          data: {
+            mediaId: validatedMedia.id,
+            publishedById: userId,
+            audience: 'GROUP',
+            groupId: gid,
+            occurrenceKey: occKey,
+            activityId: activity.id,
+            caption: cleanNote,
+            status: 'APPROVED',
+            publishedAt: completedAt,
+          },
+          select: { id: true },
+        })
+        mediaPublicationId = pub.id
+        await enqueue(tx, 'GroupMediaShared', { publicationId: pub.id, groupId: gid, userId })
+      }
+
+      const share = resolvedCalendarItem
+        ? await tx.completionShare.upsert({
+            where: { groupId_calendarItemId: { groupId: gid, calendarItemId: resolvedCalendarItem.id } },
+            create: {
+              groupId: gid,
+              occurrenceKey: occKey,
+              calendarItemId: resolvedCalendarItem.id,
+              userId,
+              activityId: activity.id,
+              programDayIndex: resolvedCalendarItem.programDayIndex,
+              note: cleanNote,
+              mediaPublicationId,
+              completedAt,
+            },
+            update: {
+              revokedAt: null,
+              completedAt,
+              ...(cleanNote !== null ? { note: cleanNote } : {}),
+              ...(mediaPublicationId !== null ? { mediaPublicationId } : {}),
+            },
+          })
+        : await tx.completionShare.create({
+            data: {
+              groupId: gid,
+              occurrenceKey: occKey,
+              calendarItemId: null,
+              userId,
+              activityId: activity.id,
+              programDayIndex: null,
+              note: cleanNote,
+              mediaPublicationId,
+              completedAt,
+            },
+          })
+      await enqueue(tx, 'CompletionShared', {
+        shareId: share.id,
+        groupId: gid,
+        occurrenceKey: occKey,
+        calendarItemId: resolvedCalendarItem?.id ?? null,
+        userId,
+        activityId: activity.id,
+      })
+      ids.push(share.id)
+    }
+    return ids
+  })
+
+  const shares = await db.completionShare.findMany({
+    where: { id: { in: shareIds } },
+    include: shareInclude,
+  })
+  const byId = new Map(shares.map((s) => [s.id, toShare(s, userId)]))
+  return shareIds.map((id) => byId.get(id)!).filter(Boolean)
+}
+
+const commentInclude = { author: { include: { profile: true } } } satisfies Prisma.CompletionCommentInclude
+type CommentRow = Prisma.CompletionCommentGetPayload<{ include: typeof commentInclude }>
+
+const toCompletionComment = (c: CommentRow, viewerId: string, groupOwnerId: string) => ({
+  id: c.id,
+  completionShareId: c.completionShareId,
+  author: toUserSummary(c.author.profile!),
+  body: c.body,
+  createdAt: c.createdAt.toISOString(),
+  canDelete: c.authorId === viewerId || groupOwnerId === viewerId,
+})
+
+export async function listCompletionComments(userId: string, shareId: string, query: PageQuery) {
+  const s = await shareForReaction(userId, shareId)
+  const [member, blocked] = await Promise.all([activeMember(userId, s.groupId), blockedIds(userId)])
+  const { limit, take } = pageArgs(query)
+  const rows = await db.completionComment.findMany({
+    where: {
+      completionShareId: s.id,
+      status: 'VISIBLE',
+      deletedAt: null,
+      ...(blocked.length ? { authorId: { notIn: blocked } } : {}),
+      ...afterCursor(query.cursor),
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    take,
+    include: commentInclude,
+  })
+  return toPage(rows, limit, (c) => toCompletionComment(c, userId, member.group.ownerId))
+}
+
+export async function addCompletionComment(
+  userId: string,
+  shareId: string,
+  input: { body: string; idempotencyKey?: string },
+) {
+  const clean = input.body.trim()
+  if (!clean) throw badRequest('Write a comment first', { body: 'is required' })
+  const s = await shareForReaction(userId, shareId)
+  const member = await activeMember(userId, s.groupId)
+  if (s.userId !== userId && (await isBlockedEitherWay(userId, s.userId))) throw notFound('Completion')
+
+  const createComment = async () => {
+    const created = await db.$transaction(async (tx) => {
+      const row = await tx.completionComment.create({
+        data: { completionShareId: s.id, authorId: userId, body: clean.slice(0, 1000) },
+        include: commentInclude,
+      })
+      if (s.userId !== userId) {
+        await enqueue(tx, 'CompletionCommentAdded', {
+          shareId: s.id,
+          commentId: row.id,
+          userId,
+          recipientId: s.userId,
+          groupId: s.groupId,
+          occurrenceKey: s.occurrenceKey,
+        })
+      }
+      return row
+    })
+    return { ref: created.id, result: toCompletionComment(created, userId, member.group.ownerId) }
+  }
+
+  if (!input.idempotencyKey) return (await createComment()).result
+  return withIdempotency({
+    userId,
+    scope: `completion-comment:${s.id}`,
+    key: input.idempotencyKey,
+    request: { shareId: s.id, body: clean },
+    load: async (id) => {
+      const row = await db.completionComment.findUniqueOrThrow({ where: { id }, include: commentInclude })
+      return toCompletionComment(row, userId, member.group.ownerId)
+    },
+    run: createComment,
+  })
+}
+
+export async function deleteCompletionComment(userId: string, commentId: string) {
+  const comment = await db.completionComment.findUnique({
+    where: { id: commentId },
+    include: { share: { include: { group: true } } },
+  })
+  if (!comment || comment.deletedAt) throw notFound('Comment')
+  await activeMember(userId, comment.share.groupId)
+  if (comment.authorId !== userId && comment.share.group.ownerId !== userId) {
+    throw forbidden('You can only delete your own comments')
+  }
+  await db.completionComment.update({ where: { id: commentId }, data: { deletedAt: new Date() } })
 }

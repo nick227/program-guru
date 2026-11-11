@@ -499,6 +499,8 @@ async function setupNotificationsMock(
       programTitle: 'Strength Foundation',
       name: 'Morning Crew',
       mode: 'SYNC',
+      visibility: 'PRIVATE',
+      joinPolicy: 'INVITE_ONLY',
       memberCount: 2,
       myRole: 'MEMBER',
       startLocalDate: '2026-11-07',
@@ -578,6 +580,10 @@ async function setupNotificationsMock(
             programTitle: 'Strength Foundation',
             name: 'Morning Crew',
             mode: 'SYNC',
+            visibility: 'PRIVATE',
+            joinPolicy: 'INVITE_ONLY',
+            startLocalDate: '2026-11-07',
+            timezone: prefs.timezone,
             memberCount: 2,
             myRole: 'MEMBER',
           },
@@ -908,25 +914,30 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
     page.getByRole('heading', { name: 'Confirm your schedule' }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Accept invitation' }).click()
+  // Transitions to active group stage; Group Info & Check-ins open cleanly in drawers
   await expect(page).toHaveURL(new RegExp(`/groups/${inviteGroupId}$`))
   await expect(
     page.getByRole('heading', { name: 'Morning Crew' }),
   ).toBeVisible()
-  await expect(
-    page.getByRole('heading', { name: 'Your Personal Schedule' }),
-  ).toBeVisible()
-  await expect(page.getByText(/Joined on Nov 7 \(2026-11-07\)/)).toBeVisible()
 
-  // React to group completion in Group view
-  await expect(page.getByRole('heading', { name: 'Group Completions' })).toBeVisible()
-  await expect(page.getByText('Coach Maya · Post-workout')).toBeVisible()
+  // React to group check-in in Check-ins drawer
+  await page.getByRole('button', { name: /Check-ins/ }).click()
+  const historyDrawer = page.getByRole('complementary', { name: 'Group check-ins' })
+  await expect(historyDrawer.getByRole('heading', { name: 'Check-ins & History' })).toBeVisible()
+  await expect(historyDrawer.getByText('Coach Maya')).toBeVisible()
   const clapBtn = page.getByRole('button', {
     name: 'React 👏 to Coach Maya',
   })
   await clapBtn.click()
   await expect(clapBtn).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'Close panel' }).click()
 
-  // Open Calendar from the group schedule panel -> personal calendar items are present
+  // Open Group Info drawer -> verify Personal Schedule -> Open Calendar
+  await page.getByRole('button', { name: 'Group Info' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Your Personal Schedule' }),
+  ).toBeVisible()
+  await expect(page.getByText(/Joined on Nov 7 \(2026-11-07\)/)).toBeVisible()
   await page.getByRole('link', { name: 'Open Calendar' }).click()
   await expect(
     page.getByRole('heading', { name: 'Calendar', exact: true }),
@@ -942,6 +953,7 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
 
   // Leave group -> group access is revoked (404 Group Unavailable), personal calendar items stay intact
   await page.goto(`/groups/${inviteGroupId}`)
+  await page.getByRole('button', { name: 'Group Info' }).click()
   await page.getByRole('button', { name: 'Leave group' }).click()
   await expect(
     page.getByRole('heading', { name: 'Calendar', exact: true }),

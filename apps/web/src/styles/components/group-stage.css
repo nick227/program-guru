@@ -1,0 +1,94 @@
+/* Group Stage (10-COLLABORATION §8): quiet, cinematic participation space + pluggable animation themes. */
+
+@keyframes stage-pulse-ring {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.85;
+  }
+}
+
+@keyframes stage-checkin-ripple {
+  0% {
+    transform: scale(0.75);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+@keyframes stage-float-up {
+  0% {
+    transform: translateY(6px) scale(0.85);
+    opacity: 0;
+  }
+  18% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  82% {
+    transform: translateY(-14px) scale(1);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(-22px) scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes stage-sprout-sway {
+  0%, 100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes stage-ember-drift {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+    opacity: 0.72;
+  }
+  50% {
+    transform: translateY(-6px) scale(1.06);
+    opacity: 1;
+  }
+}
+
+.stage-pulse-ring {
+  animation: stage-pulse-ring 4.5s ease-in-out infinite;
+}
+
+.stage-checkin-ripple {
+  animation: stage-checkin-ripple 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.stage-float-up {
+  animation: stage-float-up 2.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.stage-sprout-sway {
+  transform-origin: bottom center;
+  animation: stage-sprout-sway 3.6s ease-in-out infinite;
+}
+
+.stage-ember-drift {
+  animation: stage-ember-drift 3.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-pulse-ring,
+  .stage-checkin-ripple,
+  .stage-float-up,
+  .stage-sprout-sway,
+  .stage-ember-drift {
+    animation: none !important;
+  }
+}
+

@@ -309,6 +309,46 @@ describe('updateProgramDraft', () => {
   })
 })
 
+describe('updateProgramVisibility', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'updateProgramVisibility')
+  })
+
+  it('toggles visibility on a published program without creating an unwanted draft version and rejects non-owners', async () => {
+    const { ws } = await buildProgram()
+    const pub = (await publish(ws.id)).json().data
+    expect(pub.visibility).toBe('PUBLIC')
+    expect(pub.hasUnpublishedChanges).toBe(false)
+
+    // Non-owner cannot change visibility
+    const denied = await bob.patch(`/programs/${ws.id}/visibility`, {
+      visibility: 'PRIVATE',
+      expectedRevision: pub.draftRevision,
+    })
+    expect(denied.statusCode).toBe(404)
+
+    // Owner flips PUBLIC -> PRIVATE -> UNLISTED directly without creating a draft version
+    const updated = await alice.patch(`/programs/${ws.id}/visibility`, {
+      visibility: 'PRIVATE',
+      expectedRevision: pub.draftRevision,
+    })
+    expect(updated.statusCode).toBe(200)
+    await validateResponse('updateProgramVisibility', 200, updated.json())
+    expect(updated.json().data.visibility).toBe('PRIVATE')
+    expect(updated.json().data.status).toBe('PUBLISHED')
+    expect(updated.json().data.draftVersionId).toBeNull()
+    expect(updated.json().data.hasUnpublishedChanges).toBe(false)
+
+    const backToPublic = await alice.patch(`/programs/${ws.id}/visibility`, {
+      visibility: 'UNLISTED',
+      expectedRevision: updated.json().data.draftRevision,
+    })
+    expect(backToPublic.statusCode).toBe(200)
+    expect(backToPublic.json().data.visibility).toBe('UNLISTED')
+    expect(backToPublic.json().data.draftVersionId).toBeNull()
+  })
+})
+
 describe('addProgramActivities', () => {
   it('matches the contract', async () => {
     await contractCase(app, 'addProgramActivities')

@@ -14,6 +14,9 @@ import {
   useProgramPreview,
   useProgramVersion,
   useProgramWorkspace,
+  usePublishCheck,
+  usePublishProgram,
+  useUpdateProgramVisibility,
 } from '@project/sdk'
 import { toast } from 'sonner'
 import { Page, Stage } from '@/components/ui/Layout'
@@ -25,7 +28,12 @@ import { ProgramHero } from '@/components/program/ProgramHero'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
 import { ProgramGroups } from '@/components/program/ProgramGroups'
 import { ShareLinkCard } from '@/components/social/ShareLink'
-import { formatProgramDuration } from '@/components/program-authoring/programFields'
+import {
+  formatProgramDuration,
+  programPublishInput,
+  programVisibilityLabel,
+  type ProgramVisibility,
+} from '@/components/program-authoring/programFields'
 import {
   ProgramPersonalDetailsGrid,
   ProgramPersonalOverview,
@@ -152,6 +160,9 @@ export function ProgramPage() {
   const enrollmentAction = usePersonalEnrollmentAction()
   const acceptUpdate = useAcceptEnrollmentUpdate(enrollmentId)
   const dismissUpdate = useDismissEnrollmentUpdate(enrollmentId)
+  const updateVisibility = useUpdateProgramVisibility(id)
+  const publishCheck = usePublishCheck(id, signedIn && isOwner && !!p && !p.latestVersionId)
+  const publish = usePublishProgram(id)
   const key = useRef(crypto.randomUUID())
   // A different Program in the same page instance is a new visit: fresh button state and request key.
   useEffect(() => {
@@ -325,10 +336,34 @@ export function ProgramPage() {
       return
     }
     if (isDraftOnly) {
+      if (ws && publishCheck.data?.canPublish && online && !publish.isPending) {
+        void publish
+          .mutateAsync(programPublishInput(ws, ws.visibility))
+          .then(() => toast.success('Program published'))
+          .catch(() => {
+            openOwnerEditor()
+          })
+        return
+      }
       openOwnerEditor()
       return
     }
     if (canStart && !added) void handleStartProgram()
+  }
+
+  const handleVisibilityChange = async (next: ProgramVisibility) => {
+    if (!ws || !online || updateVisibility.isPending) return
+    try {
+      await updateVisibility.mutateAsync({ visibility: next, expectedRevision: ws.draftRevision })
+      const label = programVisibilityLabel(next)
+      toast.success(
+        ws.status === 'DRAFT'
+          ? `Visibility set to ${label} (publish to go live)`
+          : `Program is now ${label}`,
+      )
+    } catch {
+      // surfaced in ErrorMessage
+    }
   }
 
   const handleStartProgram = async () => {
@@ -505,6 +540,17 @@ export function ProgramPage() {
             }
             editLabel={editingProgram ? 'Close Editor' : 'Edit Program'}
             editExpanded={ws ? editingProgram : undefined}
+            ownerVisibility={
+              isOwner && ws
+                ? {
+                    value: ws.visibility,
+                    status: ws.status,
+                    pending: updateVisibility.isPending,
+                    disabled: !online,
+                    onChange: (next) => void handleVisibilityChange(next),
+                  }
+                : undefined
+            }
           />
         </div>
 
@@ -514,7 +560,9 @@ export function ProgramPage() {
             join.error ||
             acceptUpdate.error ||
             dismissUpdate.error ||
-            enrollmentAction.error
+            enrollmentAction.error ||
+            updateVisibility.error ||
+            publish.error
           }
         />
 
@@ -690,6 +738,7 @@ export function ProgramPage() {
               versionId={p.latestVersionId}
               enrollmentId={enrollmentId || null}
               isProgramOwner={isOwner}
+              isPublicProgram={p.visibility === 'PUBLIC' && !isDraftOnly}
               timezone={tz}
               signedIn={signedIn}
               participantCount={participantCount}

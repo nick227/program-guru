@@ -27,7 +27,91 @@ export function useCreateGroup() {
   return useApiMutation(
     async (body: S['CreateGroupInput']) =>
       apiData(await getApiClient().POST('/groups', { body })).data,
-    [keys.groups, keys.programs, keys.enrollments],
+    [keys.groups, keys.programs, keys.enrollments, keys.discover],
+  )
+}
+
+export function useProgramGroups(
+  programId: string,
+  opts: { timing?: S['DiscoverTiming']; enabled?: boolean } = {},
+) {
+  const timing = opts.timing ?? 'ALL'
+  const enabled = (opts.enabled ?? true) && !!programId
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.programGroups(programId, timing)),
+    enabled,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/programs/{programId}/groups', {
+          signal,
+          params: {
+            path: { programId },
+            query: {
+              cursor: pageParam,
+              limit: 10,
+              timing: timing === 'ALL' ? undefined : timing,
+            },
+          },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+
+export function usePublicGroupPreview(groupId: string, enabled = true) {
+  return useQuery({
+    queryKey: useViewerKey(keys.publicGroupPreview(groupId)),
+    enabled: !!groupId && enabled,
+    retry: false,
+    queryFn: async ({ signal }) =>
+      apiData(
+        await getApiClient().GET('/groups/{groupId}/preview', {
+          signal,
+          params: { path: { groupId } },
+        }),
+      ).data,
+  })
+}
+
+export function useJoinPublicGroup(groupId: string) {
+  return useApiMutation(
+    async (enrollment?: S['AcceptGroupInvitationInput']['enrollment']) =>
+      apiData(
+        await getApiClient().POST('/groups/{groupId}/join', {
+          params: { path: { groupId } },
+          body: enrollment ? { enrollment } : undefined,
+        }),
+      ).data,
+    [
+      keys.groups,
+      keys.group(groupId),
+      keys.publicGroupPreview(groupId),
+      keys.programs,
+      keys.discover,
+      keys.enrollments,
+      keys.calendar,
+      keys.occurrences,
+    ],
+  )
+}
+
+export function useJoinPublicGroupById() {
+  return useApiMutation(
+    async ({
+      groupId,
+      enrollment,
+    }: {
+      groupId: string
+      enrollment?: S['AcceptGroupInvitationInput']['enrollment']
+    }) =>
+      apiData(
+        await getApiClient().POST('/groups/{groupId}/join', {
+          params: { path: { groupId } },
+          body: enrollment ? { enrollment } : undefined,
+        }),
+      ).data,
+    [keys.groups, keys.programs, keys.discover, keys.enrollments, keys.calendar, keys.occurrences],
   )
 }
 
@@ -55,7 +139,7 @@ export function useUpdateGroup(groupId: string) {
           body,
         }),
       ).data,
-    [keys.groups, keys.group(groupId), keys.groupInvitations(groupId)],
+    [keys.groups, keys.group(groupId), keys.publicGroupPreview(groupId), keys.groupInvitations(groupId), keys.discover, keys.programs],
   )
 }
 
@@ -409,5 +493,57 @@ export function useAddMediaComment(publicationId: string) {
         ),
       ).data,
     [keys.mediaComments(publicationId), keys.mediaPublication(publicationId)],
+  )
+}
+
+export function useCreateCheckIns() {
+  return useApiMutation(
+    async (body: S['CreateCheckInInput']) =>
+      apiData(await getApiClient().POST('/check-ins', { body })).data,
+    [keys.groups, keys.occurrences, keys.discover, keys.programs],
+  )
+}
+
+export function useCompletionComments(shareId: string, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: useViewerKey(keys.completionComments(shareId)),
+    enabled: enabled && !!shareId,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      apiData(
+        await getApiClient().GET('/completion-shares/{shareId}/comments', {
+          signal,
+          params: {
+            path: { shareId },
+            query: { cursor: pageParam, limit: 20 },
+          },
+        }),
+      ),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+
+export function useAddCompletionComment(shareId: string) {
+  return useApiMutation(
+    async (body: S['AddCommentInput']) =>
+      apiData(
+        await getApiClient().POST('/completion-shares/{shareId}/comments', {
+          params: { path: { shareId } },
+          body,
+        }),
+      ).data,
+    [keys.completionComments(shareId), keys.groups, keys.occurrences],
+  )
+}
+
+export function useDeleteCompletionComment(shareId: string) {
+  return useApiMutation(
+    async (commentId: string) =>
+      apiData(
+        await getApiClient().DELETE('/completion-comments/{commentId}', {
+          params: { path: { commentId } },
+        }),
+      ).data,
+    [keys.completionComments(shareId), keys.groups, keys.occurrences],
   )
 }

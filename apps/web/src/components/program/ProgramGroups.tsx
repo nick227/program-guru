@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useCreateGroup, useMyGroupInvitations, useMyGroups } from '@project/sdk'
+import { useCreateGroup, useJoinPublicGroupById, useMyGroupInvitations, useMyGroups, useProgramGroups } from '@project/sdk'
 import type { components } from '@project/sdk'
+import { toast } from 'sonner'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { ErrorMessage } from '@/components/ui/Feedback'
-import { isLocalDate, today } from '@/lib/dates'
+import { dateLabel, isLocalDate, today } from '@/lib/dates'
 import { buildGroupUrl } from '@/lib/urls'
 import { useOnline } from '@/lib/useOnline'
 
@@ -15,14 +16,15 @@ type GroupSummary = components['schemas']['GroupSummary']
 
 /**
  * Compact Community panel for the Program page: real participation, the viewer's own groups for
- * this Program, pending invitations they can join, and Create Group. Groups are private and
- * invitation-based (10 §2), so other people's groups are never listed here.
+ * this Program, pending invitations, discoverable public groups, and Create Group. Private groups
+ * remain invisible to non-members (10 §2).
  */
 export function ProgramGroups({
   programId,
   versionId,
   enrollmentId,
   isProgramOwner,
+  isPublicProgram = false,
   timezone,
   signedIn,
   participantCount,
@@ -33,6 +35,7 @@ export function ProgramGroups({
   versionId: string | null
   enrollmentId: string | null
   isProgramOwner: boolean
+  isPublicProgram?: boolean
   timezone: string
   signedIn: boolean
   /** Real count, null below the public sample size. */
@@ -44,15 +47,22 @@ export function ProgramGroups({
   const online = useOnline()
   const groups = useMyGroups(signedIn)
   const invitations = useMyGroupInvitations(signedIn)
+  const publicGroups = useProgramGroups(programId, { enabled: isPublicProgram })
   const create = useCreateGroup()
+  const joinById = useJoinPublicGroupById()
+  const [joiningId, setJoiningId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [mode, setMode] = useState<'SYNC' | 'ASYNC'>('ASYNC')
+  const [visibility, setVisibility] = useState<'PRIVATE' | 'PUBLIC'>('PRIVATE')
+  const [joinPolicy, setJoinPolicy] = useState<'INVITE_ONLY' | 'OPEN'>('OPEN')
   const [creating, setCreating] = useState(false)
   const [startDate, setStartDate] = useState(today(timezone))
 
   useEffect(() => {
     setCreating(false)
     setName('')
+    setVisibility('PRIVATE')
+    setJoinPolicy('OPEN')
   }, [programId])
 
   useEffect(() => {
@@ -95,13 +105,22 @@ export function ProgramGroups({
           !mine.some((group) => group.id === invitation.groupId),
       )
     : []
+  const discoverable = isPublicProgram
+    ? (publicGroups.data?.pages.flatMap((page) => page.data) ?? []).filter(
+        (group) =>
+          !group.viewerIsMember &&
+          !mine.some((m) => m.id === group.id) &&
+          !invited.some((inv) => inv.groupId === group.id),
+      )
+    : []
   const allRows = [
     ...mine.map((group) => ({
       key: group.id,
       groupId: group.id,
       name: group.name ?? 'Your group',
-      detail: `${group.memberCount} ${group.memberCount === 1 ? 'member' : 'members'} · ${group.mode === 'ASYNC' ? 'Flexible pace' : 'Shared start'}`,
-      action: 'Open' as const,
+      detail: `${group.memberCount} ${group.memberCount === 1 ? 'member' : 'members'} · ${group.mode === 'ASYNC' ? 'Flexible pace' : group.startLocalDate ? `Starts ${dateLabel(group.startLocalDate)}` : 'Shared start'}`,
+      action: 'Open Group' as const,
+      quickJoin: false,
     })),
     ...invited.map((invitation) => ({
       key: invitation.id,
@@ -111,9 +130,27 @@ export function ProgramGroups({
         ? `Invited by ${invitation.preview.inviter.displayName}`
         : 'Invitation',
       action: 'Join' as const,
+      quickJoin: false,
+    })),
+    ...discoverable.map((group) => ({
+      key: `pub-${group.id}`,
+      groupId: group.id,
+      name: group.name ?? 'Community group',
+      detail: [
+        `${group.memberCount} ${group.memberCount === 1 ? 'member' : 'members'}`,
+        (group.recentCheckInCount ?? 0) > 0
+          ? `${group.recentCheckInCount} recent ${group.recentCheckInCount === 1 ? 'check-in' : 'check-ins'}`
+          : null,
+        group.startLocalDate ? `Starts ${dateLabel(group.startLocalDate)}` : 'Flexible pace',
+        group.joinPolicy === 'INVITE_ONLY' ? 'Invite only' : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      action: group.joinPolicy === 'OPEN' ? ('Join' as const) : ('View' as const),
+      quickJoin: signedIn && group.joinPolicy === 'OPEN',
     })),
   ]
-  const rows = allRows.slice(0, 3)
+  const rows = allRows.slice(0, 5)
   const hasMoreInvites = allRows.length > rows.length && invited.length > 0
   // One group per person and Program (10 §2): creating is offered until they are in one.
   const canCreate =
@@ -140,11 +177,14 @@ export function ProgramGroups({
       await create.mutateAsync({
         programVersionId: versionId,
         mode,
+        visibility: isPublicProgram ? visibility : 'PRIVATE',
+        joinPolicy: isPublicProgram && visibility === 'PUBLIC' ? joinPolicy : 'INVITE_ONLY',
         name: name.trim() || null,
         ...(mode === 'SYNC' && !enrollmentId ? { startLocalDate: startDate, timezone } : {}),
       })
       setCreating(false)
       setName('')
+      setVisibility('PRIVATE')
     } catch {
       // The mutation error remains visible so the user can correct and retry.
     }
@@ -183,13 +223,36 @@ export function ProgramGroups({
                 <p className="truncate text-sm font-semibold text-foreground">{row.name}</p>
                 <p className="truncate text-xs text-muted">{row.detail}</p>
               </div>
-              <Link
-                to={buildGroupUrl(row.groupId, returnTo ? { returnTo } : undefined)}
-                className="btn btn--outline btn--sm shrink-0"
-                aria-label={`${row.action} ${row.name}`}
-              >
-                {row.action}
-              </Link>
+              {row.quickJoin ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  loading={joiningId === row.groupId}
+                  disabled={!online || joiningId === row.groupId}
+                  aria-label={`Join ${row.name}`}
+                  onClick={async () => {
+                    setJoiningId(row.groupId)
+                    try {
+                      await joinById.mutateAsync({ groupId: row.groupId })
+                      toast.success('Joined group')
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : 'Could not join group')
+                    } finally {
+                      setJoiningId(null)
+                    }
+                  }}
+                >
+                  {row.action}
+                </Button>
+              ) : (
+                <Link
+                  to={buildGroupUrl(row.groupId, returnTo ? { returnTo } : undefined)}
+                  className="btn btn--outline btn--sm shrink-0"
+                  aria-label={`${row.action} ${row.name}`}
+                >
+                  {row.action}
+                </Link>
+              )}
             </li>
           ))}
         </ul>
@@ -228,6 +291,34 @@ export function ProgramGroups({
                   <Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
                 </label>
               ))}
+            {isPublicProgram && (
+              <>
+                <label className="field space-y-1">
+                  <span className="text-xs font-semibold text-muted">Visibility</span>
+                  <Select
+                    aria-label="Visibility"
+                    value={visibility}
+                    onChange={(event) => setVisibility(event.target.value as 'PRIVATE' | 'PUBLIC')}
+                  >
+                    <option value="PRIVATE">Private (invite only)</option>
+                    <option value="PUBLIC">Public (discoverable in Community)</option>
+                  </Select>
+                </label>
+                {visibility === 'PUBLIC' && (
+                  <label className="field space-y-1">
+                    <span className="text-xs font-semibold text-muted">Join policy</span>
+                    <Select
+                      aria-label="Join policy"
+                      value={joinPolicy}
+                      onChange={(event) => setJoinPolicy(event.target.value as 'OPEN' | 'INVITE_ONLY')}
+                    >
+                      <option value="OPEN">Open (anyone can join)</option>
+                      <option value="INVITE_ONLY">Invite only</option>
+                    </Select>
+                  </label>
+                )}
+              </>
+            )}
             <div className="flex gap-2">
               <Button
                 size="sm"

@@ -16,6 +16,7 @@
 @import './components/field.css';
 @import './components/form.css';
 @import './components/add-program.css';
+@import './components/group-stage.css';
 @import './widgets/calendar.css';
 
 @tailwind base;

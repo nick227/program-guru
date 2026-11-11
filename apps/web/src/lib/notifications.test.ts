@@ -40,7 +40,8 @@ const makeCalendarItem = (
 
 describe('notification metadata & contextual links', () => {
   it('provides metadata for every NotificationType', () => {
-    expect(Object.keys(NOTIFICATION_META)).toHaveLength(15)
+    expect(Object.keys(NOTIFICATION_META)).toHaveLength(16)
+    expect(getNotificationMeta('COMPLETION_COMMENT').category).toBe('participation')
     expect(getNotificationMeta('ACTIVITY_REMINDER')).toEqual({
       category: 'reminder',
       label: 'Activity reminder',

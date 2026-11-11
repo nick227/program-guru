@@ -2,13 +2,32 @@ import { expect, test } from '@playwright/test'
 import { groupId, mockApi } from './fixtures'
 import { login } from './journey'
 
-// Groups are no longer created from the Program page; an existing group is managed on its own page.
-test('group page: the owner manages the group and invites by handle', async ({ page }) => {
+// Groups center on check-ins in a full-screen animated stage, with management and check-in history drawers.
+test('group page: renders full-screen stage with themes, check-in history, owner management, and invitations', async ({ page }) => {
   const { requests } = await mockApi(page)
   await login(page, 'author@test.local', 'password')
   await page.goto(`/groups/${groupId}`)
+
+  // Full-screen stage HUD & theme switching
+  await expect(page.getByRole('group', { name: 'Animation theme' })).toBeVisible()
+  await page.getByRole('button', { name: 'Sprout Garden' }).click()
+  expect(
+    requests.some(
+      (request) =>
+        request.path === `/groups/${groupId}` &&
+        request.method === 'PATCH' &&
+        request.body?.stageTheme === 'sprout',
+    ),
+  ).toBe(true)
+
+  // Check-ins & History drawer
+  await page.getByRole('button', { name: /Check-ins/ }).click()
+  await expect(page.getByRole('heading', { name: 'Check-ins & History' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close panel' }).click()
+
+  // Group Info drawer -> Manage group & Invite by handle
+  await page.getByRole('button', { name: 'Group Info' }).click()
   await expect(page.getByRole('heading', { name: 'Manage group' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Group Completions' })).toBeVisible()
 
   await page.getByLabel('Invite by handle').fill('participant')
   await page.getByRole('button', { name: 'Invite user' }).click()
@@ -26,6 +45,7 @@ test('group page: owner invite link controls', async ({ page }) => {
   const { requests } = await mockApi(page)
   await login(page, 'author@test.local', 'password')
   await page.goto(`/groups/${groupId}`)
+  await page.getByRole('button', { name: 'Group Info' }).click()
   await page.getByRole('button', { name: 'Invite people', exact: true }).click()
   await page.getByRole('button', { name: 'Create invite link', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Invite link', exact: true })).toHaveValue('http://localhost/join/link-1')

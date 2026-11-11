@@ -121,7 +121,7 @@ async function onFinished(tx: Tx, userId: string, s: ActivitySession) {
       const member = await tx.groupMember.findUnique({ where: { groupId_userId: { groupId: item.enrollment.groupId, userId } } })
       if (member?.status === 'ACTIVE' && member.sharedCompletionEnabled) {
         const share = await tx.completionShare.upsert({
-          where: { calendarItemId: item.id },
+          where: { groupId_calendarItemId: { groupId: item.enrollment.groupId, calendarItemId: item.id } },
           create: { groupId: item.enrollment.groupId, occurrenceKey: item.groupOccurrenceKey, calendarItemId: item.id, userId, activityId: item.activityId, programDayIndex: item.programDayIndex, completedAt: new Date() },
           update: { revokedAt: null, completedAt: new Date() },
         })

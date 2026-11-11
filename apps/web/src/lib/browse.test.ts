@@ -4,6 +4,7 @@ import {
   matchesBrowseDuration,
   resolveBrowseDuration,
   resolveBrowseFilters,
+  resolveBrowseTiming,
 } from './browse'
 
 describe('browse URL and filter helpers', () => {
@@ -101,6 +102,16 @@ describe('browse URL and filter helpers', () => {
     expect(matchesBrowseDuration('medium', 'activities', { durationMinutes: 30 })).toBe(true)
     expect(matchesBrowseDuration('long', 'activities', { durationMinutes: 45 })).toBe(true)
     expect(matchesBrowseDuration('short', 'activities', { durationMinutes: null })).toBe(false)
+  })
+
+  it('resolves and serializes group timing filter only for non-picker program discovery', () => {
+    expect(resolveBrowseTiming(new URLSearchParams('timing=STARTING_SOON'), 'programs')).toBe('STARTING_SOON')
+    expect(resolveBrowseTiming(new URLSearchParams('timing=HAPPENING_NOW'), 'programs')).toBe('ALL')
+    expect(resolveBrowseTiming(new URLSearchParams('timing=STARTING_SOON'), 'activities')).toBe('ALL')
+    expect(resolveBrowseTiming(new URLSearchParams('timing=STARTING_SOON'), 'programs', true)).toBe('ALL')
+
+    expect(buildBrowseUrl({ kind: 'programs', timing: 'STARTING_SOON' })).toBe('/browse?timing=STARTING_SOON')
+    expect(buildBrowseUrl({ kind: 'programs', timing: 'ALL' })).toBe('/browse')
   })
 })
 

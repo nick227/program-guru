@@ -1,10 +1,10 @@
 import { GroupInviteLink } from '@/components/social/GroupInviteLink'
+import { GroupStage } from '@/components/group-stage/GroupStage'
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   useAcceptGroupInvitation,
   useAcceptMyGroupInvitation,
-  useAddCompletionReaction,
   useCreateGroupInvitation,
   useCurrentUser,
   useDeclineGroupInvitation,
@@ -15,8 +15,9 @@ import {
   useGroupInvitation,
   useGroupInvitations,
   useGroupMedia,
+  useJoinPublicGroup,
   useMyGroupInvitations,
-  useRemoveCompletionReaction,
+  usePublicGroupPreview,
   useRemoveGroupMember,
   useRevokeGroupInvitation,
   useUpdateMyGroupMembership,
@@ -28,6 +29,7 @@ import { toast } from 'sonner'
 import { Page, Stage, Stack, Panel, Row } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { linkButton } from '@/components/shared/Navigation'
@@ -43,14 +45,30 @@ import { useDocumentTitle } from '@/lib/title'
 import { buildProfileUrl, buildProgramUrl, buildGroupUrl } from '@/lib/urls'
 
 type S = components['schemas']
-const REACTION_EMOJIS = ['👏', '🔥', '💪'] as const
+
+interface JoinDecisionPreview {
+  groupName: string | null
+  inviter?: S['UserSummary'] | null
+  memberCount?: number | null
+  joinPolicy?: S['GroupJoinPolicy']
+  program: S['ProgramPreview']
+  mode: S['GroupMode']
+  startLocalDate: string | null
+  canAccept: boolean
+  requiresAccess: boolean
+  join: S['GroupJoinState']
+}
 
 interface InvitationViewProps {
-  preview: S['InvitationPreview']
+  preview: JoinDecisionPreview
   returnToPath: string
   canDecline: boolean
   accepting: boolean
   declining: boolean
+  acceptLabel?: string
+  signInLabel?: string
+  successMessage?: string
+  unavailableMessage?: string
   error: unknown
   onAccept: (
     enrollment?: S['AcceptGroupInvitationInput']['enrollment'],
@@ -64,6 +82,10 @@ function InvitationDecisionPanel({
   canDecline,
   accepting,
   declining,
+  acceptLabel = 'Accept invitation',
+  signInLabel = 'Sign in to accept invitation',
+  successMessage = 'Group invitation accepted',
+  unavailableMessage = 'This invitation is no longer available. The group may be closed or the Program is no longer open for new participants.',
   error,
   onAccept,
   onDecline,
@@ -110,24 +132,30 @@ function InvitationDecisionPanel({
   return (
     <Panel>
       <Stack className="gap-4">
-        <Row className="gap-3">
-          <Avatar
-            src={preview.inviter.avatarUrl}
-            name={preview.inviter.displayName}
-            size="md"
-          />
-          <div>
-            <p className="text-xs text-muted">Invited by</p>
-            <p className="font-semibold">
-              {preview.inviter.displayName} (@{preview.inviter.handle})
-            </p>
-          </div>
-        </Row>
+        {preview.inviter && (
+          <Row className="gap-3">
+            <Avatar
+              src={preview.inviter.avatarUrl}
+              name={preview.inviter.displayName}
+              size="md"
+            />
+            <div>
+              <p className="text-xs text-muted">Invited by</p>
+              <p className="font-semibold">
+                {preview.inviter.displayName} (@{preview.inviter.handle})
+              </p>
+            </div>
+          </Row>
+        )}
 
         <div>
           <h2>{preview.groupName || preview.program.title}</h2>
           <p className="mt-1 text-sm text-muted">
-            Program: <strong>{preview.program.title}</strong> ·{' '}
+            Program: <strong>{preview.program.title}</strong>
+            {preview.memberCount != null
+              ? ` · ${preview.memberCount} ${preview.memberCount === 1 ? 'member' : 'members'}`
+              : ''}
+            {' · '}
             {preview.mode === 'SYNC'
               ? `Shared schedule${fixedStart ? ` starting ${dateLabel(fixedStart)}` : ''}`
               : 'Flexible pace'}
@@ -148,7 +176,7 @@ function InvitationDecisionPanel({
             to={`/login?returnTo=${encodeURIComponent(returnToPath)}`}
             className={linkButton}
           >
-            Sign in to accept invitation
+            {signInLabel}
           </Link>
         ) : joinStatus === 'ACCESS_REQUIRED' ||
           joinStatus === 'PAYMENT_REQUIRED' ? (
@@ -205,8 +233,7 @@ function InvitationDecisionPanel({
         ) : joinStatus === 'UNAVAILABLE' ? (
           <Stack className="gap-2">
             <p className="text-sm text-muted">
-              This invitation is no longer available. The group may be closed or
-              the Program is no longer open for new participants.
+              {unavailableMessage}
             </p>
             <Link to={buildProgramUrl(preview.program)} className={linkButton}>
               Preview Program
@@ -336,14 +363,14 @@ function InvitationDecisionPanel({
                           }
                         : undefined,
                     )
-                    toast.success('Group invitation accepted')
+                    toast.success(successMessage)
                     navigate(buildGroupUrl(group.id), { replace: true })
                   } catch {
                     /* shown via ErrorMessage */
                   }
                 }}
               >
-                Accept invitation
+                {acceptLabel}
               </Button>
               {canDecline && onDecline && (
                 <Button
@@ -440,27 +467,24 @@ export function GroupPage() {
   const explicitReturnTo = rawReturnTo ? safeReturn(rawReturnTo, '/notifications') : null
 
   const me = useCurrentUser()
-  const group = useGroup(id)
-  useDocumentTitle(
-    group.data?.name ?? (group.isPending ? 'Group' : 'Group'),
-  )
+  const signedIn = !!me.data
+  const group = useGroup(signedIn ? id : '')
   const myEnrollment = useEnrollment(
     group.data?.myEnrollment?.enrollmentId ?? '',
   )
-  const receivedInvites = useMyGroupInvitations(!group.data && !group.isPending)
-  const invitations = useGroupInvitations(id, !!group.data)
-  const completions = useGroupCompletions(id)
-  const media = useGroupMedia(id, !!group.data)
+  const receivedInvites = useMyGroupInvitations(signedIn && !group.data && !group.isPending)
+  const invitations = useGroupInvitations(id, signedIn && !!group.data)
+  const completions = useGroupCompletions(signedIn && !!group.data ? id : '')
+  const media = useGroupMedia(id, signedIn && !!group.data)
   const updateMembership = useUpdateMyGroupMembership(id)
   const updateGroup = useUpdateGroup(id)
+  const joinPublic = useJoinPublicGroup(id)
   const removeMember = useRemoveGroupMember(id)
   const updatePrefs = useUpdatePreferences()
   const createInvite = useCreateGroupInvitation(id)
   const revokeInvite = useRevokeGroupInvitation(id)
   const acceptMyInvite = useAcceptMyGroupInvitation()
   const declineMyInvite = useDeclineMyGroupInvitation()
-  const addReaction = useAddCompletionReaction()
-  const removeReaction = useRemoveCompletionReaction()
 
   const [inviteHandle, setInviteHandle] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
@@ -481,11 +505,459 @@ export function GroupPage() {
       ? myPendingInvites.find((inv) => inv.id === invitationId)
       : undefined) ?? myPendingInvites.find((inv) => inv.groupId === id)
 
+  const shouldLoadPublicPreview =
+    !me.isPending &&
+    !g &&
+    !matchedInvitation &&
+    (!signedIn || (!group.isPending && !receivedInvites.isPending))
+  const publicPreview = usePublicGroupPreview(id, shouldLoadPublicPreview)
+
+  useDocumentTitle(
+    g?.name ?? publicPreview.data?.groupName ?? 'Group',
+  )
+
   const groupNav = buildGroupBreadcrumbs({
-    groupName: g?.name || g?.programTitle,
-    programTitle: g?.programTitle,
+    groupName: g?.name || g?.programTitle || publicPreview.data?.groupName || publicPreview.data?.program.title,
+    programTitle: g?.programTitle || publicPreview.data?.program.title,
     returnTo: explicitReturnTo,
   })
+
+  const waitingForInitialData =
+    me.isPending ||
+    (signedIn && (group.isPending || (!g && receivedInvites.isPending))) ||
+    (!g && !matchedInvitation && (shouldLoadPublicPreview && publicPreview.isPending))
+
+  if (!waitingForInitialData && g) {
+    const detailsContent = (
+      <Stack className="gap-4">
+        {g.myEnrollment && (
+          <Panel>
+            <Stack className="gap-2">
+              <Row className="justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold">
+                    Your Personal Schedule
+                  </h3>
+                  <p className="text-xs text-muted">
+                    Started {dateLabel(g.myEnrollment.startLocalDate)} (
+                    {g.myEnrollment.startLocalDate})
+                    {myEnrollment.data?.participationStartDate
+                      ? ` · Joined on ${dateLabel(myEnrollment.data.participationStartDate)} (${myEnrollment.data.participationStartDate})`
+                      : ''}
+                  </p>
+                </div>
+                <Link
+                  to={calendarUrl(g.myEnrollment.startLocalDate)}
+                  className={linkButton}
+                >
+                  Open Calendar
+                </Link>
+              </Row>
+              {g.myEnrollment.startDateDiffers && (
+                <p className="text-xs text-muted">
+                  Your personal start date differs from the group&apos;s
+                  shared start date, so comparable progress is shown by{' '}
+                  <strong>Program Day</strong>.
+                </p>
+              )}
+            </Stack>
+          </Panel>
+        )}
+
+        <Panel>
+          <Stack className="gap-3">
+            <h3>Participation &amp; Notification Settings</h3>
+            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border p-3">
+              <div>
+                <span className="block font-medium">
+                  Share my Activity completions
+                </span>
+                <span className="block text-xs text-muted">
+                  Let group members see when you finish an Activity. Metric
+                  values stay private.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                aria-label="Share my Activity completions"
+                checked={g.mySharedCompletion}
+                disabled={!online || updateMembership.isPending}
+                onChange={(e) =>
+                  updateMembership.mutate({
+                    sharedCompletion: e.target.checked,
+                  })
+                }
+                className="h-5 w-5 accent-accent"
+              />
+            </label>
+
+            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border p-3">
+              <div>
+                <span className="block font-medium">
+                  Mute notifications from this group
+                </span>
+                <span className="block text-xs text-muted">
+                  Silence completion and comment alerts from this group.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                aria-label="Mute notifications from this group"
+                checked={isMuted}
+                disabled={!online || updatePrefs.isPending}
+                onChange={(e) => {
+                  const nextMuted = e.target.checked
+                    ? [...mutedGroupIds, id]
+                    : mutedGroupIds.filter((gid) => gid !== id)
+                  updatePrefs.mutate({
+                    notifications: { mutedGroupIds: nextMuted },
+                  })
+                }}
+                className="h-5 w-5 accent-accent"
+              />
+            </label>
+
+            <Row className="justify-between border-t pt-2">
+              <span className="text-xs text-muted">
+                Leaving revokes group access while keeping your personal
+                calendar, sessions, and results.
+              </span>
+              <Button
+                variant="outline"
+                disabled={!online || updateMembership.isPending}
+                loading={updateMembership.isPending}
+                onClick={async () => {
+                  try {
+                    await updateMembership.mutateAsync({ leave: true })
+                    toast.success(
+                      'Left group. Your personal calendar and results are kept.',
+                    )
+                    navigate('/', { replace: true })
+                  } catch {
+                    /* shown below */
+                  }
+                }}
+              >
+                Leave group
+              </Button>
+            </Row>
+
+            <ErrorMessage
+              error={updateMembership.error || updatePrefs.error}
+            />
+          </Stack>
+        </Panel>
+
+        <Panel>
+          <Stack className="gap-3">
+            <h3>Members ({g.members.length})</h3>
+            <ErrorMessage error={removeMember.error} />
+            <Stack className="gap-2">
+              {g.members.map((m) => (
+                <Row key={m.user.id} className="justify-between">
+                  <Link
+                    to={buildProfileUrl(m.user.handle)}
+                    className="flex items-center gap-2 hover:underline"
+                  >
+                    <Avatar
+                      src={m.user.avatarUrl}
+                      name={m.user.displayName}
+                      size="sm"
+                    />
+                    <span>{m.user.displayName}</span>
+                    <span className="text-xs text-muted">
+                      @{m.user.handle}
+                    </span>
+                  </Link>
+                  <Row className="gap-2">
+                    <span className="text-xs text-muted">
+                      {m.role === 'OWNER' ? 'Owner' : 'Member'} ·{' '}
+                      {m.sharedCompletion ? 'Sharing status' : 'Private'}
+                    </span>
+                    {g.myRole === 'OWNER' &&
+                      m.user.id !== me.data?.data.id && (
+                        <Button
+                          variant="ghost"
+                          className="min-h-11 px-2 py-1 text-xs"
+                          disabled={!online || removeMember.isPending}
+                          aria-label={`Remove ${m.user.displayName}`}
+                          onClick={async () => {
+                            try {
+                              await removeMember.mutateAsync(m.user.id)
+                              toast.success(
+                                `Removed ${m.user.displayName}`,
+                              )
+                            } catch {
+                              /* shown above */
+                            }
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                  </Row>
+                </Row>
+              ))}
+            </Stack>
+          </Stack>
+        </Panel>
+
+        <Panel>
+          <Stack className="gap-3">
+            <h3>Invite Collaborators</h3>
+            <div className="space-y-2">
+              <Row className="items-end gap-2">
+                <label className="min-w-0 flex-1 space-y-1 text-sm">
+                  <span>Invite by handle</span>
+                  <Input
+                    aria-label="Invite by handle"
+                    placeholder="handle"
+                    value={inviteHandle}
+                    disabled={!online || createInvite.isPending}
+                    onChange={(e) => setInviteHandle(e.target.value)}
+                  />
+                </label>
+                <Button
+                  disabled={!online || !inviteHandle.trim()}
+                  loading={createInvite.isPending}
+                  onClick={async () => {
+                    try {
+                      await createInvite.mutateAsync({
+                        kind: 'USER',
+                        handle: inviteHandle.trim().replace(/^@/, ''),
+                      })
+                      setInviteHandle('')
+                      toast.success('Invitation sent')
+                    } catch {
+                      /* shown below */
+                    }
+                  }}
+                >
+                  Invite user
+                </Button>
+              </Row>
+              <Row className="items-end gap-2">
+                <label className="min-w-0 flex-1 space-y-1 text-sm">
+                  <span>Invite by email</span>
+                  <Input
+                    type="email"
+                    aria-label="Invite by email"
+                    value={inviteEmail}
+                    disabled={!online || createInvite.isPending}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                  />
+                </label>
+                <Button
+                  variant="outline"
+                  disabled={!online || !inviteEmail.trim()}
+                  loading={createInvite.isPending}
+                  onClick={async () => {
+                    try {
+                      await createInvite.mutateAsync({
+                        kind: 'EMAIL',
+                        email: inviteEmail.trim(),
+                      })
+                      setInviteEmail('')
+                      toast.success('Invitation email queued')
+                    } catch {
+                      /* shown below */
+                    }
+                  }}
+                >
+                  Send email invite
+                </Button>
+              </Row>
+            </div>
+            <GroupInviteLink groupId={g.id} />
+
+            <ErrorMessage
+              error={createInvite.error || revokeInvite.error}
+            />
+
+            {!!invitations.data?.length && (
+              <Stack className="gap-2 pt-2">
+                <h4 className="text-xs font-semibold text-muted">
+                  Active &amp; Recent Invitations
+                </h4>
+                {invitations.data.map((inv) => (
+                  <Row
+                    key={inv.id}
+                    className="justify-between rounded border p-2 text-xs"
+                  >
+                    <span>
+                      {inv.kind} · {inv.status}
+                      {inv.invitedUser
+                        ? ` · @${inv.invitedUser.handle}`
+                        : ''}
+                    </span>
+                    {inv.status === 'PENDING' && (
+                      <Button
+                        variant="ghost"
+                        className="min-h-11 px-2 py-1 text-xs"
+                        disabled={!online || revokeInvite.isPending}
+                        onClick={() => revokeInvite.mutate(inv.id)}
+                      >
+                        Revoke
+                      </Button>
+                    )}
+                  </Row>
+                ))}
+              </Stack>
+            )}
+          </Stack>
+        </Panel>
+
+        {g.myRole === 'OWNER' && (
+          <Panel>
+            <Stack className="gap-3">
+              <h3>Manage group</h3>
+              <label className="space-y-1 text-sm">
+                <span>Group name</span>
+                <Input
+                  aria-label="Group name"
+                  value={groupName ?? g.name ?? ''}
+                  maxLength={100}
+                  disabled={!online || updateGroup.isPending}
+                  onChange={(e) => setGroupName(e.target.value)}
+                />
+              </label>
+              <Row className="gap-3">
+                <label className="min-w-0 flex-1 space-y-1 text-sm">
+                  <span>Visibility</span>
+                  <Select
+                    aria-label="Visibility"
+                    value={g.visibility}
+                    disabled={!online || updateGroup.isPending}
+                    onChange={async (e) => {
+                      const nextVisibility = e.target.value as 'PRIVATE' | 'PUBLIC'
+                      try {
+                        await updateGroup.mutateAsync({
+                          visibility: nextVisibility,
+                          joinPolicy: nextVisibility === 'PRIVATE' ? 'INVITE_ONLY' : g.joinPolicy,
+                        })
+                        toast.success('Group visibility updated')
+                      } catch {
+                        /* shown below */
+                      }
+                    }}
+                  >
+                    <option value="PRIVATE">Private (invite only)</option>
+                    <option value="PUBLIC">Public (discoverable)</option>
+                  </Select>
+                </label>
+                {g.visibility === 'PUBLIC' && (
+                  <label className="min-w-0 flex-1 space-y-1 text-sm">
+                    <span>Join policy</span>
+                    <Select
+                      aria-label="Join policy"
+                      value={g.joinPolicy}
+                      disabled={!online || updateGroup.isPending}
+                      onChange={async (e) => {
+                        try {
+                          await updateGroup.mutateAsync({
+                            joinPolicy: e.target.value as 'OPEN' | 'INVITE_ONLY',
+                          })
+                          toast.success('Join policy updated')
+                        } catch {
+                          /* shown below */
+                        }
+                      }}
+                    >
+                      <option value="OPEN">Open (anyone can join)</option>
+                      <option value="INVITE_ONLY">Invite only</option>
+                    </Select>
+                  </label>
+                )}
+              </Row>
+              <Row>
+                <Button
+                  variant="outline"
+                  disabled={!online || updateGroup.isPending}
+                  loading={updateGroup.isPending}
+                  onClick={async () => {
+                    try {
+                      await updateGroup.mutateAsync({
+                        name: groupName === null ? g.name : groupName.trim() || null,
+                      })
+                      setGroupName(null)
+                      toast.success('Group updated')
+                    } catch {
+                      /* shown below */
+                    }
+                  }}
+                >
+                  Save group name
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={!online || closing || updateGroup.isPending}
+                  loading={closing}
+                  onClick={async () => {
+                    setClosing(true)
+                    try {
+                      await updateGroup.mutateAsync({ closed: true })
+                      toast.success('Group closed')
+                      navigate(explicitReturnTo ?? '/library')
+                    } catch {
+                      setClosing(false)
+                    }
+                  }}
+                >
+                  Close group
+                </Button>
+              </Row>
+              <ErrorMessage error={updateGroup.error} />
+            </Stack>
+          </Panel>
+        )}
+
+        {mediaRows.length > 0 && (
+          <Panel>
+            <Stack className="gap-3">
+              <h3>Shared media</h3>
+              <div className="grid grid-cols-3 gap-2">
+                {mediaRows.map((item) => (
+                  <figure key={item.publicationId} className="space-y-1">
+                    {item.thumbnailUrl ? (
+                      <img
+                        src={item.thumbnailUrl}
+                        alt={
+                          item.alt ||
+                          `${item.type.toLowerCase()} shared by ${item.owner.displayName}`
+                        }
+                        className="aspect-square w-full rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="flex aspect-square items-center justify-center rounded-md bg-surface-muted text-xs">
+                        {item.type}
+                      </div>
+                    )}
+                    <figcaption className="truncate text-[11px] text-muted">
+                      {item.owner.displayName}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </Stack>
+          </Panel>
+        )}
+      </Stack>
+    )
+
+    return (
+      <GroupStage
+        group={g}
+        checkIns={completionRows}
+        hasMoreCheckIns={completions.hasNextPage}
+        onLoadMoreCheckIns={() => void completions.fetchNextPage()}
+        loadingMoreCheckIns={completions.isFetchingNextPage}
+        viewerId={me.data?.data.id}
+        online={online}
+        returnTo={explicitReturnTo}
+        detailsContent={detailsContent}
+      />
+    )
+  }
 
   return (
     <Page className="page--wide">
@@ -496,7 +968,7 @@ export function GroupPage() {
       />
       <Stage className="mx-auto mt-6 w-full max-w-4xl">
 
-        {group.isPending || (!g && receivedInvites.isPending) ? (
+        {waitingForInitialData ? (
           <Loading />
         ) : !g && matchedInvitation ? (
           <Stack className="gap-4">
@@ -526,6 +998,34 @@ export function GroupPage() {
               }
             />
           </Stack>
+        ) : !g && publicPreview.data ? (
+          <Stack className="gap-4">
+            <h1>{publicPreview.data.groupName || publicPreview.data.program.title}</h1>
+            <InvitationDecisionPanel
+              preview={{ ...publicPreview.data, canAccept: publicPreview.data.canJoin }}
+              returnToPath={buildGroupUrl(
+                id,
+                explicitReturnTo ? { returnTo: explicitReturnTo } : undefined,
+              )}
+              canDecline={false}
+              accepting={joinPublic.isPending}
+              declining={false}
+              acceptLabel="Join group"
+              signInLabel="Sign in to join group"
+              successMessage="Joined group"
+              unavailableMessage={
+                publicPreview.data.joinPolicy === 'INVITE_ONLY'
+                  ? 'This public group is invite-only. Ask a member for an invitation to join.'
+                  : 'This group is unavailable or no longer open for new participants.'
+              }
+              error={joinPublic.error}
+              onAccept={async (enrollment) => {
+                const joined = await joinPublic.mutateAsync(enrollment)
+                await group.refetch()
+                return joined
+              }}
+            />
+          </Stack>
         ) : !g ? (
           <Panel>
             <Stack className="gap-3">
@@ -534,490 +1034,27 @@ export function GroupPage() {
                 This group or invitation is no longer available. You may have
                 left the group, been removed, or the invitation has expired.
               </p>
-              <ErrorMessage error={group.error || receivedInvites.error} />
+              <ErrorMessage error={group.error || receivedInvites.error || publicPreview.error} />
               <Row>
-                <Link to="/" className={linkButton}>
-                  Open Calendar
+                <Link to="/browse" className={linkButton}>
+                  Browse Community
                 </Link>
-                <Link to="/notifications" className={linkButton}>
-                  Open Inbox
-                </Link>
+                {signedIn ? (
+                  <Link to="/notifications" className={linkButton}>
+                    Open Inbox
+                  </Link>
+                ) : (
+                  <Link
+                    to={`/login?returnTo=${encodeURIComponent(buildGroupUrl(id))}`}
+                    className={linkButton}
+                  >
+                    Sign in
+                  </Link>
+                )}
               </Row>
             </Stack>
           </Panel>
-        ) : (
-          <Stack className="gap-4">
-            <Stack className="gap-1">
-              <p className="text-xs text-muted">
-                {g.programTitle} ·{' '}
-                {g.mode === 'SYNC' ? 'Shared schedule' : 'Flexible pace'}
-              </p>
-              <h1>{g.name || g.programTitle}</h1>
-              <p className="text-xs text-muted">
-                {g.memberCount} {g.memberCount === 1 ? 'member' : 'members'}
-                {g.startLocalDate
-                  ? ` · Starts ${dateLabel(g.startLocalDate)}`
-                  : ''}
-                {g.timezone ? ` · ${g.timezone.replaceAll('_', ' ')}` : ''}
-              </p>
-            </Stack>
-
-            {g.myEnrollment && (
-              <Panel>
-                <Stack className="gap-2">
-                  <Row className="justify-between">
-                    <div>
-                      <h2 className="text-sm font-semibold">
-                        Your Personal Schedule
-                      </h2>
-                      <p className="text-xs text-muted">
-                        Started {dateLabel(g.myEnrollment.startLocalDate)} (
-                        {g.myEnrollment.startLocalDate})
-                        {myEnrollment.data?.participationStartDate
-                          ? ` · Joined on ${dateLabel(myEnrollment.data.participationStartDate)} (${myEnrollment.data.participationStartDate})`
-                          : ''}
-                      </p>
-                    </div>
-                    <Link
-                      to={calendarUrl(g.myEnrollment.startLocalDate)}
-                      className={linkButton}
-                    >
-                      Open Calendar
-                    </Link>
-                  </Row>
-                  {g.myEnrollment.startDateDiffers && (
-                    <p className="text-xs text-muted">
-                      Your personal start date differs from the group&apos;s
-                      shared start date, so comparable progress is shown by{' '}
-                      <strong>Program Day</strong>.
-                    </p>
-                  )}
-                </Stack>
-              </Panel>
-            )}
-
-            <Panel>
-              <Stack className="gap-3">
-                <h2>Participation &amp; Notification Settings</h2>
-                <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border p-3">
-                  <div>
-                    <span className="block font-medium">
-                      Share my Activity completions
-                    </span>
-                    <span className="block text-xs text-muted">
-                      Let group members see when you finish an Activity. Metric
-                      values stay private.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    aria-label="Share my Activity completions"
-                    checked={g.mySharedCompletion}
-                    disabled={!online || updateMembership.isPending}
-                    onChange={(e) =>
-                      updateMembership.mutate({
-                        sharedCompletion: e.target.checked,
-                      })
-                    }
-                    className="h-5 w-5 accent-accent"
-                  />
-                </label>
-
-                <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border p-3">
-                  <div>
-                    <span className="block font-medium">
-                      Mute notifications from this group
-                    </span>
-                    <span className="block text-xs text-muted">
-                      Silence completion and comment alerts from this group.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    aria-label="Mute notifications from this group"
-                    checked={isMuted}
-                    disabled={!online || updatePrefs.isPending}
-                    onChange={(e) => {
-                      const nextMuted = e.target.checked
-                        ? [...mutedGroupIds, id]
-                        : mutedGroupIds.filter((gid) => gid !== id)
-                      updatePrefs.mutate({
-                        notifications: { mutedGroupIds: nextMuted },
-                      })
-                    }}
-                    className="h-5 w-5 accent-accent"
-                  />
-                </label>
-
-                <Row className="justify-between border-t pt-2">
-                  <span className="text-xs text-muted">
-                    Leaving revokes group access while keeping your personal
-                    calendar, sessions, and results.
-                  </span>
-                  <Button
-                    variant="outline"
-                    disabled={!online || updateMembership.isPending}
-                    loading={updateMembership.isPending}
-                    onClick={async () => {
-                      try {
-                        await updateMembership.mutateAsync({ leave: true })
-                        toast.success(
-                          'Left group. Your personal calendar and results are kept.',
-                        )
-                        navigate('/', { replace: true })
-                      } catch {
-                        /* shown below */
-                      }
-                    }}
-                  >
-                    Leave group
-                  </Button>
-                </Row>
-
-                <ErrorMessage
-                  error={updateMembership.error || updatePrefs.error}
-                />
-              </Stack>
-            </Panel>
-
-            <Panel>
-              <Stack className="gap-3">
-                <h2>Members ({g.members.length})</h2>
-                <ErrorMessage error={removeMember.error} />
-                <Stack className="gap-2">
-                  {g.members.map((m) => (
-                    <Row key={m.user.id} className="justify-between">
-                      <Link
-                        to={buildProfileUrl(m.user.handle)}
-                        className="flex items-center gap-2 hover:underline"
-                      >
-                        <Avatar
-                          src={m.user.avatarUrl}
-                          name={m.user.displayName}
-                          size="sm"
-                        />
-                        <span>{m.user.displayName}</span>
-                        <span className="text-xs text-muted">
-                          @{m.user.handle}
-                        </span>
-                      </Link>
-                      <Row className="gap-2">
-                        <span className="text-xs text-muted">
-                          {m.role === 'OWNER' ? 'Owner' : 'Member'} ·{' '}
-                          {m.sharedCompletion ? 'Sharing status' : 'Private'}
-                        </span>
-                        {g.myRole === 'OWNER' &&
-                          m.user.id !== me.data?.data.id && (
-                            <Button
-                              variant="ghost"
-                              className="min-h-11 px-2 py-1 text-xs"
-                              disabled={!online || removeMember.isPending}
-                              aria-label={`Remove ${m.user.displayName}`}
-                              onClick={async () => {
-                                try {
-                                  await removeMember.mutateAsync(m.user.id)
-                                  toast.success(
-                                    `Removed ${m.user.displayName}`,
-                                  )
-                                } catch {
-                                  /* shown above */
-                                }
-                              }}
-                            >
-                              Remove
-                            </Button>
-                          )}
-                      </Row>
-                    </Row>
-                  ))}
-                </Stack>
-              </Stack>
-            </Panel>
-
-            <Panel>
-              <Stack className="gap-3">
-                <h2>Invite Collaborators</h2>
-                <Row className="items-end gap-2">
-                  <label className="min-w-0 flex-1 space-y-1 text-sm">
-                    <span>Invite by handle</span>
-                    <Input
-                      aria-label="Invite by handle"
-                      placeholder="handle"
-                      value={inviteHandle}
-                      disabled={!online || createInvite.isPending}
-                      onChange={(e) => setInviteHandle(e.target.value)}
-                    />
-                  </label>
-                  <Button
-                    disabled={!online || !inviteHandle.trim()}
-                    loading={createInvite.isPending}
-                    onClick={async () => {
-                      try {
-                        await createInvite.mutateAsync({
-                          kind: 'USER',
-                          handle: inviteHandle.trim().replace(/^@/, ''),
-                        })
-                        setInviteHandle('')
-                        toast.success('Invitation sent')
-                      } catch {
-                        /* shown below */
-                      }
-                    }}
-                  >
-                    Invite user
-                  </Button>
-                  <label className="min-w-0 flex-1 space-y-1 text-sm">
-                    <span>Invite by email</span>
-                    <Input
-                      type="email"
-                      aria-label="Invite by email"
-                      value={inviteEmail}
-                      disabled={!online || createInvite.isPending}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                    />
-                  </label>
-                  <Button
-                    variant="outline"
-                    disabled={!online || !inviteEmail.trim()}
-                    loading={createInvite.isPending}
-                    onClick={async () => {
-                      try {
-                        await createInvite.mutateAsync({
-                          kind: 'EMAIL',
-                          email: inviteEmail.trim(),
-                        })
-                        setInviteEmail('')
-                        toast.success('Invitation email queued')
-                      } catch {
-                        /* shown below */
-                      }
-                    }}
-                  >
-                    Send email invite
-                  </Button>
-                </Row>
-                <GroupInviteLink groupId={g.id} />
-
-                <ErrorMessage
-                  error={createInvite.error || revokeInvite.error}
-                />
-
-                {!!invitations.data?.length && (
-                  <Stack className="gap-2 pt-2">
-                    <h3 className="text-xs font-semibold text-muted">
-                      Active &amp; Recent Invitations
-                    </h3>
-                    {invitations.data.map((inv) => (
-                      <Row
-                        key={inv.id}
-                        className="justify-between rounded border p-2 text-xs"
-                      >
-                        <span>
-                          {inv.kind} · {inv.status}
-                          {inv.invitedUser
-                            ? ` · @${inv.invitedUser.handle}`
-                            : ''}
-                        </span>
-                        {inv.status === 'PENDING' && (
-                          <Button
-                            variant="ghost"
-                            className="min-h-11 px-2 py-1 text-xs"
-                            disabled={!online || revokeInvite.isPending}
-                            onClick={() => revokeInvite.mutate(inv.id)}
-                          >
-                            Revoke
-                          </Button>
-                        )}
-                      </Row>
-                    ))}
-                  </Stack>
-                )}
-              </Stack>
-            </Panel>
-
-            {g.myRole === 'OWNER' && (
-              <Panel>
-                <Stack className="gap-3">
-                  <h2>Manage group</h2>
-                  <label className="space-y-1 text-sm">
-                    <span>Group name</span>
-                    <Input
-                      aria-label="Group name"
-                      value={groupName ?? g.name ?? ''}
-                      maxLength={100}
-                      disabled={!online || updateGroup.isPending}
-                      onChange={(e) => setGroupName(e.target.value)}
-                    />
-                  </label>
-                  <Row>
-                    <Button
-                      variant="outline"
-                      disabled={!online || updateGroup.isPending}
-                      loading={updateGroup.isPending}
-                      onClick={async () => {
-                        try {
-                          await updateGroup.mutateAsync({
-                            name: groupName === null ? g.name : groupName.trim() || null,
-                          })
-                          setGroupName(null)
-                          toast.success('Group updated')
-                        } catch {
-                          /* shown below */
-                        }
-                      }}
-                    >
-                      Save group name
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      disabled={!online || closing || updateGroup.isPending}
-                      loading={closing}
-                      onClick={async () => {
-                        setClosing(true)
-                        try {
-                          await updateGroup.mutateAsync({ closed: true })
-                          toast.success('Group closed')
-                          navigate(explicitReturnTo ?? '/library')
-                        } catch {
-                          setClosing(false)
-                        }
-                      }}
-                    >
-                      Close group
-                    </Button>
-                  </Row>
-                  <ErrorMessage error={updateGroup.error} />
-                </Stack>
-              </Panel>
-            )}
-
-            <Panel>
-              <Stack className="gap-3">
-                <h2>Group Completions</h2>
-                <ErrorMessage
-                  error={
-                    completions.error ||
-                    addReaction.error ||
-                    removeReaction.error
-                  }
-                />
-                {completions.isPending ? (
-                  <Loading />
-                ) : completionRows.length === 0 ? (
-                  <p className="text-sm text-muted">
-                    No shared Activity completions yet.
-                  </p>
-                ) : (
-                  <Stack className="gap-2">
-                    {completionRows.map((share) => (
-                      <div
-                        key={share.id}
-                        data-testid={`completion-share-${share.id}`}
-                        className="rounded-lg border p-3"
-                      >
-                        <Row className="justify-between">
-                          <Row className="gap-2">
-                            <Avatar
-                              src={share.user.avatarUrl}
-                              name={share.user.displayName}
-                              size="sm"
-                            />
-                            <div>
-                              <p className="text-sm font-semibold">
-                                {share.user.displayName} completed{' '}
-                                {share.activityTitle}
-                              </p>
-                              <p className="text-xs text-muted">
-                                {share.programDayIndex !== null
-                                  ? `Program Day ${share.programDayIndex + 1} · `
-                                  : ''}
-                                {dateLabel(share.completedAt.slice(0, 10))}
-                              </p>
-                            </div>
-                          </Row>
-                        </Row>
-                        <Row className="mt-2 gap-2">
-                          {REACTION_EMOJIS.map((emoji) => {
-                            const existing = share.reactions.find(
-                              (r) => r.emoji === emoji,
-                            )
-                            const active = existing?.reactedByMe ?? false
-                            const count = existing?.count ?? 0
-                            return (
-                              <button
-                                key={emoji}
-                                type="button"
-                                disabled={!online}
-                                aria-pressed={active}
-                                aria-label={`React ${emoji} to ${share.user.displayName}`}
-                                onClick={() =>
-                                  active
-                                    ? removeReaction.mutate({
-                                        shareId: share.id,
-                                        emoji,
-                                      })
-                                    : addReaction.mutate({
-                                        shareId: share.id,
-                                        emoji,
-                                        idempotencyKey: crypto.randomUUID(),
-                                      })
-                                }
-                                className={`min-h-11 rounded-full border px-3 py-1 text-xs ${
-                                  active
-                                    ? 'border-accent bg-accent/15 text-accent'
-                                    : 'bg-surface text-muted hover:bg-surface-muted'
-                                }`}
-                              >
-                                {emoji} {count > 0 ? count : ''}
-                              </button>
-                            )
-                          })}
-                        </Row>
-                      </div>
-                    ))}
-                  </Stack>
-                )}
-              </Stack>
-            </Panel>
-
-            <Panel>
-              <Stack className="gap-3">
-                <h2>Shared media</h2>
-                <ErrorMessage error={media.error} />
-                {media.isPending ? (
-                  <Loading />
-                ) : mediaRows.length === 0 ? (
-                  <p className="text-sm text-muted">No shared media yet.</p>
-                ) : (
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                    {mediaRows.map((item) => (
-                      <figure key={item.publicationId} className="space-y-1">
-                        {item.thumbnailUrl ? (
-                          <img
-                            src={item.thumbnailUrl}
-                            alt={
-                              item.alt ||
-                              `${item.type.toLowerCase()} shared by ${item.owner.displayName}`
-                            }
-                            className="aspect-square w-full rounded-md object-cover"
-                          />
-                        ) : (
-                          <div className="flex aspect-square items-center justify-center rounded-md bg-surface-muted text-xs">
-                            {item.type}
-                          </div>
-                        )}
-                        <figcaption className="text-xs text-muted">
-                          {item.owner.displayName}
-                          {item.caption ? ` · ${item.caption}` : ''}
-                        </figcaption>
-                      </figure>
-                    ))}
-                  </div>
-                )}
-              </Stack>
-            </Panel>
-          </Stack>
-        )}
+        ) : null}
       </Stage>
     </Page>
   )

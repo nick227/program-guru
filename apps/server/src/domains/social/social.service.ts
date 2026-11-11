@@ -8,11 +8,12 @@ import { afterCursor, offsetArgs, pageArgs, pageOrder, toOffsetPage, toPage, typ
 import { loadRevisions, activityInclude, toActivitySummary } from '../activities/mapper'
 import { canSeeProgram, discoverableProgramWhere } from '../programs/access'
 import { programInclude, toProgramSummary } from '../programs/mapper'
+import { featuredGroupsForPrograms, startingSoonProgramIds } from '../groups/group.service'
 import { canSeePublication } from '../media/media.service'
 import { mediaUrl } from '../media/urls'
 import { toUserSummary } from '../users/mapper'
 import { userIdForHandle } from '../users/directory.service'
-import { isBlockedEitherWay } from '../users/follow.service'
+import { blockedIds, isBlockedEitherWay } from '../users/follow.service'
 
 const MAX_PUBLIC_MEDIA_PER_CREATOR = 3
 
@@ -28,12 +29,7 @@ type DiscoverQuery = PageQuery & {
   maxSessionMinutes?: number
   tags?: string
   sort?: 'RELEVANT' | 'NEW' | 'POPULAR'
-}
-
-async function blockedIds(viewerId: string | null) {
-  if (!viewerId) return []
-  const rows = await db.userBlock.findMany({ where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] } })
-  return rows.map((b) => (b.blockerId === viewerId ? b.blockedId : b.blockerId))
+  timing?: 'ALL' | 'STARTING_SOON' | 'HAPPENING_NOW'
 }
 
 export async function discover(viewerId: string | null, query: DiscoverQuery) {
@@ -42,6 +38,14 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
   const q = query.q?.trim()
 
   if (query.kind === 'PROGRAM') {
+    if (query.timing === 'HAPPENING_NOW') {
+      // Live presence is deferred; check-ins power async Groups without live rooms.
+      return toOffsetPage([], limit, skip, () => ({ kind: 'PROGRAM' as const, program: null, activity: null, creator: null, featuredGroup: null }))
+    }
+    const startingSoonIds = query.timing === 'STARTING_SOON' ? await startingSoonProgramIds(viewerId) : null
+    if (startingSoonIds && startingSoonIds.length === 0) {
+      return toOffsetPage([], limit, skip, () => ({ kind: 'PROGRAM' as const, program: null, activity: null, creator: null, featuredGroup: null }))
+    }
     const tagSlugs = query.tags
       ? [...new Set(query.tags.split(',').map((s) => s.trim()).filter(Boolean))]
       : []
@@ -61,6 +65,7 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
     ]
     const where: Prisma.ProgramWhereInput = {
       ...discoverableProgramWhere,
+      ...(startingSoonIds ? { id: { in: startingSoonIds } } : {}),
       ...(hidden.length ? { OR: [{ creatorId: null }, { creatorId: { notIn: hidden } }] } : {}),
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(query.programTypeId ? { programTypeId: query.programTypeId } : {}),
@@ -79,7 +84,15 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
           ? [{ stat: { enrollmentCount: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
           : [{ creatorId: { sort: 'asc', nulls: 'first' } }, { stat: { rankScore: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
     const rows = await db.program.findMany({ where, orderBy, skip, take, include: programInclude })
-    return toOffsetPage(rows, limit, skip, (p) => ({ kind: 'PROGRAM' as const, program: toProgramSummary(p, 'PREVIEW'), activity: null, creator: null }))
+    const pageIds = rows.slice(0, limit).map((p) => p.id)
+    const featuredGroups = await featuredGroupsForPrograms(viewerId, pageIds, query.timing)
+    return toOffsetPage(rows, limit, skip, (p) => ({
+      kind: 'PROGRAM' as const,
+      program: toProgramSummary(p, 'PREVIEW'),
+      activity: null,
+      creator: null,
+      featuredGroup: featuredGroups.get(p.id) ?? null,
+    }))
   }
 
   if (query.kind === 'ACTIVITY') {

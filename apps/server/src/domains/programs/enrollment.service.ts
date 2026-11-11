@@ -171,6 +171,7 @@ export async function join(
     load: async (id) => toEnrollment(await db.programEnrollment.findUniqueOrThrow({ where: { id } })),
     run: async () => {
       const { program, version } = await joinableVersion(userId, programId, input.programVersionId)
+      let resolvedGroupId: string | null = input.groupId ?? null
       if (input.groupId) {
         const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: input.groupId, userId } }, include: { group: { include: { version: { select: { programId: true } } } } } })
         if (!member || member.status !== 'ACTIVE' || member.group.status !== 'ACTIVE') throw badRequest('Join the group first', { groupId: 'not a member' })
@@ -180,9 +181,16 @@ export async function join(
         if (member.group.mode === 'SYNC' && member.group.startLocalDate && fromDbDate(member.group.startLocalDate) !== input.startLocalDate) {
           throw badRequest(`This group starts on ${fromDbDate(member.group.startLocalDate)}`, { startLocalDate: 'must match the group start date' })
         }
+      } else {
+        // Repeat runs preserve existing active Group membership for this Program without creating a second membership.
+        const existingMember = await db.groupMember.findFirst({
+          where: { userId, status: 'ACTIVE', group: { status: 'ACTIVE', version: { programId: version.programId } } },
+          select: { groupId: true },
+        })
+        if (existingMember) resolvedGroupId = existingMember.groupId
       }
       const enrollment = await db.$transaction(
-        (tx) => enrollInTx(tx, userId, program, version, { startLocalDate: input.startLocalDate, timezone: input.timezone, groupId: input.groupId ?? null }),
+        (tx) => enrollInTx(tx, userId, program, version, { startLocalDate: input.startLocalDate, timezone: input.timezone, groupId: resolvedGroupId }),
         { timeout: 30_000 },
       )
       return { ref: enrollment.id, result: await toEnrollment(enrollment) }

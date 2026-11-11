@@ -14,7 +14,7 @@ Example: “30 Days — 10 Push-ups + 10 Sit-ups.” Group owner creates a group
 
 | Entity | Key fields | Ownership / rule |
 |---|---|---|
-| `ProgramGroup` | id, programVersionId, ownerId, name?, mode SYNC/ASYNC, startLocalDate?, timezone?, joinLinkEnabled, status ACTIVE/CLOSED, createdAt | Group belongs to one Program; `programVersionId` is the version it was created on. Members may follow different versions of that Program; their membership never depends on it. Not a separate Program |
+| `ProgramGroup` | id, programVersionId, ownerId, name?, mode SYNC/ASYNC, visibility PRIVATE/PUBLIC, joinPolicy INVITE_ONLY/OPEN, startLocalDate?, timezone?, joinLinkEnabled, status ACTIVE/CLOSED, createdAt | Group belongs to one Program; `programVersionId` is the version it was created on. Members may follow different versions of that Program; their membership never depends on it. Defaults to `PRIVATE` + `INVITE_ONLY`; `PUBLIC` groups require a `PUBLIC`, `PUBLISHED` Program. Not a separate Program |
 | `GroupMember` | groupId, userId, role OWNER/MEMBER, status ACTIVE/LEFT/REMOVED (pending invites live in `GroupInvitation`), joinedAt?, sharedCompletionEnabled | Exactly one row per pair; participation/access checked |
 | `GroupInvitation` | id, groupId, kind USER/EMAIL/LINK, invitedUserId?, invitedEmailHash?, tokenHash, expiresAt, status PENDING/ACCEPTED/DECLINED/REVOKED/EXPIRED, createdAt | USER and EMAIL are single-use; LINK is reusable until revoked or expired; at most one pending USER/EMAIL invitation per invitee and group; no email disclosure in public API |
 | `CompletionShare` | id, groupId, occurrenceKey, calendarItemId, userId, activityId, programDayIndex, completedAt, revokedAt? | Minimal completion event, never metric detail; unique per calendarItemId |
@@ -28,7 +28,7 @@ Occurrence key is stable across members and versions, not a user's Calendar Item
 
 **Group:** created by an enrolled participant or the Program owner → invite → accept → active membership. Group may be CLOSED; membership LEFT or REMOVED ends access to group content (the author's own past comments follow retention policy). If Program is archived, an existing group stays readable while access is valid; new joins are blocked.
 
-**Joining, three ways:** invite an existing user by handle; invite by email address; share a join link. All three end at the same acceptance flow.
+**Joining, four ways:** invite an existing user by handle; invite by email address; share a join link; or direct-join a `PUBLIC` group with `joinPolicy = OPEN`. All four end at the same schedule-confirmation and membership-linking flow. Private (`PRIVATE`) groups are never listed publicly or discoverable without authorization. Public (`PUBLIC`) groups may be discovered in Community and on their Program page (name, mode, member count, optional scheduled start), without exposing member lists or private data to non-members; `OPEN` public groups still enforce Program access (APPROVAL/PAID) and block checks, and removed members require an owner invitation rather than direct join.
 
 **Invitation:** PENDING → ACCEPTED, DECLINED (by the invitee, USER/EMAIL only), REVOKED (by its creator or the group owner) or EXPIRED (14 days; swept by the worker and never accepted after expiry). `Accept` requires signed-in matching intended user, or a valid link token. A USER invitee finds the invitation in the app (their received invitations) without needing the token. If the Program is locked, access (approval or payment) is obtained before active membership; an invitation never bypasses entitlement. Expired tokens cannot be replayed. Acceptance states plainly that completion will be visible to members and can be turned off. New joins are blocked when the group is closed or the Program is archived, moderated, or no longer published.
 
@@ -84,9 +84,14 @@ Notifications: badge on top-right User widget for a member joining, a reaction t
 ## 6. DTOs and operations
 
 ```ts
-interface GroupSummaryDto { id:string; programVersionId:string; programTitle:string; name:string|null;
-  mode:'SYNC'|'ASYNC'; memberCount:number; myRole:'OWNER'|'MEMBER'; }
+interface GroupSummaryDto { id:string; programId:string; programVersionId:string; programTitle:string; name:string|null;
+  mode:'SYNC'|'ASYNC'; visibility:'PRIVATE'|'PUBLIC'; joinPolicy:'INVITE_ONLY'|'OPEN';
+  startLocalDate:string|null; timezone:string|null; memberCount:number; myRole:'OWNER'|'MEMBER'; }
+interface PublicGroupSummaryDto { id:string; programId:string; programVersionId:string; programTitle:string;
+  name:string|null; mode:'SYNC'|'ASYNC'; visibility:'PUBLIC'; joinPolicy:'INVITE_ONLY'|'OPEN';
+  memberCount:number; startLocalDate:string|null; timezone:string|null; startingSoon:boolean; viewerIsMember:boolean; }
 interface CreateGroupDto { programVersionId:string; name?:string|null; mode:'SYNC'|'ASYNC';
+  visibility?:'PRIVATE'|'PUBLIC'; joinPolicy?:'INVITE_ONLY'|'OPEN';
   startLocalDate?:string|null; timezone?:string|null; }
 interface InviteToGroupDto { kind:'USER'|'EMAIL'|'LINK'; handle?:string; email?:string; }
 interface GroupInvitationDto { id:string; kind:'USER'|'EMAIL'|'LINK'; status:string; expiresAt:string;
@@ -119,7 +124,7 @@ interface CompletionDao {
 
 `GroupService`: invitations, membership, synchronous/asynchronous join policy. `CompletionSharingService`: share policy, reactions, and emitted events; consumes `SessionFinished`.
 
-Endpoints: `GET|POST /groups`, `GET|PATCH /groups/:id` (includes members), `PATCH /groups/:id/members/me`, `DELETE /groups/:id/members/:userId`, `GET|POST /groups/:id/invitations`, `DELETE /groups/:id/invitations/:invitationId`, `GET /group-invitations/:token`, `POST /group-invitations/:token/accept`, `POST /group-invitations/:token/decline`, `GET /users/me/group-invitations`, `POST /users/me/group-invitations/:id/accept`, `POST /users/me/group-invitations/:id/decline` (accept takes an optional `enrollment { startLocalDate?, timezone, idempotencyKey }`), `GET /groups/:id/completions`, `POST /completion-shares/:id/reactions`, `DELETE /completion-shares/:id/reactions/:emoji`, `GET /groups/:id/media`. Comments use `/media-publications/:id/comments`.
+Endpoints: `GET|POST /groups`, `GET /programs/:programId/groups`, `GET /groups/:id/preview`, `POST /groups/:id/join`, `GET|PATCH /groups/:id` (includes members), `PATCH /groups/:id/members/me`, `DELETE /groups/:id/members/:userId`, `GET|POST /groups/:id/invitations`, `DELETE /groups/:id/invitations/:invitationId`, `GET /group-invitations/:token`, `POST /group-invitations/:token/accept`, `POST /group-invitations/:token/decline`, `GET /users/me/group-invitations`, `POST /users/me/group-invitations/:id/accept`, `POST /users/me/group-invitations/:id/decline` (accept and join take an optional `enrollment { startLocalDate?, timezone, idempotencyKey }`), `GET /groups/:id/completions`, `POST /completion-shares/:id/reactions`, `DELETE /completion-shares/:id/reactions/:emoji`, `GET /groups/:id/media`. Comments use `/media-publications/:id/comments`.
 
 ## 7. Tests
 
@@ -134,3 +139,11 @@ Endpoints: `GET|POST /groups`, `GET|PATCH /groups/:id` (includes members), `PATC
 - Reaction and comment auth, idempotency, moderation/rate limits; undoing a completion hides its share.
 - Solo Activity page never displays empty collaborator/Shared Media placeholders.
 - Notifications deep-link to authorized activity and do not leak private metrics in payload.
+
+## 8. Check-In-Centered Collaboration & Animated Group Stage
+
+Check-ins are the core Group collaboration loop (`Complete → Check in → See others → React → Return`), providing shared momentum without real-time meeting rooms, leaderboards, or forced schedules:
+- Completing an Activity saves personal progress; sharing a check-in with one or more active Groups (`POST /check-ins` or via occurrence completion) is explicit and never duplicates Activity completions or Calendar items.
+- Check-ins belong to `(activityId, userId)` and optionally `calendarItemId`, supporting repeat Program runs, standalone Activities, optional check-in note, optional group-scoped media attachment (`View media`), emoji reactions, and check-in discussion (`GET|POST /completion-shares/:id/comments`, `DELETE /completion-comments/:id`).
+- Private Group check-ins, media, and discussion remain visible exclusively to active Group members. Public Group discovery surfaces only Group identity, member count, real recent check-in count, and optional scheduled start, with one-click Join for open Groups (`Open Group` once joined) and no automatic Program run creation.
+- **Full-Screen Participation Stage (`/groups/:id`):** Designed in three layers — (1) minimal full-screen `Stage` showing members and Group identity, (2) `Events` driven by real member joins, check-ins, media shares, and reactions, and (3) interchangeable visual `Animations` themes (`constellation`, `campfire`, `sprout`) configured per Group (`stageTheme`). History and group management stay in clean slide-over panels.

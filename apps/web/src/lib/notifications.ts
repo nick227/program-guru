@@ -65,6 +65,11 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationMeta> = {
     label: 'Reaction',
     actionLabel: 'View reaction',
   },
+  COMPLETION_COMMENT: {
+    category: 'participation',
+    label: 'Check-in comment',
+    actionLabel: 'View comment',
+  },
   GROUP_MEDIA_SHARED: {
     category: 'participation',
     label: 'Shared media',

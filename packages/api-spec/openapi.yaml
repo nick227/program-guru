@@ -1982,6 +1982,49 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /programs/{programId}/visibility:
+    patch:
+      operationId: updateProgramVisibility
+      summary: Update program visibility
+      tags:
+      - programs
+      parameters:
+      - in: path
+        name: programId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProgramVisibilityInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProgramWorkspace'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /programs/{programId}/draft/activities:
     post:
       operationId: addProgramActivities
@@ -3997,6 +4040,47 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+  /programs/{programId}/groups:
+    get:
+      operationId: listProgramGroups
+      summary: List discoverable groups for a program
+      tags:
+      - groups
+      security: []
+      parameters:
+      - in: path
+        name: programId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      - in: query
+        name: timing
+        schema:
+          $ref: '#/components/schemas/DiscoverTiming'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PublicGroupSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /groups:
     get:
       operationId: listMyGroups
@@ -4113,6 +4197,81 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateGroupInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GroupDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /groups/{groupId}/preview:
+    get:
+      operationId: getPublicGroupPreview
+      summary: Get public group preview
+      tags:
+      - groups
+      security: []
+      parameters:
+      - in: path
+        name: groupId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PublicGroupPreview'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /groups/{groupId}/join:
+    post:
+      operationId: joinGroup
+      summary: Join an open public group
+      tags:
+      - groups
+      description: Never bypasses Program access. Check `join.status` on the public preview first; send `enrollment`
+        when the participant must confirm or choose a schedule.
+      parameters:
+      - in: path
+        name: groupId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptGroupInvitationInput'
       responses:
         '200':
           description: Success
@@ -4595,6 +4754,154 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /check-ins:
+    post:
+      operationId: createCheckIns
+      summary: Share an Activity check-in with one or more active Groups
+      tags:
+      - groups
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCheckInInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CompletionShare'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /completion-shares/{shareId}/comments:
+    get:
+      operationId: listCompletionComments
+      summary: List discussion comments on a Group check-in
+      tags:
+      - groups
+      parameters:
+      - in: path
+        name: shareId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CompletionComment'
+                  meta:
+                    $ref: '#/components/schemas/PaginatedMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: addCompletionComment
+      summary: Comment on a Group check-in
+      tags:
+      - groups
+      parameters:
+      - in: path
+        name: shareId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCommentInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CompletionComment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /completion-comments/{commentId}:
+    delete:
+      operationId: deleteCompletionComment
+      summary: Delete a Group check-in comment
+      tags:
+      - groups
+      parameters:
+      - in: path
+        name: commentId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                    - ok
+                    properties:
+                      ok:
+                        type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /groups/{groupId}/media:
     get:
       operationId: listGroupMedia
@@ -5334,6 +5641,10 @@ paths:
         name: sort
         schema:
           $ref: '#/components/schemas/DiscoverSort'
+      - in: query
+        name: timing
+        schema:
+          $ref: '#/components/schemas/DiscoverTiming'
       responses:
         '200':
           description: Success
@@ -6889,6 +7200,16 @@ components:
       enum:
       - SYNC
       - ASYNC
+    GroupVisibility:
+      type: string
+      enum:
+      - PRIVATE
+      - PUBLIC
+    GroupJoinPolicy:
+      type: string
+      enum:
+      - INVITE_ONLY
+      - OPEN
     GroupRole:
       type: string
       enum:
@@ -6988,6 +7309,7 @@ components:
       - PROGRAM_UPDATE
       - ACHIEVEMENT_EARNED
       - PAYMENT_ISSUE
+      - COMPLETION_COMMENT
     ReportTargetType:
       type: string
       enum:
@@ -7032,6 +7354,12 @@ components:
       - RELEVANT
       - NEW
       - POPULAR
+    DiscoverTiming:
+      type: string
+      enum:
+      - ALL
+      - STARTING_SOON
+      - HAPPENING_NOW
     ActivitySource:
       type: string
       enum:
@@ -10377,6 +10705,10 @@ components:
       - programTitle
       - name
       - mode
+      - visibility
+      - joinPolicy
+      - startLocalDate
+      - timezone
       - memberCount
       - myRole
       properties:
@@ -10399,10 +10731,130 @@ components:
           - 'null'
         mode:
           $ref: '#/components/schemas/GroupMode'
+        visibility:
+          $ref: '#/components/schemas/GroupVisibility'
+        joinPolicy:
+          $ref: '#/components/schemas/GroupJoinPolicy'
+        startLocalDate:
+          type:
+          - string
+          - 'null'
+          format: date
+        timezone:
+          type:
+          - string
+          - 'null'
         memberCount:
           type: integer
         myRole:
           $ref: '#/components/schemas/GroupRole'
+    PublicGroupSummary:
+      type: object
+      required:
+      - id
+      - programId
+      - programVersionId
+      - programTitle
+      - name
+      - mode
+      - visibility
+      - joinPolicy
+      - memberCount
+      - startLocalDate
+      - timezone
+      - startingSoon
+      - viewerIsMember
+      properties:
+        id:
+          type: string
+          format: uuid
+        programId:
+          type: string
+          format: uuid
+        programVersionId:
+          type: string
+          format: uuid
+        programTitle:
+          type: string
+        name:
+          type:
+          - string
+          - 'null'
+        mode:
+          $ref: '#/components/schemas/GroupMode'
+        visibility:
+          $ref: '#/components/schemas/GroupVisibility'
+        joinPolicy:
+          $ref: '#/components/schemas/GroupJoinPolicy'
+        memberCount:
+          type: integer
+        startLocalDate:
+          type:
+          - string
+          - 'null'
+          format: date
+        timezone:
+          type:
+          - string
+          - 'null'
+        startingSoon:
+          type: boolean
+        viewerIsMember:
+          type: boolean
+        recentCheckInCount:
+          type: integer
+          minimum: 0
+    PublicGroupPreview:
+      type: object
+      required:
+      - id
+      - groupName
+      - mode
+      - visibility
+      - joinPolicy
+      - memberCount
+      - startLocalDate
+      - timezone
+      - program
+      - canJoin
+      - requiresAccess
+      - join
+      properties:
+        id:
+          type: string
+          format: uuid
+        groupName:
+          type:
+          - string
+          - 'null'
+        mode:
+          $ref: '#/components/schemas/GroupMode'
+        visibility:
+          $ref: '#/components/schemas/GroupVisibility'
+        joinPolicy:
+          $ref: '#/components/schemas/GroupJoinPolicy'
+        memberCount:
+          type: integer
+        startLocalDate:
+          type:
+          - string
+          - 'null'
+          format: date
+        timezone:
+          type:
+          - string
+          - 'null'
+        program:
+          $ref: '#/components/schemas/ProgramPreview'
+        canJoin:
+          type: boolean
+        requiresAccess:
+          type: boolean
+        join:
+          $ref: '#/components/schemas/GroupJoinState'
+        recentCheckInCount:
+          type: integer
+          minimum: 0
     GroupMember:
       type: object
       required:
@@ -10427,6 +10879,8 @@ components:
       - programTitle
       - name
       - mode
+      - visibility
+      - joinPolicy
       - memberCount
       - myRole
       - startLocalDate
@@ -10450,6 +10904,10 @@ components:
           - 'null'
         mode:
           $ref: '#/components/schemas/GroupMode'
+        visibility:
+          $ref: '#/components/schemas/GroupVisibility'
+        joinPolicy:
+          $ref: '#/components/schemas/GroupJoinPolicy'
         memberCount:
           type: integer
         myRole:
@@ -10480,6 +10938,15 @@ components:
           anyOf:
           - $ref: '#/components/schemas/GroupEnrollmentLink'
           - type: 'null'
+        stageTheme:
+          type: string
+          enum:
+          - constellation
+          - campfire
+          - sprout
+        recentCheckInCount:
+          type: integer
+          minimum: 0
     GroupEnrollmentLink:
       type: object
       required:
@@ -10599,6 +11066,10 @@ components:
           maxLength: 100
         mode:
           $ref: '#/components/schemas/GroupMode'
+        visibility:
+          $ref: '#/components/schemas/GroupVisibility'
+        joinPolicy:
+          $ref: '#/components/schemas/GroupJoinPolicy'
         startLocalDate:
           type:
           - string
@@ -10617,6 +11088,10 @@ components:
           - 'null'
           minLength: 0
           maxLength: 100
+        visibility:
+          $ref: '#/components/schemas/GroupVisibility'
+        joinPolicy:
+          $ref: '#/components/schemas/GroupJoinPolicy'
         joinLinkEnabled:
           type: boolean
         memberLinkSharingEnabled:
@@ -10624,6 +11099,12 @@ components:
           description: Owner permission for active members to issue reshareable links while link joining is enabled.
         closed:
           type: boolean
+        stageTheme:
+          type: string
+          enum:
+          - constellation
+          - campfire
+          - sprout
       additionalProperties: false
     UpdateMyMembershipInput:
       type: object
@@ -10713,6 +11194,9 @@ components:
           type: boolean
         join:
           $ref: '#/components/schemas/GroupJoinState'
+        recentCheckInCount:
+          type: integer
+          minimum: 0
     CompletionShare:
       type: object
       description: 'Activity, day, and status only: never metric values.'
@@ -10749,6 +11233,86 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReactionCount'
+        groupId:
+          type: string
+          format: uuid
+        note:
+          type:
+          - string
+          - 'null'
+        mediaPublicationId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        media:
+          anyOf:
+          - $ref: '#/components/schemas/GroupMediaThumb'
+          - type: 'null'
+        commentCount:
+          type: integer
+          minimum: 0
+    CreateCheckInInput:
+      type: object
+      required:
+      - activityId
+      - groupIds
+      properties:
+        activityId:
+          type: string
+          format: uuid
+        groupIds:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+            format: uuid
+        calendarItemId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        note:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        mediaId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        idempotencyKey:
+          type: string
+          minLength: 4
+          maxLength: 120
+      additionalProperties: false
+    CompletionComment:
+      type: object
+      required:
+      - id
+      - completionShareId
+      - author
+      - body
+      - createdAt
+      - canDelete
+      properties:
+        id:
+          type: string
+          format: uuid
+        completionShareId:
+          type: string
+          format: uuid
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        canDelete:
+          type: boolean
     AddReactionInput:
       type: object
       required:
@@ -11221,6 +11785,10 @@ components:
         creator:
           anyOf:
           - $ref: '#/components/schemas/UserSummary'
+          - type: 'null'
+        featuredGroup:
+          anyOf:
+          - $ref: '#/components/schemas/PublicGroupSummary'
           - type: 'null'
     MediaComment:
       type: object
@@ -12118,3 +12686,14 @@ components:
         createdAt:
           type: string
           format: date-time
+    UpdateProgramVisibilityInput:
+      type: object
+      required:
+      - visibility
+      - expectedRevision
+      properties:
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        expectedRevision:
+          type: integer
+      additionalProperties: false

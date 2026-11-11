@@ -79,7 +79,10 @@ export const queryKeys = {
   enrollments: ['enrollments'] as const,
   enrollment: (id: string) => ['enrollments', id] as const,
   groups: ['groups'] as const,
+  programGroups: (programId: string, timing = 'ALL') =>
+    ['programs', programId, 'groups', timing] as const,
   group: (id: string) => ['groups', id] as const,
+  publicGroupPreview: (id: string) => ['groups', id, 'preview'] as const,
   groupInvitations: (id: string) => ['groups', id, 'invitations'] as const,
   groupInvitation: (token: string) => ['group-invitations', token] as const,
   myGroupInvitations: ['users', 'me', 'group-invitations'] as const,
@@ -87,4 +90,6 @@ export const queryKeys = {
     ['groups', id, 'completions', occurrenceKey] as const,
   groupMedia: (id: string, occurrenceKey = '') =>
     ['groups', id, 'media', occurrenceKey] as const,
+  completionComments: (shareId: string) =>
+    ['completion-shares', shareId, 'comments'] as const,
 }

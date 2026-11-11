@@ -133,7 +133,7 @@ export async function occurrence(userId: string, itemId: string) {
         groupId,
         occurrenceKey: item.groupOccurrenceKey,
         revokedAt: null,
-        OR: [{ calendarItemId: item.id }, { calendarItem: { enrollment: { status: { not: 'LEFT' } } } }],
+        OR: [{ calendarItemId: item.id }, { calendarItemId: null }, { calendarItem: { enrollment: { status: { not: 'LEFT' } } } }],
       },
       include: { reactions: true },
     })

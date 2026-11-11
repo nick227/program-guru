@@ -8,6 +8,7 @@ export type BrowseKind = 'programs' | 'activities'
 export type BrowsePick = 'program' | 'activity'
 export type BrowseCreator = 'ALL' | 'PLATFORM' | 'COMMUNITY'
 export type BrowseDuration = '' | 'short' | 'medium' | 'long' | 'ongoing'
+export type BrowseTiming = 'ALL' | 'STARTING_SOON'
 
 export const BROWSE_PARAM = {
   q: 'q',
@@ -17,6 +18,7 @@ export const BROWSE_PARAM = {
   type: 'type',
   focus: 'focus',
   duration: 'duration',
+  timing: 'timing',
   level: 'level',
   session: 'session',
   tags: 'tags',
@@ -29,6 +31,7 @@ export interface BrowseUrlOptions {
   type?: string
   focus?: string
   duration?: BrowseDuration
+  timing?: BrowseTiming
   level?: ProgramLevel | ''
   maxSessionMinutes?: number | null
   tags?: string[]
@@ -89,6 +92,7 @@ export function buildBrowseUrl(options: BrowseUrlOptions = {}): string {
   if (options.type) query.set(BROWSE_PARAM.type, options.type)
   if (options.focus) query.set(BROWSE_PARAM.focus, options.focus)
   if (options.duration) query.set(BROWSE_PARAM.duration, options.duration)
+  if (options.timing && options.timing !== 'ALL') query.set(BROWSE_PARAM.timing, options.timing)
   if (options.level) query.set(BROWSE_PARAM.level, options.level)
   if (options.maxSessionMinutes) query.set(BROWSE_PARAM.session, String(options.maxSessionMinutes))
   if (options.tags?.length) query.set(BROWSE_PARAM.tags, options.tags.join(','))
@@ -108,6 +112,17 @@ export function resolveBrowseDuration(
   if (raw === 'short' || raw === 'medium' || raw === 'long') return raw
   if (raw === 'ongoing' && kind === 'programs') return raw
   return ''
+}
+
+/** Resolve the group timing filter from query params (Program discovery only). */
+export function resolveBrowseTiming(
+  params: URLSearchParams,
+  kind: BrowseKind,
+  isPicker = false,
+): BrowseTiming {
+  if (kind !== 'programs' || isPicker) return 'ALL'
+  const raw = params.get(BROWSE_PARAM.timing) ?? ''
+  return raw === 'STARTING_SOON' ? 'STARTING_SOON' : 'ALL'
 }
 
 /** Match a Program or Activity against the selected duration bucket. */

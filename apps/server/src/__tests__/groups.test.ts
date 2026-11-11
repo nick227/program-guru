@@ -185,6 +185,24 @@ describe('listMyGroups', () => {
   })
 })
 
+describe('listProgramGroups', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listProgramGroups')
+  })
+})
+
+describe('getPublicGroupPreview', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'getPublicGroupPreview')
+  })
+})
+
+describe('joinGroup', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'joinGroup')
+  })
+})
+
 describe('createGroup', () => {
   it('matches the contract', async () => {
     await contractCase(app, 'createGroup')
@@ -363,5 +381,274 @@ describe('contextual participation links', () => {
     expect((await req('POST', `/group-invitations/${tokenOf(replacement)}/accept`, {}, testOtherUserId)).statusCode).toBe(404)
     await req('PATCH', `/groups/${groupId}`, { joinLinkEnabled: false })
     expect((await req('GET', `/group-invitations/${tokenOf(replacement)}`)).statusCode).toBe(404)
+  })
+})
+
+describe('public group discovery, join policies, Starting Soon, and direct joining', () => {
+  it('preserves private groups, enforces visibility/joinPolicy permissions, and hides member details from public endpoints', async () => {
+    pinToday('2026-11-09T18:00:00Z')
+    onTestFinished(unpinToday)
+
+    const { programId, versionId } = await challenge()
+    // Default group is PRIVATE + INVITE_ONLY and never exposed in discovery.
+    const priv = await req('POST', '/groups', { programVersionId: versionId, name: 'Secret Crew', mode: 'SYNC' })
+    expect(priv.statusCode).toBe(201)
+    expect(priv.json().data).toMatchObject({ visibility: 'PRIVATE', joinPolicy: 'INVITE_ONLY' })
+    expect((await app.inject({ method: 'GET', url: `/programs/${programId}/groups` })).json().data).toEqual([])
+    expect((await app.inject({ method: 'GET', url: `/groups/${priv.json().data.id}/preview` })).statusCode).toBe(404)
+
+    // PRIVATE + OPEN is rejected; non-owner cannot update visibility/joinPolicy.
+    expect((await req('POST', '/groups', { programVersionId: versionId, mode: 'ASYNC', visibility: 'PRIVATE', joinPolicy: 'OPEN' })).statusCode).toBe(400)
+    await seedUser(carolId, 'carol')
+    expect((await req('PATCH', `/groups/${priv.json().data.id}`, { visibility: 'PUBLIC' }, carolId)).statusCode).toBe(404)
+
+    // Private program cannot host a PUBLIC group.
+    const privProg = await challenge('PRIVATE')
+    expect((await req('POST', '/groups', { programVersionId: privProg.versionId, mode: 'ASYNC', visibility: 'PUBLIC', joinPolicy: 'OPEN' })).statusCode).toBe(400)
+
+    // Update Alice's group to PUBLIC + INVITE_ONLY -> visible in discovery, direct join blocked (403), invite still works.
+    const updated = await req('PATCH', `/groups/${priv.json().data.id}`, { visibility: 'PUBLIC', joinPolicy: 'INVITE_ONLY' })
+    expect(updated.statusCode).toBe(200)
+    const listRes = await app.inject({ method: 'GET', url: `/programs/${programId}/groups` })
+    expect(listRes.statusCode).toBe(200)
+    await validateResponse('listProgramGroups', 200, listRes.json())
+    expect(listRes.json().data).toEqual([
+      expect.objectContaining({
+        id: priv.json().data.id,
+        name: 'Secret Crew',
+        visibility: 'PUBLIC',
+        joinPolicy: 'INVITE_ONLY',
+        memberCount: 1,
+        startLocalDate: '2026-11-09',
+        startingSoon: true,
+        viewerIsMember: false,
+      }),
+    ])
+    // Never exposes members or emails in public list or preview.
+    expect(JSON.stringify(listRes.json().data)).not.toContain('alice')
+    const previewRes = await req('GET', `/groups/${priv.json().data.id}/preview`, undefined, testOtherUserId)
+    expect(previewRes.statusCode).toBe(200)
+    await validateResponse('getPublicGroupPreview', 200, previewRes.json())
+    expect(previewRes.json().data).toMatchObject({ canJoin: false, join: { status: 'UNAVAILABLE' } })
+    expect(JSON.stringify(previewRes.json().data)).not.toContain('alice@test.local')
+    expect((await req('POST', `/groups/${priv.json().data.id}/join`, {}, testOtherUserId)).statusCode).toBe(403)
+  })
+
+  it('paginates discoverable groups, surfaces featuredGroup in /discover, and filters Starting Soon vs Happening Now', async () => {
+    pinToday('2026-11-09T18:00:00Z')
+    onTestFinished(unpinToday)
+
+    // Program 1: Alice hosts a PUBLIC OPEN SYNC group starting in 3 days (Starting Soon) + Carol hosts a PUBLIC OPEN ASYNC group (no scheduled start).
+    let ws1 = (await req('POST', '/programs', { programTypeId: cat.workout.id })).json().data
+    ws1 = (await req('POST', `/programs/${ws1.id}/draft/activities`, { activityIds: [cat.squats.activity.id], expectedRevision: ws1.draftRevision })).json().data
+    ws1 = (await req('PATCH', `/programs/${ws1.id}/draft`, { title: 'Strength Starting Soon', durationDays: 14, frequency: { kind: 'DAILY' }, expectedRevision: ws1.draftRevision })).json().data
+    const pub1 = (await req('POST', `/programs/${ws1.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws1.draftRevision })).json().data
+    const v1 = pub1.latestPublishedVersionId
+
+    const gSoon = await req('POST', '/groups', { programVersionId: v1, name: 'Nov 12 Cohort', mode: 'SYNC', visibility: 'PUBLIC', joinPolicy: 'OPEN', startLocalDate: '2026-11-12', timezone: 'America/Chicago' })
+    expect(gSoon.statusCode).toBe(201)
+
+    await seedUser(carolId, 'carol')
+    await req('POST', `/programs/${ws1.id}/enrollments`, { programVersionId: v1, startLocalDate: '2026-11-09', timezone: 'America/Chicago', idempotencyKey: key() }, carolId)
+    const gAsync = await req('POST', '/groups', { programVersionId: v1, name: 'Anytime Crew', mode: 'ASYNC', visibility: 'PUBLIC', joinPolicy: 'OPEN' }, carolId)
+    expect(gAsync.statusCode).toBe(201)
+
+    // Program 2: Bob hosts only an ASYNC public group (no scheduled start -> excluded from Starting Soon).
+    let ws2 = (await req('POST', '/programs', { programTypeId: cat.workout.id }, testOtherUserId)).json().data
+    ws2 = (await req('POST', `/programs/${ws2.id}/draft/activities`, { activityIds: [cat.legRaises.activity.id], expectedRevision: ws2.draftRevision }, testOtherUserId)).json().data
+    ws2 = (await req('PATCH', `/programs/${ws2.id}/draft`, { title: 'Flex Only Plan', durationDays: 7, frequency: { kind: 'DAILY' }, expectedRevision: ws2.draftRevision }, testOtherUserId)).json().data
+    const pub2 = (await req('POST', `/programs/${ws2.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws2.draftRevision }, testOtherUserId)).json().data
+    await req('POST', `/programs/${ws2.id}/enrollments`, { programVersionId: pub2.latestPublishedVersionId, startLocalDate: '2026-11-09', timezone: 'America/Chicago', idempotencyKey: key() }, testOtherUserId)
+    await req('POST', '/groups', { programVersionId: pub2.latestPublishedVersionId, name: 'Flex Group', mode: 'ASYNC', visibility: 'PUBLIC', joinPolicy: 'OPEN' }, testOtherUserId)
+
+    // Paginated GET /programs/:id/groups (limit=1)
+    const page1 = await app.inject({ method: 'GET', url: `/programs/${ws1.id}/groups?limit=1` })
+    expect(page1.statusCode).toBe(200)
+    await validateResponse('listProgramGroups', 200, page1.json())
+    expect(page1.json().data).toHaveLength(1)
+    expect(page1.json().data[0].name).toBe('Nov 12 Cohort')
+    expect(page1.json().meta.hasMore).toBe(true)
+    const page2 = await app.inject({ method: 'GET', url: `/programs/${ws1.id}/groups?limit=1&cursor=${encodeURIComponent(page1.json().meta.nextCursor)}` })
+    expect(page2.json().data).toHaveLength(1)
+    expect(page2.json().data[0].name).toBe('Anytime Crew')
+    expect(page2.json().meta.hasMore).toBe(false)
+
+    // /discover?kind=PROGRAM includes featuredGroup; STARTING_SOON filters to programs with an upcoming scheduled group.
+    const allDiscover = await app.inject({ method: 'GET', url: '/discover?kind=PROGRAM' })
+    expect(allDiscover.statusCode).toBe(200)
+    await validateResponse('discover', 200, allDiscover.json())
+    expect(allDiscover.json().data).toHaveLength(2)
+    expect(allDiscover.json().data.find((d: any) => d.program.id === ws1.id).featuredGroup).toMatchObject({
+      id: gSoon.json().data.id,
+      name: 'Nov 12 Cohort',
+      startLocalDate: '2026-11-12',
+      startingSoon: true,
+    })
+
+    const soonDiscover = await app.inject({ method: 'GET', url: '/discover?kind=PROGRAM&timing=STARTING_SOON' })
+    expect(soonDiscover.statusCode).toBe(200)
+    expect(soonDiscover.json().data.map((d: any) => d.program.id)).toEqual([ws1.id])
+
+    // HAPPENING_NOW does not fabricate live activity from active enrollments.
+    const liveDiscover = await app.inject({ method: 'GET', url: '/discover?kind=PROGRAM&timing=HAPPENING_NOW' })
+    expect(liveDiscover.statusCode).toBe(200)
+    expect(liveDiscover.json().data).toEqual([])
+  })
+
+  it('direct joining open groups never duplicates enrollments or calendar items, and repeat runs keep group membership', async () => {
+    pinToday('2026-11-09T18:00:00Z')
+    onTestFinished(unpinToday)
+
+    const { programId, versionId } = await challenge()
+    const g = (await req('POST', '/groups', { programVersionId: versionId, name: 'Open Sync', mode: 'SYNC', visibility: 'PUBLIC', joinPolicy: 'OPEN' })).json().data
+
+    // 1. Unauthenticated preview still loads public summary with SIGN_IN_REQUIRED; Carol joins directly with schedule confirmation -> 1 enrollment, 1 calendar schedule, replay safe.
+    const previewAnon = await req('GET', `/groups/${g.id}/preview`, undefined, carolId)
+    expect(previewAnon.statusCode).toBe(200)
+    expect(previewAnon.json().data.join.status).toBe('SIGN_IN_REQUIRED')
+    await seedUser(carolId, 'carol')
+    const carolPreview = await req('GET', `/groups/${g.id}/preview`, undefined, carolId)
+    expect(carolPreview.json().data.join.status).toBe('CONFIRM_ENROLLMENT')
+    const joinKey = key()
+    const join1 = await req('POST', `/groups/${g.id}/join`, { enrollment: { timezone: 'America/Chicago', idempotencyKey: joinKey } }, carolId)
+    expect(join1.statusCode).toBe(200)
+    await validateResponse('joinGroup', 200, join1.json())
+    expect(join1.json().data.memberCount).toBe(2)
+    const carolItemsAfterJoin = await db.calendarItem.count({ where: { ownerId: carolId } })
+    expect(carolItemsAfterJoin).toBeGreaterThan(0)
+    // Replay does not duplicate enrollment or calendar items.
+    const joinReplay = await req('POST', `/groups/${g.id}/join`, { enrollment: { timezone: 'America/Chicago', idempotencyKey: joinKey } }, carolId)
+    expect(joinReplay.statusCode).toBe(200)
+    expect(await db.programEnrollment.count({ where: { userId: carolId, programId } })).toBe(1)
+    expect(await db.calendarItem.count({ where: { ownerId: carolId } })).toBe(carolItemsAfterJoin)
+
+    // 2. Bob is already enrolled independently -> joining links existing enrollment without duplicating enrollments or calendar entries.
+    await req('POST', `/programs/${programId}/enrollments`, { programVersionId: versionId, startLocalDate: '2026-11-11', timezone: 'America/Chicago', idempotencyKey: key() }, testOtherUserId)
+    const bobItemsBefore = await db.calendarItem.findMany({ where: { ownerId: testOtherUserId }, orderBy: { id: 'asc' } })
+    const bobPreview = await req('GET', `/groups/${g.id}/preview`, undefined, testOtherUserId)
+    expect(bobPreview.json().data.join).toMatchObject({ status: 'READY_TO_JOIN', startDateDiffers: true })
+    const bobJoin = await req('POST', `/groups/${g.id}/join`, {}, testOtherUserId)
+    expect(bobJoin.statusCode).toBe(200)
+    expect(await db.programEnrollment.count({ where: { userId: testOtherUserId, programId } })).toBe(1)
+    const bobItemsAfter = await db.calendarItem.findMany({ where: { ownerId: testOtherUserId }, orderBy: { id: 'asc' } })
+    expect(bobItemsAfter.map((i) => [i.id, i.localDate.toISOString()])).toEqual(bobItemsBefore.map((i) => [i.id, i.localDate.toISOString()]))
+    expect(bobItemsAfter.every((i) => i.groupOccurrenceKey !== null)).toBe(true)
+
+    // 3. Repeat Program run via "Run It Again" (POST /programs/:id/enrollments without groupId) preserves Group membership without creating a second GroupMember.
+    const repeatRun = await req('POST', `/programs/${programId}/enrollments`, { programVersionId: versionId, startLocalDate: '2026-11-09', timezone: 'America/Chicago', idempotencyKey: key() }, carolId)
+    expect(repeatRun.statusCode).toBe(201)
+    expect(repeatRun.json().data.groupId).toBe(g.id)
+    expect(await db.groupMember.count({ where: { groupId: g.id, userId: carolId } })).toBe(1)
+
+    // 4. Removed member cannot rejoin directly via open public join (must be invited by owner).
+    await req('DELETE', `/groups/${g.id}/members/${testOtherUserId}`)
+    expect((await req('GET', `/groups/${g.id}/preview`, undefined, testOtherUserId)).json().data.join.status).toBe('UNAVAILABLE')
+    expect((await req('POST', `/groups/${g.id}/join`, {}, testOtherUserId)).statusCode).toBe(404)
+  })
+})
+
+describe('createCheckIns', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'createCheckIns')
+  })
+})
+
+describe('listCompletionComments', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'listCompletionComments')
+  })
+})
+
+describe('addCompletionComment', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'addCompletionComment')
+  })
+})
+
+describe('deleteCompletionComment', () => {
+  it('matches the contract', async () => {
+    await contractCase(app, 'deleteCompletionComment')
+  })
+})
+
+describe('Check-in centered Groups, multi-group sharing, media, comments, and Stage themes', () => {
+  it('enforces real Activity completion, shares one check-in to multiple groups without duplicate completions, and protects private check-in discussion', async () => {
+    await seedUser(carolId, 'carol')
+    const { programId, versionId } = await challenge()
+    const { activityId } = await db.programScheduleItem.findFirstOrThrow({
+      where: { programVersionId: versionId },
+      select: { activityId: true },
+    })
+
+    // Two groups Alice belongs to (Alice hosts one public group on program 1 and one on program 2)
+    const g1 = (await req('POST', '/groups', { programVersionId: versionId, name: 'Crew One', mode: 'ASYNC', visibility: 'PUBLIC', joinPolicy: 'OPEN' })).json().data
+    const cat = await req('GET', '/catalog/program-types')
+    const p2 = (await req('POST', '/programs', { programTypeId: cat.json().data[0].id })).json().data
+    await req('POST', `/programs/${p2.id}/draft/activities`, { activityIds: [activityId], expectedRevision: p2.draftRevision })
+    const p2Pub = (await req('POST', `/programs/${p2.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: p2.draftRevision + 1 })).json().data
+    const g2 = (await req('POST', '/groups', { programVersionId: p2Pub.latestPublishedVersionId, name: 'Crew Two', mode: 'ASYNC', visibility: 'PRIVATE', joinPolicy: 'INVITE_ONLY' })).json().data
+
+    // Carol joins open group g1 in one click without creating a Program run
+    const carolJoin = await req('POST', `/groups/${g1.id}/join`, {}, carolId)
+    expect(carolJoin.statusCode).toBe(200)
+    expect(await db.programEnrollment.count({ where: { userId: carolId, programId } })).toBe(0)
+
+    // Cannot check in before completing the Activity (no arbitrary status posts)
+    const uncompletedAttempt = await req('POST', '/check-ins', {
+      activityId,
+      groupIds: [g1.id],
+      note: 'Fake post',
+    })
+    expect(uncompletedAttempt.statusCode).toBe(400)
+
+    // Alice enrolls & completes the Activity once on her personal Calendar
+    const en = (await req('POST', `/programs/${programId}/enrollments`, {
+      programVersionId: versionId,
+      startLocalDate: '2026-11-09',
+      timezone: 'America/Chicago',
+      idempotencyKey: key(),
+    })).json().data
+    const calItem = await db.calendarItem.findFirstOrThrow({ where: { enrollmentId: en.id, activityId } })
+    const sess = (await req('POST', '/sessions', { calendarItemId: calItem.id, idempotencyKey: key() })).json().data
+    await req('POST', `/sessions/${sess.id}/actions`, { action: 'FINISH', expectedRevision: sess.revision })
+
+    const itemsBeforeCheckIn = await db.calendarItem.count({ where: { ownerId: testUserId } })
+    // Share one check-in across BOTH groups (g1 & g2) with a note (zero duplicate calendar items)
+    const multi = await req('POST', '/check-ins', {
+      activityId,
+      groupIds: [g1.id, g2.id],
+      calendarItemId: calItem.id,
+      note: 'Morning jog felt steady!',
+    })
+    expect(multi.statusCode).toBe(201)
+    expect(multi.json().data).toHaveLength(2)
+    expect(await db.calendarItem.count({ where: { ownerId: testUserId } })).toBe(itemsBeforeCheckIn)
+
+    // Standalone/repeat check-in without calendarItemId also supported once Activity has been completed
+    const repeatCheckIn = await req('POST', '/check-ins', {
+      activityId,
+      groupIds: [g1.id],
+      note: 'Second round!',
+    })
+    expect(repeatCheckIn.statusCode).toBe(201)
+
+    // Check-ins & comments respect Group privacy: Carol (in g1 only) sees g1 share, can comment on g1, CANNOT access private g2 share or comments
+    const g1Feed = await req('GET', `/groups/${g1.id}/completions`, undefined, carolId)
+    expect(g1Feed.statusCode).toBe(200)
+    expect(g1Feed.json().data.some((s: any) => s.note === 'Morning jog felt steady!')).toBe(true)
+    const g1ShareId = g1Feed.json().data[0].id
+    const g2ShareId = multi.json().data.find((s: any) => s.groupId === g2.id).id
+
+    const cAdd = await req('POST', `/completion-shares/${g1ShareId}/comments`, { body: 'Way to go!', idempotencyKey: key() }, carolId)
+    expect(cAdd.statusCode).toBe(201)
+    expect((await req('GET', `/completion-shares/${g2ShareId}/comments`, undefined, carolId)).statusCode).toBe(404)
+    expect((await req('POST', `/completion-shares/${g2ShareId}/comments`, { body: 'Snooping' }, carolId)).statusCode).toBe(404)
+
+    // Theme persists & recentCheckInCount is reported accurately in preview & discovery
+    const themed = await req('PATCH', `/groups/${g1.id}`, { stageTheme: 'sprout' })
+    expect(themed.statusCode).toBe(200)
+    expect(themed.json().data.stageTheme).toBe('sprout')
+    const preview = await req('GET', `/groups/${g1.id}/preview`, undefined, carolId)
+    expect(preview.json().data.recentCheckInCount).toBeGreaterThanOrEqual(1)
   })
 })

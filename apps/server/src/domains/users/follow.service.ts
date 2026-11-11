@@ -13,6 +13,12 @@ export async function isBlockedEitherWay(a: string, b: string) {
   return !!block
 }
 
+export async function blockedIds(viewerId: string | null): Promise<string[]> {
+  if (!viewerId) return []
+  const rows = await db.userBlock.findMany({ where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] } })
+  return rows.map((b) => (b.blockerId === viewerId ? b.blockedId : b.blockerId))
+}
+
 async function activeTarget(viewerId: string, targetId: string) {
   if (viewerId === targetId) throw badRequest('You cannot do that to yourself')
   const target = await db.user.findUnique({ where: { id: targetId }, include: { profile: true } })

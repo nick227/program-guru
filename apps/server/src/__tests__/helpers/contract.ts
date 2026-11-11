@@ -102,6 +102,14 @@ export class World {
     await this.ok('bob', 'POST', `/group-invitations/${inv.joinUrl.split('/join/')[1]}/accept`, { enrollment: { timezone: 'America/Chicago', idempotencyKey: 'world-bob-group-join' } })
     return g as { id: string }
   })
+  publicGroup = () => this.once('publicGroup', async () => {
+    const c = await this.cat()
+    let ws = await this.ok('alice', 'POST', '/programs', { programTypeId: c.workout.id, focusId: c.strength.id })
+    ws = await this.ok('alice', 'POST', `/programs/${ws.id}/draft/activities`, { activityIds: [c.squats.activity.id], expectedRevision: ws.draftRevision })
+    const pub = await this.ok('alice', 'POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })
+    const g = await this.ok('alice', 'POST', '/groups', { programVersionId: pub.latestPublishedVersionId, mode: 'SYNC', visibility: 'PUBLIC', joinPolicy: 'OPEN', startLocalDate: START, timezone: 'America/Chicago', name: 'Public crew' })
+    return { id: g.id as string, programId: ws.id as string }
+  })
   linkInvite = () => this.once('linkInvite', async () => {
     const g = await this.group()
     const inv = await this.ok('alice', 'POST', `/groups/${g.id}/invitations`, { kind: 'LINK' })
@@ -281,6 +289,7 @@ export const cases: Record<string, Case> = {
   getProgramPreview: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/programs/${(await w.program()).id}` }) },
   getProgramWorkspace: { as: 'alice', protected: true, request: async (w) => ({ method: 'GET', url: `/programs/${(await w.draft()).id}/workspace` }) },
   updateProgramDraft: { as: 'alice', protected: true, request: async (w) => { const d = await w.draft(); return { method: 'PATCH', url: `/programs/${d.id}/draft`, payload: { title: 'Renamed', expectedRevision: d.draftRevision } } } },
+  updateProgramVisibility: { as: 'alice', protected: true, request: async (w) => { const d = await w.draft(); return { method: 'PATCH', url: `/programs/${d.id}/visibility`, payload: { visibility: 'UNLISTED', expectedRevision: d.draftRevision } } } },
   addProgramActivities: { as: 'alice', protected: true, request: async (w) => { const c = await w.cat(); const ws = await w.ok('alice', 'POST', '/programs', { programTypeId: c.workout.id }); return { method: 'POST', url: `/programs/${ws.id}/draft/activities`, payload: { activityIds: [c.squats.activity.id], expectedRevision: ws.draftRevision } } } },
   updateProgramActivity: { as: 'alice', protected: true, request: async (w) => { const d = await w.draft(); return { method: 'PATCH', url: `/programs/${d.id}/draft/activities/${(await w.cat()).squats.activity.id}`, payload: { frequency: { kind: 'N_PER_WEEK', n: 2 }, expectedRevision: d.draftRevision } } } },
   removeProgramActivity: { as: 'alice', protected: true, request: async (w) => { const d = await w.draft(); return { method: 'DELETE', url: `/programs/${d.id}/draft/activities/${(await w.cat()).legRaises.activity.id}?expectedRevision=${d.draftRevision}` } } },
@@ -357,6 +366,9 @@ export const cases: Record<string, Case> = {
   listUserAchievements: { as: 'anon', request: async (w) => (await w.achievement(), { method: 'GET', url: '/users/alice/achievements' }) },
   // ── groups
   listMyGroups: { as: 'bob', protected: true, request: async (w) => (await w.group(), { method: 'GET', url: '/groups' }) },
+  listProgramGroups: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/programs/${(await w.publicGroup()).programId}/groups` }) },
+  getPublicGroupPreview: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/groups/${(await w.publicGroup()).id}/preview` }) },
+  joinGroup: { as: 'bob', protected: true, request: async (w) => ({ method: 'POST', url: `/groups/${(await w.publicGroup()).id}/join`, payload: { enrollment: { timezone: 'America/Chicago', idempotencyKey: 'contract-bob-public-join' } } }) },
   createGroup: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: '/groups', payload: { programVersionId: (await w.program()).versionId, mode: 'ASYNC' } }) },
   getGroup: { as: 'bob', protected: true, request: async (w) => ({ method: 'GET', url: `/groups/${(await w.group()).id}` }) },
   updateGroup: { as: 'alice', protected: true, request: async (w) => ({ method: 'PATCH', url: `/groups/${(await w.group()).id}`, payload: { name: 'Renamed crew' } }) },
@@ -390,6 +402,10 @@ export const cases: Record<string, Case> = {
   listGroupCompletions: { as: 'bob', protected: true, request: async (w) => (await w.share(), { method: 'GET', url: `/groups/${(await w.group()).id}/completions` }) },
   addCompletionReaction: { as: 'bob', protected: true, request: async (w) => ({ method: 'POST', url: `/completion-shares/${(await w.share()).id}/reactions`, payload: { emoji: '👏', idempotencyKey: 'contract-reaction' } }) },
   removeCompletionReaction: { as: 'bob', protected: true, request: async (w) => { const s = await w.share(); await w.ok('bob', 'POST', `/completion-shares/${s.id}/reactions`, { emoji: '👏', idempotencyKey: 'contract-reaction-2' }); return { method: 'DELETE', url: `/completion-shares/${s.id}/reactions/${encodeURIComponent('👏')}` } } },
+  createCheckIns: { as: 'alice', protected: true, request: async (w) => { const g = await w.group(); const item = await w.aliceItem(); await w.share(); return { method: 'POST', url: '/check-ins', payload: { activityId: item.activityId, groupIds: [g.id], calendarItemId: item.id, note: 'Checked in!', idempotencyKey: 'contract-checkin-1' } } } },
+  listCompletionComments: { as: 'bob', protected: true, request: async (w) => ({ method: 'GET', url: `/completion-shares/${(await w.share()).id}/comments` }) },
+  addCompletionComment: { as: 'bob', protected: true, request: async (w) => ({ method: 'POST', url: `/completion-shares/${(await w.share()).id}/comments`, payload: { body: 'Great job!', idempotencyKey: 'contract-checkin-comment-1' } }) },
+  deleteCompletionComment: { as: 'bob', protected: true, request: async (w) => { const s = await w.share(); const c = await w.ok('bob', 'POST', `/completion-shares/${s.id}/comments`, { body: 'Remove me', idempotencyKey: 'contract-checkin-comment-del' }); return { method: 'DELETE', url: `/completion-comments/${c.id}` } } },
   listGroupMedia: { as: 'bob', protected: true, request: async (w) => (await w.groupPublication(), { method: 'GET', url: `/groups/${(await w.group()).id}/media` }) },
   // ── media
   listActivityMyMedia: { as: 'alice', protected: true, request: async (w) => (await w.attachment(), { method: 'GET', url: `/activities/${(await w.cat()).squats.activity.id}/my-media` }) },

@@ -514,6 +514,8 @@ export async function mockApi(
     if (path === '/programs') return send([summary()], 200, true)
     if (path === '/users/me/group-invitations' && method === 'GET')
       return send([], 200, true)
+    if (method === 'GET' && /^\/programs\/[^/]+\/groups$/.test(path))
+      return send([], 200, true)
     if (path === '/groups' && method === 'GET')
       return send(
         groupCreated
@@ -525,6 +527,10 @@ export async function mockApi(
                 programTitle: title,
                 name: createdGroupName,
                 mode: groupMode,
+                visibility: 'PRIVATE',
+                joinPolicy: 'INVITE_ONLY',
+                startLocalDate: groupMode === 'SYNC' ? start : null,
+                timezone: 'America/Chicago',
                 memberCount: 1,
                 myRole: 'OWNER',
               } satisfies S['GroupSummary'],
@@ -552,6 +558,8 @@ export async function mockApi(
         programTitle: title,
         name: createdGroupName,
         mode: groupMode,
+        visibility: 'PRIVATE',
+        joinPolicy: 'INVITE_ONLY',
         memberCount: 1,
         myRole: 'OWNER',
         startLocalDate: groupMode === 'SYNC' ? start : null,
