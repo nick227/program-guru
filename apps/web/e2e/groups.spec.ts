@@ -1,60 +1,14 @@
 import { expect, test } from '@playwright/test'
-import { groupId, mockApi, programId } from './fixtures'
+import { groupId, mockApi } from './fixtures'
 import { login } from './journey'
 
-test('create a Program group, enroll the owner, and open contextual group management', async ({
-  page,
-}) => {
+// Groups are no longer created from the Program page; an existing group is managed on its own page.
+test('group page: the owner manages the group and invites by handle', async ({ page }) => {
   const { requests } = await mockApi(page)
-
   await login(page, 'author@test.local', 'password')
-  await page.goto(`/programs/${programId}`)
-  await expect(page.getByRole('heading', { name: 'Do this together' })).toBeVisible()
-
-  await page.getByRole('button', { name: 'Invite people' }).click()
-  await page.getByLabel('Group name (optional)').fill('Morning group')
-  await page.getByRole('combobox', { name: 'Schedule', exact: true }).selectOption('SYNC')
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
-
-  await page.getByRole('link', { name: 'Add to my Calendar', exact: true }).click()
-  await expect(
-    page.getByRole('heading', { name: 'When do you want to start?' }),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Preview my calendar' }).click()
-  await expect(
-    page.getByText('12 Activities will be scheduled automatically.'),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Confirm & add to Calendar' }).click()
-
-  const createRequest = requests.find(
-    (request) => request.path === '/groups' && request.method === 'POST',
-  )
-  expect(createRequest?.body).toMatchObject({
-    programVersionId: expect.any(String),
-    mode: 'SYNC',
-    name: 'Morning group',
-    startLocalDate: expect.any(String),
-    timezone: 'America/Chicago',
-  })
-
-  const enrollmentRequest = requests.find(
-    (request) =>
-      request.path === `/programs/${programId}/enrollments` &&
-      request.method === 'POST',
-  )
-  expect(enrollmentRequest?.body.groupId).toBe(groupId)
-  expect(enrollmentRequest?.body.startLocalDate).toBe(
-    createRequest?.body.startLocalDate,
-  )
-
   await page.goto(`/groups/${groupId}`)
-  await expect(
-    page.getByRole('heading', { name: 'Morning group', exact: true }),
-  ).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Manage group' })).toBeVisible()
-  await expect(
-    page.getByRole('heading', { name: 'Group Completions' }),
-  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Group Completions' })).toBeVisible()
 
   await page.getByLabel('Invite by handle').fill('participant')
   await page.getByRole('button', { name: 'Invite user' }).click()
@@ -68,17 +22,10 @@ test('create a Program group, enroll the owner, and open contextual group manage
   ).toMatchObject({ kind: 'USER', handle: 'participant' })
 })
 
-test('contextual flexible participation and owner link controls stay on the Program', async ({ page }) => {
+test('group page: owner invite link controls', async ({ page }) => {
   const { requests } = await mockApi(page)
   await login(page, 'author@test.local', 'password')
-  await page.goto(`/programs/${programId}`)
-  await page.getByRole('button', { name: 'Invite people', exact: true }).click()
-  await expect(page.getByRole('combobox', { name: 'Schedule', exact: true })).toHaveValue('ASYNC')
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
-  await expect(page.getByText('1 participant · Flexible pace')).toBeVisible()
-  await expect(page.getByRole('list', { name: 'Author', exact: true })).toBeVisible()
-  await expect(page).toHaveURL(new RegExp(`/programs/${programId}$`))
-  expect(requests.find((r) => r.path === '/groups' && r.method === 'POST')?.body).toMatchObject({ mode: 'ASYNC' })
+  await page.goto(`/groups/${groupId}`)
   await page.getByRole('button', { name: 'Invite people', exact: true }).click()
   await page.getByRole('button', { name: 'Create invite link', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Invite link', exact: true })).toHaveValue('http://localhost/join/link-1')

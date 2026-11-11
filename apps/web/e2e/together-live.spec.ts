@@ -39,7 +39,7 @@ test('mixed-version group: presence, reactions, My Programs, Program page and Gr
   await together.screenshot({ path: test.info().outputPath('bob-activity-together.png') })
 
   // bob (v2) finishes the same Activity carol finished on v1 and stays on the page.
-  await bob.getByRole('button', { name: 'Complete', exact: true }).click()
+  await bob.getByRole('button', { name: /^(Mark as )?Complete$/ }).click()
   await expect(bob.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
 
   // ── My Programs summarizes who you're doing it with (no counts below the sample) ────────────

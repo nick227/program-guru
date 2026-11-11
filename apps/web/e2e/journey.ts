@@ -82,17 +82,15 @@ export async function journey(
   ).toBeVisible()
   await expect(page.getByLabel('Reps (reps)', { exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Increase Reps' }).click()
-  await page.getByRole('button', { name: 'Complete', exact: true }).click()
+  await page.getByRole('button', { name: 'Mark as Complete', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
-  await page
-    .getByRole('navigation', { name: 'Workspace navigation' })
-    .getByRole('link', { name: 'Calendar', exact: true })
-    .click()
-  await expect(
-    page.getByRole('heading', { name: 'Calendar', exact: true }),
-  ).toBeVisible()
+  // Completion stays on the Occurrence; the Calendar shows it, and Undo lives on the Occurrence.
+  await page.goto('/?view=day&day=2026-11-09')
   await expect(tile('Completed')).toBeVisible()
-  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await tile('Completed').click()
+  await page.getByRole('button', { name: 'Undo completion', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'To do' })).toBeVisible()
+  await page.goto('/?view=day&day=2026-11-09')
   await expect(tile('Pending')).toBeVisible()
   await page.reload()
   await expect(tile('Pending')).toBeVisible()

@@ -38,5 +38,5 @@ test('upload is disabled offline and unsupported files do not create an attempt'
   expect(state.calls.filter(c => c.path === '/sessions' && c.method === 'POST')).toHaveLength(0)
   await context.setOffline(true)
   await expect(page.getByRole('button', { name: 'Add media', exact: true })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Complete', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Mark as Complete', exact: true })).toBeDisabled()
 })

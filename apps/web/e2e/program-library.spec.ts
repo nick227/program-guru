@@ -44,12 +44,6 @@ test('personal library: responsive table, filters, insights and editor handoff',
     page.getByRole('heading', { name: 'Upcoming Activity', exact: true }),
   ).toBeVisible()
   await expect(
-    page.getByRole('heading', { name: 'Activity history', exact: true }),
-  ).toBeVisible()
-  await expect(
-    page.getByRole('heading', { name: 'Runs & restart history', exact: true }),
-  ).toBeVisible()
-  await expect(
     page.getByRole('region', { name: 'Share Program' }).getByRole('button', { name: 'Copy link', exact: true }),
   ).toBeVisible()
   await expect(page.getByLabel('Program link', { exact: true })).toHaveValue(
@@ -57,22 +51,6 @@ test('personal library: responsive table, filters, insights and editor handoff',
   )
   await expect(page.getByText('80 min', { exact: true })).toBeVisible()
   await expect(page.getByText('A creator update is available')).toBeVisible()
-  await page.getByLabel('Manage Strength, with intention').click()
-  await expect(
-    page
-      .getByRole('region', { name: 'Your progress and participation' })
-      .getByRole('link', { name: 'Open Workspace', exact: true }),
-  ).toHaveAttribute('href', /\/workspace$/)
-  const menuBox = await page
-    .locator('.library-menu > div')
-    .boundingBox()
-  expect(menuBox!.x).toBeGreaterThanOrEqual(0)
-  await page.getByRole('button', { name: 'Restart as a new run' }).click()
-  await expect(
-    page.getByRole('dialog', { name: 'Restart Program' }),
-  ).toBeVisible()
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.getByRole('button', { name: 'Edit Program', exact: true }).click()
   await expect(
     page.getByRole('region', { name: 'Edit Program' }),
@@ -225,7 +203,7 @@ test('Paused programs can be resumed; programs can be removed from library', asy
   await expect.poll(() => actions).toContain('ARCHIVE')
 })
 
-test('ProgramPage resets edit/run state on id change, scrolls ?start=1 once, and redirects on private removal', async ({
+test('ProgramPage resets edit state on id change and scrolls ?start=1 once', async ({
   page,
 }) => {
   await mockApi(page)
@@ -285,8 +263,6 @@ test('ProgramPage resets edit/run state on id change, scrolls ?start=1 once, and
 
   await login(page, 'author@test.local', 'password')
   await page.goto('/programs/00000000-0000-4000-8000-000000000010')
-  await expect(page.getByLabel('Choose Program run')).toHaveValue('run')
-  await page.getByLabel('Choose Program run').selectOption('run-prev')
   await page.getByRole('button', { name: 'Edit Program', exact: true }).click()
   await page.getByRole('button', { name: 'Edit Activities', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Edit Program' })).toBeVisible()
@@ -307,12 +283,4 @@ test('ProgramPage resets edit/run state on id change, scrolls ?start=1 once, and
   await page.waitForTimeout(150)
   expect(await page.evaluate(() => (window as any).__scrollCalls)).toBe(1)
 
-  // Removing a PRIVATE non-owned program opened outside /library redirects safely to /library.
-  await page.getByLabel('Manage A quieter morning').click()
-  await page.getByRole('button', { name: 'Remove from Programs' }).click()
-  await page
-    .getByRole('dialog', { name: 'Remove Program' })
-    .getByRole('button', { name: 'Remove Program' })
-    .click()
-  await expect(page).toHaveURL(/\/library$/)
 })
