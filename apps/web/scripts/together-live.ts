@@ -175,7 +175,7 @@ try {
   const v2 = (await alice('POST', `/programs/${programId}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })).latestPublishedVersionId
   if (v2 === v1) throw new Error('v2 was not published')
   await bob('POST', `/enrollments/${enrollment.bob}/accept-update`)
-  const versions = await db.programEnrollment.findMany({ where: { programId, status: 'ACTIVE' }, select: { userId: true, programVersionId: true, groupId: true } })
+  const versions: Array<{ userId: string; programVersionId: string; groupId: string | null }> = await db.programEnrollment.findMany({ where: { programId, status: 'ACTIVE' }, select: { userId: true, programVersionId: true, groupId: true } })
   const mixed = versions.map((v) => `${v.userId === ids.bob ? 'bob' : v.userId === ids.carol ? 'carol' : 'dave'}:${v.programVersionId === v2 ? 'v2' : 'v1'}:${v.groupId === group.id}`).sort()
   if (mixed.join() !== 'bob:v2:true,carol:v1:true,dave:v1:true') throw new Error(`unexpected setup: ${mixed}`)
 
