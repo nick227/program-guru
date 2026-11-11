@@ -5,6 +5,7 @@
 import { createHash } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs'
 import { dirname, join, resolve } from 'path'
+import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 
 export const MANIFEST_VERSION = 2
 
@@ -102,6 +103,70 @@ export function localSink(root = resolve(process.env.STORAGE_DIR ?? join(repoRoo
       writeFileSync(path, bytes)
     },
   }
+}
+
+/** Verifies every committed asset in manifest.json exists on disk and matches its byteSize + SHA-256. */
+export function verifyPlatformAssetChecksums() {
+  const m = loadManifest()
+  const entries = [
+    ...Object.entries(m.assets).flatMap(([slug, a]) => [
+      { label: `assets.${slug}.original`, file: a.original },
+      { label: `assets.${slug}.thumb`, file: a.thumb },
+    ]),
+    ...Object.entries(m.programCovers ?? {}).flatMap(([slug, c]) => [
+      { label: `programCovers.${slug}.original`, file: c.original },
+      { label: `programCovers.${slug}.thumb`, file: c.thumb },
+    ]),
+  ]
+  for (const { label, file } of entries) {
+    const abs = join(ASSET_DIR, file.file)
+    if (!existsSync(abs)) throw new Error(`Missing platform asset (${label}): ${abs}`)
+    const bytes = readFileSync(abs)
+    const digest = createHash('sha256').update(bytes).digest('hex')
+    if (bytes.length !== file.bytes || digest !== file.sha256) {
+      throw new Error(`Checksum mismatch for platform asset (${label}): ${abs}`)
+    }
+  }
+  return entries.length
+}
+
+/** S3-compatible / Cloudflare R2 / Railway Bucket sink using the standard STORAGE_PROVIDER=r2 env vars. */
+export function r2Sink(env: NodeJS.ProcessEnv = process.env): PlatformMediaSink {
+  const bucket = env.R2_BUCKET
+  const accessKeyId = env.R2_ACCESS_KEY_ID
+  const secretAccessKey = env.R2_SECRET_ACCESS_KEY
+  const endpoint = env.S3_ENDPOINT || (env.R2_ACCOUNT_ID ? `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : '')
+  if (!bucket || !accessKeyId || !secretAccessKey || !endpoint) {
+    throw new Error('R2 storage requires R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and S3_ENDPOINT or R2_ACCOUNT_ID')
+  }
+  const s3 = new S3Client({
+    region: env.S3_REGION || 'auto',
+    endpoint,
+    forcePathStyle: env.S3_FORCE_PATH_STYLE === 'true',
+    credentials: { accessKeyId, secretAccessKey },
+  })
+  return {
+    name: `r2:${bucket}`,
+    async size(key) {
+      try {
+        const res = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+        return res.ContentLength ?? null
+      } catch (err) {
+        const details = err as { code?: string; name?: string; $metadata?: { httpStatusCode?: number } } | null
+        const code = details?.code ?? details?.name
+        if (details?.$metadata?.httpStatusCode === 404 || code === 'NoSuchKey' || code === 'NotFound' || code === '404') return null
+        throw err
+      }
+    },
+    async put(key, bytes, mime) {
+      await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentLength: bytes.length, ContentType: mime }))
+    },
+  }
+}
+
+export function configuredSink(env: NodeJS.ProcessEnv = process.env): PlatformMediaSink {
+  if (env.STORAGE_PROVIDER === 'r2') return r2Sink(env)
+  return localSink(resolve(env.STORAGE_DIR ?? join(repoRoot(), 'uploads')))
 }
 
 /**

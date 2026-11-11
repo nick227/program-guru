@@ -4,7 +4,7 @@
 // transaction (all or nothing) and is replay-safe through its idempotency key.
 import { randomUUID } from 'crypto'
 import { db, type Prisma, type ProgramLevel } from '@project/db'
-import { PROGRAM_LEVELS } from '@project/shared'
+import { isValidMinutes, isValidTargetTime, PROGRAM_LEVELS, validateFrequencyRule, type ContentIssue } from '@project/shared'
 import { badRequest } from '../../lib/errors'
 import { requestHash, withIdempotency } from '../../lib/idempotency'
 import { isOpenlyReadable } from '../activities/access'
@@ -18,6 +18,9 @@ export type ImportActivity = {
   ref?: string
   title?: string
   summary?: string | null
+  durationMinutes?: number | null
+  targetTime?: string | null
+  frequency?: Frequency
   category?: string
   focuses?: string[]
   instructions?: { title?: string | null; body?: string | null }[]
@@ -40,7 +43,7 @@ export type ImportProgram = {
 }
 export type ImportInput = { dryRun?: boolean; idempotencyKey?: string; programs: ImportProgram[] }
 
-type Issue = { path: string; message: string }
+type Issue = ContentIssue
 const MAX_NEW_ACTIVITIES = 300
 const SCOPE = 'admin:import'
 const ITEM_SCOPE = 'admin:import:item'
@@ -98,7 +101,7 @@ async function check(input: ImportInput) {
     const focus = p.focus && type ? refs.focus(p.focus, type.categoryId) : null
     if (p.focus && type && !focus) add(`${at}.focus`, `no approved focus "${p.focus}"`)
     if (p.level && !PROGRAM_LEVELS.includes(p.level)) add(`${at}.level`, `invalid level "${p.level}"`)
-    if (p.sessionMinutes !== undefined && p.sessionMinutes !== null && (!Number.isInteger(p.sessionMinutes) || p.sessionMinutes < 1 || p.sessionMinutes > 1440)) {
+    if (p.sessionMinutes !== undefined && p.sessionMinutes !== null && !isValidMinutes(p.sessionMinutes)) {
       add(`${at}.sessionMinutes`, 'must be between 1 and 1440')
     }
     const tagIds = (p.tags ?? []).map((t, ti) => {
@@ -106,12 +109,14 @@ async function check(input: ImportInput) {
       if (!row) add(`${at}.tags.${ti}`, `no active tag "${t}"`)
       return row?.id ?? ''
     })
-    if (p.frequency?.kind === 'N_PER_WEEK' && !p.frequency.n) add(`${at}.frequency.n`, 'is required for N_PER_WEEK')
+    if (p.frequency) validateFrequencyRule(p.frequency, `${at}.frequency`, issues)
     const seen = new Set<string>()
     const activities = p.activities.map((a, ai) => {
       const aat = `${at}.activities.${ai}`
       if (a.ref) {
-        if (a.title || a.summary || a.category || a.focuses || a.instructions || a.metrics || a.tools) add(aat, 'use either ref or new Activity fields, not both')
+        if (a.title || a.summary || a.durationMinutes !== undefined || a.targetTime !== undefined || a.frequency || a.category || a.focuses || a.instructions || a.metrics || a.tools) {
+          add(aat, 'use either ref or new Activity fields, not both')
+        }
         const existing = refs.activity(a.ref)
         // Platform Activities, or anyone's openly published ones (the same rule as adding to a draft).
         const usable = existing && existing.status !== 'ARCHIVED' && (existing.creatorId === null || isOpenlyReadable(existing))
@@ -122,6 +127,13 @@ async function check(input: ImportInput) {
       }
       newActivities++
       if (!a.title?.trim()) add(`${aat}.title`, 'is required (or give ref)')
+      if (a.durationMinutes !== undefined && a.durationMinutes !== null && !isValidMinutes(a.durationMinutes)) {
+        add(`${aat}.durationMinutes`, 'must be between 1 and 1440')
+      }
+      if (a.targetTime !== undefined && a.targetTime !== null && !isValidTargetTime(a.targetTime)) {
+        add(`${aat}.targetTime`, 'must be HH:MM (24-hour)')
+      }
+      if (a.frequency) validateFrequencyRule(a.frequency, `${aat}.frequency`, issues)
       const category = a.category ? refs.category(a.category) : null
       if (a.category && !category) add(`${aat}.category`, `no category "${a.category}"`)
       const categoryId = category?.id ?? type?.categoryId ?? ''
@@ -162,20 +174,50 @@ type Plan = Awaited<ReturnType<typeof check>>['plan'][number]
 
 /** Writes one Program draft and its new Activities. Mirrors create/addActivities, inside the batch transaction. */
 async function writeProgram(tx: Prisma.TransactionClient, adminId: string, p: Plan) {
-  const order: { activityId: string; activityRevisionId: string }[] = []
+  const order: { activityId: string; activityRevisionId: string; frequency?: Frequency | null; localTime?: string | null }[] = []
   for (const a of p.activities) {
     if (a.kind === 'ref') {
       const existing = a.activity!
-      const latest = existing.creatorId === null ? await tx.activityRevision.findFirst({ where: { activityId: existing.id }, orderBy: { revisionNumber: 'desc' }, select: { id: true } }) : null
-      order.push({ activityId: existing.id, activityRevisionId: latest?.id ?? existing.latestPublishedRevisionId! })
+      const latest = existing.creatorId === null ? await tx.activityRevision.findFirst({ where: { activityId: existing.id }, orderBy: { revisionNumber: 'desc' }, select: { id: true, frequencySnapshot: true, targetTimeSnapshot: true } }) : null
+      const revId = latest?.id ?? existing.latestPublishedRevisionId!
+      const rev = latest ?? (await tx.activityRevision.findUnique({ where: { id: revId }, select: { frequencySnapshot: true, targetTimeSnapshot: true } }))
+      order.push({
+        activityId: existing.id,
+        activityRevisionId: revId,
+        frequency: (rev?.frequencySnapshot as Frequency | null) ?? null,
+        localTime: rev?.targetTimeSnapshot ?? null,
+      })
       continue
     }
     const title = a.input.title!.trim()
     const summary = a.input.summary?.trim() || null
+    const durationMinutes = a.input.durationMinutes ?? null
+    const targetTime = a.input.targetTime ?? null
+    const frequency = (a.input.frequency ?? undefined) as Prisma.InputJsonValue | undefined
     const activity = await tx.activity.create({
-      data: { creatorId: null, categoryId: a.categoryId, title, summary, focuses: { create: a.focusIds.map((focusId) => ({ focusId })) } },
+      data: {
+        creatorId: null,
+        categoryId: a.categoryId,
+        title,
+        summary,
+        durationMinutes,
+        targetTime,
+        frequency,
+        focuses: { create: a.focusIds.map((focusId) => ({ focusId })) },
+      },
     })
-    const rev = await tx.activityRevision.create({ data: { activityId: activity.id, revisionNumber: 1, titleSnapshot: title, summarySnapshot: summary, editorId: adminId } })
+    const rev = await tx.activityRevision.create({
+      data: {
+        activityId: activity.id,
+        revisionNumber: 1,
+        titleSnapshot: title,
+        summarySnapshot: summary,
+        durationMinutesSnapshot: durationMinutes,
+        targetTimeSnapshot: targetTime,
+        frequencySnapshot: frequency,
+        editorId: adminId,
+      },
+    })
     for (const [position, i] of (a.input.instructions ?? []).entries()) {
       await tx.instruction.create({ data: { activityRevisionId: rev.id, instructionKey: randomUUID(), position, title: i.title?.trim() || null, body: i.body || null } })
     }
@@ -186,7 +228,7 @@ async function writeProgram(tx: Prisma.TransactionClient, adminId: string, p: Pl
       await tx.activityTool.create({ data: { activityRevisionId: rev.id, toolDefinitionId, position } })
     }
     await allocateActivitySlug(tx, { activityId: activity.id, title })
-    order.push({ activityId: activity.id, activityRevisionId: rev.id })
+    order.push({ activityId: activity.id, activityRevisionId: rev.id, frequency: a.input.frequency ?? null, localTime: targetTime })
   }
   const title = p.input.title.trim()
   const description = p.input.description?.trim() || null

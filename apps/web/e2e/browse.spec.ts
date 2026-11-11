@@ -45,6 +45,9 @@ function makeProgram(index: number, overrides: Record<string, unknown> = {}) {
     title: `Program ${index}`,
     type: typeWorkout,
     focus: focusStrength,
+    level: 'ALL_LEVELS',
+    sessionMinutes: null,
+    tags: [],
     creator: {
       id: uid(500),
       handle: 'coach',

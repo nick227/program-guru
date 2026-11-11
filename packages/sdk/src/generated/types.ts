@@ -4437,6 +4437,9 @@ export interface components {
             ref?: string;
             title?: string;
             summary?: string | null;
+            durationMinutes?: number | null;
+            targetTime?: string | null;
+            frequency?: components["schemas"]["Frequency"];
             category?: string;
             focuses?: string[];
             instructions?: {

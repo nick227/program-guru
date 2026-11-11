@@ -175,7 +175,16 @@ export type ContentIssue = {
 }
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+export const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+export const MAX_MINUTES_PER_DAY = 1440
+
+export function isValidTargetTime(value: string): boolean {
+  return HHMM_RE.test(value)
+}
+
+export function isValidMinutes(value: number): boolean {
+  return Number.isInteger(value) && value >= 1 && value <= MAX_MINUTES_PER_DAY
+}
 
 /** Ergonomic builder for registering a self-contained Category with its Focuses and ProgramTypes. */
 export function defineCategory<T extends CategoryDefinition>(definition: T): T {
@@ -294,9 +303,13 @@ export function validateTaxonomy(
   return issues
 }
 
-function validateFrequency(freq: FrequencyRule, path: string, issues: ContentIssue[]) {
+export function validateFrequencyRule(
+  freq: { kind: string; n?: number | null; offsets?: number[] | null },
+  path: string,
+  issues: ContentIssue[],
+) {
   if (freq.kind === 'N_PER_WEEK') {
-    if (!Number.isInteger(freq.n) || freq.n < 1 || freq.n > 7) {
+    if (freq.n == null || !Number.isInteger(freq.n) || freq.n < 1 || freq.n > 7) {
       issues.push({ path: `${path}.n`, message: 'N_PER_WEEK requires an integer between 1 and 7' })
     }
   } else if (freq.kind === 'CUSTOM' && freq.offsets) {
@@ -341,13 +354,13 @@ export function validateContentPack(
         issues.push({ path: `${path}.focusSlugs.${fi}`, message: `Focus "${fSlug}" does not exist in "${act.categorySlug}"` })
       }
     })
-    if (act.durationMinutes != null && (!Number.isInteger(act.durationMinutes) || act.durationMinutes <= 0)) {
-      issues.push({ path: `${path}.durationMinutes`, message: 'durationMinutes must be a positive integer' })
+    if (act.durationMinutes != null && !isValidMinutes(act.durationMinutes)) {
+      issues.push({ path: `${path}.durationMinutes`, message: `durationMinutes must be an integer between 1 and ${MAX_MINUTES_PER_DAY}` })
     }
-    if (act.targetTime != null && !HHMM_RE.test(act.targetTime)) {
+    if (act.targetTime != null && !isValidTargetTime(act.targetTime)) {
       issues.push({ path: `${path}.targetTime`, message: 'targetTime must be HH:MM (24-hour)' })
     }
-    if (act.frequency) validateFrequency(act.frequency, `${path}.frequency`, issues)
+    if (act.frequency) validateFrequencyRule(act.frequency, `${path}.frequency`, issues)
 
     if (act.instructions.length === 0) {
       issues.push({ path: `${path}.instructions`, message: 'At least one instruction step is required' })
@@ -398,8 +411,8 @@ export function validateContentPack(
     if (prog.level && !PROGRAM_LEVELS.includes(prog.level)) {
       issues.push({ path: `${path}.level`, message: `Invalid program level "${prog.level}"` })
     }
-    if (prog.sessionMinutes != null && (!Number.isInteger(prog.sessionMinutes) || prog.sessionMinutes <= 0)) {
-      issues.push({ path: `${path}.sessionMinutes`, message: 'sessionMinutes must be a positive integer' })
+    if (prog.sessionMinutes != null && !isValidMinutes(prog.sessionMinutes)) {
+      issues.push({ path: `${path}.sessionMinutes`, message: `sessionMinutes must be an integer between 1 and ${MAX_MINUTES_PER_DAY}` })
     }
     (prog.tagSlugs ?? []).forEach((tagSlug, ti) => {
       if (!tagSet.has(tagSlug)) issues.push({ path: `${path}.tagSlugs.${ti}`, message: `Unknown tag "${tagSlug}"` })
@@ -407,7 +420,7 @@ export function validateContentPack(
     if (prog.durationDays != null && (!Number.isInteger(prog.durationDays) || prog.durationDays <= 0)) {
       issues.push({ path: `${path}.durationDays`, message: 'durationDays must be null or a positive integer' })
     }
-    validateFrequency(prog.frequency, `${path}.frequency`, issues)
+    validateFrequencyRule(prog.frequency, `${path}.frequency`, issues)
 
     const declaredSlugs = new Set(prog.activitySlugs)
     if (prog.activitySlugs.length === 0) {
@@ -431,10 +444,10 @@ export function validateContentPack(
       } else if (prog.durationDays != null && pl.relativeDay > prog.durationDays) {
         issues.push({ path: `${plPath}.relativeDay`, message: `relativeDay ${pl.relativeDay} exceeds durationDays ${prog.durationDays}` })
       }
-      if (pl.localTime != null && !HHMM_RE.test(pl.localTime)) {
+      if (pl.localTime != null && !isValidTargetTime(pl.localTime)) {
         issues.push({ path: `${plPath}.localTime`, message: 'localTime must be HH:MM (24-hour)' })
       }
-      if (pl.frequency) validateFrequency(pl.frequency, `${plPath}.frequency`, issues)
+      if (pl.frequency) validateFrequencyRule(pl.frequency, `${plPath}.frequency`, issues)
     })
   })
 

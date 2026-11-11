@@ -11,6 +11,8 @@ export { METRIC_DEFINITIONS, TOOL_DEFINITIONS, ACHIEVEMENT_DEFINITIONS } from '.
 export { RETIRED_ACTIVITY_SLUGS, RETIRED_STARTER_PROGRAM_SLUGS, retireObsoletePlatformSeeds } from './seed/retire'
 export { deterministicUuid } from './seed/utils'
 export { DEV_ADMIN, seedDatabase, seedDevAdmin } from './seed/writer'
+export { seedDemoFixtures } from './seed/fixtures'
+export { bootstrapDatabase, checkDatabaseConsistency, inspectMigrations, validateBootstrapPack } from './seed/bootstrap'
 
 const isMain = Boolean(process.argv[1]?.replace(/\\/g, '/').endsWith('prisma/seed.ts'))
 if (isMain) {

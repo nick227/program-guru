@@ -24,11 +24,10 @@ console.log('🚀 Bootstrapping project...\n')
 
 run('pnpm install', 'Install dependencies')
 run('pnpm --filter @project/db exec prisma generate', 'Generate Prisma client')
-run('pnpm db:deploy', 'Apply database migrations')
 run('pnpm sdk:generate', 'Generate SDK types from OpenAPI spec')
 run('pnpm pages:generate', 'Generate page stubs from spec')
 run('pnpm test:generate', 'Generate test stubs from spec')
-run('pnpm db:seed', 'Seed development data')
+run('pnpm db:bootstrap -- --fixtures=demo', 'Migrate, sync catalog/media, and load demo fixtures')
 
 console.log('\n✅  Bootstrap complete.')
 console.log('   Run `pnpm dev` to start the app.')

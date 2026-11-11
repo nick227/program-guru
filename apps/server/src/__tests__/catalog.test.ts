@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { db, deterministicUuid, seedDatabase } from '@project/db'
+import { bootstrapDatabase, checkDatabaseConsistency, db, deterministicUuid, seedDatabase } from '@project/db'
+import { assertLocalResetAllowed } from '@project/db/prisma/seed/bootstrap'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 import { contractCase } from './helpers/contract'
@@ -142,6 +143,35 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
     expect((await db.program.findUniqueOrThrow({ where: { id: obsoleteProg.id } })).status).toBe('ARCHIVED')
     expect((await db.activity.findUniqueOrThrow({ where: { id: obsoleteAct.id } })).status).toBe('ARCHIVED')
     expect(await db.programEnrollment.count({ where: { programId: obsoleteProg.id, userId: testUserId } })).toBe(1)
+  }, 30000)
+
+  it('unified bootstrapDatabase is idempotent with opt-in demo fixtures and read-only check mode', async () => {
+    const first = await bootstrapDatabase({ prisma: db, mode: 'sync', fixtures: 'demo', skipMigrate: true })
+    if (first.mode === 'check') throw new Error('expected sync result')
+    expect(first.catalog).toMatchObject({ categories: 6, activities: 25, starterPrograms: 5 })
+    expect(first.fixtures).toMatchObject({ demoUsers: 2, groups: 1, enrollments: 2 })
+    expect(first.counts).toMatchObject({
+      managedProgramsActive: 5,
+      managedActivitiesActive: 25,
+      groups: 1,
+      enrollments: 2,
+    })
+
+    // Second run produces zero duplicates and uploads zero media files.
+    const second = await bootstrapDatabase({ prisma: db, mode: 'sync', fixtures: 'demo', skipMigrate: true })
+    if (second.mode === 'check') throw new Error('expected sync result')
+    expect(second.catalog.platformMediaUploaded).toBe(0)
+    expect(second.counts).toEqual(first.counts)
+
+    // Read-only check mode passes without mutations.
+    const checked = await checkDatabaseConsistency(db)
+    expect(checked.ok).toBe(true)
+    expect(checked.problems).toEqual([])
+
+    // Reset guard refuses production, Railway, and non-local hosts.
+    expect(() => assertLocalResetAllowed({ NODE_ENV: 'production', DATABASE_URL: 'mysql://u:p@127.0.0.1:3307/db' })).toThrow()
+    expect(() => assertLocalResetAllowed({ RAILWAY_ENVIRONMENT: 'production', DATABASE_URL: 'mysql://u:p@127.0.0.1:3307/db' })).toThrow()
+    expect(() => assertLocalResetAllowed({ DATABASE_URL: 'mysql://u:p@db.internal:3306/db' })).toThrow()
   }, 30000)
 })
 
