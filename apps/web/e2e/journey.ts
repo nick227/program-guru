@@ -64,13 +64,13 @@ export async function journey(
   ).toBeVisible()
   await login(page, ...credentials.participant)
   await page.goto(publishedPath)
-  // The hero CTA leads to the one Start Program section: a start date, then start (13 §4).
-  const start = page.getByRole('region', { name: 'Start Program' })
-  await start.getByLabel('Start date').fill('2026-11-09')
-  await start.getByRole('button', { name: 'Start Program', exact: true }).click()
-  await expect(page).toHaveURL(/day=2026-11-09/)
+  // One click starts the Program today and stays on the page (13 §4).
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  await page.getByRole('button', { name: 'Start Program', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Program Added', exact: true })).toBeDisabled()
   // Day view lists every item (month cells cap at four; live accounts accumulate runs).
-  await page.goto('/?view=day&day=2026-11-09')
+  await page.goto(`/?view=day&day=${today}`)
   // Scope to this run's Program title — live DB accumulates prior enrollments.
   // Tile links are named "<Activity>, <Program>, <status> — open activity".
   const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -85,12 +85,12 @@ export async function journey(
   await page.getByRole('button', { name: 'Mark as Complete', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
   // Completion stays on the Occurrence; the Calendar shows it, and Undo lives on the Occurrence.
-  await page.goto('/?view=day&day=2026-11-09')
+  await page.goto(`/?view=day&day=${today}`)
   await expect(tile('Completed')).toBeVisible()
   await tile('Completed').click()
   await page.getByRole('button', { name: 'Undo completion', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'To do' })).toBeVisible()
-  await page.goto('/?view=day&day=2026-11-09')
+  await page.goto(`/?view=day&day=${today}`)
   await expect(tile('Pending')).toBeVisible()
   await page.reload()
   await expect(tile('Pending')).toBeVisible()

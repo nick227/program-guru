@@ -65,11 +65,14 @@
 
 **Purpose:** Decide whether to join/unlock a Program with minimal scrolling and no ambiguity between purchasing, enrollment and following the creator.
 
-**Visual hierarchy:** cover media → Program title, creator and follow affordance → focus/duration/frequency → compact Activity summary with instruction/media counts → schedule preview → participant signals/reviews if genuine → price/access → **one primary CTA** (`Join Free`, `Request Access`, `Buy Program`, `Subscribe`).
+**Visual hierarchy:** cover media → Program title, creator and follow affordance → focus/duration/frequency → compact Activity summary with instruction/media counts → schedule preview → participant signals/reviews if genuine → price/access → **one primary CTA** (`Start Program`, `Run It Again`, `Request Access`, `Buy Program`, `Subscribe`).
+
+- **Start:** `Start Program` schedules the Program from today with one click, without a date picker, confirmation or redirect. The button disables on click and reads `Program Added` (disabled) for the rest of the visit while the page refreshes its participation data.
+- **Repeat:** a person who has started the Program before sees `Run It Again`, which adds another run from today the same way (`07-PROGRAMS.md` runs). Under the button, compact chips list previous run start dates (e.g. `Nov 10 · Oct 12`), each opening that date on the Calendar. No separate start or schedule section.
 
 - Show previewable material without leaking locked premium content. Public listing does not imply access to private assets.
 - Show one-time vs monthly price and renewal/cancellation conditions clearly before payment; use server-authoritative entitlements for access.
-- On join, automatically generate editable schedule entries on the user's personal weekly calendar. Let users review scheduling conflicts; retain manual drag/drop overrides.
+- On start, automatically generate editable schedule entries on the user's personal calendar. Let users review scheduling conflicts; retain manual drag/drop overrides.
 - If a creator publishes a new Program version, an existing participant remains pinned to their adopted version until explicitly accepting an update.
 - A group invitation or friend link can land here, but joining a Program and joining a collaborative group are distinct actions.
 

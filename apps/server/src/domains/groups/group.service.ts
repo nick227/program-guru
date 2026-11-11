@@ -45,7 +45,7 @@ async function toDetail(groupId: string, userId: string) {
   const g = await db.programGroup.findUniqueOrThrow({ where: { id: groupId }, include: { version: true } })
   const members = await db.groupMember.findMany({ where: { groupId, status: 'ACTIVE' }, include: { user: { include: { profile: true } } }, orderBy: { createdAt: 'asc' } })
   const me = members.find((m) => m.userId === userId)
-  const mine = await db.programEnrollment.findFirst({ where: { userId, groupId, status: { in: ['ACTIVE', 'PAUSED'] } } })
+  const mine = await db.programEnrollment.findFirst({ where: { userId, groupId, status: { in: ['ACTIVE', 'PAUSED'] } } , orderBy: { createdAt: 'desc' } })
   const shared = g.mode === 'SYNC' && g.startLocalDate ? fromDbDate(g.startLocalDate) : null
   return {
     ...(await toSummary(g, userId)),
@@ -67,7 +67,7 @@ async function toDetail(groupId: string, userId: string) {
  * statuses, results) is never changed.
  */
 async function linkEnrollment(tx: Prisma.TransactionClient, userId: string, group: ProgramGroup & { version: { programId: string } }) {
-  const e = await tx.programEnrollment.findFirst({ where: { userId, programId: group.version.programId, status: { in: ['ACTIVE', 'PAUSED'] } } })
+  const e = await tx.programEnrollment.findFirst({ where: { userId, programId: group.version.programId, status: { in: ['ACTIVE', 'PAUSED'] } } , orderBy: { createdAt: 'desc' } })
   if (!e) return
   await tx.programEnrollment.update({ where: { id: e.id }, data: { groupId: group.id } })
   const items = await tx.calendarItem.findMany({
@@ -132,7 +132,7 @@ export async function listMine(userId: string, query: PageQuery) {
 export async function create(userId: string, input: { programVersionId: string; name?: string | null; mode: 'SYNC' | 'ASYNC'; startLocalDate?: string | null; timezone?: string }) {
   const version = await db.programVersion.findUnique({ where: { id: input.programVersionId }, include: { program: true } })
   if (!version?.publishedAt || !(await canSeeProgram(userId, version.program))) throw notFound('Program')
-  const enrolled = await db.programEnrollment.findFirst({ where: { userId, programId: version.programId, status: { in: ['ACTIVE', 'PAUSED'] } } })
+  const enrolled = await db.programEnrollment.findFirst({ where: { userId, programId: version.programId, status: { in: ['ACTIVE', 'PAUSED'] } } , orderBy: { createdAt: 'desc' } })
   // 10 §3: created by an enrolled participant or the Program owner.
   if (!enrolled && !isProgramOwner(version.program, userId)) throw forbidden('Join this program before starting a group')
   if (enrolled?.groupId) throw conflict('You are already following this program with a group')
@@ -335,7 +335,7 @@ async function joinState(viewerId: string | null, inv: InvitationRow) {
   if (!viewerId) return state('SIGN_IN_REQUIRED')
   if (!openForJoins(group) || !(await addressedTo(viewerId, inv)) || (await isBlockedEitherWay(viewerId, group.ownerId))) return state('UNAVAILABLE')
   const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: group.id, userId: viewerId } } })
-  const enrollment = await db.programEnrollment.findFirst({ where: { userId: viewerId, programId: program.id, status: { in: [...LIVE_ENROLLMENT] } } })
+  const enrollment = await db.programEnrollment.findFirst({ where: { userId: viewerId, programId: program.id, status: { in: [...LIVE_ENROLLMENT] } } , orderBy: { createdAt: 'desc' } })
   if (member?.status === 'ACTIVE') return state('ALREADY_MEMBER', enrollment?.groupId === group.id ? enrollment : null)
   // A removed member needs a fresh invitation from the owner; a reusable link is not one.
   if (member?.status === 'REMOVED' && inv.kind === 'LINK') return state('UNAVAILABLE')

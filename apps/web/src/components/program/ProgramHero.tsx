@@ -1,9 +1,10 @@
 import { formatProgramDuration } from '@/components/program-authoring/programFields'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowLeft,
   Calendar,
+  Check,
   Layers,
   Pencil,
   Tag,
@@ -43,6 +44,13 @@ export interface ProgramHeroProps {
   backTo?: string
   backLabel?: string
   onPrimary?: () => void
+  /** Disables the primary action (in flight, unavailable, or already done this visit). */
+  primaryDisabled?: boolean
+  primaryLoading?: boolean
+  /** Shows a check instead of the play icon, e.g. "Program Added". */
+  primaryDone?: boolean
+  /** Compact content under the action row, e.g. previous run dates. */
+  primaryNote?: ReactNode
   onShare?: () => void
   onDoTogether?: () => void
   onEditProgram?: () => void
@@ -71,6 +79,10 @@ export function ProgramHero({
   backTo,
   backLabel = 'Community',
   onPrimary,
+  primaryDisabled = false,
+  primaryLoading = false,
+  primaryDone = false,
+  primaryNote,
   onShare,
   onEditProgram,
   editLabel = 'Edit Program',
@@ -208,8 +220,19 @@ export function ProgramHero({
           {/* Action Hierarchy */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
             {primaryLabel && onPrimary && (
-              <Button size="lg" onClick={onPrimary} className="gap-2 px-7 text-base font-bold shadow-md hover:shadow-lg transition-all">
-                <Play size={18} className="translate-x-0.5 fill-current" />
+              <Button
+                size="lg"
+                onClick={onPrimary}
+                disabled={primaryDisabled}
+                loading={primaryLoading}
+                className="gap-2 px-7 text-base font-bold shadow-md hover:shadow-lg transition-all"
+              >
+                {!primaryLoading &&
+                  (primaryDone ? (
+                    <Check size={18} strokeWidth={2.5} aria-hidden />
+                  ) : (
+                    <Play size={18} className="translate-x-0.5 fill-current" aria-hidden />
+                  ))}
                 <span>{primaryLabel}</span>
               </Button>
             )}
@@ -246,7 +269,7 @@ export function ProgramHero({
               <span>Share</span>
             </Button>
           </div>
-          
+          {primaryNote}
         </div>
 
         {/* Right Column: Clean Framed Artwork */}

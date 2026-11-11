@@ -63,23 +63,16 @@ test('Library browser keeps filters and cached content through discovery and par
   await page
     .getByRole('button', { name: 'View Program: Beginner Strength' })
     .click()
-  // The hero's primary action leads to the Start section, whose button joins on the chosen date.
-  await page
-    .getByRole('region', { name: 'Beginner Strength hero' })
-    .getByRole('button', { name: 'Start Program' })
-    .click()
-  await page
-    .getByRole('region', { name: 'Start Program' })
-    .getByRole('button', { name: 'Start Program', exact: true })
-    .click()
-  await expect(
-    page.getByRole('heading', { name: 'Calendar', exact: true }),
-  ).toBeVisible()
+  // One click starts today and stays on the Program; the button then reads "Program Added" (13 §4).
+  const hero = page.getByRole('region', { name: 'Beginner Strength hero' })
+  await hero.getByRole('button', { name: 'Start Program' }).click()
+  await expect(hero.getByRole('button', { name: 'Program Added' })).toBeDisabled()
+  await expect(page).toHaveURL(/\/programs\//)
   expect(
-    requests.some(
+    requests.filter(
       (r) => r.path.endsWith('/enrollments') && r.method === 'POST',
     ),
-  ).toBe(true)
+  ).toHaveLength(1)
   expect(await page.evaluate(() => (window as any).__spaMarker)).toBe(
     'same-document',
   )
@@ -157,9 +150,9 @@ test('published owned Programs start through enrollment and fit tablet widths', 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   const own = page.locator('tbody tr').filter({ hasText: 'Strength, with intention' })
   await own.getByRole('link', { name: 'Start', exact: true }).click()
-  // Start opens the Program at its Start section (?start=1), where the date is chosen.
+  // Start opens the Program (?start=1) at its one-click Start Program action.
   await expect(page).toHaveURL(/[?&]start=1/)
-  await expect(page.getByRole('region', { name: 'Start Program' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start Program', exact: true })).toBeVisible()
   expect(requests.some(r => r.path.endsWith('/publish') && r.method === 'POST')).toBe(false)
 })
 

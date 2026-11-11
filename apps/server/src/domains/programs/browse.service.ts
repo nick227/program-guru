@@ -33,11 +33,12 @@ export async function preview(viewerId: string | null, programId: string, opts: 
   }
   const [stat, mine] = await Promise.all([
     db.programStat.findUnique({ where: { programId } }),
-    viewerId ? db.programEnrollment.findFirst({ where: { userId: viewerId, programId, status: { in: ['ACTIVE', 'PAUSED', 'PENDING_ACCESS'] } } }) : null,
+    viewerId ? db.programEnrollment.findFirst({ where: { userId: viewerId, programId, status: { in: ['ACTIVE', 'PAUSED', 'PENDING_ACCESS'] } }, orderBy: { createdAt: 'desc' } }) : null,
   ])
   const sampleOk = (stat?.enrollmentCount ?? 0) >= MIN_PUBLIC_SAMPLE
   const mode = p.policy?.accessMode ?? 'OPEN'
-  const joinable = p.status === 'PUBLISHED' && !!version && !mine
+  // A Program can be run again while an earlier run is live (07 Runs).
+  const joinable = p.status === 'PUBLISHED' && !!version
   const owner = isProgramOwner(p, viewerId)
   return {
     ...toProgramSummary(p, access),

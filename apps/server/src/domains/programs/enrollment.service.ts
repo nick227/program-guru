@@ -1,7 +1,7 @@
 // Joining and following a Program (07-PROGRAMS.md §4–6, 09-CALENDARS.md §4).
 // Enrollment = participation; AccessGrant = entitlement; billing lives elsewhere. Never conflated.
 import { db, type Prisma, type ProgramEnrollment } from '@project/db'
-import { AppError, badRequest, conflict, forbidden, notFound } from '../../lib/errors'
+import { AppError, badRequest, forbidden, notFound } from '../../lib/errors'
 import { withIdempotency } from '../../lib/idempotency'
 import { enqueue } from '../../lib/outbox'
 import { afterCursor, offsetArgs, pageArgs, pageOrder, toOffsetPage, toPage, type PageQuery } from '../../lib/paging'
@@ -131,25 +131,20 @@ export async function enrollInTx(
       update: { revokedAt: null },
     })
   }
-  let e: ProgramEnrollment
-  try {
-    e = await tx.programEnrollment.create({
-      data: {
-        userId,
-        programId,
-        programVersionId: version.id,
-        groupId: input.groupId,
-        startLocalDate: toDbDate(input.startLocalDate),
-        participationStartDate: toDbDate(todayIn(input.timezone)),
-        timezone: input.timezone,
-        status: 'ACTIVE',
-        activeKey: activeKey(userId, programId),
-      },
-    })
-  } catch (err: any) {
-    if (err?.code === 'P2002') throw conflict('You are already following this program')
-    throw err
-  }
+  // Each start is a new run (07 Runs); duplicate submissions are stopped by the join idempotency key.
+  const e: ProgramEnrollment = await tx.programEnrollment.create({
+    data: {
+      userId,
+      programId,
+      programVersionId: version.id,
+      groupId: input.groupId,
+      startLocalDate: toDbDate(input.startLocalDate),
+      participationStartDate: toDbDate(todayIn(input.timezone)),
+      timezone: input.timezone,
+      status: 'ACTIVE',
+      activeKey: activeKey(userId, programId),
+    },
+  })
   await materializeEnrollment(tx, e, version, version.items, { through: addDays(todayIn(input.timezone), HORIZON_DAYS) })
   await enqueue(tx, 'EnrollmentCreated', { enrollmentId: e.id, userId, programId, groupId: e.groupId })
   return e

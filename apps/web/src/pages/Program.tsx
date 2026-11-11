@@ -23,7 +23,6 @@ import { SubHeader } from '@/components/shared/SubHeader'
 import { buildProgramBreadcrumbs } from '@/lib/breadcrumbs'
 import { ProgramHero } from '@/components/program/ProgramHero'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
-import { ProgramSchedulePreview } from '@/components/program/ProgramSchedulePreview'
 import { ProgramTogether } from '@/components/program/ProgramTogether'
 import {
   ProgramPersonalDetailsGrid,
@@ -40,11 +39,11 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { enrollmentStatusText } from '@/components/ui/StatusText'
 import {
   calendarUrl,
+  dateLabel,
   isLocalDate,
   safeReturn,
   today,
 } from '@/lib/dates'
-import { hasSeenDailyEmailPrompt } from '@/lib/notifications'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { useResolveProgramTarget } from '@/lib/useResolveSlug'
@@ -78,7 +77,7 @@ export function ProgramPage() {
   const online = useOnline()
   const navigate = useNavigate()
 
-  const scheduleSectionRef = useRef<HTMLDivElement>(null)
+  const startRef = useRef<HTMLDivElement>(null)
   const ownerEditRef = useRef<HTMLDivElement>(null)
   const lastAutoScrollKey = useRef('')
 
@@ -125,18 +124,8 @@ export function ProgramPage() {
     me.data?.data.preferences.timezone ??
     Intl.DateTimeFormat().resolvedOptions().timeZone
 
+  // One click starts today (13 §4); a group invitation link may carry its group's start date.
   const requestedStartDate = params.get('startDate')
-  const [date, setDate] = useState(
-    requestedStartDate && isLocalDate(requestedStartDate)
-      ? requestedStartDate
-      : '',
-  )
-
-  useEffect(() => {
-    if (requestedStartDate && isLocalDate(requestedStartDate)) {
-      setDate(requestedStartDate)
-    }
-  }, [requestedStartDate])
 
   const autoScrollKey = params.get('start') === '1' && id ? `${id}:start=1` : ''
   useEffect(() => {
@@ -144,17 +133,17 @@ export function ProgramPage() {
       lastAutoScrollKey.current = ''
       return
     }
-    if (
-      autoScrollKey !== lastAutoScrollKey.current &&
-      p &&
-      !p.myEnrollmentId
-    ) {
+    // Programs can be run again (07 Runs), so ?start=1 leads to the start action whether or not a run exists.
+    if (autoScrollKey !== lastAutoScrollKey.current && p) {
       lastAutoScrollKey.current = autoScrollKey
-      scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+      startRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [autoScrollKey, p])
 
-  const start = date || today(tz)
+  const start =
+    requestedStartDate && isLocalDate(requestedStartDate) ? requestedStartDate : today(tz)
+  // "Program Added" holds for the rest of this visit; the key makes retries of this visit's start safe.
+  const [added, setAdded] = useState(false)
   const join = useJoinProgram(id)
   const enrollmentId = p?.myEnrollmentId || entry?.current?.id || ''
   const enrollment = useEnrollment(enrollmentId)
@@ -162,6 +151,11 @@ export function ProgramPage() {
   const acceptUpdate = useAcceptEnrollmentUpdate(enrollmentId)
   const dismissUpdate = useDismissEnrollmentUpdate(enrollmentId)
   const key = useRef(crypto.randomUUID())
+  // A different Program in the same page instance is a new visit: fresh button state and request key.
+  useEffect(() => {
+    setAdded(false)
+    key.current = crypto.randomUUID()
+  }, [id])
 
   const rawReturnTo = params.get('returnTo')
   const explicitReturnTo = rawReturnTo ? safeReturn(rawReturnTo, '/browse') : null
@@ -279,17 +273,23 @@ export function ProgramPage() {
             ? 'Subscribe'
             : 'Buy Program'
           : null
-  const primaryLabel = isPaused
-    ? 'Resume Schedule'
-    : isEnrolled
-      ? 'View Schedule'
-      : !signedIn
-        ? 'Sign in to join'
-        : isDraftOnly
-          ? 'Publish Program'
-          : p.canJoin && p.latestVersionId
-            ? (accessCta ?? 'Start Program')
-            : accessCta
+  const hasRun = isEnrolled || (entry?.runs.length ?? 0) > 0
+  const canStart = signedIn && !isDraftOnly && p.canJoin && !!p.latestVersionId
+  const primaryLabel = !signedIn
+    ? 'Sign in to join'
+    : isDraftOnly
+      ? 'Publish Program'
+      : canStart
+        ? added
+          ? 'Program Added'
+          : hasRun
+            ? 'Run It Again'
+            : 'Start Program'
+        : accessCta
+  // Previous runs as compact start-date chips, newest first (13 §4).
+  const runStarts = [...(entry?.runs ?? [])]
+    .sort((a, b) => b.startDate.localeCompare(a.startDate))
+    .slice(0, 6)
 
   const handleResume = async () => {
     if (!entry?.current) return
@@ -309,14 +309,6 @@ export function ProgramPage() {
   }
 
   const handlePrimary = () => {
-    if (isPaused) {
-      void handleResume()
-      return
-    }
-    if (isEnrolled) {
-      navigate('/')
-      return
-    }
     if (!signedIn) {
       navigate(`/login?returnTo=${encodeURIComponent(canonicalUrl)}`)
       return
@@ -325,29 +317,21 @@ export function ProgramPage() {
       openOwnerEditor()
       return
     }
-    scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (canStart && !added) void handleStartProgram()
   }
 
   const handleStartProgram = async () => {
+    if (join.isPending || added) return
     try {
       await join.mutateAsync({
         ...body,
         ...(groupIdParam ? { groupId: groupIdParam } : {}),
         idempotencyKey: key.current,
       })
-      toast.success('Program started')
-      const userId = me.data?.data.id ?? ''
-      const dailyEmailEnabled =
-        me.data?.data.preferences.notifications?.dailyEmail ?? false
-      const shouldOfferPrompt =
-        userId && !dailyEmailEnabled && !hasSeenDailyEmailPrompt(userId)
-      navigate(
-        shouldOfferPrompt
-          ? `${calendarUrl(start)}&promptReminder=1`
-          : calendarUrl(start),
-      )
+      setAdded(true)
+      toast.success('Program added to your Calendar')
     } catch {
-      // keep key and date for safe retry
+      // Keep the key so a retry of this visit's start cannot add a second run.
     }
   }
 
@@ -381,32 +365,54 @@ export function ProgramPage() {
       />
       <div className="mx-auto mt-6 page--width">
         {/* 01 — Program Hero */}
-        <ProgramHero
-          title={displayTitle}
-          description={displayDescription}
-          hero={displayHero}
-          durationDays={displayDurationDays}
-          frequencyLabel={displayFrequencyLabel}
-          activityCount={displayActivityCount}
-          categoryLabel={p.type.label}
-          creator={p.creator}
-          creatorReturnTo={currentUrl}
-          isPlatform={p.isPlatform}
-          isOwner={isOwner}
-          statusBadges={statusBadges}
-          primaryLabel={primaryLabel}
-          onPrimary={handlePrimary}
-          onEditProgram={
-            isOwner
-              ? () => {
-                  if (ws) setEditingProgram((prev) => !prev)
-                  else navigate(buildWorkspaceUrl(id))
-                }
-              : undefined
-          }
-          editLabel={editingProgram ? 'Close Editor' : 'Edit Program'}
-          editExpanded={ws ? editingProgram : undefined}
-        />
+        <div ref={startRef} className="scroll-mt-20">
+          <ProgramHero
+            title={displayTitle}
+            description={displayDescription}
+            hero={displayHero}
+            durationDays={displayDurationDays}
+            frequencyLabel={displayFrequencyLabel}
+            activityCount={displayActivityCount}
+            categoryLabel={p.type.label}
+            creator={p.creator}
+            creatorReturnTo={currentUrl}
+            isPlatform={p.isPlatform}
+            isOwner={isOwner}
+            statusBadges={statusBadges}
+            primaryLabel={primaryLabel}
+            onPrimary={handlePrimary}
+            primaryDisabled={signedIn && !isDraftOnly && (!canStart || added || join.isPending)}
+            primaryLoading={join.isPending}
+            primaryDone={added}
+            primaryNote={
+              runStarts.length > 0 && (
+                <nav aria-label="Previous runs" className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+                  <span className="mr-0.5 font-medium text-muted">Runs</span>
+                  {runStarts.map((run) => (
+                    <Link
+                      key={run.id}
+                      to={calendarUrl(run.startDate)}
+                      className="rounded-full border border-border bg-surface px-2.5 py-0.5 font-medium tabular-nums text-foreground transition-colors hover:border-accent hover:text-accent"
+                      title={`Run started ${dateLabel(run.startDate, { month: 'long', day: 'numeric', year: 'numeric' })}`}
+                    >
+                      {dateLabel(run.startDate)}
+                    </Link>
+                  ))}
+                </nav>
+              )
+            }
+            onEditProgram={
+              isOwner
+                ? () => {
+                    if (ws) setEditingProgram((prev) => !prev)
+                    else navigate(buildWorkspaceUrl(id))
+                  }
+                : undefined
+            }
+            editLabel={editingProgram ? 'Close Editor' : 'Edit Program'}
+            editExpanded={ws ? editingProgram : undefined}
+          />
+        </div>
 
         <ErrorMessage
           error={
@@ -661,64 +667,22 @@ export function ProgramPage() {
             selectedRun={selectedRun}
             currentUrl={currentUrl}
             onSetupSchedule={() =>
-              scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+              startRef.current?.scrollIntoView({ behavior: 'smooth' })
             }
           />
         )}
 
-        {/* 03 & 04 — Schedule & Share Program (Balanced 2-Column Section) */}
-        <div
-          ref={scheduleSectionRef}
-          className="grid grid-cols-1 gap-6 items-start md:grid-cols-2"
-        >
-          {/* 03 — Schedule */}
-          {isDraftOnly ? (
-            <section
-              aria-label="Draft program publishing"
-              className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-3"
-            >
-              <SectionHeader title="Start Program" className="pb-0" />
-              <p className="text-sm text-muted">
-                Publish this draft first to add it to your Calendar or share it with others.
-              </p>
-              <Button size="sm" onClick={openOwnerEditor}>
-                Review & Publish
-              </Button>
-            </section>
-          ) : (
-            <ProgramSchedulePreview
-              durationDays={displayDurationDays}
-              frequencyLabel={displayFrequencyLabel}
-              programDays={ws?.programDays ?? p.programDays}
-              placements={ws?.placements ?? p.placements}
-              activities={p.safeActivityOutline}
-              startDate={start}
-              onStartDateChange={(newDate) => {
-                setDate(newDate)
-                key.current = crypto.randomUUID()
-              }}
-              onStartProgram={handleStartProgram}
-              isStarting={join.isPending}
-              isEnrolled={isEnrolled}
-              signedIn={signedIn}
-              loginUrl={`/login?returnTo=${encodeURIComponent(canonicalUrl)}`}
-              timezone={tz}
-              onViewSchedule={() => navigate('/')}
-            />
-          )}
-
-          {/* 04 — Share Program */}
-          <ProgramTogether
-            programId={id}
-            groupId={groupId}
-            participantCount={
-              entry?.participation?.participantCount ?? p.enrollmentCount
-            }
-            completionRate={p.completionRate}
-            publicUrl={publicUrl}
-            returnTo={currentUrl}
-          />
-        </div>
+        {/* 03 — Share Program */}
+        <ProgramTogether
+          programId={id}
+          groupId={groupId}
+          participantCount={
+            entry?.participation?.participantCount ?? p.enrollmentCount
+          }
+          completionRate={p.completionRate}
+          publicUrl={publicUrl}
+          returnTo={currentUrl}
+        />
 
         <div className="flex justify-end">
           <ReportButton target={{ type: 'PROGRAM', id: p.id }} ownerId={p.creator?.id} />

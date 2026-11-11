@@ -770,8 +770,8 @@ model ProgramEnrollment {
   participationStartDate DateTime?        @db.Date
   timezone               String           @db.VarChar(64)
   status                 EnrollmentStatus @default(ACTIVE)
-  // `userId:programId` unless LEFT or COMPLETED: one live enrollment per Program
-  activeKey              String?          @unique @db.VarChar(80)
+  // `userId:programId` unless LEFT or COMPLETED. Not unique: a person may run a Program again (07 Runs).
+  activeKey              String?          @db.VarChar(80)
   generatedThroughDate   DateTime?        @db.Date
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt

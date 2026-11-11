@@ -45,10 +45,10 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   expect(program?.id).toBeTruthy()
 
   await page.goto(`/programs/${program.id}`)
-  await page.getByRole('button', { name: 'Join Free' }).click()
-  await page.getByRole('button', { name: 'Preview my calendar' }).click()
-  await page.getByRole('button', { name: 'Confirm & add to Calendar' }).click()
-  await expect(page).toHaveURL(/promptReminder=1/)
+  await page.getByRole('button', { name: /^(Start Program|Run It Again)$/ }).click()
+  await expect(page.getByRole('button', { name: 'Program Added' })).toBeDisabled()
+  // Starting no longer redirects (13 §4); the Calendar's reminder prompt is opened directly.
+  await page.goto('/?promptReminder=1')
 
   // One-time daily email prompt appears on Calendar after first adoption
   await expect(

@@ -1,6 +1,19 @@
 // Group invitation → enrollment → participation (10-COLLABORATION.md §3–4), over real HTTP:
 // the test app listens on an ephemeral port and every request goes through fetch.
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest'
+
+// Lets one test fail the enrollment transaction after its writes (EnrollmentCreated is enqueued last).
+const failEnrollment = vi.hoisted(() => ({ on: false }))
+vi.mock('../lib/outbox', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/outbox')>()
+  return {
+    ...actual,
+    enqueue: (async (...args: Parameters<typeof actual.enqueue>) => {
+      if (failEnrollment.on && args[1] === 'EnrollmentCreated') throw new Error('test: enrollment transaction fails')
+      return actual.enqueue(...args)
+    }) as typeof actual.enqueue,
+  }
+})
 import type { AddressInfo } from 'net'
 import { db } from '@project/db'
 import { buildTestApp, seedUser, validateResponse, testUserId as alice, testOtherUserId as bob } from './helpers'
@@ -377,19 +390,20 @@ describe('enrollment and schedule failures leave no partial membership', () => {
     const { programId, versionId } = await program()
     const g = await group(versionId)
     const inv = await inviteHandle(g.id, 'bob')
-    // A stale row holding Bob's live-enrollment key makes the enrollment insert fail mid-transaction.
-    await db.programEnrollment.create({ data: { userId: bob, programId, programVersionId: versionId, startLocalDate: new Date('2026-11-01'), timezone: TZ, status: 'LEFT', activeKey: `${bob}:${programId}` } })
+    // Enrollments are no longer unique per Program (07 Runs); fail the transaction after its writes instead.
+    failEnrollment.on = true
     expect((await ok(bob, 'GET', `/group-invitations/${tokenOf(inv)}`)).join.status).toBe('CONFIRM_ENROLLMENT')
     const body = enrollment()
-    const failed = await http(bob, 'POST', `/group-invitations/${tokenOf(inv)}/accept`, body)
-    expect(failed.status).toBe(409)
+    const failed = await http(bob, 'POST', `/group-invitations/${tokenOf(inv)}/accept`, body).finally(() => {
+      failEnrollment.on = false
+    })
+    expect(failed.status).toBeGreaterThanOrEqual(400)
     expect(await db.groupMember.count({ where: { groupId: g.id, userId: bob } })).toBe(0)
     expect(await db.programAccessGrant.count({ where: { userId: bob, programId } })).toBe(0)
     expect(await db.calendarItem.count({ where: { ownerId: bob } })).toBe(0)
     expect((await db.groupInvitation.findUniqueOrThrow({ where: { id: inv.id } })).status).toBe('PENDING')
     expect(await db.outboxEvent.count({ where: { type: 'GroupMemberJoined', payload: { path: '$.userId', equals: bob } } })).toBe(0)
     // The failed attempt released its idempotency key: once the cause is gone, the same request succeeds.
-    await db.programEnrollment.deleteMany({ where: { userId: bob, programId, status: 'LEFT' } })
     const retried = await http(bob, 'POST', `/group-invitations/${tokenOf(inv)}/accept`, body)
     expect(retried.status).toBe(200)
     expect(retried.body.data.myEnrollment).not.toBeNull()

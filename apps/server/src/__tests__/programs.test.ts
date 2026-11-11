@@ -187,9 +187,18 @@ describe('Adopting a Program (01 §6 required test 1)', () => {
     expect(replay.json().data.id).toBe(joined.json().data.id)
     const misuse = await bob.post(`/programs/${ws.id}/enrollments`, { ...body, startLocalDate: '2026-11-10', idempotencyKey: 'join-key-1' })
     expect(misuse.statusCode).toBe(409)
-    const again = await bob.post(`/programs/${ws.id}/enrollments`, { ...body, idempotencyKey: 'join-key-2' })
-    expect(again.statusCode).toBe(409)
     expect(await db.calendarItem.count({ where: { ownerId: testOtherUserId } })).toBe(24)
+
+    // Runs (07): a later, intentional start with a new key is another run; the first run is kept as is.
+    const reviewed = (await bob.get(`/programs/${ws.id}`)).json().data
+    expect(reviewed).toMatchObject({ canJoin: true, myEnrollmentId: joined.json().data.id })
+    const again = await bob.post(`/programs/${ws.id}/enrollments`, { ...body, startLocalDate: '2026-11-16', idempotencyKey: 'join-key-2' })
+    expect(again.statusCode).toBe(201)
+    expect(again.json().data.id).not.toBe(joined.json().data.id)
+    expect(await db.programEnrollment.findUniqueOrThrow({ where: { id: joined.json().data.id } })).toMatchObject({ status: 'ACTIVE' })
+    expect(await db.calendarItem.count({ where: { enrollmentId: joined.json().data.id, status: { not: 'CANCELLED' } } })).toBe(24)
+    expect(await db.calendarItem.count({ where: { ownerId: testOtherUserId } })).toBe(48)
+    expect((await bob.get(`/programs/${ws.id}`)).json().data.myEnrollmentId).toBe(again.json().data.id)
 
     // Entitled now: full content including Alice's private copy, read through the Program.
     const full = await bob.get(`/program-versions/${pv.latestVersionId}`)

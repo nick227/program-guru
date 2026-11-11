@@ -133,23 +133,16 @@ test('Library browser keeps filters and cached content through discovery and par
   await page
     .getByRole('button', { name: 'View Program: Beginner Strength' })
     .click()
-  // The hero's primary action leads to the Start section, whose button joins on the chosen date.
-  await page
-    .getByRole('region', { name: 'Beginner Strength hero' })
-    .getByRole('button', { name: 'Start Program' })
-    .click()
-  await page
-    .getByRole('region', { name: 'Start Program' })
-    .getByRole('button', { name: 'Start Program', exact: true })
-    .click()
-  await expect(
-    page.getByRole('heading', { name: 'Calendar', exact: true }),
-  ).toBeVisible()
+  // One click starts today and stays on the Program; the button then reads "Program Added" (13 §4).
+  const hero = page.getByRole('region', { name: 'Beginner Strength hero' })
+  await hero.getByRole('button', { name: 'Start Program' }).click()
+  await expect(hero.getByRole('button', { name: 'Program Added' })).toBeDisabled()
+  await expect(page).toHaveURL(/\/programs\//)
   expect(
-    requests.some(
+    requests.filter(
       (r) => r.path.endsWith('/enrollments') && r.method === 'POST',
     ),
-  ).toBe(true)
+  ).toHaveLength(1)
   expect(await page.evaluate(() => (window as any).__spaMarker)).toBe(
     'same-document',
   )
@@ -263,6 +256,14 @@ test('ProgramPage resets edit state on id change and scrolls ?start=1 once', asy
 
   await login(page, 'author@test.local', 'password')
   await page.goto('/programs/00000000-0000-4000-8000-000000000010')
+  // A previously started Program offers another run, with previous run dates as chips (13 §4).
+  const runs = page.getByRole('navigation', { name: 'Previous runs' })
+  await expect(runs.getByRole('link')).toHaveCount(2)
+  await expect(runs.getByRole('link', { name: 'Oct 1', exact: true })).toHaveAttribute('href', /day=2026-10-01/)
+  const again = page.getByRole('button', { name: 'Run It Again', exact: true })
+  await again.click()
+  await expect(page.getByRole('button', { name: 'Program Added', exact: true })).toBeDisabled()
+  await expect(page).toHaveURL(/\/programs\/00000000-0000-4000-8000-000000000010$/)
   await page.getByRole('button', { name: 'Edit Program', exact: true }).click()
   await page.getByRole('button', { name: 'Edit Activities', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Edit Program' })).toBeVisible()

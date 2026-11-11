@@ -20,7 +20,7 @@ Program is **not** Calendar. `ProgramScheduleItem` is a template placement and n
 | `ProgramScheduleItem` | `id`, `programVersionId`, `activityId`, `activityRevisionId`, `relativeDay`, `localTime?`, `position`, `targetOverrides JSON?`, `isManual` | FK, valid offsets, ordered index; `isManual` placements survive regeneration |
 | `ProgramAccessPolicy` | `programId PK`, `accessMode OPEN/APPROVAL/PAID`, `previewPolicy JSON?` | PAID requires an active `ProgramPrice` and ACTIVE payout account |
 | `ProgramPrice` | `id`, `programId`, `kind ONE_TIME/MONTHLY`, `currency USD`, `amountMinor`, `providerPriceId?`, `active` | at most one active price of each kind |
-| `ProgramEnrollment` | `id`, `userId`, `programId`, `programVersionId`, `pendingVersionId?`, `groupId?`, `startLocalDate`, `timezone`, `status`, `activeKey?`, `generatedThroughDate?`, timestamps | unique `activeKey` (`userId:programId` while not LEFT/COMPLETED); indexed user/status |
+| `ProgramEnrollment` | `id`, `userId`, `programId`, `programVersionId`, `pendingVersionId?`, `groupId?`, `startLocalDate`, `timezone`, `status`, `activeKey?`, `generatedThroughDate?`, timestamps | one row per **run**: a person may hold several runs of one Program at once (see Runs below); `activeKey` is informational, not unique; indexed user/status |
 | `ProgramAccessGrant` | `id`, `userId`, `programId`, `source OPEN/APPROVAL/PURCHASE/SUBSCRIPTION/ADMIN`, `sourceRef?`, `grantedAt`, `expiresAt?`, `revokedAt?` | unique `(source,sourceRef)`; `sourceRef` required for purchase, subscription, and approval |
 | `ProgramApprovalRequest` | `id`, `userId`, `programId`, `status`, `requestedAt`, `resolvedAt?`, `activeKey?` | unique pending per pair via `activeKey` |
 | `ProgramSource` | `programId`, `sourceProgramVersionId`, `copiedById` | preserve provenance when copying a template |
@@ -132,6 +132,8 @@ Draft created in a single action from Type (other wizard answers editable later)
 **Duration.** Finite Programs store every placement. Ongoing Programs (`durationDays` null) store one cycle with `cycleDays` default 7, repeated at enrollment.
 
 **Manual adjustment.** Moving, adding, or duplicating a placement sets `isManual`. Regeneration replaces only non-manual placements, and warns before removing manual placements for an Activity no longer selected. Displayed counts are always computed from actual placements: `programDayCount` distinct days, `placementCount` total rows, activity count distinct Activity IDs.
+
+**Runs (repeat participation).** A Program is a reusable template that a person can run any number of times. Each `Start Program` or `Run It Again` creates a new enrollment (a run) starting today on the latest joinable version; earlier runs, their Calendar Items and results are kept unchanged, never replaced or deleted. A Program's duration shapes a run's initial schedule; it does not decide whether the person "is running" the Program. Accidental duplicate submissions are prevented by the join request's idempotency key (one key per page visit); an intentional start on a later visit is a new run. Overlapping Activities across runs are left to the Calendar (`09-CALENDARS.md`). `Restart` in My Programs keeps its replace semantics (it ends the current run).
 
 **Personal calendars.** See `09-CALENDARS.md` §4. Enrollment places these relative days on dates with no further decisions; a participant's manual changes affect only their Calendar Items.
 
