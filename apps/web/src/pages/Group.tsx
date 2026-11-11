@@ -33,7 +33,6 @@ import { Select } from '@/components/ui/Select'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { linkButton } from '@/components/shared/Navigation'
-import { SubHeader } from '@/components/shared/SubHeader'
 import { buildGroupBreadcrumbs } from '@/lib/breadcrumbs'
 import { calendarUrl, dateLabel, isLocalDate, safeReturn, today } from '@/lib/dates'
 import {
@@ -264,7 +263,7 @@ function InvitationDecisionPanel({
                       setTimezone(e.target.value)
                       idempotencyKey.current = crypto.randomUUID()
                     }}
-                    className="min-h-11 w-full rounded-md border bg-surface px-3 py-2 text-sm text-text focus:border-accent"
+                    className="min-h-11 w-full rounded-md border bg-surface px-3 py-2 text-base text-text focus:border-accent sm:text-sm"
                   >
                     {timezones.map((tz) => (
                       <option key={tz} value={tz}>
@@ -310,7 +309,7 @@ function InvitationDecisionPanel({
                       setTimezone(e.target.value)
                       idempotencyKey.current = crypto.randomUUID()
                     }}
-                    className="min-h-11 w-full rounded-md border bg-surface px-3 py-2 text-sm text-text focus:border-accent"
+                    className="min-h-11 w-full rounded-md border bg-surface px-3 py-2 text-base text-text focus:border-accent sm:text-sm"
                   >
                     {timezones.map((tz) => (
                       <option key={tz} value={tz}>
@@ -415,14 +414,6 @@ export function GroupInvitationJoinPage() {
 
   return (
     <Page className="page--wide">
-      <SubHeader
-        breadcrumbs={[
-          { label: 'Calendar', href: '/' },
-          { label: 'Group Invitation' },
-        ]}
-        active="calendar"
-        returnTo={`/join/${token}`}
-      />
       <Stage className="mx-auto mt-6 w-full max-w-3xl">
         <h1>Group Invitation</h1>
         {invite.isPending ? (
@@ -961,11 +952,6 @@ export function GroupPage() {
 
   return (
     <Page className="page--wide">
-      <SubHeader
-        breadcrumbs={groupNav.items}
-        active={groupNav.activeNav}
-        returnTo={buildGroupUrl(id)}
-      />
       <Stage className="mx-auto mt-6 w-full max-w-4xl">
 
         {waitingForInitialData ? (

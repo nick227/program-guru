@@ -295,14 +295,16 @@ test('Community feed supports combined filters, switching kind, sorting, paginat
   const { discoverRequests } = await setupRichBrowseMocks(page)
 
   await page.goto('/browse')
-  await expect(page.getByRole('heading', { name: 'Community', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Pages menu, current page Community/ })).toBeVisible()
 
-  // Preserved SubHeader nav with Community active.
+  // Header Pages menu reveals Workspace navigation with Community active.
+  await page.getByRole('button', { name: /Pages menu/ }).click()
   await expect(
     page
       .getByRole('navigation', { name: 'Workspace navigation' })
       .getByRole('link', { name: 'Community', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
+  await page.keyboard.press('Escape')
 
   // Initial feed renders first page (8 items) + Load more.
   await expect(page.getByRole('status').filter({ hasText: '8 Programs' })).toBeVisible()

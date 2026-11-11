@@ -1,12 +1,17 @@
-import { useState, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Filter } from 'lucide-react'
+import {
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Filter,
+} from 'lucide-react'
 import {
   useCalendar,
-  useCalendarYear,
   useCurrentUser,
   useQuickCompleteCalendarItem,
-  useCancelCalendarItem,
   useUndoCompletion,
   useUpdateCalendarItem,
   useUpdatePreferences,
@@ -16,10 +21,9 @@ import { Page, Stack, Row, Panel } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { SubHeader } from '@/components/shared/SubHeader'
 import { CalendarSurface } from '@/components/calendar/CalendarSurface'
 import type { SurfaceItem } from '@/components/calendar/CalendarSurface'
+import { DatePickerPopover } from '@/components/calendar/DatePickerPopover'
 import { resolveActivityCategory } from '@/lib/activityCategory'
 import {
   addDays,
@@ -29,98 +33,29 @@ import {
   monthBounds,
   monthGrid,
   today,
-  weekOf,
 } from '@/lib/dates'
 import { markDailyEmailPromptSeen } from '@/lib/notifications'
+import { formatTargetTime, isValidTargetTime } from '@/lib/targetTime'
 import { useOnline } from '@/lib/useOnline'
 import { cn } from '@/lib/utils'
 import { useDocumentTitle } from '@/lib/title'
-import type { components } from '@project/sdk'
 
-type View = 'day' | 'week' | 'month' | 'year'
-type S = components['schemas']
+type View = 'day' | 'month'
 
-function YearOverview({
-  year,
-  items,
-  onChooseMonth,
-  current,
-  onExpandMonth,
-}: {
-  onExpandMonth: (date: string) => void
-  current: string
-  year: number
-  items: S['CalendarItem'][]
-  onChooseMonth: (date: string) => void
-}) {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {Array.from({ length: 12 }, (_, index) => {
-        const month = String(index + 1).padStart(2, '0')
-        const start = `${year}-${month}-01`
-        const { end } = monthBounds(start)
-        const firstWeek = weekOf(start)
-        const count = items.filter(
-          (item) => item.localDate >= start && item.localDate <= end,
-        ).length
-        return (
-          <section key={month} className="year-month">
-            <Row className="justify-between">
-              <h2 className="font-display text-base">
-                {dateLabel(start, { month: 'long' })}
-              </h2>
-              <span className="text-xs text-muted">
-                {count} {count === 1 ? 'Activity' : 'Activities'}
-              </span>
-            </Row>
-            <div className="year-month__grid" aria-label={`${dateLabel(start, { month: 'long' })} ${year}`}>
-              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((label, i) => (
-                <span key={`${label}-${i}`} className="year-month__weekday">
-                  {label}
-                </span>
-              ))}
-              {Array.from({ length: 42 }, (_, dayIndex) => {
-                const date = addDays(firstWeek, dayIndex)
-                const belongsToMonth = date.slice(0, 7) === start.slice(0, 7)
-                const dayCount = items.filter(
-                  (item) => item.localDate === date,
-                ).length
-                return (
-                  <button
-                    key={date}
-                    type="button"
-                    disabled={!belongsToMonth}
-                    aria-label={`${dateLabel(date, { month: 'long', day: 'numeric', year: 'numeric' })}${dayCount ? `, ${dayCount} Activities` : ''}`}
-                    aria-current={date === current ? 'date' : undefined}
-                    onClick={() => onChooseMonth(date)}
-                    className={cn(
-                      'year-month__date',
-                      !belongsToMonth && 'year-month__date--outside',
-                      dayCount > 0 && 'year-month__date--active',
-                      date === current && 'year-month__date--today',
-                    )}
-                  >
-                    {date.slice(-2)}
-                    {dayCount > 0 && <span aria-hidden />}
-                  </button>
-                )
-              })}
-            </div>
-            <div className="year-month__activities">
-              {items.filter((item) => item.localDate >= start && item.localDate <= end).slice(0, 3).map((item) => (
-                <Link key={item.id} className="year-month__activity" to={`/occurrences/${item.id}?returnTo=${encodeURIComponent(`/?view=year&day=${start}`)}`}>
-                  <time dateTime={item.localDate}>{Number(item.localDate.slice(-2))}</time>
-                  <span>{item.title}</span>
-                  {item.status !== 'PLANNED' && <small>{item.status === 'DONE' ? 'Completed' : item.status === 'NOT_PARTICIPATING' ? 'Not participating' : item.status === 'SKIPPED' ? 'Skipped' : 'Removed'}</small>}
-                </Link>
-              ))}
-              {count > 3 && <button className="calendar-month-more" onClick={() => onExpandMonth(start)}>View {count} Activities</button>}
-            </div>
-          </section>
-        )
-      })}
-    </div>
-  )
+function currentHHMM(timezone: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date())
+    const h = parts.find((p) => p.type === 'hour')?.value ?? '00'
+    const m = parts.find((p) => p.type === 'minute')?.value ?? '00'
+    return `${h === '24' ? '00' : h}:${m}`
+  } catch {
+    return '00:00'
+  }
 }
 
 export function CalendarPage() {
@@ -135,28 +70,19 @@ export function CalendarPage() {
     me.data!.data.preferences.notifications?.dailyReminderTime ?? '08:00'
   const [reminderTime, setReminderTime] = useState(defaultReminderTime)
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [showAllHours, setShowAllHours] = useState(false)
+  const [datePickerOpen, setDatePickerOpen] = useState(false)
+  const datePickerRef = useRef<HTMLDivElement>(null)
   const current = today(timezone)
   const requestedDay = params.get('day') ?? params.get('week')
   const selected = isLocalDate(requestedDay) ? requestedDay : current
-  const view = (['day', 'week', 'month', 'year'].includes(
-    params.get('view') ?? '',
-  )
-    ? params.get('view')
-    : 'month') as View
-  const weekStart = weekOf(selected)
+  const view: View = params.get('view') === 'month' ? 'month' : 'day'
   const monthRange = monthBounds(selected)
   const range =
-    view === 'day'
-      ? { start: selected, end: selected }
-      : view === 'week'
-        ? { start: weekStart, end: addDays(weekStart, 6) }
-        : monthRange
-  const calendar = useCalendar(range.start, range.end, view !== 'year')
-  const yearCalendar = useCalendarYear(Number(selected.slice(0, 4)), view === 'year')
-  const active = view === 'year' ? yearCalendar : calendar
+    view === 'day' ? { start: selected, end: selected } : monthRange
+  const calendar = useCalendar(range.start, range.end, true)
   const undo = useUndoCompletion()
   const quickComplete = useQuickCompleteCalendarItem()
-  const cancelItem = useCancelCalendarItem()
   const updateItem = useUpdateCalendarItem()
   const [pendingTimes, setPendingTimes] = useState<Record<string, string | null>>({})
   const completionKeys = useRef(new Map<string, string>())
@@ -164,6 +90,21 @@ export function CalendarPage() {
     view,
     day: selected,
   }).toString()}`
+
+  useEffect(() => {
+    if (!datePickerOpen) return
+    const onPointerDown = (event: MouseEvent) => {
+      if (
+        datePickerRef.current &&
+        !datePickerRef.current.contains(event.target as Node)
+      ) {
+        setDatePickerOpen(false)
+      }
+    }
+    window.addEventListener('mousedown', onPointerDown)
+    return () => window.removeEventListener('mousedown', onPointerDown)
+  }, [datePickerOpen])
+
   const updateCalendarParams = (nextView: View, nextDay = selected) => {
     const next = new URLSearchParams(params)
     next.set('view', nextView)
@@ -171,22 +112,23 @@ export function CalendarPage() {
     next.delete('week')
     setParams(next)
   }
+
   const step = (direction: -1 | 1) => {
     const nextDay =
-      view === 'year'
-        ? `${Number(selected.slice(0, 4)) + direction}-01-01`
-        : view === 'month'
-          ? addMonths(selected, direction)
-          : addDays(selected, direction * (view === 'week' ? 7 : 1))
+      view === 'month'
+        ? addMonths(selected, direction)
+        : addDays(selected, direction)
     updateCalendarParams(view, nextDay)
   }
+
   const clearReminderPrompt = () => {
     markDailyEmailPromptSeen(userId)
     const next = new URLSearchParams(params)
     next.delete('promptReminder')
     setParams(next, { replace: true })
   }
-  const rawItems = active.data ?? []
+
+  const rawItems = calendar.data ?? []
   const effectiveTimes = new Map<string, number>()
   const hasPendingTimes = Object.keys(pendingTimes).length > 0
   if (hasPendingTimes) {
@@ -198,10 +140,13 @@ export function CalendarPage() {
       effectiveTimes.set(key, (effectiveTimes.get(key) ?? 0) + 1)
     }
   }
+
   const items: SurfaceItem[] = rawItems.map((item) => {
-    const localTime = item.id in pendingTimes ? pendingTimes[item.id] : item.localTime
+    const localTime =
+      item.id in pendingTimes ? pendingTimes[item.id] : item.localTime
     const conflict = hasPendingTimes
-      ? Boolean(localTime) && (effectiveTimes.get(`${item.localDate} ${localTime}`) ?? 0) > 1
+      ? Boolean(localTime) &&
+        (effectiveTimes.get(`${item.localDate} ${localTime}`) ?? 0) > 1
       : item.conflict
     return {
       id: item.id,
@@ -224,7 +169,9 @@ export function CalendarPage() {
       groupName: item.groupName,
       sharedCompletionCount: item.sharedCompletionCount,
       sessionStatus: item.sessionStatus,
-      durationLabel: item.activeSeconds ? `${Math.floor(item.activeSeconds / 60)}m ${item.activeSeconds % 60}s recorded` : undefined,
+      durationLabel: item.activeSeconds
+        ? `${Math.floor(item.activeSeconds / 60)}m ${item.activeSeconds % 60}s recorded`
+        : undefined,
       avatarUrls: item.participantAvatars,
       unreadCount: item.unreadCount,
       recurrenceId: item.recurrenceId,
@@ -245,17 +192,7 @@ export function CalendarPage() {
       // Mutation error remains visible; keep the idempotency key for retry.
     }
   }
-  const removeItem = async (
-    itemId: string,
-    scope: S['RecurrenceScope'],
-  ) => {
-    try {
-      await cancelItem.mutateAsync({ itemId, scope })
-      toast.success('Activity removed from Calendar')
-    } catch {
-      // Mutation error remains visible; the item stays on the Calendar.
-    }
-  }
+
   const changeItemTime = async (itemId: string, localTime: string | null) => {
     const item = rawItems.find((row) => row.id === itemId)
     if (!item) return
@@ -282,10 +219,45 @@ export function CalendarPage() {
   const filteredItems = useMemo(() => {
     if (categoryFilter === 'all') return items
     if (categoryFilter === 'group') {
-      return items.filter((it) => it.groupName || (it.avatarUrls && it.avatarUrls.length > 0))
+      return items.filter(
+        (it) => it.groupName || (it.avatarUrls && it.avatarUrls.length > 0),
+      )
     }
     return items.filter((it) => it.category === categoryFilter)
   }, [items, categoryFilter])
+
+  const dayContext = useMemo(() => {
+    if (view !== 'day') return null
+    const activeDayItems = filteredItems.filter(
+      (it) => it.day === selected && it.status !== 'CANCELLED',
+    )
+    const total = activeDayItems.length
+    if (total === 0) return null
+    const completed = activeDayItems.filter(
+      (it) => it.done || it.status === 'DONE',
+    ).length
+    const totalMinutes = activeDayItems.reduce(
+      (sum, it) =>
+        sum + (typeof it.durationMinutes === 'number' && it.durationMinutes > 0 ? it.durationMinutes : 0),
+      0,
+    )
+    const remaining = activeDayItems.filter(
+      (it) =>
+        !it.done &&
+        it.status !== 'DONE' &&
+        !it.notParticipating &&
+        it.status !== 'NOT_PARTICIPATING' &&
+        it.status !== 'SKIPPED',
+    )
+    const nowTime = selected === current ? currentHHMM(timezone) : '00:00'
+    const timedRemaining = remaining
+      .filter((it) => isValidTargetTime(it.localTime))
+      .sort((a, b) => a.localTime!.localeCompare(b.localTime!))
+    const upcomingTimed =
+      timedRemaining.find((it) => it.localTime! >= nowTime) ?? timedRemaining[0]
+    const nextItem = upcomingTimed ?? remaining[0] ?? null
+    return { total, completed, totalMinutes, nextItem }
+  }, [view, filteredItems, selected, current, timezone])
 
   const days =
     view === 'month'
@@ -296,119 +268,214 @@ export function CalendarPage() {
           today: id === current,
           inCurrentMonth: id.slice(0, 7) === selected.slice(0, 7),
         }))
-      : view === 'week'
-        ? Array.from({ length: 7 }, (_, index) => {
-            const id = addDays(weekStart, index)
-            return {
-              id,
-              label: dateLabel(id, { weekday: 'short' }),
-              number: String(Number(id.slice(-2))),
-              today: id === current,
-            }
-          })
-        : [{ id: selected, label: dateLabel(selected, { weekday: 'long', month: 'long', day: 'numeric' }), number: selected.slice(-2), today: selected === current }]
+      : [
+          {
+            id: selected,
+            label: dateLabel(selected, {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            }),
+            number: selected.slice(-2),
+            today: selected === current,
+          },
+        ]
 
   const title =
-    view === 'year'
-      ? selected.slice(0, 4)
-      : view === 'month'
-        ? dateLabel(selected, { month: 'long', year: 'numeric' })
-        : view === 'week'
-          ? `${dateLabel(weekStart)} – ${dateLabel(addDays(weekStart, 6), { month: 'short', day: 'numeric', year: 'numeric' })}`
-          : dateLabel(selected, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    view === 'month'
+      ? dateLabel(selected, { month: 'long', year: 'numeric' })
+      : dateLabel(selected, {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        })
+
+  const progressPct =
+    dayContext && dayContext.total > 0
+      ? Math.round((dayContext.completed / dayContext.total) * 100)
+      : 0
 
   return (
     <Page className="page--wide">
-      <SubHeader title="Calendar" active="calendar" returnTo={origin} />
-
-      <div className="mt-4" aria-label="Calendar controls">
-        <div className="w-full my-4">
-          <div className="flex justify-start items-center">
+      <div className="calendar-toolbar" aria-label="Calendar controls">
+        <div className="calendar-toolbar__row">
+          <div className="calendar-toolbar__nav">
             <Button
               variant="outline"
               size="icon"
-              aria-label={`Previous ${view}`}
+              aria-label={view === 'month' ? 'Previous month' : 'Previous day'}
               onClick={() => step(-1)}
             >
               <ChevronLeft size={18} />
             </Button>
-            <h2 className="px-8">
-              {title}
-            </h2>
+
+            <div className="calendar-toolbar__heading-wrap" ref={datePickerRef}>
+              <button
+                type="button"
+                className="calendar-toolbar__date-btn"
+                aria-expanded={datePickerOpen}
+                aria-haspopup="dialog"
+                aria-label={`Change date, ${title}`}
+                onClick={() => setDatePickerOpen((v) => !v)}
+              >
+                <h1 className="calendar-toolbar__title">{title}</h1>
+                <ChevronDown
+                  size={18}
+                  aria-hidden
+                  className={cn(
+                    'calendar-toolbar__chevron',
+                    datePickerOpen && 'rotate-180',
+                  )}
+                />
+              </button>
+              {datePickerOpen && (
+                <DatePickerPopover
+                  selected={selected}
+                  todayDate={current}
+                  onSelect={(day) => {
+                    setDatePickerOpen(false)
+                    updateCalendarParams(view, day)
+                  }}
+                  onClose={() => setDatePickerOpen(false)}
+                />
+              )}
+            </div>
+
             <Button
               variant="outline"
               size="icon"
-              aria-label={`Next ${view}`}
+              aria-label={view === 'month' ? 'Next month' : 'Next day'}
               onClick={() => step(1)}
             >
               <ChevronRight size={18} />
             </Button>
+
             <Button
               variant="ghost"
-              className="calendar-toolbar__today ml-2"
+              className={cn(
+                'calendar-toolbar__today',
+                selected === current && 'calendar-toolbar__today--current',
+              )}
               onClick={() => updateCalendarParams(view, current)}
             >
               Today
             </Button>
           </div>
 
-          </div>
-          <div className="flex wrap-nowrap justify-end gap-4">
-
-          <SegmentedControl
-            ariaLabel="Calendar view"
-            className="calendar-toolbar__views"
-            value={view}
-            onChange={(nextView) => updateCalendarParams(nextView as View)}
-            options={[
-              { value: 'day', label: 'Day' },
-              { value: 'week', label: 'Week' },
-              { value: 'month', label: 'Month' },
-              { value: 'year', label: 'Year' },
-            ]}
-          />
-          
-          <details className="calendar-filter">
-            <summary className="calendar-filter__trigger sub-header__btn">
-              <Filter size={15} aria-hidden />
-              <span>Filters</span>
-              {categoryFilter !== 'all' && (
-                <span className="calendar-filter__active" aria-hidden />
+          <div className="calendar-toolbar__controls">
+            <button
+              type="button"
+              aria-pressed={showAllHours}
+              onClick={() => setShowAllHours((v) => !v)}
+              className={cn(
+                'calendar-toolbar__toggle',
+                showAllHours && 'calendar-toolbar__toggle--active',
               )}
-            </summary>
-            <div className="calendar-filter__menu" aria-label="Filter activities">
-              {[
-                { id: 'all', label: 'All Activities' },
-                { id: 'fitness', label: 'Fitness' },
-                { id: 'wellness', label: 'Wellness' },
-                { id: 'education', label: 'Education' },
-                { id: 'finance', label: 'Finance' },
-                { id: 'relationships', label: 'Relationships' },
-                { id: 'group', label: 'Group' },
-              ].map((chip) => {
-                const isSelected = categoryFilter === chip.id
-                return (
-                  <button
-                    key={chip.id}
-                    type="button"
-                    aria-pressed={isSelected}
-                    onClick={() => setCategoryFilter(chip.id)}
-                    className={cn(
-                      'calendar-filter__option',
-                      isSelected && 'calendar-filter__option--selected',
-                    )}
-                  >
-                    {chip.label}
-                  </button>
-                )
-              })}
-            </div>
-          </details>
-        </div>
+              title={showAllHours ? 'Show active hours only' : 'Show all 24 hours'}
+            >
+              <Clock3 size={15} aria-hidden />
+              <span>{showAllHours ? 'All 24h' : 'All hours'}</span>
+            </button>
 
+            <button
+              type="button"
+              aria-pressed={view === 'month'}
+              onClick={() =>
+                updateCalendarParams(view === 'month' ? 'day' : 'month')
+              }
+              className={cn(
+                'calendar-toolbar__toggle calendar-toolbar__toggle--secondary',
+                view === 'month' && 'calendar-toolbar__toggle--active',
+              )}
+            >
+              <CalendarDays size={15} aria-hidden />
+              <span>Month</span>
+            </button>
+
+            <details className="calendar-filter">
+              <summary className="calendar-filter__trigger">
+                <Filter size={15} aria-hidden />
+                <span>Filters</span>
+                {categoryFilter !== 'all' && (
+                  <span className="calendar-filter__active" aria-hidden />
+                )}
+              </summary>
+              <div
+                className="calendar-filter__menu"
+                aria-label="Filter activities"
+              >
+                {[
+                  { id: 'all', label: 'All Activities' },
+                  { id: 'fitness', label: 'Fitness' },
+                  { id: 'wellness', label: 'Wellness' },
+                  { id: 'education', label: 'Education' },
+                  { id: 'finance', label: 'Finance' },
+                  { id: 'relationships', label: 'Relationships' },
+                  { id: 'group', label: 'Group' },
+                ].map((chip) => {
+                  const isSelected = categoryFilter === chip.id
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setCategoryFilter(chip.id)}
+                      className={cn(
+                        'calendar-filter__option',
+                        isSelected && 'calendar-filter__option--selected',
+                      )}
+                    >
+                      {chip.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </details>
+          </div>
+        </div>
       </div>
 
-      <Stack className="gap-6 mt-6">
+      <Stack className="gap-5 mt-4">
+        {dayContext && (
+          <div className="calendar-context" aria-label="Daily summary">
+            <div className="calendar-context__summary">
+              <div className="calendar-context__progress-track" aria-hidden>
+                <div
+                  className="calendar-context__progress-fill"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <span className="calendar-context__counts">
+                {dayContext.completed === dayContext.total
+                  ? `All ${dayContext.total} completed`
+                  : `${dayContext.completed} of ${dayContext.total} completed`}
+              </span>
+              {dayContext.totalMinutes > 0 && (
+                <span className="calendar-context__meta">
+                  · {dayContext.totalMinutes} min planned
+                </span>
+              )}
+            </div>
+
+            {dayContext.nextItem && (
+              <Link
+                to={dayContext.nextItem.href ?? `/occurrences/${dayContext.nextItem.id}`}
+                className="calendar-context__next"
+              >
+                <span className="calendar-context__next-label">Next</span>
+                <span className="calendar-context__next-title">
+                  {dayContext.nextItem.title}
+                </span>
+                {formatTargetTime(dayContext.nextItem.localTime) && (
+                  <span className="calendar-context__next-time">
+                    · {formatTargetTime(dayContext.nextItem.localTime)}
+                  </span>
+                )}
+              </Link>
+            )}
+          </div>
+        )}
 
         {params.get('promptReminder') === '1' && (
           <Panel aria-label="Daily reminder prompt" className="panel--accent">
@@ -489,23 +556,12 @@ export function CalendarPage() {
         )}
 
         <ErrorMessage
-          error={active.error || quickComplete.error || cancelItem.error || updateItem.error}
-          retry={
-            active.error
-              ? () => void active.refetch()
-              : undefined
-          }
+          error={calendar.error || quickComplete.error || updateItem.error}
+          retry={calendar.error ? () => void calendar.refetch() : undefined}
         />
-        {active.isPending ? (
+
+        {calendar.isPending ? (
           <Loading />
-        ) : view === 'year' ? (
-          <YearOverview
-            current={current}
-            year={Number(selected.slice(0, 4))}
-            items={active.data ?? []}
-            onExpandMonth={(date) => updateCalendarParams('month', date)}
-            onChooseMonth={(date) => updateCalendarParams('day', date)}
-          />
         ) : (
           <>
             <CalendarSurface
@@ -514,13 +570,17 @@ export function CalendarPage() {
               onSelect={(day) => updateCalendarParams('day', day)}
               items={filteredItems}
               view={view}
+              timezone={timezone}
+              showAllHours={showAllHours}
+              onToggleAllHours={() => setShowAllHours((v) => !v)}
+              nextItemId={dayContext?.nextItem?.id ?? null}
               onComplete={(itemId) => void completeItem(itemId)}
-              onRemove={(itemId, scope) => void removeItem(itemId, scope)}
-              onChangeTime={(itemId, localTime) => void changeItemTime(itemId, localTime)}
+              onChangeTime={(itemId, localTime) =>
+                void changeItemTime(itemId, localTime)
+              }
               completing={quickComplete.isPending || !online}
-              removing={cancelItem.isPending}
             />
-            {active.data?.length === 0 && (
+            {calendar.data?.length === 0 ? (
               <Panel className="text-center">
                 <Stack className="items-center py-6">
                   <h2>Nothing scheduled here</h2>
@@ -538,6 +598,23 @@ export function CalendarPage() {
                   </Link>
                 </Stack>
               </Panel>
+            ) : (
+              view === 'day' &&
+              filteredItems.length === 0 && (
+                <Panel className="text-center">
+                  <Stack className="items-center py-6">
+                    <p className="text-sm text-muted">
+                      No activities match the active filter.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCategoryFilter('all')}
+                    >
+                      Clear filter
+                    </Button>
+                  </Stack>
+                </Panel>
+              )
             )}
           </>
         )}

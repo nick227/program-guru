@@ -34,7 +34,6 @@ import { Input } from '@/components/ui/Input'
 import { EmptyState, ErrorMessage } from '@/components/ui/Feedback'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { SubHeader } from '@/components/shared/SubHeader'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { formatProgramDuration } from '@/components/program-authoring/programFields'
 import { formatFrequency } from '@/components/program-authoring/ScheduleControls'
@@ -365,7 +364,7 @@ function FilterOptionList<T extends string>({
               if (!option.disabled) onChange(option.value)
             }}
             className={cn(
-              'flex w-full items-center justify-between gap-2 rounded-[var(--radius-control)] px-2.5 py-1.5 text-left text-sm transition-colors duration-fast',
+              'flex min-h-11 w-full items-center justify-between gap-2 rounded-[var(--radius-control)] px-2.5 py-2 text-left text-sm transition-colors duration-fast md:min-h-0 md:py-1.5',
               option.disabled
                 ? 'cursor-not-allowed text-muted/55'
                 : active
@@ -413,14 +412,14 @@ function BrowseFeedRow({
   const groupSchedule = g?.startLocalDate ? `Starts ${dateLabel(g.startLocalDate)}` : null
 
   return (
-    <div className="py-5 sm:py-6">
+    <div className="py-3 sm:py-4">
       <button
         type="button"
         aria-label={`${actionLabel}: ${item.title}`}
         onClick={item.onSelect}
-        className="group flex w-full items-start gap-4 text-left sm:items-center sm:gap-5"
+        className="group flex w-full flex-col items-start gap-3.5 text-left"
       >
-        <div className="browse-thumb relative aspect-hero w-24 shrink-0 rounded-[var(--radius-media)] border border-border/50 bg-surface-muted sm:w-36 lg:w-40">
+        <div className="browse-thumb relative aspect-hero w-full shrink-0 rounded-[var(--radius-media)] border border-border/50 bg-surface-muted">
           <EntityHero
             hero={item.hero}
             size="card"
@@ -430,17 +429,17 @@ function BrowseFeedRow({
         </div>
 
         <span className="flex min-w-0 flex-1 flex-col gap-1">
-          {item.classification && (
-            <span className="truncate text-xs font-medium text-muted">
-              {item.classification}
-            </span>
-          )}
-          <span className="line-clamp-2 font-display text-base font-semibold leading-snug tracking-[-0.01em] text-foreground transition-colors group-hover:text-accent sm:text-lg">
+          <span className="line-clamp-2 font-display text-lg font-semibold leading-snug tracking-[-0.01em] text-foreground transition-colors group-hover:text-accent sm:text-xl">
             {item.title}
           </span>
           {item.description && (
             <span className="line-clamp-2 text-sm leading-relaxed text-muted">
               {item.description}
+            </span>
+          )}
+          {item.classification && (
+            <span className="truncate text-xs font-medium text-muted">
+              {item.classification}
             </span>
           )}
           {(item.schedule || item.creatorLabel) && (
@@ -454,7 +453,7 @@ function BrowseFeedRow({
       </button>
 
       {g && groupName && (
-        <div className="mt-3 sm:pl-[calc(9rem+1.25rem)] lg:pl-[calc(10rem+1.25rem)]">
+        <div className="mt-3">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface/70 px-3.5 py-2.5">
             <div className="flex min-w-0 flex-1 items-center gap-2.5">
               <Users size={15} aria-hidden className="shrink-0 text-accent" />
@@ -598,11 +597,21 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
 
   useEffect(() => {
     if (!mobileFiltersOpen) return
+    const isMobile = window.matchMedia('(max-width: 767.98px)').matches
+    const prevOverflow = document.body.style.overflow
+    if (isMobile) {
+      document.body.style.overflow = 'hidden'
+    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setMobileFiltersOpen(false)
     }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => {
+      if (isMobile) {
+        document.body.style.overflow = prevOverflow
+      }
+      window.removeEventListener('keydown', onKeyDown)
+    }
   }, [mobileFiltersOpen])
 
   const setParam = (key: string, value: string, fallback = '') =>
@@ -850,8 +859,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     mode.kind === 'programs'
       ? PROGRAM_DURATION_OPTIONS
       : ACTIVITY_DURATION_OPTIONS
-  const noun = mode.kind === 'programs' ? 'Program' : 'Activity'
-  const nounPlural = mode.kind === 'programs' ? 'Programs' : 'Activities'
+  const noun = 'result'
+  const nounPlural = 'results'
   const title = mode.isPicker
     ? mode.kind === 'programs'
       ? `${typeLabel ?? 'Program'} Library`
@@ -991,12 +1000,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
 
   return (
     <Page className="page--wide pb-20">
-      <SubHeader
-        title={title}
-        active="community"
-        returnTo={currentUrl}
-        backTo={mode.returnTo}
-      />
 
       <div className="mx-auto w-full pt-6 md:pt-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8 lg:gap-12">
@@ -1021,8 +1024,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       setParam(BROWSE_PARAM.q, query.trim())
                     }
                   }}
-                  placeholder={`Search ${noun === 'Program' ? (typeLabel ?? 'Programs') : 'Activities'}…`}
-                  className="pl-9 pr-8"
+                  placeholder="Search programs & activities…"
+                  className="pl-9 pr-10"
                 />
                 {query && (
                   <button
@@ -1031,10 +1034,10 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       setQuery('')
                       setParam(BROWSE_PARAM.q, '')
                     }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-foreground"
+                    className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-muted transition-colors hover:text-foreground"
                     aria-label="Clear search"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
@@ -1082,7 +1085,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     type="button"
                     aria-label="Close filters"
                     onClick={() => setMobileFiltersOpen(false)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-control)] text-muted hover:bg-surface-muted hover:text-foreground"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-control)] text-muted hover:bg-surface-muted hover:text-foreground"
                   >
                     <X size={18} aria-hidden />
                   </button>
@@ -1223,7 +1226,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                                   aria-pressed={active}
                                   onClick={() => toggleTag(tag.slug)}
                                   className={cn(
-                                    'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-fast',
+                                    'min-h-9 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-fast md:min-h-0 md:px-2.5 md:py-1',
                                     active
                                       ? 'border-accent bg-accent/15 text-accent'
                                       : 'border-border/70 text-muted hover:border-border hover:text-foreground',
@@ -1260,13 +1263,13 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                 </div>
 
                 {/* 7. Clear Filters */}
-                <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-4">
+                <div className="sticky bottom-0 mt-4 flex items-center justify-between gap-3 border-t border-border/60 bg-surface pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] md:static md:bg-transparent md:pt-4 md:pb-0">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={reset}
                     disabled={!filtered}
-                    className="h-9 gap-1.5 px-2 text-xs text-muted hover:text-foreground"
+                    className="min-h-11 gap-1.5 px-2 text-xs text-muted hover:text-foreground md:min-h-0"
                   >
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden />
                     Clear filters
@@ -1274,7 +1277,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   <Button
                     size="sm"
                     onClick={() => setMobileFiltersOpen(false)}
-                    className="md:hidden"
+                    className="min-h-11 md:hidden"
                   >
                     {results.isPending
                       ? 'Show results'
@@ -1319,7 +1322,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     type="button"
                     onClick={chip.onRemove}
                     aria-label={`Remove ${chip.label} filter`}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-surface px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border/80 bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-accent hover:text-accent sm:min-h-0 sm:py-1"
                   >
                     <span>{chip.label}</span>
                     <X size={12} aria-hidden className="text-muted" />
@@ -1328,7 +1331,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                 <button
                   type="button"
                   onClick={reset}
-                  className="px-2 py-1 text-xs font-medium text-muted transition-colors hover:text-foreground"
+                  className="min-h-9 px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:text-foreground sm:min-h-0 sm:px-2"
                 >
                   Clear all
                 </button>
@@ -1362,7 +1365,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   ))}
                 </div>
               ) : items.length > 0 ? (
-                <ul className="divide-y divide-border/60">
+                <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {items.map((item) => (
                     <li
                       key={item.id}

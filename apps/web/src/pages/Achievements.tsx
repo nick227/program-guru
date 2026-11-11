@@ -26,7 +26,7 @@ export function AchievementsPage() {
   const rows = achievements.data ?? []
 
   return (
-    <Page>
+    <Page className="page--content">
       <Stage>
         <Row className="justify-between">
           <Back to="/">Calendar</Back>

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { ActivityTile, type ActivityTileDensity } from '@/components/calendar/ActivityTile'
 import { WorkoutGroupTile } from '@/components/calendar/WorkoutGroupTile'
 import { groupCalendarEntries, type CalendarRenderEntry, type SurfaceItem } from '@/lib/calendarGrouping'
@@ -17,26 +17,66 @@ export type CalendarDay = {
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
+function getCurrentTimeInZone(timezone?: string) {
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  try {
+    const now = new Date()
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(now)
+    const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '00'
+    const rawHour = Number(part('hour'))
+    const hour = rawHour === 24 ? 0 : rawHour
+    const minute = Number(part('minute'))
+    const date = `${part('year')}-${part('month')}-${part('day')}`
+    const suffix = hour >= 12 ? 'PM' : 'AM'
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12
+    const label = `${hour12}:${String(minute).padStart(2, '0')} ${suffix}`
+    return { date, hour, minute, label }
+  } catch {
+    return { date: '', hour: 0, minute: 0, label: '' }
+  }
+}
+
 function DayHourlyTable({
   day,
   items,
+  timezone,
+  showAllHours = false,
+  onToggleAllHours,
+  nextItemId,
   onComplete,
-  onRemove,
   onChangeTime,
   completing,
-  removing,
 }: {
   day: CalendarDay
   items: SurfaceItem[]
+  timezone?: string
+  showAllHours?: boolean
+  onToggleAllHours?: () => void
+  nextItemId?: string | null
   onComplete?: (itemId: string) => void
-  onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
   onChangeTime?: (itemId: string, localTime: string | null) => void
   completing?: boolean
-  removing?: boolean
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropSlot, setDropSlot] = useState<string | null>(null)
+  const [now, setNow] = useState(() => getCurrentTimeInZone(timezone))
   const draggingIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    setNow(getCurrentTimeInZone(timezone))
+    const timer = window.setInterval(() => {
+      setNow(getCurrentTimeInZone(timezone))
+    }, 60_000)
+    return () => window.clearInterval(timer)
+  }, [timezone])
 
   const dayItems = items.filter((item) => item.day === day.id)
   const dayEntries = groupCalendarEntries(dayItems)
@@ -52,6 +92,28 @@ function DayHourlyTable({
   for (const list of byHour.values()) {
     list.sort((a, b) => (a.localTime ?? '').localeCompare(b.localTime ?? ''))
   }
+
+  const isViewingToday = day.today || day.id === now.date
+
+  const visibleHours = (() => {
+    if (showAllHours) return HOURS
+    if (dayEntries.length === 0) return []
+    const activeSet = new Set<number>()
+    for (const hourKey of byHour.keys()) {
+      activeSet.add(Number(hourKey))
+    }
+    if (isViewingToday) {
+      activeSet.add(now.hour)
+    }
+    return [...activeSet].sort((a, b) => a - b)
+  })()
+
+  if (!showAllHours && dayEntries.length === 0) {
+    return null
+  }
+
+  const showAnyTimeRow =
+    showAllHours || untimedEntries.length > 0 || draggingId !== null
 
   const handleDragStart = (event: React.DragEvent<HTMLElement>, item: SurfaceItem) => {
     draggingIdRef.current = item.id
@@ -111,30 +173,28 @@ function DayHourlyTable({
         key={entry.key}
         group={entry}
         density="day"
+        nextItemId={nextItemId}
         onComplete={onComplete}
-        onRemove={onRemove}
         onChangeTime={onChangeTime}
         draggable={Boolean(onChangeTime)}
         draggingId={draggingId}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         completing={completing}
-        removing={removing}
       />
     ) : (
       <ActivityTile
         key={entry.key}
         item={entry.item}
         density="day"
+        isNext={nextItemId === entry.item.id}
         onComplete={onComplete}
-        onRemove={onRemove}
         onChangeTime={onChangeTime}
         draggable={Boolean(onChangeTime)}
         isDragging={draggingId === entry.item.id}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         completing={completing}
-        removing={removing}
       />
     )
 
@@ -142,73 +202,133 @@ function DayHourlyTable({
     <div className="calendar-day-schedule">
       <table className="calendar-day-table" aria-label="Day schedule">
         <tbody>
-          <tr
-            data-slot="anytime"
-            onDragEnter={(event) => handleDragOver(event, 'anytime')}
-            onDragOver={(event) => handleDragOver(event, 'anytime')}
-            onDragLeave={(event) => handleDragLeave(event, 'anytime')}
-            onDrop={(event) => handleDrop(event, 'anytime', null)}
-            className={cn(
-              'calendar-day-table__row calendar-day-table__row--anytime',
-              untimedEntries.length > 0 && 'calendar-day-table__row--populated',
-              dropSlot === 'anytime' && 'calendar-day-table__row--drop',
-            )}
-          >
-            <th scope="row" className="calendar-day-table__time">
-              Any time
-            </th>
-            <td className="calendar-day-table__items">
-              {untimedEntries.length > 0 ? (
-                <div className="calendar-day-table__list">
-                  {untimedEntries.map(renderDayEntry)}
-                </div>
-              ) : (
-                <span className="calendar-day-table__empty-hint">
-                  {draggingId ? 'Drop here for any time' : 'No untimed activities'}
-                </span>
+          {showAnyTimeRow && (
+            <tr
+              data-slot="anytime"
+              onDragEnter={(event) => handleDragOver(event, 'anytime')}
+              onDragOver={(event) => handleDragOver(event, 'anytime')}
+              onDragLeave={(event) => handleDragLeave(event, 'anytime')}
+              onDrop={(event) => handleDrop(event, 'anytime', null)}
+              className={cn(
+                'calendar-day-table__row calendar-day-table__row--anytime',
+                untimedEntries.length > 0 && 'calendar-day-table__row--populated',
+                dropSlot === 'anytime' && 'calendar-day-table__row--drop',
               )}
-            </td>
-          </tr>
+            >
+              <th scope="row" className="calendar-day-table__time">
+                Any time
+              </th>
+              <td className="calendar-day-table__items">
+                {untimedEntries.length > 0 ? (
+                  <div className="calendar-day-table__list">
+                    {untimedEntries.map(renderDayEntry)}
+                  </div>
+                ) : (
+                  <span className="calendar-day-table__empty-hint">
+                    {draggingId ? 'Drop here for any time' : 'No untimed activities'}
+                  </span>
+                )}
+              </td>
+            </tr>
+          )}
 
-          {HOURS.map((hour) => {
+          {visibleHours.map((hour, index) => {
+            const prevHour = index > 0 ? visibleHours[index - 1]! : null
+            const hasGap = !showAllHours && prevHour !== null && hour > prevHour + 1
+            const gapHours = hasGap ? hour - prevHour - 1 : 0
             const hourKey = String(hour).padStart(2, '0')
             const slotTime = `${hourKey}:00`
             const hourEntries = byHour.get(hourKey) ?? []
+            const isNowHour = isViewingToday && hour === now.hour
+
             return (
-              <tr
-                key={hourKey}
-                data-slot={hourKey}
-                data-hour={hour}
-                onDragEnter={(event) => handleDragOver(event, hourKey)}
-                onDragOver={(event) => handleDragOver(event, hourKey)}
-                onDragLeave={(event) => handleDragLeave(event, hourKey)}
-                onDrop={(event) => handleDrop(event, hourKey, slotTime)}
-                className={cn(
-                  'calendar-day-table__row',
-                  hourEntries.length > 0 && 'calendar-day-table__row--populated',
-                  dropSlot === hourKey && 'calendar-day-table__row--drop',
+              <React.Fragment key={hourKey}>
+                {hasGap && onToggleAllHours && (
+                  <tr className="calendar-day-table__row calendar-day-table__row--gap">
+                    <th scope="row" className="calendar-day-table__time" aria-hidden>
+                      ···
+                    </th>
+                    <td className="calendar-day-table__gap-cell">
+                      <button
+                        type="button"
+                        onClick={onToggleAllHours}
+                        className="calendar-day-table__gap-btn"
+                      >
+                        {gapHours} quiet {gapHours === 1 ? 'hour' : 'hours'} · Show all hours
+                      </button>
+                    </td>
+                  </tr>
                 )}
-              >
-                <th scope="row" className="calendar-day-table__time">
-                  <time dateTime={`${day.id}T${slotTime}`}>{formatHourLabel(hour)}</time>
-                </th>
-                <td className="calendar-day-table__items">
-                  {hourEntries.length > 0 && (
-                    <div className="calendar-day-table__list">
-                      {hourEntries.map(renderDayEntry)}
-                    </div>
+                <tr
+                  data-slot={hourKey}
+                  data-hour={hour}
+                  onDragEnter={(event) => handleDragOver(event, hourKey)}
+                  onDragOver={(event) => handleDragOver(event, hourKey)}
+                  onDragLeave={(event) => handleDragLeave(event, hourKey)}
+                  onDrop={(event) => handleDrop(event, hourKey, slotTime)}
+                  className={cn(
+                    'calendar-day-table__row',
+                    hourEntries.length > 0 && 'calendar-day-table__row--populated',
+                    isNowHour && 'calendar-day-table__row--now',
+                    dropSlot === hourKey && 'calendar-day-table__row--drop',
                   )}
-                </td>
-              </tr>
+                >
+                  <th scope="row" className="calendar-day-table__time">
+                    <time dateTime={`${day.id}T${slotTime}`}>
+                      {formatHourLabel(hour)}
+                    </time>
+                    {isNowHour && now.label && (
+                      <span className="calendar-day-table__now-badge" aria-label={`Current time ${now.label}`}>
+                        {now.label}
+                      </span>
+                    )}
+                  </th>
+                  <td className="calendar-day-table__items">
+                    {isNowHour && (
+                      <div
+                        className="calendar-day-table__now-line"
+                        style={{
+                          top: `${Math.min(90, Math.max(10, (now.minute / 60) * 100))}%`,
+                        }}
+                        aria-hidden
+                      />
+                    )}
+                    {hourEntries.length > 0 && (
+                      <div className="calendar-day-table__list">
+                        {hourEntries.map(renderDayEntry)}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              </React.Fragment>
             )
           })}
 
-          <tr className="calendar-day-table__row calendar-day-table__row--end" aria-hidden="true">
-            <th scope="row" className="calendar-day-table__time">
-              12:00 AM
-            </th>
-            <td className="calendar-day-table__items" />
-          </tr>
+          {!showAllHours && visibleHours.length === 0 && onToggleAllHours && (
+            <tr className="calendar-day-table__row calendar-day-table__row--gap">
+              <th scope="row" className="calendar-day-table__time" aria-hidden>
+                Hours
+              </th>
+              <td className="calendar-day-table__gap-cell">
+                <button
+                  type="button"
+                  onClick={onToggleAllHours}
+                  className="calendar-day-table__gap-btn"
+                >
+                  Show all 24 hours to drag &amp; schedule by time
+                </button>
+              </td>
+            </tr>
+          )}
+
+          {showAllHours && (
+            <tr className="calendar-day-table__row calendar-day-table__row--end" aria-hidden="true">
+              <th scope="row" className="calendar-day-table__time">
+                12:00 AM
+              </th>
+              <td className="calendar-day-table__items" />
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -219,20 +339,18 @@ function DayItems({
   day,
   items,
   density = 'card',
+  showTimeInMonth = false,
   onComplete,
-  onRemove,
   completing,
-  removing,
   showEmpty = true,
   onExpand,
 }: {
   day: CalendarDay
   items: SurfaceItem[]
   density?: ActivityTileDensity
+  showTimeInMonth?: boolean
   onComplete?: (itemId: string) => void
-  onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
   completing?: boolean
-  removing?: boolean
   showEmpty?: boolean
   onExpand?: () => void
 }) {
@@ -257,25 +375,20 @@ function DayItems({
         group={entry}
         density={density}
         onComplete={onComplete}
-        onRemove={onRemove}
         completing={completing}
-        removing={removing}
       />
     ) : (
       <ActivityTile
         key={entry.key}
         item={entry.item}
         density={density}
+        showTimeInMonth={showTimeInMonth}
         onComplete={onComplete}
-        onRemove={onRemove}
         completing={completing}
-        removing={removing}
       />
     )
 
   if (density === 'day') {
-    // Local wall-clock times are already in the calendar's timezone. Do not
-    // convert them through the browser timezone or infer a session duration.
     const slots = new Map<string, CalendarRenderEntry[]>()
     for (const entry of entries) {
       const time = entry.localTime?.slice(0, 5) || ''
@@ -294,7 +407,13 @@ function DayItems({
         {times.map((time) => (
           <li key={time || 'untimed'} className="calendar-agenda__slot">
             <h3 className="calendar-agenda__time">
-              {time ? <time dateTime={`${day.id}T${time}`}>{formatTargetTime(time) ?? time}</time> : 'Any time'}
+              {time ? (
+                <time dateTime={`${day.id}T${time}`}>
+                  {formatTargetTime(time) ?? time}
+                </time>
+              ) : (
+                'Any time'
+              )}
             </h3>
             <div className="calendar-agenda__items">
               {slots.get(time)!.map(renderEntry)}
@@ -308,7 +427,15 @@ function DayItems({
   return (
     <div className="calendar-day-items">
       {(density === 'month' ? entries.slice(0, 4) : entries).map(renderEntry)}
-      {density === 'month' && entries.length > 4 && <button type="button" className="calendar-month-more" onClick={onExpand}>+{entries.length - 4} more</button>}
+      {density === 'month' && entries.length > 4 && (
+        <button
+          type="button"
+          className="calendar-month-more"
+          onClick={onExpand}
+        >
+          +{entries.length - 4} more
+        </button>
+      )}
     </div>
   )
 }
@@ -318,33 +445,35 @@ export function CalendarSurface({
   selected,
   onSelect,
   items,
-  view = 'week',
+  view = 'day',
+  timezone,
+  showAllHours = false,
+  onToggleAllHours,
+  nextItemId,
   onComplete,
-  onRemove,
   onChangeTime,
   completing = false,
-  removing = false,
 }: {
   days: CalendarDay[]
   selected: string
   onSelect: (day: string) => void
   items: SurfaceItem[]
-  view?: 'day' | 'week' | 'month'
+  view?: 'day' | 'month'
+  timezone?: string
+  showAllHours?: boolean
+  onToggleAllHours?: () => void
+  nextItemId?: string | null
   onComplete?: (itemId: string) => void
-  onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
   onChangeTime?: (itemId: string, localTime: string | null) => void
   completing?: boolean
-  removing?: boolean
 }) {
   const selectedDay = days.find((day) => day.id === selected) ?? days[0]
   if (!selectedDay) return null
 
-  // --- MONTH VIEW ---
   if (view === 'month') {
     return (
       <div className="calendar">
-        {/* Weekday column headers */}
-        <div className="calendar-month-weekdays hidden xl:grid" aria-hidden>
+        <div className="calendar-month-weekdays" aria-hidden>
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
             <span key={day} className="py-1">
               {day}
@@ -352,12 +481,12 @@ export function CalendarSurface({
           ))}
         </div>
 
-        {/* Mobile quick day strip */}
         <div className="calendar-month-picker xl:hidden" aria-label="Select a day">
           {days.map((day) => {
             const dayItems = items.filter((item) => item.day === day.id)
             const count = dayItems.length
-            const isCompleted = count > 0 && dayItems.every((it) => it.done || it.status === 'DONE')
+            const isCompleted =
+              count > 0 && dayItems.every((it) => it.done || it.status === 'DONE')
 
             return (
               <button
@@ -391,7 +520,6 @@ export function CalendarSurface({
           })}
         </div>
 
-        {/* Desktop/Tablet Month Grid */}
         <div className="calendar-month-grid hidden xl:grid" aria-label="Monthly calendar">
           {days.map((day) => {
             const dayItems = items.filter((item) => item.day === day.id)
@@ -419,24 +547,26 @@ export function CalendarSurface({
                     className={cn(
                       'inline-flex min-h-8 min-w-10 items-center gap-1.5 flex justify-center font-mono text-lg font-semibold transition-colors',
                       day.today && 'font-bold',
-                      !day.today && isSelected && 'bg-surface-raised font-bold text-foreground',
-                      !day.today && !isSelected && 'text-muted group-hover:text-foreground',
+                      !day.today &&
+                        isSelected &&
+                        'bg-surface-raised font-bold text-foreground',
+                      !day.today &&
+                        !isSelected &&
+                        'text-muted group-hover:text-foreground',
                     )}
                   >
                     <span>{day.number}</span>
                   </button>
-
                 </div>
 
                 <DayItems
                   day={day}
                   items={items}
                   density="month"
+                  showTimeInMonth={showAllHours}
                   onExpand={() => onSelect(day.id)}
                   onComplete={onComplete}
-                  onRemove={onRemove}
                   completing={completing}
-                  removing={removing}
                   showEmpty={false}
                 />
               </section>
@@ -444,12 +574,13 @@ export function CalendarSurface({
           })}
         </div>
 
-        {/* Selected Day Agenda Drawer / Section beneath the month grid */}
         <section className="calendar-selected-day calendar-selected-day--mobile-only mt-6 pt-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display text-lg font-bold">
-              {selectedDay.today ? 'Today' : `${selectedDay.label} ${selectedDay.number}`}
-            </h3>
+            <h2 className="font-display text-lg font-bold">
+              {selectedDay.today
+                ? 'Today'
+                : `${selectedDay.label} ${selectedDay.number}`}
+            </h2>
             <span className="text-xs text-muted">
               {items.filter((item) => item.day === selectedDay.id).length}{' '}
               {items.filter((item) => item.day === selectedDay.id).length === 1
@@ -458,139 +589,41 @@ export function CalendarSurface({
               scheduled
             </span>
           </div>
-          <DayItems
-            day={selectedDay}
-            items={items}
-            density="day"
-            onComplete={onComplete}
-            onRemove={onRemove}
-            completing={completing}
-            removing={removing}
-          />
+          {items.some((item) => item.day === selectedDay.id) || showAllHours ? (
+            <DayHourlyTable
+              day={selectedDay}
+              items={items}
+              timezone={timezone}
+              showAllHours={showAllHours}
+              onToggleAllHours={onToggleAllHours}
+              nextItemId={nextItemId}
+              onComplete={onComplete}
+              onChangeTime={onChangeTime}
+              completing={completing}
+            />
+          ) : (
+            <div className="calendar-empty-day">
+              <p>No activities planned</p>
+            </div>
+          )}
         </section>
       </div>
     )
   }
 
-  // --- DAY VIEW ---
-  if (view === 'day') {
-    return (
-      <section className="calendar-selected-day w-full">
-        <DayHourlyTable
-          day={selectedDay}
-          items={items}
-          onComplete={onComplete}
-          onRemove={onRemove}
-          onChangeTime={onChangeTime}
-          completing={completing}
-          removing={removing}
-        />
-      </section>
-    )
-  }
-
-  // --- WEEK VIEW ---
   return (
-    <div className="calendar">
-      {/* Modern Week Strip with date headers */}
-      <div className="calendar-weekstrip" aria-label="Select a day">
-        {days.map((day) => {
-          const dayItems = items.filter((item) => item.day === day.id)
-          const count = dayItems.length
-          const isSelected = selected === day.id
-          const completedCount = dayItems.filter((it) => it.done || it.status === 'DONE').length
-
-          return (
-            <button
-              key={day.id}
-              type="button"
-              aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
-              aria-pressed={isSelected}
-              aria-current={day.today ? 'date' : undefined}
-              onClick={() => onSelect(day.id)}
-              className={cn(
-                'calendar-day p-2 transition-all duration-fast',
-                isSelected && 'calendar-day--selected',
-                day.today && 'calendar-day--today',
-              )}
-            >
-              <span className="calendar-day__label text-xs uppercase" aria-hidden>
-                {day.today ? 'Today' : day.label}
-              </span>
-              <span className="calendar-day__number font-mono text-xl font-bold my-0.5" aria-hidden>
-                {day.number}
-              </span>
-
-              {count > 0 && (
-                <span
-                  className={cn(
-                    'mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                    isSelected
-                      ? 'bg-surface-muted text-foreground'
-                      : completedCount === count
-                        ? 'bg-success/20 text-success'
-                        : 'bg-surface-muted text-muted',
-                  )}
-                  aria-hidden
-                >
-                  {completedCount}/{count}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* 7-Day Board Grid */}
-      <div className="calendar-board mt-4">
-        {days.map((day) => {
-          const dayItems = items.filter((item) => item.day === day.id)
-          const count = dayItems.length
-          const isSelected = selected === day.id
-
-          return (
-            <section
-              key={day.id}
-              aria-label={day.label}
-              className={cn(
-                'calendar-column flex flex-col gap-3',
-                !isSelected && 'calendar-column--hidden-mobile',
-                day.today && 'calendar-column--today',
-              )}
-            >
-              <button
-                type="button"
-                aria-pressed={isSelected}
-                onClick={() => onSelect(day.id)}
-                className={cn(
-                  'calendar-column__heading flex items-center justify-between p-2 rounded-lg transition-colors',
-                  isSelected ? 'bg-surface-raised font-bold' : 'hover:bg-surface-muted',
-                  day.today && 'calendar-column__heading--today',
-                )}
-              >
-                <span className="font-display text-sm font-semibold">
-                  {day.today ? `Today · ${day.label} ${day.number}` : `${day.label} ${day.number}`}
-                </span>
-                {count > 0 && (
-                  <span className="font-mono text-xs text-muted">
-                    {count}
-                  </span>
-                )}
-              </button>
-
-              <DayItems
-                day={day}
-                items={items}
-                density="week"
-                onComplete={onComplete}
-                onRemove={onRemove}
-                completing={completing}
-                removing={removing}
-              />
-            </section>
-          )
-        })}
-      </div>
-    </div>
+    <section className="calendar-selected-day w-full">
+      <DayHourlyTable
+        day={selectedDay}
+        items={items}
+        timezone={timezone}
+        showAllHours={showAllHours}
+        onToggleAllHours={onToggleAllHours}
+        nextItemId={nextItemId}
+        onComplete={onComplete}
+        onChangeTime={onChangeTime}
+        completing={completing}
+      />
+    </section>
   )
 }

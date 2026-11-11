@@ -140,13 +140,10 @@ export function SettingsPage() {
   }
 
   return (
-    <Page>
+    <Page className="page--content">
       <Stage>
         <Row className="justify-between">
           <Back to={buildProfileUrl(profile.handle)}>Profile</Back>
-          <Link to="/notifications" className={linkButton}>
-            Notification Inbox
-          </Link>
         </Row>
         <h1>Settings</h1>
 
@@ -176,7 +173,7 @@ export function SettingsPage() {
                   setSavedNotice(false)
                   setTimezone(e.target.value)
                 }}
-                className="min-h-11 w-full rounded-md border bg-surface px-3 py-2 text-text focus:border-accent"
+                className="min-h-11 w-full rounded-md border bg-surface px-3 py-2 text-base text-text focus:border-accent sm:text-sm"
               >
                 {timezones.map((tz) => (
                   <option key={tz} value={tz}>

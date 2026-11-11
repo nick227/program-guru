@@ -37,7 +37,7 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
   await page.getByLabel('Email', { exact: true }).fill('author@test.local')
   await page.getByLabel('Password', { exact: true }).fill('password')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('radio', { name: 'Day', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'All hours', exact: true })).toBeVisible()
   await page.goto('/?view=day&day=2026-11-09')
 
   const table = page.getByRole('table', { name: 'Day schedule' })
@@ -50,7 +50,17 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
   ])
   expect(tableBox!.width).toBeGreaterThanOrEqual(containerBox!.width - 2)
 
-  // Top row is Any time, followed by 24 hour rows from 12:00 AM to 11:00 PM
+  // Daily context strip summarizes progress and highlights Next activity
+  const context = page.getByLabel('Daily summary')
+  await expect(context).toContainText('1 of 5 completed')
+  await expect(context).toContainText('Next')
+  await expect(context).toContainText('Night journal')
+
+  // Focused default hides empty hours (only Any time + populated hours 00, 07, 18)
+  await expect(table.locator('tbody tr[data-slot]')).toHaveCount(4)
+
+  // Single toggle switches to all 24 hours (Any time + 12:00 AM to 11:00 PM)
+  await page.getByRole('button', { name: 'All hours', exact: true }).click()
   const slots = table.locator('tbody tr[data-slot]')
   await expect(slots).toHaveCount(25)
   await expect(slots.nth(0)).toHaveAttribute('data-slot', 'anytime')
@@ -75,7 +85,7 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
   await expect(table.getByRole('button', { name: 'Mark Morning stretch complete' })).toHaveCount(0)
   await expect(table.getByRole('button', { name: 'Mark Team check-in complete' })).toHaveCount(0)
   await expect(table.getByRole('button', { name: 'Mark Evening walk complete' })).toBeVisible()
-  await expect(table.getByLabel('Time of day for Evening walk')).toHaveValue('18:30')
+  await expect(table.getByRole('button', { name: 'Adjust time for Evening walk' })).toContainText('6:30 PM')
 
   // Drag "Read a chapter" from Any time to 2:00 AM row
   const readTile = table.locator('article[data-item-id="any"]')
@@ -84,7 +94,8 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
   await expect(twoAmRow.locator('article[data-item-id="any"]')).toBeVisible()
   await expect(slots.nth(0).locator('article[data-item-id="any"]')).toHaveCount(0)
 
-  // Day-level time input adjusts exact time of day (e.g. 02:45 -> stays in 2 AM row, shows 2:45 AM)
+  // Click inline time toggle button to adjust exact time of day (02:45 -> stays in 2 AM row, shows 2:45 AM)
+  await page.getByRole('button', { name: 'Adjust time for Read a chapter' }).click()
   const timeInput = page.getByLabel('Time of day for Read a chapter')
   await timeInput.fill('02:45')
   await expect(twoAmRow.locator('article[data-item-id="any"]')).toContainText('2:45 AM')
@@ -93,8 +104,17 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
   await page.getByRole('button', { name: 'Clear time for Read a chapter' }).click()
   await expect(slots.nth(0).locator('article[data-item-id="any"]')).toBeVisible()
 
+  // Clickable date heading opens compact date picker and switches day
+  await page.getByRole('button', { name: /Change date, Monday, November 9, 2026/ }).click()
+  const picker = page.getByRole('dialog', { name: 'Choose a date' })
+  await expect(picker).toBeVisible()
+  await picker.getByRole('button', { name: 'Tuesday, November 10, 2026' }).click()
+  await expect(page).toHaveURL(/day=2026-11-10/)
+
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 
+  // Return to Nov 9 and click tile to open Occurrence page
+  await page.goto('/?view=day&day=2026-11-09')
   await table.getByRole('link', { name: /Evening walk/ }).click()
   await expect(page).toHaveURL(/\/occurrences\/late/)
   expect(requests.length).toBeGreaterThanOrEqual(0)

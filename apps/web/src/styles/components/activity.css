@@ -21,7 +21,7 @@
     align-items: center;
     column-gap: var(--space-4);
     row-gap: var(--space-4);
-    padding: var(--space-5);
+    padding: var(--space-4);
     border: 1px solid hsl(var(--color-border));
     border-radius: var(--radius-panel);
     background: hsl(var(--color-surface));
@@ -179,7 +179,12 @@
     font-size: var(--text-base);
     font-weight: 700;
     letter-spacing: -0.005em;
-    background-color: limegreen;
+    background: hsl(var(--color-accent));
+    color: hsl(var(--color-accent-fg));
+  }
+
+  .activity-hero .activity-cta:hover:not(:disabled) {
+    background: hsl(var(--color-accent) / 0.9);
   }
 
   .activity-timer {
@@ -211,7 +216,7 @@
     flex-direction: column;
     gap: var(--space-4);
     min-width: 0;
-    padding: var(--space-5);
+    padding: var(--space-4);
     border: 1px solid hsl(var(--color-border));
     border-radius: var(--radius-panel);
     background: hsl(var(--color-surface));
@@ -496,7 +501,7 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    min-height: 2.125rem;
+    min-height: 2.5rem;
     padding: 0 var(--space-3);
     border-radius: calc(var(--radius-control) - 2px);
     color: hsl(var(--color-muted));
@@ -639,13 +644,13 @@
       width: 100%;
     }
 
-    .activity-session__primary > *,
-    .activity-session__tools > .btn:not(.btn--icon) {
+    .activity-session__primary > * {
       flex: 1 1 auto;
     }
 
     .activity-session__tools {
       width: 100%;
+      justify-content: flex-end;
     }
 
     .activity-hero .activity-cta {

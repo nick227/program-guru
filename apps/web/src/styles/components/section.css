@@ -99,9 +99,24 @@
   /* Underline tabs that filter a list (My Programs status). Counts are captions. */
   .filter-tabs {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1) var(--space-6);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    gap: var(--space-1) var(--space-5);
     border-bottom: 1px solid hsl(var(--color-border));
+  }
+
+  .filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (min-width: 640px) {
+    .filter-tabs {
+      flex-wrap: wrap;
+      overflow-x: visible;
+      gap: var(--space-1) var(--space-6);
+    }
   }
 
   .filter-tabs button {

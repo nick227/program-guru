@@ -22,7 +22,6 @@ import { toast } from 'sonner'
 import { Page, Stage } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { SubHeader } from '@/components/shared/SubHeader'
 import { buildProgramBreadcrumbs } from '@/lib/breadcrumbs'
 import { ProgramHero } from '@/components/program/ProgramHero'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
@@ -180,11 +179,6 @@ export function ProgramPage() {
     })
     return (
       <Page className="page--wide">
-        <SubHeader
-          breadcrumbs={notFoundNav.items}
-          active={notFoundNav.activeNav}
-          returnTo={currentUrl}
-        />
         <Stage className="max-w-3xl mx-auto py-12">
           <h1 className="text-2xl font-bold font-display">Program not found</h1>
           <p className="text-muted mt-2">
@@ -205,11 +199,6 @@ export function ProgramPage() {
     })
     return (
       <Page className="page--wide">
-        <SubHeader
-          breadcrumbs={loadingNav.items}
-          active={loadingNav.activeNav}
-          returnTo={currentUrl}
-        />
         <Stage className="max-w-3xl mx-auto py-12">
           <ErrorMessage
             error={program.error}
@@ -488,11 +477,6 @@ export function ProgramPage() {
 
   return (
     <Page className="page--wide pb-20">
-      <SubHeader
-        breadcrumbs={programNav.items}
-        active={programNav.activeNav}
-        returnTo={currentUrl}
-      />
       <div className="mx-auto mt-6 max-w-[72rem] space-y-10 sm:mt-8">
         {/* 01 — Program Hero */}
         <div ref={startRef} className="scroll-mt-20">

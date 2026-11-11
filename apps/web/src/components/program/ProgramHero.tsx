@@ -121,7 +121,7 @@ export function ProgramHero({
         size="card"
         interactive={false}
         showVideoBadge={false}
-        className="aspect-square w-full max-w-xs rounded-2xl border border-border/50 bg-surface-muted sm:max-w-none"
+        className="aspect-[4/3] w-full max-w-none rounded-2xl border border-border/50 bg-surface-muted sm:aspect-square"
       />
 
       <div className="min-w-0 space-y-5">
@@ -155,7 +155,7 @@ export function ProgramHero({
                           if (!active) ownerVisibility.onChange(v)
                         }}
                         className={cn(
-                          'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60',
+                          'inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-60 sm:min-h-0 sm:py-1',
                           active
                             ? 'bg-accent text-accent-foreground shadow-sm'
                             : 'text-muted hover:text-foreground',
@@ -226,7 +226,7 @@ export function ProgramHero({
               onClick={onPrimary}
               disabled={primaryDisabled}
               loading={primaryLoading}
-              className="gap-2 px-7 text-base font-semibold"
+              className="w-full gap-2 px-7 text-base font-semibold sm:w-auto"
             >
               {!primaryLoading &&
                 (primaryDone ? (

@@ -44,7 +44,6 @@ import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { activityHero } from '@/lib/hero'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { SubHeader } from '@/components/shared/SubHeader'
 import { buildOccurrenceBreadcrumbs } from '@/lib/breadcrumbs'
 import { MetricInput } from '@/components/activity/MetricInput'
 import { ActivityTogether } from '@/components/activity/ActivityTogether'
@@ -103,12 +102,7 @@ export function OccurrencePage() {
 
   return (
     <Page className="page--wide pb-20">
-      <SubHeader
-        breadcrumbs={occurrenceNav.items}
-        active={occurrenceNav.activeNav}
-        returnTo={currentUrl}
-      />
-      <div className="mx-auto mt-6 w-full page--width">
+      <div className="mx-auto mt-6 w-full max-w-content">
         <ErrorMessage
           error={occurrence.error}
           retry={() => void occurrence.refetch()}

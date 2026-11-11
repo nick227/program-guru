@@ -17,7 +17,7 @@ export function LoginPage() {
   const [params] = useSearchParams()
   return (
     <Page>
-      <Stage className="max-w-xl flex flex-col justify-start h-screen">
+      <Stage className="max-w-xl flex flex-col justify-start min-h-[calc(100dvh-10rem)]">
         <h1 className='page-title text-4xl'>Sign in to your week</h1>
         <Panel>
           <Form

@@ -50,13 +50,10 @@ export function NotificationsPage() {
   })
 
   return (
-    <Page>
+    <Page className="page--content">
       <Stage>
         <Row className="justify-between">
           <Back to="/">Calendar</Back>
-          <Link to="/settings" className={linkButton}>
-            Reminder preferences
-          </Link>
         </Row>
 
         <Row className="justify-between">
@@ -74,7 +71,11 @@ export function NotificationsPage() {
           </Button>
         </Row>
 
-        <Row role="tablist" aria-label="Filter notifications">
+        <Row
+          role="tablist"
+          aria-label="Filter notifications"
+          className="flex-nowrap overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0"
+        >
           {FILTERS.map((tab) => {
             const active = filter === tab.id
             return (
@@ -84,7 +85,7 @@ export function NotificationsPage() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setFilter(tab.id)}
-                className={`min-h-11 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`min-h-11 min-w-11 shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
                   active
                     ? 'border-accent bg-accent text-white'
                     : 'bg-surface text-muted hover:bg-surface-muted hover:text-text'

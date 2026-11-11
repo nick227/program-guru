@@ -64,7 +64,7 @@ export function ShareLinkField({
           readOnly
           value={url}
           aria-label={inputLabel}
-          className="h-9 w-full font-mono text-xs select-all bg-surface-muted text-foreground"
+          className="h-11 sm:h-9 w-full font-mono text-base sm:text-xs select-all bg-surface-muted text-foreground"
           onFocus={(e) => e.target.select()}
         />
       </div>
@@ -72,7 +72,7 @@ export function ShareLinkField({
         type="button"
         size="sm"
         variant="outline"
-        className="h-9 shrink-0 gap-1.5 px-3.5 text-xs font-semibold"
+        className="h-11 sm:h-9 shrink-0 gap-1.5 px-3.5 text-xs font-semibold"
         onClick={() => void handleCopy()}
       >
         {copied ? (
@@ -87,7 +87,7 @@ export function ShareLinkField({
           type="button"
           size="sm"
           variant="outline"
-          className="h-9 w-9 shrink-0 p-0 text-muted hover:text-foreground"
+          className="h-11 w-11 sm:h-9 sm:w-9 shrink-0 p-0 text-muted hover:text-foreground"
           aria-label="Share via device"
           onClick={() => void handleNativeShare()}
         >

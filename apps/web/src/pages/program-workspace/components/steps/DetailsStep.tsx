@@ -81,7 +81,7 @@ export function DetailsStep({
           Description
         </h3>
         <textarea
-          className="textarea min-h-28 w-full rounded-lg border border-border p-3 text-sm"
+          className="textarea min-h-28 w-full rounded-lg border border-border p-3 text-base sm:text-sm"
           maxLength={PROGRAM_DESCRIPTION_MAX}
           value={description}
           placeholder={PROGRAM_DESCRIPTION_PLACEHOLDER}

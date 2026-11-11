@@ -1,8 +1,7 @@
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { useProgramLibrary } from '@project/sdk'
-import { Search, BookOpen } from 'lucide-react'
+import { useProgramLibrary, useProgramPrefetch } from '@project/sdk'
+import { BookOpen, Search, X } from 'lucide-react'
 import { ProgramLibraryActions as Actions } from '@/components/program/ProgramLibraryActions'
-import { ProgramPeople } from '@/components/program/ProgramPeople'
 import { Page } from '@/components/ui/Layout'
 import { StatusText, libraryStatusTone } from '@/components/ui/StatusText'
 import { Button } from '@/components/ui/Button'
@@ -10,11 +9,9 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { EmptyState, ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
-import { SubHeader } from '@/components/shared/SubHeader'
 import { programHero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
-import { libraryProgramUrl, libraryReturnUrl } from '@/lib/programNavigation'
-import { buildOccurrenceUrl } from '@/lib/urls'
+import { libraryProgramUrl } from '@/lib/programNavigation'
 import {
   selectPrograms,
   statuses,
@@ -55,9 +52,10 @@ export function LibraryPage() {
   // "Remove from Programs" produces) simply don't appear in the library.
   const rows = (library.data ?? []).filter((r) => r.status !== 'Archived')
   const filtered = selectPrograms(rows, query, status, owned, sort)
+
   return (
-    <Page className="page--wide">
-      <SubHeader title="My Programs" active="programs" />
+    <Page className="page--content">
+      <h1 className="library-title">My Programs</h1>
       <ErrorMessage
         error={library.error}
         retry={() => void library.refetch()}
@@ -66,71 +64,86 @@ export function LibraryPage() {
         <Loading />
       ) : !library.data ? null : (
         <>
-          <div className="library-toolbar">
-            <label className="library-search">
-              <Search size={17} />
-              <Input
-                aria-label="Search Programs"
-                placeholder="Search your Programs…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </label>
-            <label className="library-owned">
-              <input
-                type="checkbox"
-                checked={owned}
-                onChange={(e) => setOwned(e.target.checked)}
-              />{' '}
-              Created by me
-            </label>
-            <Select
-              aria-label="Sort Programs"
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-            >
-              <option value="recent">Recent activity</option>
-              <option value="name">Name A–Z</option>
-              <option value="progress">Most progress</option>
-            </Select>
-          </div>
-          <div className="filter-tabs library-tabs" role="group" aria-label="Filter by status">
-            {statuses.map((s) => (
-              <button
-                key={s}
-                type="button"
-                aria-pressed={s === status}
-                onClick={() => setStatus(s)}
+          {rows.length > 0 && (
+            <>
+              <div className="library-toolbar">
+                <div className="library-search">
+                  <Search size={17} aria-hidden />
+                  <Input
+                    aria-label="Search Programs"
+                    placeholder="Search your Programs…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                  {query && (
+                    <button
+                      type="button"
+                      className="library-search-clear"
+                      aria-label="Clear search"
+                      onClick={() => setQuery('')}
+                    >
+                      <X size={15} aria-hidden />
+                    </button>
+                  )}
+                </div>
+                <label className="library-owned">
+                  <input
+                    type="checkbox"
+                    checked={owned}
+                    onChange={(e) => setOwned(e.target.checked)}
+                  />{' '}
+                  Created by me
+                </label>
+                <Select
+                  aria-label="Sort Programs"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                >
+                  <option value="recent">Recent activity</option>
+                  <option value="name">Name A–Z</option>
+                  <option value="progress">Most progress</option>
+                </Select>
+              </div>
+              <div
+                className="filter-tabs library-tabs"
+                role="group"
+                aria-label="Filter by status"
               >
-                {s}
-                <span className="filter-tabs__count">
-                  {s === 'All'
-                    ? rows.length
-                    : rows.filter((r) => r.status === s).length}
-                </span>
-              </button>
-            ))}
-          </div>
+                {statuses.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={s === status}
+                    onClick={() => setStatus(s)}
+                  >
+                    {s}
+                    <span className="filter-tabs__count">
+                      {s === 'All'
+                        ? rows.length
+                        : rows.filter((r) => r.status === s).length}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           {filtered.length ? (
             <div className="library-table-wrap">
               <table className="library-table">
                 <thead>
                   <tr>
-                    {[
-                      'Program',
-                      'Type',
-                      'Status',
-                      'Progress',
-                      'People',
-                      'Next Activity',
-                      'Source',
-                      'Privacy',
-                      'Actions',
-                    ].map((h) => (
-                      <th key={h} scope="col" data-label={h}>
-                        {h}
-                      </th>
-                    ))}
+                    <th scope="col" data-label="Program">
+                      Program
+                    </th>
+                    <th scope="col" data-label="Status">
+                      Status
+                    </th>
+                    <th scope="col" data-label="Progress">
+                      Progress
+                    </th>
+                    <th scope="col" data-label="Actions">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -169,9 +182,11 @@ export function LibraryPage() {
     </Page>
   )
 }
+
 function Status({ status }: { status: string }) {
   return <StatusText status={libraryStatusTone(status)}>{status}</StatusText>
 }
+
 function Progress({ entry }: { entry: PersonalProgram }) {
   const r = entry.current
   return r?.planned ? (
@@ -181,37 +196,54 @@ function Progress({ entry }: { entry: PersonalProgram }) {
         value={r.completed}
         max={r.planned}
       />
+      <span className="library-progress__count">
+        {r.completed}/{r.planned}
+      </span>
     </div>
   ) : (
-    <span className="text-muted">
-      {r ? 'No eligible occurrences' : 'Not scheduled'}
-    </span>
+    <span className="text-muted">—</span>
   )
 }
+
 function ProgramRow({ entry }: { entry: PersonalProgram }) {
   const category = useCategorySlugOf()
   const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const prefetch = useProgramPrefetch()
   const p = entry.program
   const r = entry.current
-  const next =
-    entry.status === 'Active' || entry.status === 'Not Started'
-      ? r?.upcoming[0]
-      : null
+  const detailUrl = libraryProgramUrl(p.id, params.toString())
+
   return (
-    <tr>
+    <tr
+      onClick={(event) => {
+        if (
+          (event.target as HTMLElement).closest(
+            'a, button, details, summary, dialog',
+          )
+        ) {
+          return
+        }
+        navigate(detailUrl)
+      }}
+    >
       <td data-label="Program">
         <Link
           className="library-identity"
-          to={libraryProgramUrl(p.id, params.toString())}
+          to={detailUrl}
+          onPointerEnter={() => prefetch(p.id)}
+          onFocus={() => prefetch(p.id)}
         >
           <EntityHero
             hero={programHero(p, category)}
-            size="card"
-            className="library-art aspect-preview w-20 rounded-[var(--radius-media)]"
+            size="thumb"
+            interactive={false}
+            showVideoBadge={false}
+            className="library-art"
           />
-          <div>
-            <strong>
-              {p.title}
+          <div className="library-identity__text">
+            <strong className="library-name">
+              <span className="library-name__text">{p.title}</span>
               {r?.pendingVersionId && (
                 <span
                   className="library-update-dot"
@@ -221,56 +253,25 @@ function ProgramRow({ entry }: { entry: PersonalProgram }) {
                 />
               )}
             </strong>
+            <span className="library-mobile-meta">
+              <Status status={entry.status} />
+              {r?.planned ? (
+                <>
+                  <span aria-hidden>·</span>
+                  <span className="tabular-nums">
+                    {r.completed}/{r.planned}
+                  </span>
+                </>
+              ) : null}
+            </span>
           </div>
         </Link>
-      </td>
-      <td data-label="Type">
-        <span className="library-type">{p.type.label}</span>
       </td>
       <td data-label="Status">
         <Status status={entry.status} />
       </td>
       <td data-label="Progress">
         <Progress entry={entry} />
-      </td>
-      <td data-label="People">
-        <ProgramPeople participation={entry.participation} />
-      </td>
-      <td data-label="Next Activity">
-        {next ? (
-          <Link
-            to={buildOccurrenceUrl(next.id, {
-              returnTo: libraryReturnUrl(params.toString()),
-            })}
-            className="library-next"
-          >
-            <strong>{next.title}</strong>
-          </Link>
-        ) : (
-          <span className="text-muted">
-            {entry.status === 'Paused'
-              ? 'Schedule paused'
-              : 'Nothing scheduled'}
-          </span>
-        )}
-      </td>
-      <td data-label="Source">
-        <div className="library-source">
-          <strong>
-            {entry.owned
-              ? entry.sourceVersionId
-                ? 'Customized by you'
-                : 'Created by you'
-              : (p.creator?.displayName ?? 'Programs')}
-          </strong>
-        </div>
-      </td>
-      <td data-label="Privacy">
-        <div className="library-privacy">
-          <span>
-            {entry.owned ? p.visibility.toLowerCase() : 'community'}
-          </span>
-        </div>
       </td>
       <td data-label="Actions">
         <Actions entry={entry} />

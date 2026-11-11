@@ -37,13 +37,25 @@ import { AdminApp } from '@/admin/registry'
 import { Page, Stage } from '@/components/ui/Layout'
 import { ErrorMessage } from '@/components/ui/Feedback'
 import { AccountMenu } from '@/components/account/AccountMenu'
+import { HeaderNavMenu } from '@/components/shared/HeaderNavMenu'
 import { LibraryBrowserPage } from '@/pages/Browse'
 import { useCurrentUser } from '@project/sdk'
+
+const AUTH_PATHS = new Set([
+  '/login',
+  '/register',
+  '/verify-email',
+  '/forgot-password',
+  '/reset-password',
+  '/unsubscribe',
+  '/email/unsubscribe',
+])
 
 function Root() {
   const online = useOnline()
   const location = useLocation()
   const me = useCurrentUser()
+  const showHeaderMenu = !AUTH_PATHS.has(location.pathname)
   useEffect(() => {
     window.scrollTo(0, 0)
     const main = document.querySelector<HTMLElement>('main')
@@ -67,23 +79,26 @@ function Root() {
           You are offline. Previously loaded data may be out of date. Connect to load your account or save changes.
         </p>
       )}
-      <header className="sticky top-0 z-20 border-b bg-surface/95 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b bg-surface/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="flex min-h-16 mx-auto items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6 page--wide">
-          <Link
-            to="/"
-            className="flex items-center gap-2 font-display text-base font-semibold tracking-tight sm:text-lg"
-          >
-            <span
-              aria-hidden
-              className="h-2.5 w-2.5 rounded-full bg-accent"
-            />
-            Program.Guru
-          </Link>
+          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+            <Link
+              to="/"
+              className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-full font-display text-base font-semibold tracking-tight max-[459px]:border max-[459px]:border-border max-[459px]:bg-surface-raised/80 min-[460px]:min-w-0 min-[460px]:justify-start min-[460px]:rounded-none sm:text-lg"
+            >
+              <span
+                aria-hidden
+                className="h-2.5 w-2.5 rounded-full bg-accent"
+              />
+              <span className="max-[459px]:sr-only">Program.Guru</span>
+            </Link>
+            {showHeaderMenu && <HeaderNavMenu />}
+          </div>
           {me.data ? (
             <AccountMenu />
           ) : (
             <div className="flex items-center gap-3">
-              <Link to="/login" className="text-sm font-semibold text-accent">
+              <Link to="/login" className="inline-flex min-h-11 items-center text-sm font-semibold text-accent">
                 Sign in
               </Link>
             </div>

@@ -5,9 +5,26 @@
     border-color: hsl(var(--color-border));
   }
 
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
   /* Route changes focus <main> for screen readers; it is not a control, so no ring. */
   main[tabindex='-1']:focus {
     outline: none;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  summary,
+  [role='button'],
+  [role='tab'],
+  [role='radio'] {
+    touch-action: manipulation;
   }
 
   body {

@@ -89,11 +89,13 @@ test('Library browser keeps filters and cached content through discovery and par
   })
   await expect(page.locator('tbody tr')).toHaveCount(1)
   const readsBeforeBrowse = libraryReads
+  await page.getByRole('button', { name: /Pages menu/ }).click()
   await page
+    .getByRole('navigation', { name: 'Workspace navigation' })
     .getByRole('link', { name: 'Community', exact: true })
     .click()
   await expect(
-    page.getByRole('heading', { name: 'Community', exact: true }),
+    page.getByRole('button', { name: /Pages menu, current page Community/ }),
   ).toBeVisible()
   await expect(page.getByLabel('Program type', { exact: true })).toHaveValue(
     '',
@@ -121,11 +123,16 @@ test('Library browser keeps filters and cached content through discovery and par
   await expect(
     page.getByLabel('Search Programs', { exact: true }),
   ).toHaveValue('Beginner')
-  await page.getByRole('link', { name: 'Programs', exact: true }).click()
+  await page.getByRole('button', { name: /Pages menu/ }).click()
+  await page
+    .getByRole('navigation', { name: 'Workspace navigation' })
+    .getByRole('link', { name: 'Programs', exact: true })
+    .click()
   await expect(
-    page.getByRole('heading', { name: /My Programs/ }),
+    page.getByRole('button', { name: /Pages menu, current page Programs/ }),
   ).toBeVisible()
   expect(libraryReads).toBe(readsBeforeBrowse)
+  await page.getByRole('button', { name: /Pages menu/ }).click()
   await page
     .getByRole('navigation', { name: 'Workspace navigation' })
     .getByRole('link', { name: 'Community', exact: true })
@@ -177,13 +184,15 @@ test('Paused programs can be resumed; programs can be removed from library', asy
   await login(page, 'author@test.local', 'password')
   await page.goto('/library')
   await expect(
-    page.getByRole('button', { name: 'Resume', exact: true }),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Resume', exact: true }).click()
+    page.getByRole('link', { name: /^(Continue|Start)$/ }),
+  ).toHaveCount(0)
   await expect(
-    page.getByRole('link', { name: 'Continue', exact: true }),
-  ).toBeVisible()
-  expect(actions).toEqual(['ACTIVE'])
+    page.getByRole('button', { name: 'Resume', exact: true }),
+  ).toHaveCount(0)
+  await page.getByLabel('Manage Strength, with intention').click()
+  await page.getByRole('button', { name: 'Resume schedule', exact: true }).click()
+  await expect.poll(() => actions).toEqual(['ACTIVE'])
+  await expect(page.locator('tbody tr').first()).toContainText('Active')
   await page.getByLabel('Manage Strength, with intention').click()
   await page.getByRole('button', { name: 'Remove from Programs' }).click()
   await expect(

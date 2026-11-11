@@ -19,11 +19,13 @@ test('Library browser keeps filters and cached content through discovery and par
   })
   await expect(page.locator('tbody tr')).toHaveCount(1)
   const readsBeforeBrowse = libraryReads
+  await page.getByRole('button', { name: /Pages menu/ }).click()
   await page
+    .getByRole('navigation', { name: 'Workspace navigation' })
     .getByRole('link', { name: 'Community', exact: true })
     .click()
   await expect(
-    page.getByRole('heading', { name: 'Community', exact: true }),
+    page.getByRole('button', { name: /Pages menu, current page Community/ }),
   ).toBeVisible()
   await expect(page.getByLabel('Program type', { exact: true })).toHaveValue(
     '',
@@ -51,11 +53,16 @@ test('Library browser keeps filters and cached content through discovery and par
   await expect(
     page.getByLabel('Search Programs', { exact: true }),
   ).toHaveValue('Beginner')
-  await page.getByRole('link', { name: 'Programs', exact: true }).click()
+  await page.getByRole('button', { name: /Pages menu/ }).click()
+  await page
+    .getByRole('navigation', { name: 'Workspace navigation' })
+    .getByRole('link', { name: 'Programs', exact: true })
+    .click()
   await expect(
-    page.getByRole('heading', { name: /My Programs/ }),
+    page.getByRole('button', { name: /Pages menu, current page Programs/ }),
   ).toBeVisible()
   expect(libraryReads).toBe(readsBeforeBrowse)
+  await page.getByRole('button', { name: /Pages menu/ }).click()
   await page
     .getByRole('navigation', { name: 'Workspace navigation' })
     .getByRole('link', { name: 'Community', exact: true })
@@ -132,8 +139,11 @@ test('shared hero renders covers and recovers from failed images', async ({
     page
       .locator('tbody tr')
       .filter({ hasText: 'A quieter morning' })
-      .getByRole('link', { name: 'Start', exact: true }),
+      .getByRole('link', { name: /A quieter morning/ }),
   ).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: /^(Start|Continue)$/ }),
+  ).toHaveCount(0)
 })
 
 test('published owned Programs start through enrollment and fit tablet widths', async ({ page }) => {
@@ -149,9 +159,9 @@ test('published owned Programs start through enrollment and fit tablet widths', 
   await expect(page.locator('tbody tr')).toHaveCount(3)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   const own = page.locator('tbody tr').filter({ hasText: 'Strength, with intention' })
-  await own.getByRole('link', { name: 'Start', exact: true }).click()
-  // Start opens the Program (?start=1) at its one-click Start Program action.
-  await expect(page).toHaveURL(/[?&]start=1/)
+  await own.getByRole('link', { name: /Strength, with intention/ }).click()
+  // Clicking the Program opens its page at its one-click Start Program action.
+  await expect(page).toHaveURL(/\/programs\/00000000-0000-4000-8000-000000000010/)
   await expect(page.getByRole('button', { name: 'Start Program', exact: true })).toBeVisible()
   expect(requests.some(r => r.path.endsWith('/publish') && r.method === 'POST')).toBe(false)
 })

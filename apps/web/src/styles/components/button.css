@@ -24,6 +24,10 @@
     opacity var(--duration-fast) var(--ease-out);
 }
 
+.btn:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;

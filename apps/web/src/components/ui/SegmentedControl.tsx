@@ -50,8 +50,8 @@ export function SegmentedControl<T extends string = string>({
             onClick={() => onChange(option.value)}
             className={cn(
               'relative flex items-center justify-center font-medium rounded-full transition-all duration-fast select-none',
-              size === 'sm' && 'px-3 py-1 text-xs leading-none',
-              size === 'md' && 'px-4 py-1.5 text-sm leading-tight',
+              size === 'sm' && 'min-h-10 sm:min-h-8 px-3 py-1.5 sm:py-1 text-xs leading-none',
+              size === 'md' && 'min-h-11 sm:min-h-9 px-4 py-1.5 text-sm leading-tight',
               isSelected
                 ? 'bg-surface text-foreground shadow-sm font-semibold border border-border/40'
                 : 'text-muted hover:text-foreground hover:bg-surface/50 border border-transparent',

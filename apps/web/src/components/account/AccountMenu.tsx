@@ -38,6 +38,11 @@ export function AccountMenu() {
 
   useEffect(() => {
     if (!panelOpen) return
+    const isPhone = window.matchMedia('(max-width: 639.98px)').matches
+    const prevOverflow = document.body.style.overflow
+    if (isPhone) {
+      document.body.style.overflow = 'hidden'
+    }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setPanelOpen(false)
@@ -54,10 +59,35 @@ export function AccountMenu() {
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('mousedown', onPointerDown)
     return () => {
+      if (isPhone) {
+        document.body.style.overflow = prevOverflow
+      }
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('mousedown', onPointerDown)
     }
   }, [panelOpen])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && detailsRef.current?.open) {
+        detailsRef.current.open = false
+      }
+    }
+    const onPointerDown = (event: MouseEvent) => {
+      if (
+        detailsRef.current?.open &&
+        !detailsRef.current.contains(event.target as Node)
+      ) {
+        detailsRef.current.open = false
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('mousedown', onPointerDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('mousedown', onPointerDown)
+    }
+  }, [])
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-2">
@@ -86,7 +116,7 @@ export function AccountMenu() {
           <section
             role="dialog"
             aria-label="Recent notifications"
-            className="fixed inset-x-0 bottom-0 z-30 flex max-h-[82vh] flex-col rounded-t-2xl border-t bg-surface shadow-lg sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[min(32rem,70vh)] sm:w-96 sm:rounded-xl sm:border"
+            className="fixed inset-x-0 bottom-0 z-30 flex max-h-[82vh] flex-col rounded-t-2xl border-t bg-surface pb-[env(safe-area-inset-bottom)] shadow-lg sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[min(32rem,70vh)] sm:w-96 sm:rounded-xl sm:border sm:pb-0"
           >
             <div className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-border sm:hidden" />
             <div className="sticky top-0 z-10 shrink-0 border-b bg-surface px-4 py-3">
@@ -98,7 +128,7 @@ export function AccountMenu() {
                 <Row className="shrink-0 gap-1">
                   <Button
                     variant="ghost"
-                    className="px-2 text-xs"
+                    className="min-h-11 px-2.5 text-xs"
                     disabled={!hasUnread || mark.isPending}
                     loading={mark.isPending}
                     onClick={() => mark.mutate({ all: true })}
@@ -176,7 +206,7 @@ export function AccountMenu() {
         }}
       >
         <summary
-          className="relative flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-full border bg-surface py-1 pl-1 pr-2 sm:pr-3"
+          className="relative flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center gap-2 rounded-full border bg-surface p-1 sm:min-w-0 sm:justify-start sm:py-1 sm:pl-1 sm:pr-3"
           aria-label="Account"
         >
           <Avatar
@@ -184,7 +214,7 @@ export function AccountMenu() {
             name={profile.displayName}
             size="sm"
           />
-          <span className="max-w-12 truncate text-sm sm:max-w-[8rem]">
+          <span className="hidden truncate text-sm sm:inline sm:max-w-[8rem]">
             {profile.displayName}
           </span>
           <UnreadDot count={count} dotOnly />
@@ -193,22 +223,6 @@ export function AccountMenu() {
           <Stack>
             <Link to={buildProfileUrl(profile.handle)} className={linkButton}>
               Profile
-            </Link>
-            <Link to="/studio" className={linkButton}>
-              Creator Studio
-            </Link>
-            <Link to="/library" className={linkButton}>
-              My Programs
-            </Link>
-            <Link to="/media" className={linkButton}>
-              My Media
-            </Link>
-            <Link to="/notifications" className={linkButton}>
-              Notifications
-              {count > 0 ? ` (${count})` : ''}
-            </Link>
-            <Link to="/achievements" className={linkButton}>
-              Achievements
             </Link>
             <Link to="/settings" className={linkButton}>
               Settings

@@ -4,9 +4,8 @@ export async function login(page: Page, email: string, password: string) {
   await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  // exact: true — login heading "Sign in to your week" must not match.
   await expect(
-    page.getByRole('heading', { name: 'Calendar', exact: true }),
+    page.getByRole('button', { name: /Pages menu, current page Calendar/ }),
   ).toBeVisible()
 }
 export async function journey(
@@ -14,6 +13,7 @@ export async function journey(
   credentials: { author: [string, string]; participant: [string, string] },
 ) {
   await login(page, ...credentials.author)
+  await page.getByRole('button', { name: /Pages menu/ }).click()
   await page.getByRole('link', { name: 'Add Program', exact: true }).click()
   await expect(
     page.getByRole('heading', { name: 'Add Program', exact: true }),

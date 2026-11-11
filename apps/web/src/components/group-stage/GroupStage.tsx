@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -101,6 +101,20 @@ export function GroupStage({
 
   const backHref = returnTo || '/browse'
 
+  useEffect(() => {
+    if (!drawer) return
+    const isMobile = window.matchMedia('(max-width: 767.98px)').matches
+    const prevOverflow = document.body.style.overflow
+    if (isMobile) {
+      document.body.style.overflow = 'hidden'
+    }
+    return () => {
+      if (isMobile) {
+        document.body.style.overflow = prevOverflow
+      }
+    }
+  }, [drawer])
+
   return (
     <main
       id="main"
@@ -132,7 +146,7 @@ export function GroupStage({
           <Link
             to={backHref}
             aria-label="Back"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/75 transition-colors hover:bg-white/10 hover:text-white"
           >
             <ArrowLeft size={16} aria-hidden />
           </Link>
@@ -186,7 +200,7 @@ export function GroupStage({
       <div className="pointer-events-none relative z-10 flex-1" />
 
       {/* Bottom Quiet Spotlight & Minimal Control Dock */}
-      <footer className="relative z-20 flex flex-col gap-3 px-4 pb-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+      <footer className="relative z-20 flex flex-col gap-3 px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:flex-row sm:items-end sm:justify-between sm:px-6">
         {spotlightCheckIn ? (
           <div className="max-w-md rounded-2xl border border-white/15 bg-black/55 px-4 py-3 backdrop-blur-md">
             <p className="text-xs font-medium text-white/70">
@@ -208,7 +222,7 @@ export function GroupStage({
                 size="sm"
                 variant="outline"
                 onClick={() => setDrawer('history')}
-                className="h-7 rounded-full border-white/20 bg-white/10 px-3 text-xs text-white hover:bg-white/20"
+                className="min-h-9 rounded-full border-white/20 bg-white/10 px-3.5 text-xs text-white hover:bg-white/20"
               >
                 Open feed &amp; react
               </Button>
@@ -246,7 +260,7 @@ export function GroupStage({
                   aria-pressed={active}
                   onClick={() => handleThemeChange(item.id)}
                   className={cn(
-                    'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                    'min-h-9 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors',
                     active
                       ? 'bg-accent text-accent-foreground'
                       : 'text-white/70 hover:text-white',
@@ -285,12 +299,12 @@ export function GroupStage({
               type="button"
               aria-label="Close panel"
               onClick={() => setDrawer(null)}
-              className="rounded-lg p-1.5 text-muted hover:bg-surface-muted hover:text-foreground"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
             >
               <X size={18} aria-hidden />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          <div className="flex-1 overflow-y-auto p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:p-5 space-y-5">
             {drawer === 'history' ? (
               <>
                 <GroupCheckInFeed

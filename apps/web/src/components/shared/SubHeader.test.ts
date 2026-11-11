@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { StaticRouter } from 'react-router-dom/server'
 import { SubHeader, resolveSubHeaderNav } from './SubHeader'
+import { HeaderNavMenu } from './HeaderNavMenu'
 
 function renderSubHeader(
   location: string,
@@ -23,7 +24,17 @@ function renderSubHeader(
   )
 }
 
-describe('SubHeader', () => {
+function renderHeaderNav(location: string) {
+  return renderToStaticMarkup(
+    createElement(
+      StaticRouter,
+      { location },
+      createElement(HeaderNavMenu),
+    ),
+  )
+}
+
+describe('SubHeader & HeaderNavMenu', () => {
   it('resolves active navigation keys from routes', () => {
     expect(resolveSubHeaderNav('/')).toBe('calendar')
     expect(resolveSubHeaderNav('/browse')).toBe('community')
@@ -34,40 +45,35 @@ describe('SubHeader', () => {
   })
 
   it.each([
-    { route: '/', title: 'Calendar', activeLabel: 'Calendar', href: '/' },
-    { route: '/browse', title: 'Community', activeLabel: 'Community', href: '/browse' },
-    { route: '/library', title: 'My Programs', activeLabel: 'Programs', href: '/library' },
+    { route: '/', activeLabel: 'Calendar' },
+    { route: '/browse', activeLabel: 'Community' },
+    { route: '/library', activeLabel: 'Programs' },
   ])(
-    'renders all four actions in consistent order and marks $activeLabel active on $route',
-    ({ route, title, activeLabel, href }) => {
-      const html = renderSubHeader(route, { title, returnTo: route })
-      const labels = [...html.matchAll(/aria-label="(Calendar|Community|Programs|Add Program)"/g)].map(
-        (m) => m[1],
-      )
-      expect(labels).toEqual(['Calendar', 'Community', 'Programs', 'Add Program'])
-
-      const labelSpans = [...html.matchAll(/class="sub-header__label">([^<]+)</g)].map((m) => m[1])
-      expect(labelSpans).toEqual(['Calendar', 'Community', 'Programs', 'Add Program'])
-
-      const activeMatches = [...html.matchAll(/aria-current="page"/g)]
-      expect(activeMatches).toHaveLength(1)
-      expect(html).toContain(`aria-label="${activeLabel}" aria-current="page"`)
-      expect(html).toContain(`aria-current="page" class="sub-header__btn sub-header__btn--nav sub-header__btn--active"`)
-      expect(html).toContain(`href="${href}"`)
+    'HeaderNavMenu reflects $activeLabel clearly on $route',
+    ({ route, activeLabel }) => {
+      const html = renderHeaderNav(route)
+      expect(html).toContain(`aria-label="Pages menu, current page ${activeLabel}"`)
+      expect(html).toContain(`>${activeLabel}</span>`)
     },
   )
 
-  it('renders a Back link instead of nav buttons when backTo is provided', () => {
+  it('omits the visible SubHeader row on top-level pages without breadcrumbs or backTo', () => {
+    const html = renderSubHeader('/browse', { title: 'Community', active: 'community' })
+    expect(html).toBe('<h1 class="sr-only">Community</h1>')
+    expect(html).not.toContain('class="sub-header"')
+  })
+
+  it('renders a Back link when backTo is provided', () => {
     const html = renderSubHeader('/browse?pick=program&returnTo=%2Fprograms%2Fnew', {
       title: 'Program Library',
       backTo: '/programs/new',
     })
     expect(html).toContain('Back')
     expect(html).toContain('href="/programs/new"')
-    expect(html).not.toContain('aria-label="Workspace navigation"')
+    expect(html).toContain('class="sub-header"')
   })
 
-  it('renders breadcrumbs alongside the persistent 4-action SubHeader on entity pages', () => {
+  it('renders breadcrumbs cleanly without repeating workspace navigation on entity pages', () => {
     const html = renderSubHeader('/programs/beginner-strength', {
       breadcrumbs: [
         { label: 'Community', href: '/browse' },
@@ -81,7 +87,6 @@ describe('SubHeader', () => {
     expect(html).toContain('href="/browse"')
     expect(html).toContain('href="/browse?type=type-1"')
     expect(html).toContain('Beginner Strength')
-    expect(html).toContain('aria-label="Community" aria-current="page"')
-    expect(html).toContain('aria-label="Workspace navigation"')
+    expect(html).not.toContain('aria-label="Workspace navigation"')
   })
 })

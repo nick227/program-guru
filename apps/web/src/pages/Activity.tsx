@@ -26,7 +26,6 @@ import { Page, Stage } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { useCategorySlugOf } from '@/components/shared/EntityHero'
-import { SubHeader } from '@/components/shared/SubHeader'
 import { ReportButton } from '@/components/shared/ReportButton'
 import { type RiverItem } from '@/components/media/RelatedMedia'
 import { ActivityRelatedMedia } from '@/components/activity/ActivityRelatedMedia'
@@ -121,11 +120,6 @@ export function ActivityPage() {
   if (resolved.notFound) {
     return (
       <Page className="page--wide">
-        <SubHeader
-          breadcrumbs={activityNav.items}
-          active={activityNav.activeNav}
-          returnTo={currentUrl}
-        />
         <Stage className="max-w-3xl mx-auto py-12">
           <h1 className="text-2xl font-bold font-display">Activity not found</h1>
           <p className="text-muted">
@@ -188,13 +182,8 @@ export function ActivityPage() {
 
   return (
     <Page className="page--wide pb-20">
-      <SubHeader
-        breadcrumbs={activityNav.items}
-        active={activityNav.activeNav}
-        returnTo={currentUrl}
-      />
 
-      <div className="mx-auto mt-6 w-full page--width">
+      <div className="mx-auto mt-6 w-full max-w-content">
         <ErrorMessage
           error={activity.error}
           retry={() => void activity.refetch()}

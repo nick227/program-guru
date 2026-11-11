@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -6,8 +6,6 @@ import {
   CheckCircle2,
   Clock3,
   GripVertical,
-  Lock,
-  MoreHorizontal,
   Users,
   X,
 } from 'lucide-react'
@@ -18,7 +16,7 @@ import { resolveActivityCategory, type ActivityCategory } from '@/lib/activityCa
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
 import { cn } from '@/lib/utils'
 
-export type ActivityTileDensity = 'pill' | 'card' | 'timeblock' | 'month' | 'week' | 'day' | 'year'
+export type ActivityTileDensity = 'pill' | 'card' | 'timeblock' | 'month' | 'day'
 
 export type ActivityTileItem = {
   id: string
@@ -26,6 +24,7 @@ export type ActivityTileItem = {
   title: string
   detail?: string
   localTime?: string | null
+  durationMinutes?: number | null
   durationLabel?: string
   groupName?: string | null
   sharedCompletionCount?: number | null
@@ -49,39 +48,37 @@ export type ActivityTileProps = {
   item: ActivityTileItem
   density?: ActivityTileDensity
   className?: string
+  isNext?: boolean
+  showTimeInMonth?: boolean
   onSelect?: () => void
   onComplete?: (itemId: string) => void
-  onRemove?: (itemId: string, scope: 'THIS_ONE' | 'THIS_AND_FUTURE') => void
   onChangeTime?: (itemId: string, localTime: string | null) => void
   draggable?: boolean
   isDragging?: boolean
   onDragStart?: (event: React.DragEvent<HTMLElement>, item: ActivityTileItem) => void
   onDragEnd?: (event: React.DragEvent<HTMLElement>) => void
   completing?: boolean
-  removing?: boolean
 }
 
 export function ActivityTile({
   item,
   density = 'card',
   className,
+  isNext = false,
+  showTimeInMonth = false,
   onSelect,
   onComplete,
-  onRemove,
   onChangeTime,
   draggable = false,
   isDragging = false,
   onDragStart,
   onDragEnd,
   completing = false,
-  removing = false,
 }: ActivityTileProps) {
   const [failedImage, setFailedImage] = useState<string | null>(null)
-  const compact = density === 'day' || density === 'month' || density === 'week' || density === 'pill' || density === 'year'
-  // Day and Week tiles keep their status line and removal menu (03-UX §2, 09 §4).
-  const detailed = !(density === 'month' || density === 'pill' || density === 'year')
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [confirmRemove, setConfirmRemove] = useState(false)
+  const [editingTime, setEditingTime] = useState(false)
+  const timeControlRef = useRef<HTMLDivElement>(null)
+  const compact = density === 'day' || density === 'month' || density === 'pill'
   const isDone = item.done || item.status === 'DONE'
   const isGroup = Boolean(item.groupName || item.avatarUrls?.length)
   const category = resolveActivityCategory(
@@ -94,10 +91,6 @@ export function ActivityTile({
     !isDone &&
     !item.notParticipating &&
     item.status !== 'NOT_PARTICIPATING' &&
-    !item.locked &&
-    (!item.status || item.status === 'PLANNED')
-  const canRemove =
-    Boolean(onRemove) && detailed &&
     !item.locked &&
     (!item.status || item.status === 'PLANNED')
   const canAdjustTime =
@@ -116,34 +109,97 @@ export function ActivityTile({
           ? 'Skipped'
           : item.status === 'CANCELLED'
             ? 'Removed'
-            : item.sessionStatus === 'ACTIVE' ? 'In progress' : item.sessionStatus === 'PAUSED' ? 'Paused' : 'Pending'
+            : item.sessionStatus === 'ACTIVE'
+              ? 'In progress'
+              : item.sessionStatus === 'PAUSED'
+                ? 'Paused'
+                : 'Pending'
+
+  useEffect(() => {
+    if (!editingTime) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setEditingTime(false)
+    }
+    const onPointerDown = (event: MouseEvent) => {
+      if (
+        timeControlRef.current &&
+        !timeControlRef.current.contains(event.target as Node)
+      ) {
+        setEditingTime(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('mousedown', onPointerDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('mousedown', onPointerDown)
+    }
+  }, [editingTime])
+
+  const dayMetaParts =
+    density === 'day'
+      ? [
+          isNext ? 'Up next' : null,
+          timeDisplay,
+          item.durationMinutes ? `${item.durationMinutes} min` : null,
+        ].filter(Boolean)
+      : density === 'month' && showTimeInMonth && timeDisplay
+        ? [timeDisplay]
+        : []
 
   const actions =
-    canComplete || canRemove || canAdjustTime ? (
+    canComplete || canAdjustTime ? (
       <div className="calendar-tile__actions">
         {canAdjustTime && (
-          <div className="calendar-tile__time-controls">
-            <input
-              type="time"
-              className="calendar-tile__time-input"
-              aria-label={`Time of day for ${item.title}`}
-              value={targetTimeInput(item.localTime)}
-              onChange={(event) => {
-                const next = parseTargetTime(event.target.value)
-                if (next !== (item.localTime ?? null)) {
-                  onChangeTime?.(item.id, next)
-                }
-              }}
-            />
-            {item.localTime && (
+          <div ref={timeControlRef} className="calendar-tile__time-controls">
+            {editingTime ? (
+              <div className="calendar-tile__time-editor">
+                <input
+                  type="time"
+                  autoFocus
+                  className="calendar-tile__time-input"
+                  aria-label={`Time of day for ${item.title}`}
+                  value={targetTimeInput(item.localTime)}
+                  onChange={(event) => {
+                    const next = parseTargetTime(event.target.value)
+                    if (next !== (item.localTime ?? null)) {
+                      onChangeTime?.(item.id, next)
+                    }
+                  }}
+                />
+                {item.localTime && (
+                  <button
+                    type="button"
+                    className="calendar-tile__clear-time"
+                    aria-label={`Clear time for ${item.title}`}
+                    title="Move to Any time"
+                    onClick={() => {
+                      onChangeTime?.(item.id, null)
+                      setEditingTime(false)
+                    }}
+                  >
+                    <X size={14} aria-hidden />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="calendar-tile__clear-time"
+                  aria-label={`Done adjusting time for ${item.title}`}
+                  onClick={() => setEditingTime(false)}
+                >
+                  <Check size={14} aria-hidden />
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
-                className="calendar-tile__clear-time"
-                aria-label={`Clear time for ${item.title}`}
-                title="Move to Any time"
-                onClick={() => onChangeTime?.(item.id, null)}
+                className="calendar-tile__time-btn"
+                aria-label={`Adjust time for ${item.title}`}
+                aria-expanded={editingTime}
+                onClick={() => setEditingTime(true)}
               >
-                <X size={14} aria-hidden />
+                <Clock3 size={14} aria-hidden />
+                <span>{timeDisplay ?? 'Set time'}</span>
               </button>
             )}
           </div>
@@ -156,7 +212,7 @@ export function ActivityTile({
             disabled={completing}
             onClick={() => onComplete?.(item.id)}
           >
-            <CheckCircle2 size={16} aria-hidden />
+            <CheckCircle2 size={18} aria-hidden />
             {!compact && <span>{completing ? 'Saving…' : 'Complete'}</span>}
           </button>
         )}
@@ -167,7 +223,11 @@ export function ActivityTile({
     <>
       <div className="calendar-tile__main">
         {draggable && canAdjustTime && (
-          <span className="calendar-tile__drag-handle" aria-hidden title="Drag to change time">
+          <span
+            className="calendar-tile__drag-handle"
+            aria-hidden
+            title="Drag to change time"
+          >
             <GripVertical size={16} />
           </span>
         )}
@@ -180,12 +240,20 @@ export function ActivityTile({
             className="calendar-tile__thumbnail"
           />
         ) : (
-          <span className="calendar-tile__thumbnail calendar-tile__fallback" aria-hidden>
-            <CategoryIcon category={category} size={20} />
+          <span
+            className="calendar-tile__thumbnail calendar-tile__fallback"
+            aria-hidden
+          >
+            <CategoryIcon category={category} size={density === 'day' ? 22 : 18} />
           </span>
         )}
         <div className="calendar-tile__copy">
-          <h3 className={cn('calendar-tile__title', isDone && 'calendar-tile__title--done')}>
+          <h3
+            className={cn(
+              'calendar-tile__title',
+              isDone && 'calendar-tile__title--done',
+            )}
+          >
             {item.title}
           </h3>
           {item.programTitle && (
@@ -194,10 +262,16 @@ export function ActivityTile({
           {item.detail && !item.programTitle && !item.localTime && (
             <p className="calendar-tile__program">{item.detail}</p>
           )}
-          {density === 'day' && timeDisplay && (
-            <p className="calendar-tile__time">
+          {dayMetaParts.length > 0 && (
+            <p className={cn('calendar-tile__time', isNext && 'calendar-tile__time--next')}>
               <Clock3 size={12} aria-hidden />
-              <time dateTime={`${item.day}T${item.localTime}`}>{timeDisplay}</time>
+              {item.localTime ? (
+                <time dateTime={`${item.day}T${item.localTime}`}>
+                  {dayMetaParts.join(' · ')}
+                </time>
+              ) : (
+                <span>{dayMetaParts.join(' · ')}</span>
+              )}
             </p>
           )}
         </div>
@@ -222,7 +296,11 @@ export function ActivityTile({
               />
             </>
           )}
-          {item.sharedCompletionCount != null && <span className="calendar-tile__progress">{item.sharedCompletionCount} shared completions</span>}
+          {item.sharedCompletionCount != null && (
+            <span className="calendar-tile__progress">
+              {item.sharedCompletionCount} shared completions
+            </span>
+          )}
           {(item.unreadCount ?? 0) > 0 && (
             <UnreadDot count={item.unreadCount ?? 0} />
           )}
@@ -251,9 +329,16 @@ export function ActivityTile({
       onDragEnd={draggable && canAdjustTime ? onDragEnd : undefined}
       className={cn(
         'calendar-tile',
-        { month: 'calendar-tile--month', week: 'calendar-tile--week', day: 'calendar-tile--day', year: 'calendar-tile--year', pill: 'calendar-tile--pill', card: 'calendar-tile--card', timeblock: 'calendar-tile--timeblock' }[density],
+        {
+          month: 'calendar-tile--month',
+          day: 'calendar-tile--day',
+          pill: 'calendar-tile--pill',
+          card: 'calendar-tile--card',
+          timeblock: 'calendar-tile--timeblock',
+        }[density],
         compact && 'calendar-tile--compact',
         isDone && 'calendar-tile--complete',
+        isNext && !isDone && 'calendar-tile--next',
         item.conflict && 'calendar-tile--conflict',
         isDragging && 'calendar-tile--dragging',
         className,

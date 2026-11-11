@@ -36,7 +36,6 @@ import { ShareLinkCard } from '@/components/social/ShareLink'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
 import { ThumbnailGrid } from '@/components/media/ThumbnailGrid'
-import { SubHeader } from '@/components/shared/SubHeader'
 import { buildProfileBreadcrumbs } from '@/lib/breadcrumbs'
 import { safeReturn } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
@@ -86,11 +85,6 @@ export function ProfilePage() {
   if (!p) {
     return (
       <Page className="page--wide">
-        <SubHeader
-          breadcrumbs={profileNav.items}
-          active={profileNav.activeNav}
-          returnTo={profileUrl}
-        />
         <Stage className="max-w-3xl mx-auto py-12">
           <ErrorMessage
             error={profile.error}
@@ -168,16 +162,11 @@ export function ProfilePage() {
 
   return (
     <Page className="page--wide pb-20">
-      <SubHeader
-        breadcrumbs={profileNav.items}
-        active={profileNav.activeNav}
-        returnTo={profileUrl}
-      />
-      <div className="mx-auto mt-6 page--width space-y-10 sm:space-y-12">
+      <div className="mx-auto mt-6 w-full max-w-content space-y-10 sm:space-y-12">
         {/* 01 — Creator Hero (reuses ProgramHero layout) */}
         <section
           aria-label={`${p.displayName || `@${p.handle}`} profile`}
-          className="relative w-full overflow-hidden rounded-2xl border border-border bg-surface p-6 sm:p-8 lg:p-10 shadow-sm"
+          className="relative w-full overflow-hidden rounded-2xl border border-border bg-surface p-4 sm:p-8 lg:p-10 shadow-sm"
         >
           <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-12">
             {/* Left Column: Creator Identity, Specs & Following Controls */}
@@ -261,7 +250,7 @@ export function ProfilePage() {
                   <>
                     <Link
                       to={`/programs/new?returnTo=${encodeURIComponent(profileUrl)}`}
-                      className="btn btn--primary btn--lg gap-2 px-7 text-base font-bold shadow-md hover:shadow-lg transition-all"
+                      className="btn btn--primary btn--lg w-full gap-2 px-7 text-base font-bold shadow-md transition-all hover:shadow-lg sm:w-auto"
                     >
                       <Plus size={18} />
                       <span>Add Program</span>
@@ -272,13 +261,6 @@ export function ProfilePage() {
                     >
                       <Pencil size={15} />
                       <span>Edit Profile</span>
-                    </Link>
-                    <Link
-                      to="/studio"
-                      className="btn btn--outline btn--lg gap-2 px-5 font-semibold"
-                    >
-                      <LayoutGrid size={15} />
-                      <span>Studio</span>
                     </Link>
                     <OwnerFollowRequestsBadge />
                   </>
@@ -517,7 +499,7 @@ export function ProfilePage() {
         {mediaRows.length > 0 && (
           <section aria-label="Creator media" className="space-y-5">
             <SectionHeader title="Media" />
-            <div className="rounded-xl border border-border bg-surface p-5 sm:p-6">
+            <div className="rounded-xl border border-border bg-surface p-4 sm:p-6">
               <ThumbnailGrid
                 columns={6}
                 items={mediaRows.map((m) => ({
@@ -536,7 +518,7 @@ export function ProfilePage() {
           {!!achievements.data?.length && (
             <section
               aria-label="Milestones"
-              className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-5"
+              className="rounded-xl border border-border bg-surface p-4 sm:p-6 space-y-5"
             >
               <SectionHeader title="Milestones" className="pb-0" />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -572,32 +554,15 @@ export function ProfilePage() {
           {isOwner && (
             <section
               aria-label="Manage profile and content"
-              className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-5 md:col-span-2"
+              className="rounded-xl border border-border bg-surface p-4 sm:p-6 space-y-5 md:col-span-2"
             >
               <SectionHeader title="Manage" className="pb-0" />
               <div className="flex flex-wrap items-center gap-3">
-                <Link to="/studio" className="btn btn--outline btn--sm">
-                  Creator Studio
-                </Link>
-                <Link
-                  to={`/programs/new?returnTo=${encodeURIComponent(profileUrl)}`}
-                  className="btn btn--outline btn--sm"
-                >
-                  Create Program
-                </Link>
-                <Link to="/library" className="btn btn--outline btn--sm">
-                </Link>
                 <Link to="/media" className="btn btn--outline btn--sm">
                   My Media
                 </Link>
                 <Link to="/settings" className="btn btn--outline btn--sm">
                   Settings
-                </Link>
-                <Link
-                  to="/settings/follow-requests"
-                  className="btn btn--outline btn--sm"
-                >
-                  Follow Requests
                 </Link>
               </div>
             </section>

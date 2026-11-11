@@ -226,6 +226,7 @@ test('Back does not silently discard edited results', async ({ page }) => {
   await login(page, 'participant@test.local', 'password')
   await page.goto(`/occurrences/${itemId}`)
   await page.getByRole('button', { name: 'Increase Reps' }).click()
+  await page.getByRole('button', { name: /Pages menu/ }).click()
   await page
     .getByRole('navigation', { name: 'Workspace navigation' })
     .getByRole('link', { name: 'Calendar', exact: true })
@@ -264,9 +265,9 @@ test('autosave serializes edits typed while a previous save is in flight', async
 test('calendar day selection works from the keyboard', async ({ page }) => {
   await mockApi(page)
   await login(page, 'participant@test.local', 'password')
-  await page.goto('/?view=week&day=2026-11-09')
+  await page.goto('/?view=month&day=2026-11-09')
   const tuesday = page
-    .getByLabel('Select a day')
+    .locator('.calendar-month-picker:visible, .calendar-month-grid:visible')
     .getByRole('button', { name: 'Tue 10', exact: true })
   await tuesday.focus()
   await page.keyboard.press('Enter')
@@ -293,27 +294,32 @@ test('calendar day selection works from the keyboard', async ({ page }) => {
   }
 })
 
-test('calendar defaults to month, switches views, and stays within a mobile viewport', async ({
+test('calendar defaults to day, toggles month and all-hours, and stays within a mobile viewport', async ({
   page,
 }) => {
   await mockApi(page)
   await login(page, 'participant@test.local', 'password')
   await page.goto('/?day=2026-11-09')
-  await expect(page.getByRole('radio', { name: 'Month', exact: true })).toHaveAttribute(
-    'aria-checked',
+  await expect(
+    page.getByRole('heading', { name: 'Monday, November 9, 2026' }),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'All hours' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
+  await page.getByRole('button', { name: 'All hours' }).click()
+  await expect(page.getByRole('button', { name: 'All 24h' })).toHaveAttribute(
+    'aria-pressed',
     'true',
   )
-  await page.getByRole('radio', { name: 'Year', exact: true }).click()
-  await expect(page.getByRole('heading', { name: '2026', exact: true })).toBeVisible()
-  await page.getByRole('radio', { name: 'Week', exact: true }).click()
   await page.locator('.calendar-filter__trigger').click()
   await page.getByRole('button', { name: 'Fitness', exact: true }).click()
   await expect(
     page.getByRole('button', { name: 'Fitness', exact: true }),
   ).toHaveAttribute('aria-pressed', 'true')
   await page.locator('.calendar-filter__trigger').click()
-  await expect(page).toHaveURL(/view=week/)
-  await page.getByRole('radio', { name: 'Month', exact: true }).click()
+  await page.getByRole('button', { name: 'Month', exact: true }).click()
+  await expect(page).toHaveURL(/view=month/)
   await page.setViewportSize({ width: 360, height: 780 })
   const day = page
     .getByLabel('Select a day')
@@ -387,19 +393,20 @@ test('calendar highlights today and lets a participant quick-finish an Activity'
     )?.body,
   ).toMatchObject({ action: 'FINISH', expectedRevision: 0 })
 
-  await page.getByRole('radio', { name: 'Week', exact: true }).click()
-  const todayColumn = page.locator('.calendar-column--today')
-  await expect(todayColumn).toBeVisible()
-  await expect(todayColumn.locator('.calendar-tile--complete')).toBeVisible()
-  await expect(todayColumn.getByRole('link', { name: /Squats, .*Completed/ })).toBeVisible()
-  await expect(todayColumn.getByRole('button', { name: 'Mark Squats complete' })).toHaveCount(0)
-  await expect(todayColumn.locator('.calendar-tile__status')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Month', exact: true }).click()
+  await expect(page).toHaveURL(/view=month|view=day/)
+  const daySchedule = page.locator('.calendar-day-schedule')
+  await expect(daySchedule).toBeVisible()
+  await expect(daySchedule.locator('.calendar-tile--complete')).toBeVisible()
+  await expect(daySchedule.getByRole('link', { name: /Squats, .*Completed/ })).toBeVisible()
+  await expect(daySchedule.getByRole('button', { name: 'Mark Squats complete' })).toHaveCount(0)
+  await expect(daySchedule.locator('.calendar-tile__status')).toHaveCount(0)
 })
 
 test('calendar and header span the viewport with aligned gutters', async ({ page }) => {
   await mockApi(page)
   await login(page, 'participant@test.local', 'password')
-  await page.goto('/')
+  await page.goto('/?view=month')
 
   for (const width of [1280, 1920]) {
     await page.setViewportSize({ width, height: 1080 })
@@ -529,9 +536,9 @@ test('Calendar Activity creation starts blank and adds the new Activity on the s
   ).toBeVisible()
   await page.getByRole('button', { name: 'Add to Calendar', exact: true }).click()
 
-  await expect(page).toHaveURL(/\/\?week=.*day=2026-11-12/)
+  await expect(page).toHaveURL(/\/\?view=day&day=2026-11-12/)
   await expect(
-    page.getByRole('heading', { name: 'Calendar', exact: true }),
+    page.getByRole('button', { name: /Pages menu, current page Calendar/ }),
   ).toBeVisible()
   expect(
     requests.find(
@@ -573,7 +580,7 @@ test('Calendar Activity suggestions prefill an editable copy instead of replacin
     .getByRole('button', { name: /Start Program|Add to Calendar/ })
     .click()
 
-  await expect(page).toHaveURL(/\/\?week=.*day=2026-11-12/)
+  await expect(page).toHaveURL(/\/\?view=day&day=2026-11-12/)
   expect(
     requests.find(
       (request) =>
