@@ -226,7 +226,7 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   expect(preJoinItems.length).toBeGreaterThan(0)
   expect(preJoinItems.every((i) => i.status === 'NOT_PARTICIPATING')).toBe(true)
   await collabPage.goto(`/?week=${pastGroupStart}&day=${preJoinItems[0]!.localDate}`)
-  await expect(collabPage.getByText('Not participating').first()).toBeVisible()
+  await expect(collabPage.getByRole('link', { name: /Not participating/ }).first()).toBeVisible()
   await expect(collabPage.getByText('Missed')).toHaveCount(0)
 
   // Collaborator leaves the group -> group access is revoked immediately while personal calendar items stay intact

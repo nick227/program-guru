@@ -68,12 +68,14 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
   await expect(table.locator('tr[data-slot="18"] .calendar-tile')).toHaveCount(1)
   await expect(table.locator('.calendar-tile--compact')).toHaveCount(5)
 
-  // Only planned items can be removed or completed from the tile
-  await expect(table.getByRole('button', { name: /More actions/ })).toHaveCount(3)
-  await expect(table.getByRole('button', { name: 'More actions for Morning stretch' })).toHaveCount(0)
-  await expect(table.getByRole('button', { name: 'More actions for Team check-in' })).toHaveCount(0)
-  await expect(table.getByRole('button', { name: 'Mark Evening walk complete' })).toBeVisible()
+  // Tiles stay visually quiet (no overflow menus or status badges); only PLANNED items show quick-complete
+  await expect(table.getByRole('button', { name: /More actions/ })).toHaveCount(0)
+  await expect(table.locator('.calendar-tile__status')).toHaveCount(0)
+  await expect(table.getByRole('button', { name: /^Mark .* complete$/ })).toHaveCount(3)
+  await expect(table.getByRole('button', { name: 'Mark Morning stretch complete' })).toHaveCount(0)
   await expect(table.getByRole('button', { name: 'Mark Team check-in complete' })).toHaveCount(0)
+  await expect(table.getByRole('button', { name: 'Mark Evening walk complete' })).toBeVisible()
+  await expect(table.getByLabel('Time of day for Evening walk')).toHaveValue('18:30')
 
   // Drag "Read a chapter" from Any time to 2:00 AM row
   const readTile = table.locator('article[data-item-id="any"]')

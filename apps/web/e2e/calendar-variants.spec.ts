@@ -47,7 +47,10 @@ for (const count of [0, 1, 3, 6, 10]) {
       await expect(page.getByRole('button', { name: 'Mark Activity 1 complete', exact: true })).toBeVisible()
     }
     if (count >= 3) await expect(page.getByRole('button', { name: 'Mark Activity 3 complete' })).toHaveCount(0)
-    if (count >= 6) await expect(page.getByText('In progress', { exact: true })).toBeVisible()
+    if (count >= 6) {
+      await expect(page.getByRole('link', { name: /Activity 4, Everyday practice, In progress/ })).toBeVisible()
+      await expect(page.locator('.calendar-tile__status')).toHaveCount(0)
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
 }

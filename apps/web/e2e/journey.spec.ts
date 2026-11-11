@@ -390,7 +390,10 @@ test('calendar highlights today and lets a participant quick-finish an Activity'
   await page.getByRole('radio', { name: 'Week', exact: true }).click()
   const todayColumn = page.locator('.calendar-column--today')
   await expect(todayColumn).toBeVisible()
-  await expect(todayColumn.locator('.calendar-tile__status')).toHaveText('Completed')
+  await expect(todayColumn.locator('.calendar-tile--complete')).toBeVisible()
+  await expect(todayColumn.getByRole('link', { name: /Squats, .*Completed/ })).toBeVisible()
+  await expect(todayColumn.getByRole('button', { name: 'Mark Squats complete' })).toHaveCount(0)
+  await expect(todayColumn.locator('.calendar-tile__status')).toHaveCount(0)
 })
 
 test('calendar and header span the viewport with aligned gutters', async ({ page }) => {
@@ -427,7 +430,7 @@ test('calendar and header span the viewport with aligned gutters', async ({ page
   }
 })
 
-test('mobile calendar exposes selected-day items and confirms recurring removal scope', async ({
+test('mobile calendar exposes selected-day items, inline quick-completion, and navigation to occurrence', async ({
   page,
 }) => {
   const date = await page.evaluate(() => {
@@ -452,24 +455,22 @@ test('mobile calendar exposes selected-day items and confirms recurring removal 
   const agenda = page.locator('.calendar-selected-day--mobile-only')
   await expect(agenda).toBeVisible()
   await expect(agenda.getByRole('heading', { name: 'Today' })).toBeVisible()
-  await agenda.getByRole('button', { name: 'More actions for Squats' }).click()
-  await agenda.getByRole('button', { name: 'Remove from Calendar' }).click()
-  const removalRequest = page.waitForRequest(
-    (request) =>
-      request.method() === 'DELETE' &&
-      new URL(request.url()).searchParams.get('scope') === 'THIS_AND_FUTURE',
-  )
-  await agenda.getByRole('button', { name: 'This and future activities' }).click()
-  await removalRequest
+  await expect(agenda.getByRole('button', { name: /More actions/ })).toHaveCount(0)
+  await expect(agenda.locator('.calendar-tile__status')).toHaveCount(0)
+
+  await agenda.getByRole('button', { name: 'Mark Squats complete' }).click()
   await expect(
-    page.getByText('Activity removed from Calendar', { exact: true }),
+    page.getByText('Activity marked complete', { exact: true }),
   ).toBeVisible()
   expect(
-    requests.find(
-      (request) => request.path === `/calendar-items/${itemId}` && request.method === 'DELETE',
-    ),
-  ).toBeDefined()
-  await expect(page.locator('.calendar-tile')).toHaveCount(0)
+    requests.find((request) => request.path === '/sessions' && request.method === 'POST')
+      ?.body,
+  ).toMatchObject({ calendarItemId: itemId })
+
+  await expect(agenda.locator('.calendar-tile--complete')).toBeVisible()
+  await expect(agenda.getByRole('button', { name: 'Mark Squats complete' })).toHaveCount(0)
+  await agenda.getByRole('link', { name: /Squats, .*Completed/ }).click()
+  await expect(page).toHaveURL(new RegExp(`/occurrences/${itemId}`))
 })
 
 test('Program Activity creation keeps the description and adds the Activity to the Program', async ({

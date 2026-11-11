@@ -43,6 +43,7 @@ export function WorkoutGroupTile({
     startLabel,
     `${total} ${total === 1 ? 'exercise' : 'exercises'}`,
     group.totalMinutes ? `${group.totalMinutes} min` : null,
+    `${group.doneCount}/${total} done`,
   ].filter(Boolean)
 
   if (density === 'month') {
@@ -101,21 +102,11 @@ export function WorkoutGroupTile({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-baseline gap-2">
             <span className="text-sm font-semibold text-text">{group.programTitle}</span>
             {group.programDayIndex != null && (
-              <span className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11px] font-medium text-muted">
-                Day {group.programDayIndex}
-              </span>
+              <span className="font-mono text-[11px] text-muted">Day {group.programDayIndex}</span>
             )}
-            <span
-              className={cn(
-                'rounded px-1.5 py-0.5 text-[11px] font-medium',
-                allDone ? 'bg-success/15 text-success' : 'bg-accent/15 text-accent',
-              )}
-            >
-              {group.doneCount}/{total} done
-            </span>
           </div>
           {summaryParts.length > 0 && (
             <p className="mt-0.5 text-xs text-muted">{summaryParts.join(' · ')}</p>
