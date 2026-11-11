@@ -363,18 +363,10 @@ function BrowseFeedRow({
       type="button"
       aria-label={`${actionLabel}: ${item.title}`}
       onClick={item.onSelect}
-      className="group flex w-full items-start gap-4 rounded-[var(--radius-panel)] px-2 py-5 text-left transition-colors duration-fast hover:bg-surface-raised/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:items-center sm:gap-6 sm:px-4 sm:py-6"
+      className="group flex w-full flex-col items-start py-8"
     >
-      <div className="browse-thumb relative aspect-hero w-28 shrink-0 overflow-hidden rounded-[var(--radius-media)] border border-border/50 bg-surface-muted sm:w-44 lg:w-52">
-        <EntityHero
-          hero={item.hero}
-          size="card"
-          interactive={false}
-          className="h-full w-full rounded-none"
-        />
-      </div>
 
-      <span className="flex min-w-0 flex-1 flex-col gap-1">
+      <span className="flex min-w-0 flex-1 flex-col gap-1 items-start mb-4">
         {item.classification && (
           <span className="truncate text-xs font-medium text-muted">
             {item.classification}
@@ -397,18 +389,14 @@ function BrowseFeedRow({
         )}
       </span>
 
-      <span className="flex shrink-0 items-center gap-1.5 self-center pl-1 text-muted transition-colors group-hover:text-accent">
-        {isPicker && (
-          <span className="hidden text-xs font-medium sm:inline">
-            {actionLabel}
-          </span>
-        )}
-        <ChevronRight
-          size={18}
-          aria-hidden
-          className="transition-transform duration-fast group-hover:translate-x-0.5"
+      <div className="browse-thumb relative aspect-hero w-[30vw] shrink-0 rounded-[var(--radius-media)] border border-border/50 bg-surface-muted">
+        <EntityHero
+          hero={item.hero}
+          size="card"
+          interactive={false}
+          className="h-full w-full rounded-none"
         />
-      </span>
+      </div>
     </button>
   )
 }
@@ -800,7 +788,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         backTo={mode.returnTo}
       />
 
-      <div className="mx-auto w-full max-w-[80rem] pt-6 md:pt-8">
+      <div className="mx-auto w-full pt-6 md:pt-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8 lg:gap-12">
           {/* Left: Persistent filter sidebar on desktop/tablet, compact search + collapsible drawer on mobile */}
           <aside
@@ -1090,7 +1078,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   ))}
                 </div>
               ) : items.length > 0 ? (
-                <ul className="divide-y divide-border/60">
+                <ul className="divide-y divide-border/60 grid grid-template-cols-3">
                   {items.map((item) => (
                     <li
                       key={item.id}
