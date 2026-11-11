@@ -509,6 +509,8 @@ export async function mockApi(
       return send(workspace(), 201)
     }
     if (path === '/programs') return send([summary()], 200, true)
+    if (path === '/users/me/group-invitations' && method === 'GET')
+      return send([], 200, true)
     if (path === '/groups' && method === 'GET')
       return send(
         groupCreated

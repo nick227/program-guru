@@ -7,9 +7,10 @@ import { useViewerKey } from './viewerKey'
 
 type S = components['schemas']
 
-export function useMyGroups() {
+export function useMyGroups(enabled = true) {
   return useInfiniteQuery({
     queryKey: useViewerKey(keys.groups),
+    enabled,
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) =>
       apiData(

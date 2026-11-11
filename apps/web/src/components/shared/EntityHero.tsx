@@ -37,12 +37,14 @@ export function EntityHero({
   className,
   onPlay,
   interactive = true,
+  showVideoBadge = true,
 }: {
   hero: Hero
   size?: keyof typeof SIZES
   className?: string
   onPlay?: () => void
   interactive?: boolean
+  showVideoBadge?: boolean
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const [viewerOpen, setViewerOpen] = useState(false)
@@ -124,7 +126,7 @@ export function EntityHero({
           </span>
         </button>
       )}
-      {isVideo && !interactive && (
+      {isVideo && !interactive && showVideoBadge && (
         <span
           aria-hidden
           className="pointer-events-none absolute bottom-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white"

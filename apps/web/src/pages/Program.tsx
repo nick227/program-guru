@@ -23,7 +23,9 @@ import { SubHeader } from '@/components/shared/SubHeader'
 import { buildProgramBreadcrumbs } from '@/lib/breadcrumbs'
 import { ProgramHero } from '@/components/program/ProgramHero'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
-import { ProgramTogether } from '@/components/program/ProgramTogether'
+import { ProgramGroups } from '@/components/program/ProgramGroups'
+import { ShareLinkCard } from '@/components/social/ShareLink'
+import { formatProgramDuration } from '@/components/program-authoring/programFields'
 import {
   ProgramPersonalDetailsGrid,
   ProgramPersonalOverview,
@@ -212,7 +214,6 @@ export function ProgramPage() {
     ? (entry.runs.find((run) => run.id === runId) ?? entry.current)
     : null
   const isEnrolled = !!p.myEnrollmentId
-  const isPaused = entry?.status === 'Paused' && entry.current?.status === 'PAUSED'
   const isDraftOnly = isOwner && !p.latestVersionId
   const canonicalUrl = buildProgramUrl(p, { scoped: !!rawHandle })
   const backTo = safeReturn(rawReturnTo, '/browse')
@@ -220,6 +221,7 @@ export function ProgramPage() {
   const enrolledStatus = enrollmentStatusText(enrollment.data?.status)
 
   const publicUrl = toAbsoluteUrl(p.canonicalUrl ?? canonicalUrl)
+  const participantCount = entry?.participation?.participantCount ?? p.enrollmentCount
 
   const displayTitle = ws?.title ?? p.title
   const programNav = buildProgramBreadcrumbs({
@@ -231,30 +233,39 @@ export function ProgramPage() {
   const displayDescription = ws ? ws.description : p.description
   const displayDurationDays = ws ? ws.durationDays : p.durationDays
   const displayFrequencyLabel = ws ? ws.frequencyLabel : p.frequencyLabel
-  const displayActivityCount = ws ? ws.activities.length : p.safeActivityOutline.length
+  const displayActivityCount =
+    ws && ws.activities.length > 0
+      ? ws.activities.length
+      : p.safeActivityOutline.length
   const displayHero = programHero(
     ws && (ws.coverUrl || ws.coverMedia) ? ws : p,
     categorySlugOf,
   )
 
-  const statusBadges = isOwner && ws
-    ? [
-        ...(ws.status === 'DRAFT'
-          ? [{ label: 'Draft', tone: 'attention' as const }]
-          : ws.hasUnpublishedChanges
-            ? [{ label: 'Unpublished changes', tone: 'attention' as const }]
-            : []),
-        {
-          label:
-            ws.visibility === 'PUBLIC'
-              ? 'Public'
-              : ws.visibility === 'UNLISTED'
-                ? 'Link only'
-                : 'Private',
-          tone: 'default' as const,
-        },
-      ]
-    : undefined
+  const priceSummary =
+    p.accessMode === 'PAID' && p.prices.length > 0
+      ? p.prices
+          .slice(0, 1)
+          .map((price) => {
+            const formatted = new Intl.NumberFormat(undefined, {
+              style: 'currency',
+              currency: price.currency || 'USD',
+            }).format(price.amountMinor / 100)
+            return price.kind === 'MONTHLY' ? `${formatted}/mo` : formatted
+          })[0]
+      : p.accessMode === 'APPROVAL' && !p.canJoin
+        ? 'Approval required'
+        : null
+
+  const heroMetadata = [
+    p.focus?.label,
+    formatProgramDuration(displayDurationDays),
+    displayFrequencyLabel,
+    displayActivityCount > 0
+      ? `${displayActivityCount} ${displayActivityCount === 1 ? 'activity' : 'activities'}`
+      : null,
+    priceSummary,
+  ]
 
   const body = {
     programVersionId: p.latestVersionId!,
@@ -356,6 +367,90 @@ export function ProgramPage() {
       : buildActivityUrl({ id: activityId }, { returnTo: currentUrl })
   }
 
+  const activityItems =
+    isOwner && ws && (isDraftOnly || ws.activities.length > 0)
+      ? ws.activities.map((a) => {
+          const outlineMatch = outlineByTitle.get(a.title)
+          return {
+            key: a.activityId,
+            title: a.title,
+            description: undefined as string | null | undefined,
+            href: activityHref(a.activityId),
+            hero: activityHero(
+              {
+                title: a.title,
+                thumbnailUrl: outlineMatch?.mediaPreviewUrl,
+                categoryId: p.type?.categoryId,
+              },
+              categorySlugOf,
+            ),
+            meta:
+              [
+                outlineMatch?.dayIndex != null
+                  ? `Day ${outlineMatch.dayIndex + 1}`
+                  : null,
+                formatDurationMinutes(a.durationMinutes),
+                formatTargetTime(a.targetTime),
+                a.frequencyLabel,
+              ]
+                .filter(Boolean)
+                .join(' · ') || undefined,
+          }
+        })
+      : p.viewerAccess === 'GRANTED' &&
+          programVersion.data &&
+          programVersion.data.activities.length > 0
+        ? programVersion.data.activities.map((a) => {
+            const outlineMatch = outlineByTitle.get(a.title)
+            return {
+              key: a.id,
+              title: a.title,
+              description: a.summary,
+              href: activityHref(a.id),
+              hero: activityHero(
+                {
+                  title: a.title,
+                  thumbnailUrl:
+                    a.thumbnailUrl ?? outlineMatch?.mediaPreviewUrl,
+                  categoryId: a.categoryId || p.type?.categoryId,
+                },
+                categorySlugOf,
+              ),
+              meta:
+                [
+                  outlineMatch?.dayIndex != null
+                    ? `Day ${outlineMatch.dayIndex + 1}`
+                    : null,
+                  formatDurationMinutes(a.durationMinutes),
+                  formatTargetTime(a.targetTime),
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || undefined,
+            }
+          })
+        : p.safeActivityOutline.map((item, idx) => ({
+            key: `outline-${idx}`,
+            title: item.title,
+            description: undefined as string | null | undefined,
+            href: undefined as string | undefined,
+            hero: activityHero(
+              {
+                title: item.title,
+                thumbnailUrl: item.mediaPreviewUrl,
+                categoryId: p.type?.categoryId,
+              },
+              categorySlugOf,
+            ),
+            meta:
+              [
+                item.dayIndex != null ? `Day ${item.dayIndex + 1}` : null,
+                formatDurationMinutes(item.durationMinutes),
+                formatTargetTime(item.targetTime),
+              ]
+                .filter(Boolean)
+                .join(' · ') || undefined,
+          }))
+
   return (
     <Page className="page--wide pb-20">
       <SubHeader
@@ -363,22 +458,20 @@ export function ProgramPage() {
         active={programNav.activeNav}
         returnTo={currentUrl}
       />
-      <div className="mx-auto mt-6 page--width">
+      <div className="mx-auto mt-6 max-w-[72rem] space-y-10 sm:mt-8">
         {/* 01 — Program Hero */}
         <div ref={startRef} className="scroll-mt-20">
           <ProgramHero
             title={displayTitle}
             description={displayDescription}
             hero={displayHero}
-            durationDays={displayDurationDays}
-            frequencyLabel={displayFrequencyLabel}
-            activityCount={displayActivityCount}
             categoryLabel={p.type.label}
             creator={p.creator}
             creatorReturnTo={currentUrl}
             isPlatform={p.isPlatform}
             isOwner={isOwner}
-            statusBadges={statusBadges}
+            participantCount={participantCount}
+            metadata={heroMetadata}
             primaryLabel={primaryLabel}
             onPrimary={handlePrimary}
             primaryDisabled={signedIn && !isDraftOnly && (!canStart || added || join.isPending)}
@@ -401,6 +494,7 @@ export function ProgramPage() {
                 </nav>
               )
             }
+            shareUrl={publicUrl}
             onEditProgram={
               isOwner
                 ? () => {
@@ -443,249 +537,179 @@ export function ProgramPage() {
           </div>
         )}
 
-        {/* Personal Progress, Run Switcher, Metrics & Management Controls */}
-        <ProgramPersonalOverview
-          entry={entry}
-          selectedRun={selectedRun}
-          onSelectRunId={setRunId}
-          isEnrolled={isEnrolled}
-          enrolledStatus={enrolledStatus}
-          participationStartDate={enrollment.data?.participationStartDate}
-          groupId={groupId}
-          pendingUpdate={pendingUpdate}
-          canAcceptUpdate={canAcceptUpdate}
-          online={online}
-          acceptingUpdate={acceptUpdate.isPending}
-          dismissingUpdate={dismissUpdate.isPending}
-          onAcceptUpdate={async () => {
-            try {
-              await acceptUpdate.mutateAsync()
-              toast.success('Program updated to latest version')
-            } catch {
-              // shown in ErrorMessage
-            }
-          }}
-          onDismissUpdate={async () => {
-            try {
-              await dismissUpdate.mutateAsync()
-              toast.success('Update dismissed')
-            } catch {
-              // shown in ErrorMessage
-            }
-          }}
-          onResume={handleResume}
-          resuming={enrollmentAction.isPending}
-          currentUrl={currentUrl}
-          onRemoved={() => {
-            if (backTo.startsWith('/library')) navigate(backTo)
-            else if (!isOwner && (p.visibility === 'PRIVATE' || p.accessMode !== 'OPEN')) {
-              navigate('/library')
-            }
-          }}
-          onDeleted={() => navigate(backTo.startsWith('/library') ? backTo : '/library')}
-        />
+        {/* 02 — Two-column main content: Overview, Activities & Next Activity | Community & Share */}
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-10">
+          <div className="min-w-0 space-y-10">
+            <ProgramPersonalOverview
+              entry={entry}
+              selectedRun={selectedRun}
+              onSelectRunId={setRunId}
+              isEnrolled={isEnrolled}
+              enrolledStatus={enrolledStatus}
+              participationStartDate={enrollment.data?.participationStartDate}
+              groupId={groupId}
+              pendingUpdate={pendingUpdate}
+              canAcceptUpdate={canAcceptUpdate}
+              online={online}
+              acceptingUpdate={acceptUpdate.isPending}
+              dismissingUpdate={dismissUpdate.isPending}
+              onAcceptUpdate={async () => {
+                try {
+                  await acceptUpdate.mutateAsync()
+                  toast.success('Program updated to latest version')
+                } catch {
+                  // shown in ErrorMessage
+                }
+              }}
+              onDismissUpdate={async () => {
+                try {
+                  await dismissUpdate.mutateAsync()
+                  toast.success('Update dismissed')
+                } catch {
+                  // shown in ErrorMessage
+                }
+              }}
+              onResume={handleResume}
+              resuming={enrollmentAction.isPending}
+              currentUrl={currentUrl}
+              onRemoved={() => {
+                if (backTo.startsWith('/library')) navigate(backTo)
+                else if (!isOwner && (p.visibility === 'PRIVATE' || p.accessMode !== 'OPEN')) {
+                  navigate('/library')
+                }
+              }}
+              onDeleted={() => navigate(backTo.startsWith('/library') ? backTo : '/library')}
+            />
 
-        {/* 02 — Activities (Visual media-led cards + inline owner editor) */}
-        <section aria-label="Program activities" className="space-y-5">
-          <SectionHeader
-            title="Activities"
-            action={
-              isOwner && ws ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant={editingActivities ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setEditingActivities((prev) => !prev)}
-                  >
-                    {editingActivities ? 'Done editing' : 'Edit Activities'}
-                  </Button>
-                  <Link
-                    to={buildWorkspaceUrl(ws.id, { step: 'activities' })}
-                    className="btn btn--outline btn--sm"
-                  >
-                    Schedule Editor
-                  </Link>
+            <section aria-label="Program activities" className="space-y-4">
+              <SectionHeader
+                title="Activities"
+                action={
+                  isOwner && ws ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant={editingActivities ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setEditingActivities((prev) => !prev)}
+                      >
+                        {editingActivities ? 'Done editing' : 'Edit Activities'}
+                      </Button>
+                      <Link
+                        to={buildWorkspaceUrl(ws.id, { step: 'activities' })}
+                        className="btn btn--outline btn--sm"
+                      >
+                        Schedule Editor
+                      </Link>
+                    </div>
+                  ) : undefined
+                }
+              />
+              {editingActivities && isOwner && ws ? (
+                <div className="space-y-4 rounded-2xl border border-accent/30 bg-surface p-5 sm:p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-muted">
+                      Edit activity details, frequency, or add new activities directly to this program.
+                    </p>
+                    <Link
+                      to={buildBrowseUrl({
+                        kind: 'activities',
+                        programId: ws.id,
+                        category: ws.type.categoryId || undefined,
+                        returnTo: currentUrl,
+                      })}
+                      className="btn btn--outline btn--sm"
+                    >
+                      Browse Library
+                    </Link>
+                  </div>
+                  {ws.activities.length > 0 ? (
+                    <div className="space-y-3">
+                      {ws.activities.map((a) => (
+                        <WorkspaceActivityRow
+                          key={a.activityId}
+                          activity={a}
+                          ws={ws}
+                          returnTo={currentUrl}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-6 text-center text-sm text-muted">
+                      No activities yet. Create one below or browse the library to add existing ones.
+                    </div>
+                  )}
+                  <CreateActivitySection ws={ws} />
                 </div>
-              ) : undefined
-            }
-          />
-          {editingActivities && isOwner && ws ? (
-            <div className="space-y-4 rounded-2xl border border-accent/30 bg-surface p-5 sm:p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-muted">
-                  Edit activity details, frequency, or add new activities directly to this program.
-                </p>
-                <Link
-                  to={buildBrowseUrl({
-                    kind: 'activities',
-                    programId: ws.id,
-                    category: ws.type.categoryId || undefined,
-                    returnTo: currentUrl,
-                  })}
-                  className="btn btn--outline btn--sm"
-                >
-                  Browse Library
-                </Link>
-              </div>
-              {ws.activities.length > 0 ? (
-                <div className="space-y-3">
-                  {ws.activities.map((a) => (
-                    <WorkspaceActivityRow
-                      key={a.activityId}
-                      activity={a}
-                      ws={ws}
-                      returnTo={currentUrl}
+              ) : activityItems.length > 0 ? (
+                <div className="divide-y divide-border/60 border-y border-border/60">
+                  {activityItems.map((item) => (
+                    <ProgramActivityCard
+                      key={item.key}
+                      variant="row"
+                      title={item.title}
+                      description={item.description}
+                      href={item.href}
+                      hero={item.hero}
+                      meta={item.meta}
                     />
                   ))}
                 </div>
+              ) : isOwner && ws && isDraftOnly ? (
+                <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-8 text-center text-sm text-muted space-y-3">
+                  <p>No activities added yet.</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditingActivities(true)}
+                  >
+                    Add Activities
+                  </Button>
+                </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-6 text-center text-sm text-muted">
-                  No activities yet. Create one below or browse the library to add existing ones.
+                <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-8 text-center text-sm text-muted">
+                  Activity outline available after starting the program.
                 </div>
               )}
-              <CreateActivitySection ws={ws} />
-            </div>
-          ) : isOwner && ws && (isDraftOnly || ws.activities.length > 0) ? (
-            ws.activities.length > 0 ? (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {ws.activities.map((a) => {
-                  const outlineMatch = outlineByTitle.get(a.title)
-                  return (
-                    <ProgramActivityCard
-                      key={a.activityId}
-                      title={a.title}
-                      href={activityHref(a.activityId)}
-                      hero={activityHero(
-                        {
-                          title: a.title,
-                          thumbnailUrl: outlineMatch?.mediaPreviewUrl,
-                          categoryId: p.type?.categoryId,
-                        },
-                        categorySlugOf,
-                      )}
-                      meta={
-                        [
-                          outlineMatch?.dayIndex != null
-                            ? `Day ${outlineMatch.dayIndex + 1}`
-                            : null,
-                          formatDurationMinutes(a.durationMinutes),
-                          formatTargetTime(a.targetTime),
-                          a.frequencyLabel,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ') || undefined
-                      }
-                    />
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-8 text-center text-sm text-muted space-y-3">
-                <p>No activities added yet.</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setEditingActivities(true)}
-                >
-                  Add Activities
-                </Button>
-              </div>
-            )
-          ) : p.viewerAccess === 'GRANTED' &&
-            programVersion.data &&
-            programVersion.data.activities.length > 0 ? (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {programVersion.data.activities.map((a) => {
-                const outlineMatch = outlineByTitle.get(a.title)
-                return (
-                  <ProgramActivityCard
-                    key={a.id}
-                    title={a.title}
-                    description={a.summary}
-                    href={activityHref(a.id)}
-                    hero={activityHero(
-                      {
-                        title: a.title,
-                        thumbnailUrl:
-                          a.thumbnailUrl ?? outlineMatch?.mediaPreviewUrl,
-                        categoryId: a.categoryId || p.type?.categoryId,
-                      },
-                      categorySlugOf,
-                    )}
-                    meta={
-                      [
-                        outlineMatch?.dayIndex != null
-                          ? `Day ${outlineMatch.dayIndex + 1}`
-                          : null,
-                        formatDurationMinutes(a.durationMinutes),
-                        formatTargetTime(a.targetTime),
-                      ]
-                        .filter(Boolean)
-                        .join(' · ') || undefined
-                    }
-                  />
-                )
-              })}
-            </div>
-          ) : p.safeActivityOutline.length > 0 ? (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {p.safeActivityOutline.map((item, idx) => (
-                <ProgramActivityCard
-                  key={idx}
-                  title={item.title}
-                  hero={activityHero(
-                    {
-                      title: item.title,
-                      thumbnailUrl: item.mediaPreviewUrl,
-                      categoryId: p.type?.categoryId,
-                    },
-                    categorySlugOf,
-                  )}
-                  meta={
-                    [
-                      item.dayIndex != null ? `Day ${item.dayIndex + 1}` : null,
-                      formatDurationMinutes(item.durationMinutes),
-                      formatTargetTime(item.targetTime),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ') || undefined
-                  }
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-8 text-center text-sm text-muted">
-              Activity outline available after starting the program.
-            </div>
-          )}
-        </section>
+            </section>
 
-        {/* Personal Upcoming Activity, History, Source & Runs */}
-        {entry && (
-          <ProgramPersonalDetailsGrid
-            entry={entry}
-            selectedRun={selectedRun}
-            currentUrl={currentUrl}
-            onSetupSchedule={() =>
-              startRef.current?.scrollIntoView({ behavior: 'smooth' })
-            }
-          />
-        )}
+            {entry && (
+              <ProgramPersonalDetailsGrid
+                entry={entry}
+                selectedRun={selectedRun}
+                currentUrl={currentUrl}
+                onSetupSchedule={() =>
+                  startRef.current?.scrollIntoView({ behavior: 'smooth' })
+                }
+              />
+            )}
+          </div>
 
-        {/* 03 — Share Program */}
-        <ProgramTogether
-          programId={id}
-          groupId={groupId}
-          participantCount={
-            entry?.participation?.participantCount ?? p.enrollmentCount
-          }
-          completionRate={p.completionRate}
-          publicUrl={publicUrl}
-          returnTo={currentUrl}
-        />
+          <aside aria-label="Program community and sharing" className="space-y-6 lg:sticky lg:top-6">
+            <ProgramGroups
+              programId={id}
+              versionId={p.latestVersionId}
+              enrollmentId={enrollmentId || null}
+              isProgramOwner={isOwner}
+              timezone={tz}
+              signedIn={signedIn}
+              participantCount={participantCount}
+              completionRate={p.completionRate}
+              returnTo={currentUrl}
+            />
 
-        <div className="flex justify-end">
-          <ReportButton target={{ type: 'PROGRAM', id: p.id }} ownerId={p.creator?.id} />
+            <ShareLinkCard
+              title="Share Program"
+              ariaLabel="Share Program"
+              url={publicUrl}
+              shareTitle="Join me on this Program"
+              copiedMessage="Program link copied"
+              inputLabel="Program link"
+            />
+
+            <div className="flex justify-end">
+              <ReportButton target={{ type: 'PROGRAM', id: p.id }} ownerId={p.creator?.id} />
+            </div>
+          </aside>
         </div>
       </div>
     </Page>

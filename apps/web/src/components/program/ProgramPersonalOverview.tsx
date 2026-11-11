@@ -1,11 +1,9 @@
 import { Link } from 'react-router-dom'
 import { ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Select'
 import { StatusText, libraryStatusTone, type ParticipationStatus } from '@/components/ui/StatusText'
-import { ProgramLibraryActions } from '@/components/program/ProgramLibraryActions'
 import { dateLabel } from '@/lib/dates'
-import { buildGroupUrl, buildOccurrenceUrl } from '@/lib/urls'
+import { buildOccurrenceUrl } from '@/lib/urls'
 import type { PersonalProgram } from '@/lib/programLibrary'
 
 type Run = PersonalProgram['runs'][number]
@@ -60,24 +58,22 @@ export function ProgramPersonalOverview({
   return (
     <section
       aria-label="Your progress and participation"
-      className="rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-sm space-y-5 mt-6 mb-4"
+      className="rounded-2xl border border-border/70 bg-surface p-5 sm:p-6 space-y-5"
     >
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusText status={statusTone}>{statusLabel}</StatusText>
-            {r ? (
-              <span className="text-xs text-muted">
-                Started {dateLabel(r.startDate)} · Week {r.week}
-              </span>
-            ) : participationStartDate ? (
-              <span className="text-xs text-muted">
-                Joined {dateLabel(participationStartDate)}
-              </span>
-            ) : null}
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold text-foreground">Overview</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <StatusText status={statusTone}>{statusLabel}</StatusText>
+          {r ? (
+            <span className="text-xs text-muted">
+              Started {dateLabel(r.startDate)} · Week {r.week}
+            </span>
+          ) : participationStartDate ? (
+            <span className="text-xs text-muted">
+              Joined {dateLabel(participationStartDate)}
+            </span>
+          ) : null}
         </div>
-
       </div>
 
       {entry && (
@@ -181,49 +177,45 @@ export function ProgramPersonalDetailsGrid({
   return (
     <section
       aria-label="Personal schedule and history"
-      className="grid grid-cols-1 gap-6 md:grid-cols-2"
+      className="rounded-2xl border border-border/70 bg-surface p-5 sm:p-6 space-y-3"
     >
-      {/* Upcoming Activity */}
-      <div className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-4 mt-6 mb-6">
-        <h3 className="text-base font-semibold text-foreground">Upcoming Activity</h3>
-        {r?.upcoming.length && entry.status !== 'Paused' ? (
-          <div className="divide-y divide-border/60">
-            {r.upcoming.slice(0, 1).map((a) => (
-              <Link
-                key={a.id}
-                to={buildOccurrenceUrl(a.id, { returnTo: currentUrl })}
-                className="flex items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-accent"
-              >
-                <span className="min-w-0">
-                  <strong className="block truncate font-medium text-foreground">
-                    {a.title}
-                  </strong>
-                  <small className="block text-xs text-muted">
-                    {a.date}
-                    {a.time ? ` · ${a.time}` : ''}
-                    {a.adjusted ? ' · Rescheduled by you' : ''}
-                  </small>
-                </span>
-                <ArrowUpRight size={16} className="shrink-0 text-muted" />
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-muted">
-              {entry.status === 'Paused'
-                ? 'Your schedule is paused. Resume to restore future Activities.'
-                : 'No upcoming Activities.'}
-            </p>
-            {!r && onSetupSchedule && entry.publicationStatus === 'PUBLISHED' && (
-              <Button variant="outline" size="sm" onClick={onSetupSchedule}>
-                Set up your schedule
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
-
+      <h3 className="text-base font-semibold text-foreground">Upcoming Activity</h3>
+      {r?.upcoming.length && entry.status !== 'Paused' ? (
+        <div className="divide-y divide-border/60">
+          {r.upcoming.slice(0, 1).map((a) => (
+            <Link
+              key={a.id}
+              to={buildOccurrenceUrl(a.id, { returnTo: currentUrl })}
+              className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-accent"
+            >
+              <span className="min-w-0">
+                <strong className="block truncate font-medium text-foreground">
+                  {a.title}
+                </strong>
+                <small className="block text-xs text-muted">
+                  {a.date}
+                  {a.time ? ` · ${a.time}` : ''}
+                  {a.adjusted ? ' · Rescheduled by you' : ''}
+                </small>
+              </span>
+              <ArrowUpRight size={16} className="shrink-0 text-muted" />
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-muted">
+            {entry.status === 'Paused'
+              ? 'Your schedule is paused. Resume to restore future Activities.'
+              : 'No upcoming Activities.'}
+          </p>
+          {!r && onSetupSchedule && entry.publicationStatus === 'PUBLISHED' && (
+            <Button variant="outline" size="sm" onClick={onSetupSchedule}>
+              Set up your schedule
+            </Button>
+          )}
+        </div>
+      )}
     </section>
   )
 }

@@ -14,13 +14,13 @@ export interface ProgramActivityCardProps {
   meta?: string | null
   href?: string
   actions?: ReactNode
-  variant?: 'default' | 'thumb'
+  variant?: 'default' | 'thumb' | 'row'
   className?: string
 }
 
 /**
  * Media-led Activity Card: top aspect-ratio preview, day badge, title and description.
- * Designed for responsive grid layouts.
+ * `row` renders a minimal horizontal row without media overlays for the Program page.
  */
 export function ProgramActivityCard({
   title,
@@ -32,6 +32,52 @@ export function ProgramActivityCard({
   variant = 'default',
   className,
 }: ProgramActivityCardProps) {
+  if (variant === 'row') {
+    const rowContent = (
+      <article
+        className={cn(
+          'group flex items-center gap-4 py-3.5 transition-colors',
+          href && 'hover:text-accent',
+          className,
+        )}
+      >
+        <EntityHero
+          hero={hero}
+          size="row"
+          interactive={false}
+          className="rounded-lg border border-border/50 bg-surface-muted"
+        />
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <h3
+            className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-accent sm:text-base"
+            title={title}
+          >
+            {title}
+          </h3>
+          {meta && <p className="truncate text-xs text-muted">{meta}</p>}
+          {description && (
+            <p className="line-clamp-1 text-xs leading-relaxed text-muted">{description}</p>
+          )}
+        </div>
+        {href && (
+          <ChevronRight
+            size={16}
+            aria-hidden
+            className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-accent"
+          />
+        )}
+      </article>
+    )
+
+    return href ? (
+      <Link to={href} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+        {rowContent}
+      </Link>
+    ) : (
+      rowContent
+    )
+  }
+
   const isThumb = variant === 'thumb'
 
   const content = (

@@ -1,17 +1,6 @@
-import { formatProgramDuration } from '@/components/program-authoring/programFields'
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  ArrowLeft,
-  Calendar,
-  Check,
-  Layers,
-  Pencil,
-  Tag,
-  Play,
-  Repeat,
-  Share2,
-} from 'lucide-react'
+import { Check, Pencil, Play, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -26,9 +15,6 @@ export interface ProgramHeroProps {
   description?: string | null
   /** Identity image, resolved through `programHero` so the fallback chain stays shared. */
   hero: Hero
-  durationDays?: number | null
-  frequencyLabel?: string | null
-  activityCount: number
   categoryLabel?: string | null
   creator?: {
     handle?: string | null
@@ -38,21 +24,23 @@ export interface ProgramHeroProps {
   creatorReturnTo?: string
   isPlatform?: boolean
   isOwner?: boolean
-  statusBadges?: { label: string; tone?: 'default' | 'accent' | 'attention' }[]
+  /** Real participant count; omitted (null) below the public sample size. Never estimated. */
+  participantCount?: number | null
+  /** Compact plain-text metadata items (e.g. duration, frequency, activity count). */
+  metadata?: (string | null | undefined)[]
   /** Primary action label for the viewer's access state; omitted when there is no action. */
   primaryLabel?: string | null
-  backTo?: string
-  backLabel?: string
   onPrimary?: () => void
   /** Disables the primary action (in flight, unavailable, or already done this visit). */
   primaryDisabled?: boolean
   primaryLoading?: boolean
   /** Shows a check instead of the play icon, e.g. "Program Added". */
   primaryDone?: boolean
-  /** Compact content under the action row, e.g. previous run dates. */
+  /** Compact content beside the primary action, e.g. previous run dates. */
   primaryNote?: ReactNode
+  /** Canonical link to share; defaults to the current page. */
+  shareUrl?: string
   onShare?: () => void
-  onDoTogether?: () => void
   onEditProgram?: () => void
   editLabel?: string
   editExpanded?: boolean
@@ -60,29 +48,27 @@ export interface ProgramHeroProps {
 }
 
 /**
- * Editorial Program Storefront hero: dominant typography, framed artwork, clear hierarchy.
+ * Program Storefront hero (13 §4): cover on the left; kicker, title, summary, creator and real
+ * participation on the right, then the one primary action. Nothing is drawn over the media.
  */
 export function ProgramHero({
   title,
   description,
   hero,
-  durationDays,
-  frequencyLabel,
-  activityCount,
   categoryLabel,
   creator,
   creatorReturnTo,
   isPlatform = false,
   isOwner = false,
-  statusBadges,
+  participantCount,
+  metadata,
   primaryLabel,
-  backTo,
-  backLabel = 'Community',
   onPrimary,
   primaryDisabled = false,
   primaryLoading = false,
   primaryDone = false,
   primaryNote,
+  shareUrl,
   onShare,
   onEditProgram,
   editLabel = 'Edit Program',
@@ -90,6 +76,7 @@ export function ProgramHero({
   className,
 }: ProgramHeroProps) {
   const [watching, setWatching] = useState(false)
+  const metaItems = (metadata ?? []).filter((item): item is string => Boolean(item && item.trim()))
 
   const handleShare = async () => {
     if (onShare) {
@@ -98,9 +85,9 @@ export function ProgramHero({
     }
     try {
       if (navigator.share) {
-        await navigator.share({ title, url: window.location.href })
+        await navigator.share({ title, url: shareUrl ?? window.location.href })
       } else {
-        await navigator.clipboard.writeText(window.location.href)
+        await navigator.clipboard.writeText(shareUrl ?? window.location.href)
         toast.success('Program link copied')
       }
     } catch {
@@ -108,191 +95,125 @@ export function ProgramHero({
     }
   }
 
-  const durationText = formatProgramDuration(durationDays || null)
-
   return (
     <section
       aria-label={`${title} hero`}
       className={cn(
-        'relative w-full overflow-hidden rounded-2xl border border-border bg-surface p-6 sm:p-8 lg:p-10 shadow-sm',
+        'grid grid-cols-1 items-start gap-6 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:gap-8 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-10',
         className,
       )}
     >
-      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-12">
-        {/* Left Column: Dominant Information & Primary Hierarchy */}
-        <div className="flex flex-col justify-between space-y-6 lg:col-span-7">
-          {(backTo || (statusBadges && statusBadges.length > 0)) && (
-            <div className="flex items-center justify-between gap-4">
-              {backTo ? (
-                <Link
-                  to={backTo}
-                  className="group inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-foreground"
-                >
-                  <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
-                  <span>{backLabel}</span>
-                </Link>
-              ) : (
-                <span />
-              )}
-              {statusBadges && statusBadges.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {statusBadges.map((badge) => (
-                    <span
-                      key={badge.label}
-                      className={cn(
-                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                        badge.tone === 'accent'
-                          ? 'bg-accent/15 text-accent'
-                          : badge.tone === 'attention'
-                            ? 'bg-attention/15 text-attention'
-                            : 'bg-surface-muted text-muted',
-                      )}
-                    >
-                      {badge.label}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+      <EntityHero
+        hero={hero}
+        size="card"
+        interactive={false}
+        showVideoBadge={false}
+        className="aspect-square w-full max-w-xs rounded-2xl border border-border/50 bg-surface-muted sm:max-w-none"
+      />
+
+      <div className="min-w-0 space-y-5">
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+            {categoryLabel ? `Program · ${categoryLabel}` : 'Program'}
+          </p>
+          <h1 className="font-display text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+            {title}
+          </h1>
+          {description && (
+            <p className="max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
+              {description}
+            </p>
           )}
+        </div>
 
-          <div className="space-y-4">
-            <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-              {title}
-            </h1>
-
+        {(creator || isPlatform || participantCount != null) && (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             {creator ? (
-              <div className="flex items-center gap-2.5 text-sm text-foreground">
-                <Link
-                  to={
-                    creatorReturnTo
-                      ? `${buildProfileUrl(creator.handle ?? '')}?returnTo=${encodeURIComponent(creatorReturnTo)}`
-                      : buildProfileUrl(creator.handle ?? '')
-                  }
-                  className="inline-flex items-center gap-2 font-medium hover:text-accent transition-colors"
-                >
-                  <Avatar
-                    src={creator.avatarUrl}
-                    name={creator.displayName ?? 'Creator'}
-                    size="sm"
-                    className="h-6 w-6 ring-1 ring-border"
-                  />
-                  <span>by <strong className="font-semibold">{creator.displayName}</strong></span>
-                </Link>
-              </div>
+              <Link
+                to={
+                  creatorReturnTo
+                    ? `${buildProfileUrl(creator.handle ?? '')}?returnTo=${encodeURIComponent(creatorReturnTo)}`
+                    : buildProfileUrl(creator.handle ?? '')
+                }
+                className="inline-flex items-center gap-2 font-medium text-foreground transition-colors hover:text-accent"
+              >
+                <Avatar
+                  src={creator.avatarUrl}
+                  name={creator.displayName ?? 'Creator'}
+                  size="sm"
+                  className="h-6 w-6"
+                />
+                <span>{creator.displayName}</span>
+              </Link>
             ) : isPlatform ? (
-              <span className="text-sm font-medium text-muted">by Program Guru</span>
+              <span className="font-medium text-muted">Program Guru</span>
             ) : null}
-
-            {description && (
-              <p className="max-w-2xl text-base leading-relaxed text-muted line-clamp-3 sm:text-lg">
-                {description}
-              </p>
-            )}
-
-            {/* Commitments & Specs */}
-            <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-medium text-muted sm:gap-5 sm:text-sm">
-              {categoryLabel && (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-2.5 py-1 text-foreground">
-                  <Tag size={14} className="text-accent" />
-                  {categoryLabel}
-                </span>
-              )}
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-2.5 py-1 text-foreground">
-                <Calendar size={14} className="text-accent" />
-                {durationText}
+            {participantCount != null && (
+              <span className="text-muted">
+                <strong className="font-semibold tabular-nums text-foreground">
+                  {participantCount.toLocaleString()}
+                </strong>{' '}
+                {participantCount === 1 ? 'participant' : 'participants'}
               </span>
-              {frequencyLabel && (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-2.5 py-1 text-foreground">
-                  <Repeat size={14} className="text-accent" />
-                  {frequencyLabel}
-                </span>
-              )}
-              {activityCount > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-2.5 py-1 text-foreground">
-                  <Layers size={14} className="text-accent" />
-                  {activityCount} {activityCount === 1 ? 'activity' : 'activities'}
-                </span>
-              )}
-            </div>
+            )}
           </div>
+        )}
 
-          {/* Action Hierarchy */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            {primaryLabel && onPrimary && (
-              <Button
-                size="lg"
-                onClick={onPrimary}
-                disabled={primaryDisabled}
-                loading={primaryLoading}
-                className="gap-2 px-7 text-base font-bold shadow-md hover:shadow-lg transition-all"
-              >
-                {!primaryLoading &&
-                  (primaryDone ? (
-                    <Check size={18} strokeWidth={2.5} aria-hidden />
-                  ) : (
-                    <Play size={18} className="translate-x-0.5 fill-current" aria-hidden />
-                  ))}
-                <span>{primaryLabel}</span>
-              </Button>
-            )}
-            {hero.media?.type === 'VIDEO' && (
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => setWatching(true)}
-                className="gap-2 px-5 font-semibold"
-              >
-                <Play size={16} className="fill-current translate-x-0.5" />
-                <span>Watch preview</span>
-              </Button>
-            )}
-            {isOwner && onEditProgram && (
-              <Button
-                variant={editExpanded ? 'default' : 'outline'}
-                size="lg"
-                aria-expanded={editExpanded}
-                onClick={onEditProgram}
-                className="gap-2 px-5 font-semibold"
-              >
-                <Pencil size={15} />
-                <span>{editLabel}</span>
-              </Button>
-            )}
+        {metaItems.length > 0 && (
+          <p className="text-sm text-muted">
+            {metaItems.join(' · ')}
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-1">
+          {primaryLabel && onPrimary && (
             <Button
-              variant="outline"
               size="lg"
-              onClick={() => void handleShare()}
-              className="gap-2 px-4 font-semibold text-muted hover:text-foreground"
+              onClick={onPrimary}
+              disabled={primaryDisabled}
+              loading={primaryLoading}
+              className="gap-2 px-7 text-base font-semibold"
             >
-              <Share2 size={16} />
-              <span>Share</span>
+              {!primaryLoading &&
+                (primaryDone ? (
+                  <Check size={18} strokeWidth={2.5} aria-hidden />
+                ) : (
+                  <Play size={16} className="translate-x-0.5 fill-current" aria-hidden />
+                ))}
+              <span>{primaryLabel}</span>
             </Button>
-          </div>
+          )}
           {primaryNote}
         </div>
 
-        {/* Right Column: Clean Framed Artwork */}
-        <div className="lg:col-span-5">
-          <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/3] overflow-hidden rounded-xl border border-border bg-surface-muted shadow-md group">
-            <EntityHero
-              hero={hero}
-              size="card"
-              className="h-full w-full rounded-none"
-            />
-            {hero.media?.type === 'VIDEO' && (
-              <button
-                type="button"
-                aria-label="Play preview video"
-                onClick={() => setWatching(true)}
-                className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-[2px] transition-opacity group-hover:bg-black/40"
-              >
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-black shadow-lg transition-transform group-hover:scale-110">
-                  <Play size={24} className="translate-x-0.5 fill-current" />
-                </span>
-              </button>
-            )}
-          </div>
+        <div className="flex flex-wrap items-center gap-1 text-sm">
+          {hero.media?.type === 'VIDEO' && (
+            <Button variant="ghost" size="sm" onClick={() => setWatching(true)} className="gap-1.5 text-muted">
+              <Play size={14} className="fill-current" aria-hidden />
+              Watch preview
+            </Button>
+          )}
+          {isOwner && onEditProgram && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-expanded={editExpanded}
+              onClick={onEditProgram}
+              className="gap-1.5 text-muted"
+            >
+              <Pencil size={14} aria-hidden />
+              {editLabel}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleShare()}
+            className="gap-1.5 text-muted"
+          >
+            <Share2 size={14} aria-hidden />
+            Share
+          </Button>
         </div>
       </div>
 

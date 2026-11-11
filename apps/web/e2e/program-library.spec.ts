@@ -285,3 +285,130 @@ test('ProgramPage resets edit state on id change and scrolls ?start=1 once', asy
   expect(await page.evaluate(() => (window as any).__scrollCalls)).toBe(1)
 
 })
+
+test('Program page layout: clean hero, Community pending invitations, group creation and responsive dark layout', async ({
+  page,
+}, info) => {
+  await page.addInitScript(() => localStorage.setItem('theme', 'dark'))
+  const { requests } = await mockApi(page)
+  const progId = '00000000-0000-4000-8000-000000000010'
+  const invitedGroupId = '00000000-0000-4000-8000-000000000077'
+
+  await page.addInitScript((targetId) => {
+    const origFetch = window.fetch.bind(window)
+    window.fetch = async (input, init) => {
+      const response = await origFetch(input, init)
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url
+      if (new URL(url, window.location.origin).pathname === `/programs/${targetId}`) {
+        const json = await response.clone().json()
+        if (json?.data) {
+          json.data.enrollmentCount = 12
+          json.data.completionRate = 0.75
+          json.data.coverUrl = '/program-cover.svg'
+          json.data.coverMedia = {
+            id: 'media-vid-1',
+            type: 'VIDEO',
+            playbackUrl: '/preview.mp4',
+            thumbnailUrl: '/program-cover.svg',
+          }
+        }
+        return new Response(JSON.stringify(json), {
+          status: response.status,
+          headers: response.headers,
+        })
+      }
+      return response
+    }
+  }, progId)
+
+  await page.route('**/program-cover.svg', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="160" height="160" fill="#326b67"/></svg>',
+    }),
+  )
+
+  await page.route('**/users/me/group-invitations*', (route) =>
+    route.fulfill({
+      json: {
+        data: [
+          {
+            id: 'inv-1',
+            kind: 'USER',
+            expiresAt: '2099-11-14T00:00:00Z',
+            groupId: invitedGroupId,
+            preview: {
+              groupName: 'Morning Crew',
+              inviter: {
+                id: '00000000-0000-4000-8000-000000000005',
+                handle: 'participant',
+                displayName: 'Alex Rivera',
+                avatarUrl: null,
+              },
+              program: { id: progId, title: 'My Strength Workout' },
+              mode: 'ASYNC',
+              startLocalDate: null,
+              canAccept: true,
+              requiresAccess: false,
+              join: {
+                status: 'READY_TO_JOIN',
+                enrollmentId: null,
+                startLocalDate: null,
+                startDateDiffers: false,
+              },
+            },
+          },
+        ],
+        meta: { nextCursor: null, hasMore: false },
+      },
+    }),
+  )
+
+  await login(page, 'author@test.local', 'password')
+  await page.goto(`/programs/${progId}`)
+
+  const hero = page.getByRole('region', { name: 'My Strength Workout hero' })
+  await expect(hero.getByRole('heading', { name: 'My Strength Workout' })).toBeVisible()
+  // No play overlay button or badge over the cover image; Watch preview is in the action row.
+  await expect(hero.getByRole('button', { name: /^Play / })).toHaveCount(0)
+  await expect(hero.locator('img')).toBeVisible()
+  await expect(hero.locator('[data-hero-category] svg')).toHaveCount(0)
+  await expect(hero.getByRole('button', { name: 'Watch preview' })).toBeVisible()
+  await expect(hero.getByText('12 participants')).toBeVisible()
+  await expect(hero.getByText(/1 activity/)).toBeVisible()
+
+  // Community panel shows real count, pending invitation Join link, and Create Group.
+  const community = page.getByRole('region', { name: 'Community' })
+  await expect(community.getByText('12 participants · 75% completion')).toBeVisible()
+  await expect(community.getByText('Morning Crew')).toBeVisible()
+  await expect(community.getByText('Invited by Alex Rivera')).toBeVisible()
+  await expect(community.getByRole('link', { name: 'Join Morning Crew' })).toHaveAttribute(
+    'href',
+    new RegExp(`/groups/${invitedGroupId}`),
+  )
+
+  // Responsive layout has zero horizontal overflow in dark theme.
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true)
+
+  // Creating a group from the Community panel persists and switches to Open.
+  await community.getByRole('button', { name: 'Create Group', exact: true }).click()
+  await community.getByLabel('Group name (optional)').fill('Home Gym Squad')
+  await community.getByRole('button', { name: 'Create', exact: true }).click()
+  await expect.poll(() =>
+    requests.some((r) => r.path === '/groups' && r.method === 'POST'),
+  ).toBe(true)
+  await expect(community.getByRole('link', { name: 'Open Home Gym Squad' })).toBeVisible()
+
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await page.screenshot({
+    path: `test-results/program-redesign-${info.project.name}.png`,
+    fullPage: true,
+  })
+})
