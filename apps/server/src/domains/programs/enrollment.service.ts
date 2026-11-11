@@ -5,7 +5,7 @@ import { AppError, badRequest, forbidden, notFound } from '../../lib/errors'
 import { withIdempotency } from '../../lib/idempotency'
 import { enqueue } from '../../lib/outbox'
 import { afterCursor, offsetArgs, pageArgs, pageOrder, toOffsetPage, toPage, type PageQuery } from '../../lib/paging'
-import { addDays, fromDbDate, isValidTimeZone, todayIn, toDbDate, weekday, type LocalDate } from '../../lib/time'
+import { addDays, addMonths, diffDays, fromDbDate, isValidTimeZone, todayIn, toDbDate, weekday, type LocalDate } from '../../lib/time'
 import { HORIZON_DAYS, materializeEnrollment } from '../calendar/materialize'
 import { activeGrantWhere, canSeeProgram, isProgramOwner, resolveAccess } from './access'
 import { programInclude, toProgramSummary } from './mapper'
@@ -70,11 +70,13 @@ export async function preview(userId: string, programId: string, input: { progra
   const start = input.startLocalDate
   const until = addDays(start, 13) // the first two weeks
   const cycle = version.durationDays ?? version.cycleDays ?? 7
+  const monthly = version.durationDays === null && parseFrequency(version.frequency).kind === 'MONTHLY'
   const occurrences: { localDate: string; localTime: string | null; activityRevisionId: string; programDayIndex: number; position: number }[] = []
-  for (let c = 0; addDays(start, c * cycle) <= until; c++) {
+  for (let c = 0; (monthly ? addMonths(start, c) : addDays(start, c * cycle)) <= until; c++) {
     for (const i of version.items) {
-      const d = addDays(start, c * cycle + i.relativeDay)
-      if (d <= until) occurrences.push({ localDate: d, localTime: i.localTime, activityRevisionId: i.activityRevisionId, programDayIndex: c * cycle + i.relativeDay, position: i.position })
+      const d = monthly ? addMonths(addDays(start, i.relativeDay), c) : addDays(start, c * cycle + i.relativeDay)
+      const dayIdx = monthly ? diffDays(d, start) : c * cycle + i.relativeDay
+      if (d <= until) occurrences.push({ localDate: d, localTime: i.localTime, activityRevisionId: i.activityRevisionId, programDayIndex: dayIdx, position: i.position })
     }
     if (version.durationDays !== null) break
   }

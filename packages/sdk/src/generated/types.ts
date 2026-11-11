@@ -2738,7 +2738,7 @@ export interface components {
         /** @enum {string} */
         GenerationMode: "ALL_EACH_DAY" | "ROTATE";
         /** @enum {string} */
-        FrequencyKind: "DAILY" | "WEEKDAYS" | "N_PER_WEEK" | "FLEXIBLE" | "CUSTOM";
+        FrequencyKind: "DAILY" | "WEEKDAYS" | "N_PER_WEEK" | "FLEXIBLE" | "CUSTOM" | "MONTHLY";
         /** @enum {string} */
         EnrollmentStatus: "PENDING_ACCESS" | "ACTIVE" | "PAUSED" | "COMPLETED" | "LEFT";
         /** @enum {string} */
@@ -2767,7 +2767,7 @@ export interface components {
         /** @enum {string} */
         SessionAction: "START" | "PAUSE" | "RESUME" | "FINISH" | "ABANDON";
         /** @enum {string} */
-        RecurrenceKind: "DAILY" | "WEEKDAYS" | "WEEKLY" | "EVERY_N_DAYS";
+        RecurrenceKind: "DAILY" | "WEEKDAYS" | "WEEKLY" | "EVERY_N_DAYS" | "MONTHLY";
         /** @enum {string} */
         RecurrenceStatus: "ACTIVE" | "ENDED";
         /** @enum {string} */

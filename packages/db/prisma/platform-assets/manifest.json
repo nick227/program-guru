@@ -4,63 +4,6 @@
   "attribution": "Program.Guru platform illustration (original work, CC0 1.0 Public Domain Dedication)",
   "renderedWith": "SVG rendered by ffmpeg (librsvg)",
   "assets": {
-    "warm-up": {
-      "alt": "Illustration for Warm-up (Fitness)",
-      "original": {
-        "file": "illustrations/warm-up.jpg",
-        "mime": "image/jpeg",
-        "bytes": 78104,
-        "sha256": "2ab774b3a6b9a3eec593f54c1cb1e3ba217f1ef0524d99d0b7ba6c8facbb5338",
-        "width": 1200,
-        "height": 900
-      },
-      "thumb": {
-        "file": "illustrations/warm-up-thumb.webp",
-        "mime": "image/webp",
-        "bytes": 8962,
-        "sha256": "9763ed18a91367453a977ca55f316e24f9a1cf889c52cd5d254b4a2f9b0fd7e6",
-        "width": 480,
-        "height": 360
-      }
-    },
-    "squats": {
-      "alt": "Illustration for Squats (Fitness)",
-      "original": {
-        "file": "illustrations/squats.jpg",
-        "mime": "image/jpeg",
-        "bytes": 38630,
-        "sha256": "ef09945af7c3522d44c91f956a5c5550bdb47f40974c62a3bb14d6c1281cdb76",
-        "width": 1200,
-        "height": 900
-      },
-      "thumb": {
-        "file": "illustrations/squats-thumb.webp",
-        "mime": "image/webp",
-        "bytes": 4308,
-        "sha256": "6987bf0765bc51d504af305710b125c8c9575d452be351890cece1b99d127135",
-        "width": 480,
-        "height": 360
-      }
-    },
-    "leg-raises": {
-      "alt": "Illustration for Leg Raises (Fitness)",
-      "original": {
-        "file": "illustrations/leg-raises.jpg",
-        "mime": "image/jpeg",
-        "bytes": 36200,
-        "sha256": "45de89f75cf0866b41695432799c0483fdf67ca78c0279a340607d46a74f7c3e",
-        "width": 1200,
-        "height": 900
-      },
-      "thumb": {
-        "file": "illustrations/leg-raises-thumb.webp",
-        "mime": "image/webp",
-        "bytes": 4224,
-        "sha256": "d134d2a76f3f9afe468df9e94e4eadd1609ea3e15f9b1a5fd670d7199b22dffd",
-        "width": 480,
-        "height": 360
-      }
-    },
     "push-ups": {
       "alt": "Illustration for Push-ups (Fitness)",
       "original": {
@@ -80,6 +23,44 @@
         "height": 360
       }
     },
+    "sit-ups": {
+      "alt": "Illustration for Sit-ups (Fitness)",
+      "original": {
+        "file": "illustrations/sit-ups.jpg",
+        "mime": "image/jpeg",
+        "bytes": 34948,
+        "sha256": "46276a260afd86a4bd54f9721bcbd92bbed98178e31f2f66344a5d29c2044491",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/sit-ups-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4106,
+        "sha256": "df0ed9587457c3dbc4995e46de65e3b8331e86ed6bf86e8d157ff02feb68ad65",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "jog-one-mile": {
+      "alt": "Illustration for Jog One Mile (Fitness)",
+      "original": {
+        "file": "illustrations/jog-one-mile.jpg",
+        "mime": "image/jpeg",
+        "bytes": 50356,
+        "sha256": "03ceba63e57a04e29c86745bada06fa447b40915ac333ddf1126f9e88e8171b8",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/jog-one-mile-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5918,
+        "sha256": "d857d0f41bb9576187cc3453b3a64e01ea41061193ce0110fb6142695451ea2b",
+        "width": 480,
+        "height": 360
+      }
+    },
     "plank": {
       "alt": "Illustration for Plank (Fitness)",
       "original": {
@@ -95,6 +76,25 @@
         "mime": "image/webp",
         "bytes": 4462,
         "sha256": "b07e61c7fb16546027a5ae1f634e1a36c64c0f1e70a74e453e3138addcee5332",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "leg-raises": {
+      "alt": "Illustration for Leg Raises (Fitness)",
+      "original": {
+        "file": "illustrations/leg-raises.jpg",
+        "mime": "image/jpeg",
+        "bytes": 36200,
+        "sha256": "45de89f75cf0866b41695432799c0483fdf67ca78c0279a340607d46a74f7c3e",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/leg-raises-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4224,
+        "sha256": "d134d2a76f3f9afe468df9e94e4eadd1609ea3e15f9b1a5fd670d7199b22dffd",
         "width": 480,
         "height": 360
       }
@@ -137,335 +137,294 @@
         "height": 360
       }
     },
-    "vocabulary-review": {
-      "alt": "Illustration for Vocabulary Review (Education)",
+    "read-non-fiction-book": {
+      "alt": "Illustration for Read a Non-Fiction Book (Education)",
       "original": {
-        "file": "illustrations/vocabulary-review.jpg",
+        "file": "illustrations/read-non-fiction-book.jpg",
         "mime": "image/jpeg",
-        "bytes": 38071,
-        "sha256": "31a3788570d43490a4da69ac22ba8d95ae03cd64927c6280f2ced590550ab3bb",
+        "bytes": 40919,
+        "sha256": "b93cba2dc0d1baf64cfdc2d23afe2a6cc61d26668cc943777ab77e858cb6a7da",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/vocabulary-review-thumb.webp",
+        "file": "illustrations/read-non-fiction-book-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3736,
-        "sha256": "4d03dcafee626c28e0a0163535f7680223fd10ec58cbe7d4d051591fc6f96ef3",
+        "bytes": 4118,
+        "sha256": "3c34c8da2d9868d3368f53b69d98f677652565a79671a8400e0d6df2f9db16a6",
         "width": 480,
         "height": 360
       }
     },
-    "read-for-20-minutes": {
-      "alt": "Illustration for Read for 20 Minutes (Education)",
+    "read-fiction-book": {
+      "alt": "Illustration for Read a Fiction Book (Education)",
       "original": {
-        "file": "illustrations/read-for-20-minutes.jpg",
+        "file": "illustrations/read-fiction-book.jpg",
         "mime": "image/jpeg",
-        "bytes": 40410,
-        "sha256": "a3ec635f6d341de8aa1cb31e720ed9bfd9b5c0dd290e6f13fe25b5dcf253e1d6",
+        "bytes": 40524,
+        "sha256": "92b5d2f91294cb7246ab0562aa437c6f41d68b56006d84aa065f817dd0203e07",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/read-for-20-minutes-thumb.webp",
+        "file": "illustrations/read-fiction-book-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3946,
-        "sha256": "87c3c9299a98c4c88895cb354dc9feeda96b002aa386e822f71c3dac77bf6124",
+        "bytes": 4060,
+        "sha256": "2e26d938e4be19efea1d7eb7ed2db93c2b92901d74c9dfc80c7a0380cab72756",
         "width": 480,
         "height": 360
       }
     },
-    "practice-speaking": {
-      "alt": "Illustration for Practice Speaking (Education)",
+    "attend-learning-event": {
+      "alt": "Illustration for Attend Learning Event (Education)",
       "original": {
-        "file": "illustrations/practice-speaking.jpg",
+        "file": "illustrations/attend-learning-event.jpg",
         "mime": "image/jpeg",
-        "bytes": 37160,
-        "sha256": "f5e64e87543b55cb8d8b42a29f22beffe5119fe284ccf4973da4c3544f5ddb1f",
+        "bytes": 38960,
+        "sha256": "ad601bc93d432d7800c78acee295f9281ebefdfa150f43295ab19deb2758c3d8",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/practice-speaking-thumb.webp",
+        "file": "illustrations/attend-learning-event-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3768,
-        "sha256": "60939fe7098f46cbbadc473fbacf4d35ea40df6973f717589d3896273249fbfa",
+        "bytes": 3920,
+        "sha256": "b6d5e79c9935e19bcd9366098a99c5b2d8314ab341d532bc6bc1f99a8e0c8bd5",
         "width": 480,
         "height": 360
       }
     },
-    "listening-practice": {
-      "alt": "Illustration for Listening Practice (Education)",
+    "drink-glass-of-water": {
+      "alt": "Illustration for Drink One Glass of Water (Wellness)",
       "original": {
-        "file": "illustrations/listening-practice.jpg",
+        "file": "illustrations/drink-glass-of-water.jpg",
         "mime": "image/jpeg",
-        "bytes": 39613,
-        "sha256": "41170bf253d73bb79be87913cd2576efaf1f09a4d5a2f2ff59919cfb472fcfe1",
+        "bytes": 66336,
+        "sha256": "0312bb61d987b29374be5af6f457409ef4df7b98a8eca4def789c10490e36868",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/listening-practice-thumb.webp",
+        "file": "illustrations/drink-glass-of-water-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4028,
-        "sha256": "b60e0da35461f84abc21f729479a51ca226db96eb1fd39380fff705348edd236",
+        "bytes": 7660,
+        "sha256": "c0a97896241c517892b623a4bcce07c694a67ba94e9958e3d6b04d360fc58584",
         "width": 480,
         "height": 360
       }
     },
-    "morning-routine": {
-      "alt": "Illustration for Morning Routine (Wellness)",
+    "sixty-second-meditation": {
+      "alt": "Illustration for 60-Second Meditation (Wellness)",
       "original": {
-        "file": "illustrations/morning-routine.jpg",
+        "file": "illustrations/sixty-second-meditation.jpg",
         "mime": "image/jpeg",
-        "bytes": 65511,
-        "sha256": "f89882124eac32d77ebf5afc887d29a58a0799afc93df59c7602224d48b4f15c",
+        "bytes": 63473,
+        "sha256": "c37d5fce7225f5dab27c14abfda85d593b87a93df16fd83a388ce642155adbf4",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/morning-routine-thumb.webp",
+        "file": "illustrations/sixty-second-meditation-thumb.webp",
         "mime": "image/webp",
-        "bytes": 7628,
-        "sha256": "b87fdd8be815c96ce16e6554603790dcbfbb084834ebabd114dce5707e36a260",
+        "bytes": 7244,
+        "sha256": "4f8557f9a521eae9dfbb6f1e22cf0d1ca0ba692bb01f9cc83807997ca619f3de",
         "width": 480,
         "height": 360
       }
     },
-    "guided-meditation": {
-      "alt": "Illustration for Guided Meditation (Wellness)",
+    "sleep-relaxation-technique": {
+      "alt": "Illustration for Sleep Relaxation Technique (Wellness)",
       "original": {
-        "file": "illustrations/guided-meditation.jpg",
+        "file": "illustrations/sleep-relaxation-technique.jpg",
         "mime": "image/jpeg",
-        "bytes": 66326,
-        "sha256": "868f0ade02699e10aa3b17dbdefcee9bbc4440c90ad5e5c23809e0037df01c92",
+        "bytes": 29505,
+        "sha256": "5f60404b31c049f27f2342dd43b50020e9441b157f55090938de88b92ddd70bd",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/guided-meditation-thumb.webp",
+        "file": "illustrations/sleep-relaxation-technique-thumb.webp",
         "mime": "image/webp",
-        "bytes": 7772,
-        "sha256": "883d2a6ba1a905aac9343861d217145a15871dadc6f14d6962201d2433944d8f",
+        "bytes": 3018,
+        "sha256": "4bbc263e3700cda9bf4d8d3397873adae67b6522d78b4997b73136247a242f77",
         "width": 480,
         "height": 360
       }
     },
-    "breathing-exercise": {
-      "alt": "Illustration for Breathing Exercise (Wellness)",
+    "balance-monthly-budget": {
+      "alt": "Illustration for Balance Monthly Budget (Finance)",
       "original": {
-        "file": "illustrations/breathing-exercise.jpg",
+        "file": "illustrations/balance-monthly-budget.jpg",
         "mime": "image/jpeg",
-        "bytes": 66066,
-        "sha256": "9140ab5d23d842a7828f02db4c337d9ddf231926581257a631819710a5cf36ab",
+        "bytes": 40511,
+        "sha256": "32acadae5e59db7d402e2c095e97c3af72effb9c70b4e3d92fd45a05a95f7242",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/breathing-exercise-thumb.webp",
+        "file": "illustrations/balance-monthly-budget-thumb.webp",
         "mime": "image/webp",
-        "bytes": 7684,
-        "sha256": "89d2d24956018116f96c2fbca7cfa6b00f7a5400efd276f6bd87133491536ac2",
+        "bytes": 3766,
+        "sha256": "d4c97eba88c462019f39dfc129a29b084bf137ecdaac4188ce146249b1c0db35",
         "width": 480,
         "height": 360
       }
     },
-    "gratitude-journal": {
-      "alt": "Illustration for Gratitude Journal (Wellness)",
+    "work-on-business-plan": {
+      "alt": "Illustration for Work on Business Plan (Finance)",
       "original": {
-        "file": "illustrations/gratitude-journal.jpg",
+        "file": "illustrations/work-on-business-plan.jpg",
         "mime": "image/jpeg",
-        "bytes": 35591,
-        "sha256": "33291a7484a4b522d210e7c4cc47d4a034c141dcbf7795ea14d900d817cde3ae",
+        "bytes": 40247,
+        "sha256": "0ac60402fe643c56ea2029dcd5e82fdc070081fc4423e35e255bcc5f7bb5f2eb",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/gratitude-journal-thumb.webp",
+        "file": "illustrations/work-on-business-plan-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3584,
-        "sha256": "b3619198f47c04844e23098fbd4cdfa0514a5129f6133d9d83f91b66972e7611",
+        "bytes": 3930,
+        "sha256": "d24a576ebc180115cf13b954d7311d25a5ac240ea12cc11f1aa320aadaa7148f",
         "width": 480,
         "height": 360
       }
     },
-    "evening-wind-down": {
-      "alt": "Illustration for Evening Wind-down (Wellness)",
+    "make-sales-calls": {
+      "alt": "Illustration for Make Sales Calls (Finance)",
       "original": {
-        "file": "illustrations/evening-wind-down.jpg",
+        "file": "illustrations/make-sales-calls.jpg",
         "mime": "image/jpeg",
-        "bytes": 28299,
-        "sha256": "53ca215ea758ff94e61351dcf57a5b2df9f36e33e37f25e14a9d06c002a9e83a",
+        "bytes": 32962,
+        "sha256": "ebb64770db5d43042f542c17b7824e3c30663e68f28e5a71ce4951820cc91bf9",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/evening-wind-down-thumb.webp",
+        "file": "illustrations/make-sales-calls-thumb.webp",
         "mime": "image/webp",
-        "bytes": 2920,
-        "sha256": "44a9ee583aba39cd216d772ef573811ad68b568e198277ef3d809be98a70638a",
+        "bytes": 3502,
+        "sha256": "3f4551022a3c9d90b2dbdc2f3ee374640d57a62b5e3cbed1f1776d2e3e2d0b52",
         "width": 480,
         "height": 360
       }
     },
-    "savings-contribution": {
-      "alt": "Illustration for Savings Contribution (Finance)",
+    "do-something-nice": {
+      "alt": "Illustration for Do Something Nice (Relationships)",
       "original": {
-        "file": "illustrations/savings-contribution.jpg",
+        "file": "illustrations/do-something-nice.jpg",
         "mime": "image/jpeg",
-        "bytes": 40964,
-        "sha256": "b5c8c090f96f827c25e855b973afce8e3c08e737e35bda186740016deed76a4b",
+        "bytes": 30539,
+        "sha256": "e59e20988bddebe6935a6f5a281fd436ac0ac6111b465f1b1a998adb6e7c6280",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/savings-contribution-thumb.webp",
+        "file": "illustrations/do-something-nice-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4004,
-        "sha256": "35863fcff88fafaf83ee00c3f2a2826565ba6335f80485f23ecf64fe77a332e4",
+        "bytes": 3086,
+        "sha256": "9ea6476b5782da7527b2e99b44655a35964dba6fca6ea4e0e579cfff34db9e82",
         "width": 480,
         "height": 360
       }
     },
-    "weekly-budget-review": {
-      "alt": "Illustration for Weekly Budget Review (Finance)",
+    "send-friendly-text": {
+      "alt": "Illustration for Send a Friendly Text (Relationships)",
       "original": {
-        "file": "illustrations/weekly-budget-review.jpg",
+        "file": "illustrations/send-friendly-text.jpg",
         "mime": "image/jpeg",
-        "bytes": 43858,
-        "sha256": "c475b5926b0a8a682c5b9c305aa8e0e79db506df8a1c7564efb9a419f7af0a1d",
+        "bytes": 29823,
+        "sha256": "757ab4d21d53bc58a2ff31b4a7f0c96e59d084858d475ac4061714f23c31c834",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/weekly-budget-review-thumb.webp",
+        "file": "illustrations/send-friendly-text-thumb.webp",
         "mime": "image/webp",
-        "bytes": 4154,
-        "sha256": "2b8686d1c9049a1b36b3f5433e66e123985f53659e7671484ec77d415ab2e4a8",
+        "bytes": 3028,
+        "sha256": "cda52fa468c4b67c263d2ce2c9c0a3fe0275c125d995f2c5f59a305f0f85d87d",
         "width": 480,
         "height": 360
       }
     },
-    "categorize-expenses": {
-      "alt": "Illustration for Categorize Expenses (Finance)",
+    "have-dinner-with-a-friend": {
+      "alt": "Illustration for Have Dinner with a Friend (Relationships)",
       "original": {
-        "file": "illustrations/categorize-expenses.jpg",
+        "file": "illustrations/have-dinner-with-a-friend.jpg",
         "mime": "image/jpeg",
-        "bytes": 41659,
-        "sha256": "b6f7f998b7ecf878bd36aed0fc6e2bec93ab23489aab8e49396f10fa8f1054ad",
+        "bytes": 30028,
+        "sha256": "de3ee9793eb4dedfef1b874d82485b89cf17cbbc45889d55f842580503fbee8a",
         "width": 1200,
         "height": 900
       },
       "thumb": {
-        "file": "illustrations/categorize-expenses-thumb.webp",
+        "file": "illustrations/have-dinner-with-a-friend-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3940,
-        "sha256": "a85aa74126bb1c94627d5292866c495e2e0fe935d3d974e6c0eb8967844ceca8",
-        "width": 480,
-        "height": 360
-      }
-    },
-    "review-subscriptions": {
-      "alt": "Illustration for Review Subscriptions (Finance)",
-      "original": {
-        "file": "illustrations/review-subscriptions.jpg",
-        "mime": "image/jpeg",
-        "bytes": 40396,
-        "sha256": "4daa39add46535e56ff9531a6baa04d0b18413b0c067a879343c6517f48d0f04",
-        "width": 1200,
-        "height": 900
-      },
-      "thumb": {
-        "file": "illustrations/review-subscriptions-thumb.webp",
-        "mime": "image/webp",
-        "bytes": 3988,
-        "sha256": "a85287e3c33e02d151c9805ec7e7f0843bf7df53d6ccc57cd9d88befa6396385",
-        "width": 480,
-        "height": 360
-      }
-    },
-    "send-a-check-in-message": {
-      "alt": "Illustration for Send a Check-in Message (Relationships)",
-      "original": {
-        "file": "illustrations/send-a-check-in-message.jpg",
-        "mime": "image/jpeg",
-        "bytes": 30441,
-        "sha256": "0f7d61e4976b8f9d139abefc7667ef0b4629baa6d7f3ab2e3fa2c3e0bd8daf84",
-        "width": 1200,
-        "height": 900
-      },
-      "thumb": {
-        "file": "illustrations/send-a-check-in-message-thumb.webp",
-        "mime": "image/webp",
-        "bytes": 3138,
-        "sha256": "e57960c195c9a2e84af5339507cc08cfd713d02b1c77f22a278d8b40312c4a70",
-        "width": 480,
-        "height": 360
-      }
-    },
-    "call-a-friend": {
-      "alt": "Illustration for Call a Friend (Relationships)",
-      "original": {
-        "file": "illustrations/call-a-friend.jpg",
-        "mime": "image/jpeg",
-        "bytes": 30150,
-        "sha256": "a7ae40683b29bfe9f5eb456decd18f70bea410680906f049fa7843b8eff3b596",
-        "width": 1200,
-        "height": 900
-      },
-      "thumb": {
-        "file": "illustrations/call-a-friend-thumb.webp",
-        "mime": "image/webp",
-        "bytes": 3052,
-        "sha256": "49eab9e3a6d2cc31ebc731a21831702e15a7d2c3b43dee60991ca49b538e1cd2",
-        "width": 480,
-        "height": 360
-      }
-    },
-    "plan-quality-time": {
-      "alt": "Illustration for Plan Quality Time (Relationships)",
-      "original": {
-        "file": "illustrations/plan-quality-time.jpg",
-        "mime": "image/jpeg",
-        "bytes": 30681,
-        "sha256": "471720286e2c54e377ca6f2f9bb7b442e9e6261718717e5029fa496742ea7998",
-        "width": 1200,
-        "height": 900
-      },
-      "thumb": {
-        "file": "illustrations/plan-quality-time-thumb.webp",
-        "mime": "image/webp",
-        "bytes": 2996,
-        "sha256": "cf10a5a4bb4276ca45661cfdf56b5232aa324bbff8f634c711812044063624c9",
-        "width": 480,
-        "height": 360
-      }
-    },
-    "write-a-thank-you-note": {
-      "alt": "Illustration for Write a Thank-you Note (Relationships)",
-      "original": {
-        "file": "illustrations/write-a-thank-you-note.jpg",
-        "mime": "image/jpeg",
-        "bytes": 38080,
-        "sha256": "88f67fda656d20f1fe4c38ecb4a0e1db5116c68fc2c8504bb04e310e46ddfffd",
-        "width": 1200,
-        "height": 900
-      },
-      "thumb": {
-        "file": "illustrations/write-a-thank-you-note-thumb.webp",
-        "mime": "image/webp",
-        "bytes": 3568,
-        "sha256": "12f1e227a81a763b205baf283440a42b243c6b358e6069165da7fd7513ad4621",
+        "bytes": 3012,
+        "sha256": "e7c92f13783e19db1b96f9a4cde7bb5e34a6050d2425fab53d0fd0ba831697fb",
         "width": 480,
         "height": 360
       }
     }
   },
   "programCovers": {
-    "starter-beginner-core-strength": {
+    "starter-ten-pushups-and-ten-situps": {
+      "alt": "Training lanes inside an indoor fitness center",
+      "original": {
+        "file": "covers/starter-ten-pushups-and-ten-situps.jpg",
+        "mime": "image/jpeg",
+        "bytes": 126618,
+        "sha256": "0a5303cbfc9956f2239b59ad37a7252ffc3fdf12f42234029ecbbca82d165d6b",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-ten-pushups-and-ten-situps-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 21488,
+        "sha256": "c1f4a1195db853eb6add3ab19bfa6789ada0a4ebe0e341cc3a87355f70635846",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:AUT Millennium, Auckland, New Zealand (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:AUT_Millennium,_Auckland,_New_Zealand_(Unsplash).jpg",
+        "author": "Artem Verbo",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-11"
+      }
+    },
+    "starter-jog-one-mile": {
+      "alt": "Sunlit dirt trail winding through tall forest trees",
+      "original": {
+        "file": "covers/starter-jog-one-mile.jpg",
+        "mime": "image/jpeg",
+        "bytes": 254387,
+        "sha256": "3c26e98101b394bcbc53bb6e6c4457b785790365d53bd9db73d8ad3c90585830",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-jog-one-mile-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 33112,
+        "sha256": "9f4ce5bb3c56eeedb58af90a5e730bd073b8abfdafdd452f0cbaeb3c0d8c2506",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Woods Canyon Trail No. 93 (32591722170).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Woods_Canyon_Trail_No._93_(32591722170).jpg",
+        "author": "Coconino National Forest",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-11"
+      }
+    },
+    "starter-build-your-core": {
       "alt": "Two loaded dumbbells on a concrete floor",
       "original": {
-        "file": "covers/starter-beginner-core-strength.jpg",
+        "file": "covers/starter-build-your-core.jpg",
         "mime": "image/jpeg",
         "bytes": 361453,
         "sha256": "eb6d2f496f9832894dcf1c4f6d9aa7f434d7f1e93cfaaa15e5e87c6f97ae99b9",
@@ -473,7 +432,7 @@
         "height": 900
       },
       "thumb": {
-        "file": "covers/starter-beginner-core-strength-thumb.webp",
+        "file": "covers/starter-build-your-core-thumb.webp",
         "mime": "image/webp",
         "bytes": 44498,
         "sha256": "0ec88176208e46e43eb8dc2d1cfe672dba4db2a615411f5abf3b3ed6f9330371",
@@ -486,13 +445,40 @@
         "author": "Singlespeedfahrer",
         "license": "CC0-1.0",
         "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-        "retrievedAt": "2026-11-08"
+        "retrievedAt": "2026-11-11"
       }
     },
-    "starter-daily-mindfulness-reflection": {
+    "starter-drink-one-glass-of-water": {
+      "alt": "Clear glass of water on an outdoor table",
+      "original": {
+        "file": "covers/starter-drink-one-glass-of-water.jpg",
+        "mime": "image/jpeg",
+        "bytes": 101907,
+        "sha256": "177dcfc85409774cca06e389922aa57cd9c485f917a55b026a0522e6649e68f2",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-drink-one-glass-of-water-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 16188,
+        "sha256": "bbc3816c78e635f282d09cc0556a32ef585278598ead28479cadf35ee58b77e7",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Glass of water ouside.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Glass_of_water_ouside.jpg",
+        "author": "Kurt Kaiser",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-11"
+      }
+    },
+    "starter-60-second-meditation": {
       "alt": "Sunrise over a calm lake shore",
       "original": {
-        "file": "covers/starter-daily-mindfulness-reflection.jpg",
+        "file": "covers/starter-60-second-meditation.jpg",
         "mime": "image/jpeg",
         "bytes": 272573,
         "sha256": "3ab5310cc833d22fff7974a23a2b7458a784b8daabc1d9c5bf77dc3115c83b80",
@@ -500,7 +486,7 @@
         "height": 900
       },
       "thumb": {
-        "file": "covers/starter-daily-mindfulness-reflection-thumb.webp",
+        "file": "covers/starter-60-second-meditation-thumb.webp",
         "mime": "image/webp",
         "bytes": 32394,
         "sha256": "ce50c8e803ec0addd3e642d62297e855e665cc7e2fa881be09ddfc05437daa6d",
@@ -513,13 +499,40 @@
         "author": "Joe deSousa",
         "license": "CC0-1.0",
         "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-        "retrievedAt": "2026-11-08"
+        "retrievedAt": "2026-11-11"
       }
     },
-    "starter-weekly-savings-budget": {
+    "starter-sleep-relaxation-technique": {
+      "alt": "Quiet starry night sky above a dark horizon",
+      "original": {
+        "file": "covers/starter-sleep-relaxation-technique.jpg",
+        "mime": "image/jpeg",
+        "bytes": 276014,
+        "sha256": "7b80231eb5d0d83b8bf223428be0534287ead1c04718592da0506e8c18743046",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-sleep-relaxation-technique-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 20624,
+        "sha256": "036eedb60e9dc4b30bc09a046a50502ebfaa857bd6b8e4c1263d24a1eaaa7fc3",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Milky Way Night Sky (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Milky_Way_Night_Sky_(Unsplash).jpg",
+        "author": "Guillaume",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-11"
+      }
+    },
+    "starter-balance-monthly-budget": {
       "alt": "Glass savings jar filled with coins and a banknote",
       "original": {
-        "file": "covers/starter-weekly-savings-budget.jpg",
+        "file": "covers/starter-balance-monthly-budget.jpg",
         "mime": "image/jpeg",
         "bytes": 156271,
         "sha256": "815ff7d50d0d5847dda04298fb941e169314d45d43dd823236d4b24a8bb34f42",
@@ -527,7 +540,7 @@
         "height": 900
       },
       "thumb": {
-        "file": "covers/starter-weekly-savings-budget-thumb.webp",
+        "file": "covers/starter-balance-monthly-budget-thumb.webp",
         "mime": "image/webp",
         "bytes": 27486,
         "sha256": "39525a5889f7fc1fd1529ae76eeddc448208f69bf7d2a9796e0ac6703dcb6c6c",
@@ -540,61 +553,223 @@
         "author": "stevepb",
         "license": "CC0-1.0",
         "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-        "retrievedAt": "2026-11-08"
+        "retrievedAt": "2026-11-11"
       }
     },
-    "starter-daily-language-study": {
-      "alt": "Row of letter keys from A to H",
+    "starter-work-on-business-plan": {
+      "alt": "Laptop, paper notebook, and cup of coffee on a wooden desk",
       "original": {
-        "file": "covers/starter-daily-language-study.jpg",
+        "file": "covers/starter-work-on-business-plan.jpg",
         "mime": "image/jpeg",
-        "bytes": 205332,
-        "sha256": "a88f1dcca03c05cb7c988559f8b359d537ac8120e41a31200c6228668cb985b3",
+        "bytes": 83808,
+        "sha256": "cb219222bbc6bd7ef595a605e16598efbb5519e09d4c5a88f40d4323687568ef",
         "width": 1600,
         "height": 900
       },
       "thumb": {
-        "file": "covers/starter-daily-language-study-thumb.webp",
+        "file": "covers/starter-work-on-business-plan-thumb.webp",
         "mime": "image/webp",
-        "bytes": 25044,
-        "sha256": "144240c1a171a8430abb36d698721567a5531f5191c4ffd65f7f1980ebddd707",
+        "bytes": 16792,
+        "sha256": "706b347aa758a0ed8451f076290e5c40cdd9fffe749c32c7b34ca54d6b8ceaee",
         "width": 640,
         "height": 360
       },
       "source": {
-        "title": "File:Typography (Unsplash).jpg",
-        "pageUrl": "https://commons.wikimedia.org/wiki/File:Typography_(Unsplash).jpg",
-        "author": "Diomari Madulara",
+        "title": "File:Coffee-desk-laptop-notebook (24244320481).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Coffee-desk-laptop-notebook_(24244320481).jpg",
+        "author": "www.Pixel.la Free Stock Photos",
         "license": "CC0-1.0",
         "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-        "retrievedAt": "2026-11-08"
+        "retrievedAt": "2026-11-11"
       }
     },
-    "starter-staying-in-touch": {
-      "alt": "Close-up of a rotary telephone dial",
+    "starter-make-sales-calls": {
+      "alt": "Smartphone beside a warm cup of coffee on a work table",
       "original": {
-        "file": "covers/starter-staying-in-touch.jpg",
+        "file": "covers/starter-make-sales-calls.jpg",
         "mime": "image/jpeg",
-        "bytes": 82453,
-        "sha256": "756e7eab38a6abb14ffc34de10464367131c0ec1e8068d911c775002edbd473f",
+        "bytes": 185296,
+        "sha256": "d3860bac466dff6483a4cb1ccceb7d10a4516027e8db7101d538a2d87c110333",
         "width": 1600,
         "height": 900
       },
       "thumb": {
-        "file": "covers/starter-staying-in-touch-thumb.webp",
+        "file": "covers/starter-make-sales-calls-thumb.webp",
         "mime": "image/webp",
-        "bytes": 9214,
-        "sha256": "571c666764f2f09b846fefaf94f9971018e8853ea543de91626d1fc758baf3d3",
+        "bytes": 27948,
+        "sha256": "3052e4c6772240d86bae84eb8d6b8cad673af8ac50bb2052a555997a9dd51efd",
         "width": 640,
         "height": 360
       },
       "source": {
-        "title": "File:Macro rotary phone (Unsplash).jpg",
-        "pageUrl": "https://commons.wikimedia.org/wiki/File:Macro_rotary_phone_(Unsplash).jpg",
-        "author": "Daria Nepriakhina",
+        "title": "File:Smartphone and coffee (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Smartphone_and_coffee_(Unsplash).jpg",
+        "author": "Maliha Mannan",
         "license": "CC0-1.0",
         "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-        "retrievedAt": "2026-11-08"
+        "retrievedAt": "2026-11-11"
+      }
+    },
+    "starter-read-a-non-fiction-book": {
+      "alt": "Warm wooden library reading room lined with bookshelves",
+      "original": {
+        "file": "covers/starter-read-a-non-fiction-book.jpg",
+        "mime": "image/jpeg",
+        "bytes": 226342,
+        "sha256": "3a9c17a08a239bd4f443917bb13636c99c8d3ca607c90c855fcfc96410ec5db6",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-read-a-non-fiction-book-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 36226,
+        "sha256": "bcc5f05f2a8a1312d56cb7e7c41e89b712f9a92e4a15c0765dfcd48f6b19ca2e",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Engineering and Computer Science Library.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Engineering_and_Computer_Science_Library.jpg",
+        "author": "Open Grid Scheduler / Grid Engine",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-11"
+      }
+    },
+    "starter-read-a-fiction-book": {
+      "alt": "Open hardcover book resting on a soft blanket",
+      "original": {
+        "file": "covers/starter-read-a-fiction-book.jpg",
+        "mime": "image/jpeg",
+        "bytes": 83052,
+        "sha256": "c579cd3a17aa532a947d1ca9de88fd70c2df81dd1f8b529babfd5723ea78ff7c",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-read-a-fiction-book-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 13546,
+        "sha256": "2daf3d1eb9f5f7bcba1758f6b60b66aa020863b42180c216f49a1476384f0fed",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Open book (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Open_book_(Unsplash).jpg",
+        "author": "Ben White",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-11"
+      }
+    },
+    "starter-attend-learning-event": {
+      "alt": "Seated wooden auditorium and stage in a lecture hall",
+      "original": {
+        "file": "covers/starter-attend-learning-event.jpg",
+        "mime": "image/jpeg",
+        "bytes": 326589,
+        "sha256": "0839b9beb907ea3d403cbf88c1145d3849fa26870ee140864b493f9202fe55fa",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-attend-learning-event-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 53722,
+        "sha256": "332317969578c979de6aefbd7d30cab5748a26ef8f3af12abdb1d2c499a36f95",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Lowell Lecture Hall - Harvard University - Cambridge, MA - DSC02575.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Lowell_Lecture_Hall_-_Harvard_University_-_Cambridge,_MA_-_DSC02575.jpg",
+        "author": "Daderot",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-11"
+      }
+    },
+    "starter-do-something-nice": {
+      "alt": "Small glass jar of fresh flowers in warm morning sunlight",
+      "original": {
+        "file": "covers/starter-do-something-nice.jpg",
+        "mime": "image/jpeg",
+        "bytes": 90900,
+        "sha256": "ace9c8f1f87e1982569c8ac92b37a5c44aa4ae1273e14eba9900e4485caeba77",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-do-something-nice-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 11508,
+        "sha256": "d5109ff64457ef29ddcf83fb119a22d9b6eb5758ff6779ba8c23785f6c2ef759",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Small flower jar in sunlight (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Small_flower_jar_in_sunlight_(Unsplash).jpg",
+        "author": "Jez Timms",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-11"
+      }
+    },
+    "starter-send-a-friendly-text": {
+      "alt": "Typing a friendly message on a phone over iced coffee",
+      "original": {
+        "file": "covers/starter-send-a-friendly-text.jpg",
+        "mime": "image/jpeg",
+        "bytes": 105501,
+        "sha256": "d47f5bc566f022a52930cbe03d560b0b14bca7b65adda6174814198cee8b134e",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-send-a-friendly-text-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 20234,
+        "sha256": "9eeb9266ff4bc241a3c7302509e37061bd0410a76a15a6dc8d4ea6e89e228560",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Texting over iced coffee (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Texting_over_iced_coffee_(Unsplash).jpg",
+        "author": "rawpixel.com rawpixel",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-11"
+      }
+    },
+    "starter-have-dinner-with-a-friend": {
+      "alt": "Evening bistro table set with warm plates and conversation",
+      "original": {
+        "file": "covers/starter-have-dinner-with-a-friend.jpg",
+        "mime": "image/jpeg",
+        "bytes": 162820,
+        "sha256": "ef3fe9ad1cc7f458a1c6b0e002cc7bcfdd927a15bd78830d0069d0b3f41f4956",
+        "width": 1600,
+        "height": 900
+      },
+      "thumb": {
+        "file": "covers/starter-have-dinner-with-a-friend-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 23622,
+        "sha256": "b06391cd66b82c3f7e570d8cfae09e3fc14649d3898df1de8809f50e78ca0911",
+        "width": 640,
+        "height": 360
+      },
+      "source": {
+        "title": "File:Dinner at a bistro (Unsplash).jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Dinner_at_a_bistro_(Unsplash).jpg",
+        "author": "Paweł Wojciechowski",
+        "license": "CC0-1.0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "retrievedAt": "2026-11-11"
       }
     }
   }

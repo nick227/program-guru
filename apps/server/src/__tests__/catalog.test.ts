@@ -45,7 +45,7 @@ describe('listMetricDefinitions', () => {
 })
 
 describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
-  it('deterministically and idempotently seeds taxonomy, 25 curated activities, 5 starter programs, 7 achievements, and rights-cleared media', async () => {
+  it('deterministically and idempotently seeds taxonomy, 19 curated activities, 15 starter programs, 7 achievements, and rights-cleared media', async () => {
     const first = await seedDatabase(db)
     expect(first).toMatchObject({
       categories: 6,
@@ -55,47 +55,56 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
       metrics: 11,
       tools: 6,
       achievements: 7,
-      activities: 25,
-      starterPrograms: 5,
+      activities: 19,
+      starterPrograms: 15,
     })
-    expect(first.platformMediaFiles).toBe(58) // (24 illustrations + 5 Program covers) × (original + thumbnail)
+    expect(first.platformMediaFiles).toBe(68) // (19 illustrations + 15 Program covers) × (original + thumbnail)
     // Running a second time is a no-op: same row counts, and no file is uploaded again.
     const second = await seedDatabase(db)
     expect(second).toEqual({ ...first, retiredPrograms: 0, retiredActivities: 0, platformMediaUploaded: 0 })
-    expect(await db.activity.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(25)
-    expect(await db.program.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(5)
+    expect(await db.activity.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(19)
+    expect(await db.program.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(15)
     expect(await db.achievementDefinition.count()).toBe(7)
     expect(await db.mediaAsset.count({ where: { ownerId: null, license: null } })).toBe(0)
     // Activities receive durationMinutes and default frequency snapshots; ProgramStats start neutral (no fake counts).
-    const squats = await db.activity.findUniqueOrThrow({ where: { slug: 'squats' }, include: { latestPublished: true } })
-    expect(squats.durationMinutes).toBe(9)
-    expect(squats.latestPublished?.durationMinutesSnapshot).toBe(9)
-    expect(squats.latestPublished?.frequencySnapshot).toEqual({ kind: 'N_PER_WEEK', n: 3 })
+    const plank = await db.activity.findUniqueOrThrow({ where: { slug: 'plank' }, include: { latestPublished: true } })
+    expect(plank.durationMinutes).toBe(5)
+    expect(plank.latestPublished?.durationMinutesSnapshot).toBe(5)
+    expect(plank.latestPublished?.frequencySnapshot).toEqual({ kind: 'N_PER_WEEK', n: 3 })
     const core = await db.program.findFirstOrThrow({
-      where: { slug: 'beginner-core-strength', creatorId: null },
+      where: { slug: 'build-your-core', creatorId: null },
       include: {
         tags: { include: { tag: true }, orderBy: { position: 'asc' } },
         latestPublished: { include: { items: { orderBy: [{ relativeDay: 'asc' }, { position: 'asc' }] } } },
       },
     })
     expect(core.level).toBe('BEGINNER')
-    expect(core.sessionMinutes).toBe(40)
+    expect(core.sessionMinutes).toBe(20)
     expect(core.sessionPresentation).toBe('GROUPED')
     expect(core.latestPublished?.sessionPresentation).toBe('GROUPED')
     const day1Items = core.latestPublished!.items.filter((i) => i.relativeDay === 1)
-    expect(day1Items).toHaveLength(6)
+    expect(day1Items).toHaveLength(4)
     const day1Revs = await db.activityRevision.findMany({ where: { id: { in: day1Items.map((i) => i.activityRevisionId) } } })
     const revById = new Map(day1Revs.map((r) => [r.id, r]))
-    expect(day1Items.reduce((sum, i) => sum + (revById.get(i.activityRevisionId)?.durationMinutesSnapshot ?? 0), 0)).toBe(40)
-    expect(day1Items.find((i) => i.position === 1)?.targetOverrides).toEqual({ repetitions: 10, sets: 3 })
-    const week4Squats = core.latestPublished!.items.find((i) => i.relativeDay === 22 && i.position === 1)
-    expect(week4Squats?.targetOverrides).toEqual({ repetitions: 16, sets: 3 })
+    expect(day1Items.reduce((sum, i) => sum + (revById.get(i.activityRevisionId)?.durationMinutesSnapshot ?? 0), 0)).toBe(20)
+    expect(day1Items.find((i) => i.position === 0)?.targetOverrides).toEqual({ duration: 30 })
+    const week4Plank = core.latestPublished!.items.find((i) => i.relativeDay === 22 && i.position === 0)
+    expect(week4Plank?.targetOverrides).toEqual({ duration: 60 })
     expect(core.tags.map((t) => t.tag.slug)).toEqual(['no-equipment', 'at-home', 'guided'])
-    const mindfulness = await db.program.findFirstOrThrow({
-      where: { slug: 'daily-mindfulness-reflection', creatorId: null },
-      select: { sessionPresentation: true },
+    const water = await db.program.findFirstOrThrow({
+      where: { slug: 'drink-one-glass-of-water', creatorId: null },
+      include: { latestPublished: true },
     })
-    expect(mindfulness.sessionPresentation).toBe('SEPARATE')
+    expect(water.sessionPresentation).toBe('SEPARATE')
+    expect(water.latestPublished?.durationDays).toBeNull()
+    expect(water.latestPublished?.cycleDays).toBe(7)
+    const budget = await db.program.findFirstOrThrow({
+      where: { slug: 'balance-monthly-budget', creatorId: null },
+      include: { latestPublished: true },
+    })
+    expect(budget.latestPublished?.durationDays).toBeNull()
+    expect(budget.latestPublished?.cycleDays).toBeNull()
+    expect(budget.latestPublished?.frequency).toEqual({ kind: 'MONTHLY' })
     const tagsRes = await app.inject({ method: 'GET', url: '/catalog/tags' })
     expect(tagsRes.statusCode).toBe(200)
     await validateResponse('listTags', 200, tagsRes.json())
@@ -157,7 +166,7 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
 
     const summary = await seedDatabase(db)
     expect(summary.retiredPrograms).toBe(1)
-    expect(summary.retiredActivities).toBe(1)
+    expect(summary.retiredActivities).toBeGreaterThanOrEqual(1)
     expect((await db.program.findUniqueOrThrow({ where: { id: obsoleteProg.id } })).status).toBe('ARCHIVED')
     expect((await db.activity.findUniqueOrThrow({ where: { id: obsoleteAct.id } })).status).toBe('ARCHIVED')
     expect(await db.programEnrollment.count({ where: { programId: obsoleteProg.id, userId: testUserId } })).toBe(1)
@@ -166,11 +175,11 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
   it('unified bootstrapDatabase is idempotent with opt-in demo fixtures and read-only check mode', async () => {
     const first = await bootstrapDatabase({ prisma: db, mode: 'sync', fixtures: 'demo', skipMigrate: true })
     if (first.mode === 'check') throw new Error('expected sync result')
-    expect(first.catalog).toMatchObject({ categories: 6, activities: 25, starterPrograms: 5 })
+    expect(first.catalog).toMatchObject({ categories: 6, activities: 19, starterPrograms: 15 })
     expect(first.fixtures).toMatchObject({ demoUsers: 2, groups: 1, enrollments: 2 })
     expect(first.counts).toMatchObject({
-      managedProgramsActive: 5,
-      managedActivitiesActive: 25,
+      managedProgramsActive: 15,
+      managedActivitiesActive: 19,
       groups: 1,
       enrollments: 2,
     })

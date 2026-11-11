@@ -290,13 +290,14 @@ describe('locked Program occurrences withhold instructional content while preser
   })
 })
 
-describe('sessionPresentation grouping and week-specific targetOverrides', () => {
-  it('exposes GROUPED vs SEPARATE on calendar items, keeps targets separate from recorded, and supports independent moves', async () => {
+describe('sessionPresentation grouping, weekly progression, and MONTHLY/ongoing recurrence', () => {
+  it('supports GROUPED vs SEPARATE, ongoing daily & true MONTHLY recurrence, targetOverrides, and independent moves', async () => {
     const { seedDatabase } = await import('@project/db')
     await seedDatabase(db)
 
-    const core = await db.program.findFirstOrThrow({ where: { slug: 'beginner-core-strength', creatorId: null } })
-    const mind = await db.program.findFirstOrThrow({ where: { slug: 'daily-mindfulness-reflection', creatorId: null } })
+    const core = await db.program.findFirstOrThrow({ where: { slug: 'build-your-core', creatorId: null } })
+    const water = await db.program.findFirstOrThrow({ where: { slug: 'drink-one-glass-of-water', creatorId: null } })
+    const budget = await db.program.findFirstOrThrow({ where: { slug: 'balance-monthly-budget', creatorId: null } })
 
     const joinCore = await req('POST', `/programs/${core.id}/enrollments`, {
       programVersionId: core.latestPublishedVersionId,
@@ -306,45 +307,63 @@ describe('sessionPresentation grouping and week-specific targetOverrides', () =>
     })
     expect(joinCore.statusCode).toBe(201)
 
-    const joinMind = await req('POST', `/programs/${mind.id}/enrollments`, {
-      programVersionId: mind.latestPublishedVersionId,
+    const joinWater = await req('POST', `/programs/${water.id}/enrollments`, {
+      programVersionId: water.latestPublishedVersionId,
       startLocalDate: '2026-11-09',
       timezone: 'UTC',
       idempotencyKey: key(),
     })
-    expect(joinMind.statusCode).toBe(201)
+    expect(joinWater.statusCode).toBe(201)
+
+    // Balance monthly budget starting 2026-01-30 (+ relativeDay 1 = 2026-01-31) clamps cleanly across Feb 28 & Mar 31.
+    const joinBudget = await req('POST', `/programs/${budget.id}/enrollments`, {
+      programVersionId: budget.latestPublishedVersionId,
+      startLocalDate: '2026-01-30',
+      timezone: 'UTC',
+      idempotencyKey: key(),
+    })
+    expect(joinBudget.statusCode).toBe(201)
+
+    const budgetRes = await req('GET', '/calendar/items?start=2026-01-30&end=2026-03-31')
+    expect(budgetRes.statusCode).toBe(200)
+    const budgetItems = budgetRes.json().data as any[]
+    expect(budgetItems.filter((it) => it.programTitle === 'Balance monthly budget').map((it) => it.localDate)).toEqual([
+      '2026-01-31',
+      '2026-02-28',
+      '2026-03-31',
+    ])
 
     const listRes = await req('GET', '/calendar/items?start=2026-11-09&end=2026-12-06')
     expect(listRes.statusCode).toBe(200)
     await validateResponse('listCalendarItems', 200, listRes.json())
     const allItems = listRes.json().data as any[]
 
-    const day1Core = allItems.filter((it) => it.localDate === '2026-11-10' && it.programTitle === 'Beginner Core & Strength')
-    expect(day1Core).toHaveLength(6)
+    const day1Core = allItems.filter((it) => it.localDate === '2026-11-10' && it.programTitle === 'Build your Core')
+    expect(day1Core).toHaveLength(4)
     expect(day1Core.every((it) => it.sessionPresentation === 'GROUPED')).toBe(true)
-    expect(day1Core.reduce((sum, it) => sum + (it.durationMinutes ?? 0), 0)).toBe(40)
+    expect(day1Core.reduce((sum, it) => sum + (it.durationMinutes ?? 0), 0)).toBe(20)
 
-    const dayMind = allItems.filter((it) => it.localDate === '2026-11-10' && it.programTitle === 'Daily Mindfulness & Reflection')
-    expect(dayMind).toHaveLength(3)
-    expect(dayMind.every((it) => it.sessionPresentation === 'SEPARATE')).toBe(true)
+    const waterItems = allItems.filter((it) => it.programTitle === 'Drink one glass of water')
+    expect(waterItems.length).toBeGreaterThanOrEqual(21)
+    expect(waterItems.every((it) => it.sessionPresentation === 'SEPARATE')).toBe(true)
 
-    // Week 1 Squats vs Week 4 Squats: targetOverrides evolve 10 -> 16 while recorded stays null.
-    const wk1Squats = day1Core.find((it) => it.title === 'Squats')!
-    const wk4Squats = allItems.find((it) => it.localDate === '2026-12-01' && it.title === 'Squats' && it.programTitle === 'Beginner Core & Strength')!
-    const occ1 = (await req('GET', `/calendar-items/${wk1Squats.id}/occurrence`)).json().data
-    const occ4 = (await req('GET', `/calendar-items/${wk4Squats.id}/occurrence`)).json().data
-    expect(occ1.resultInputs.find((m: any) => m.key === 'repetitions')).toMatchObject({ target: 10, recorded: null })
-    expect(occ4.resultInputs.find((m: any) => m.key === 'repetitions')).toMatchObject({ target: 16, recorded: null })
+    // Week 1 Plank vs Week 4 Plank: targetOverrides evolve 30s -> 60s while recorded stays null.
+    const wk1Plank = day1Core.find((it) => it.title === 'Plank')!
+    const wk4Plank = allItems.find((it) => it.localDate === '2026-12-01' && it.title === 'Plank' && it.programTitle === 'Build your Core')!
+    const occ1 = (await req('GET', `/calendar-items/${wk1Plank.id}/occurrence`)).json().data
+    const occ4 = (await req('GET', `/calendar-items/${wk4Plank.id}/occurrence`)).json().data
+    expect(occ1.resultInputs.find((m: any) => m.key === 'duration')).toMatchObject({ target: 30, recorded: null })
+    expect(occ4.resultInputs.find((m: any) => m.key === 'duration')).toMatchObject({ target: 60, recorded: null })
 
     // Moving one workout Activity to another date updates its date without affecting its siblings.
-    const moveRes = await req('PATCH', `/calendar-items/${wk1Squats.id}`, {
+    const moveRes = await req('PATCH', `/calendar-items/${wk1Plank.id}`, {
       localDate: '2026-11-11',
-      expectedUpdatedAt: wk1Squats.updatedAt,
+      expectedUpdatedAt: wk1Plank.updatedAt,
     })
     expect(moveRes.statusCode).toBe(200)
     const afterMove = (await req('GET', '/calendar/items?start=2026-11-10&end=2026-11-11')).json().data as any[]
-    expect(afterMove.filter((it) => it.localDate === '2026-11-10' && it.programTitle === 'Beginner Core & Strength')).toHaveLength(5)
-    expect(afterMove.filter((it) => it.localDate === '2026-11-11' && it.programTitle === 'Beginner Core & Strength')).toHaveLength(1)
+    expect(afterMove.filter((it) => it.localDate === '2026-11-10' && it.programTitle === 'Build your Core')).toHaveLength(3)
+    expect(afterMove.filter((it) => it.localDate === '2026-11-11' && it.programTitle === 'Build your Core')).toHaveLength(1)
   }, 30000)
 })
 

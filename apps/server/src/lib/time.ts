@@ -18,6 +18,21 @@ export function addDays(d: LocalDate, days: number): LocalDate {
   return fromDbDate(x)
 }
 
+/**
+ * Advances a LocalDate by calendar months, clamping day-of-month to the target
+ * month's last day (e.g. 2026-01-31 + 1 month -> 2026-02-28).
+ */
+export function addMonths(d: LocalDate, months: number): LocalDate {
+  const year = Number(d.slice(0, 4))
+  const month = Number(d.slice(5, 7)) - 1
+  const day = Number(d.slice(8, 10))
+  const totalMonths = year * 12 + month + months
+  const targetYear = Math.floor(totalMonths / 12)
+  const targetMonth = ((totalMonths % 12) + 12) % 12
+  const maxDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+  return `${String(targetYear).padStart(4, '0')}-${String(targetMonth + 1).padStart(2, '0')}-${String(Math.min(day, maxDay)).padStart(2, '0')}`
+}
+
 export function diffDays(a: LocalDate, b: LocalDate): number {
   return Math.round((toDbDate(a).getTime() - toDbDate(b).getTime()) / 86_400_000)
 }

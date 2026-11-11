@@ -1,10 +1,20 @@
 {
-  "about": "Curated Program cover photographs. Every file must be CC0 on Wikimedia Commons at fetch time (checked by scripts/fetch-program-covers.ts). Chosen for subject fit, landscape framing, no identifiable faces and no brand marks.",
+  "about": "Curated Program cover photographs for the 15 site-starter Programs. Every file must be CC0 on Wikimedia Commons at fetch time (checked by scripts/fetch-program-covers.ts). Chosen for subject fit, landscape framing, no identifiable faces and no brand marks.",
   "covers": {
-    "starter-beginner-core-strength": { "file": "File:Kurzhanteln 2 x 15 kg 1v2.jpg", "alt": "Two loaded dumbbells on a concrete floor" },
-    "starter-daily-mindfulness-reflection": { "file": "File:Lake Ontario Sunrise (43412010530).jpg", "alt": "Sunrise over a calm lake shore" },
-    "starter-weekly-savings-budget": { "file": "File:Piggy-bank-968302.jpg", "alt": "Glass savings jar filled with coins and a banknote" },
-    "starter-daily-language-study": { "file": "File:Typography (Unsplash).jpg", "alt": "Row of letter keys from A to H" },
-    "starter-staying-in-touch": { "file": "File:Macro rotary phone (Unsplash).jpg", "alt": "Close-up of a rotary telephone dial" }
+    "starter-ten-pushups-and-ten-situps": { "file": "File:AUT Millennium, Auckland, New Zealand (Unsplash).jpg", "alt": "Training lanes inside an indoor fitness center" },
+    "starter-jog-one-mile": { "file": "File:Woods Canyon Trail No. 93 (32591722170).jpg", "alt": "Sunlit dirt trail winding through tall forest trees" },
+    "starter-build-your-core": { "file": "File:Kurzhanteln 2 x 15 kg 1v2.jpg", "alt": "Two loaded dumbbells on a concrete floor" },
+    "starter-drink-one-glass-of-water": { "file": "File:Glass of water ouside.jpg", "alt": "Clear glass of water on an outdoor table" },
+    "starter-60-second-meditation": { "file": "File:Lake Ontario Sunrise (43412010530).jpg", "alt": "Sunrise over a calm lake shore" },
+    "starter-sleep-relaxation-technique": { "file": "File:Milky Way Night Sky (Unsplash).jpg", "alt": "Quiet starry night sky above a dark horizon" },
+    "starter-balance-monthly-budget": { "file": "File:Piggy-bank-968302.jpg", "alt": "Glass savings jar filled with coins and a banknote" },
+    "starter-work-on-business-plan": { "file": "File:Coffee-desk-laptop-notebook (24244320481).jpg", "alt": "Laptop, paper notebook, and cup of coffee on a wooden desk" },
+    "starter-make-sales-calls": { "file": "File:Smartphone and coffee (Unsplash).jpg", "alt": "Smartphone beside a warm cup of coffee on a work table" },
+    "starter-read-a-non-fiction-book": { "file": "File:Engineering and Computer Science Library.jpg", "alt": "Warm wooden library reading room lined with bookshelves" },
+    "starter-read-a-fiction-book": { "file": "File:Open book (Unsplash).jpg", "alt": "Open hardcover book resting on a soft blanket" },
+    "starter-attend-learning-event": { "file": "File:Lowell Lecture Hall - Harvard University - Cambridge, MA - DSC02575.jpg", "alt": "Seated wooden auditorium and stage in a lecture hall" },
+    "starter-do-something-nice": { "file": "File:Small flower jar in sunlight (Unsplash).jpg", "alt": "Small glass jar of fresh flowers in warm morning sunlight" },
+    "starter-send-a-friendly-text": { "file": "File:Texting over iced coffee (Unsplash).jpg", "alt": "Typing a friendly message on a phone over iced coffee" },
+    "starter-have-dinner-with-a-friend": { "file": "File:Dinner at a bistro (Unsplash).jpg", "alt": "Evening bistro table set with warm plates and conversation" }
   }
 }

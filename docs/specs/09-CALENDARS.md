@@ -15,7 +15,7 @@
 | Model | Fields | Purpose/invariants |
 |---|---|---|
 | `CalendarItem` | id, ownerId, activityId, activityRevisionId, enrollmentId?, sourceScheduleItemId?, recurrenceId?, idempotencyKey, groupOccurrenceKey?, programDayIndex?, localDate, localTime?, scheduledAtUtc?, status, targetOverrides JSON?, movedFromDate?, isUserAdjusted, reminderSentAt?, createdAt, updatedAt | Dated or date-only occurrence; origin optional; unique `idempotencyKey` |
-| `CalendarRecurrence` | id, ownerId, activityId, activityRevisionId, rule JSON, anchorDate, localTime?, timezone, untilDate?, generatedThroughDate?, status ACTIVE/ENDED, timestamps | Personal repeat rule for a standalone Activity. `rule` is `{kind:DAILY}`, `{kind:WEEKDAYS}`, `{kind:WEEKLY,weekdays:[…]}`, or `{kind:EVERY_N_DAYS,n}` |
+| `CalendarRecurrence` | id, ownerId, activityId, activityRevisionId, rule JSON, anchorDate, localTime?, timezone, untilDate?, generatedThroughDate?, status ACTIVE/ENDED, timestamps | Personal repeat rule for a standalone Activity. `rule` is `{kind:DAILY}`, `{kind:WEEKDAYS}`, `{kind:WEEKLY,weekdays:[…]}`, `{kind:EVERY_N_DAYS,n}`, or `{kind:MONTHLY}` |
 | `ActivitySession` | id, calendarItemId?, activityRevisionId, userId, status, startedAt?, endedAt?, activeSeconds, lastResumedAt?, isManualCompletion, revision, createdAt | Start/pause/resume/finish attempt; unplanned session allowed |
 | `ResultEntry` | id, sessionId, instructionId?, recordedAt, notes?, createdAt | Personal record; zero or more |
 | `ResultMetricValue` | id, entryId, metricDefinitionId, intValue?, decimalValue?, boolValue?, textValue?, durationSeconds?, unit? | Exactly one typed value; validate against metric schema |
@@ -102,7 +102,7 @@ interface CalendarQueryDto { startDate:string; endDate:string; timezone:string; 
 interface AddCalendarItemDto { activityId:string; revisionId?:string; localDate:string;
   localTime?:string|null; recurrence?:RecurrenceRuleDto|null; untilDate?:string|null;
   targetOverrides?:Record<string,unknown>; }
-interface RecurrenceRuleDto { kind:'DAILY'|'WEEKDAYS'|'WEEKLY'|'EVERY_N_DAYS'; weekdays?:number[]; n?:number; }
+interface RecurrenceRuleDto { kind:'DAILY'|'WEEKDAYS'|'WEEKLY'|'EVERY_N_DAYS'|'MONTHLY'; weekdays?:number[]; n?:number; }
 interface CalendarRecurrenceDto { id:string; activityId:string; title:string; rule:RecurrenceRuleDto;
   anchorDate:string; localTime:string|null; untilDate:string|null; status:'ACTIVE'|'ENDED'; }
 interface UpdateRecurrenceDto { rule?:RecurrenceRuleDto; localTime?:string|null; untilDate?:string|null;

@@ -6773,6 +6773,7 @@ components:
       - N_PER_WEEK
       - FLEXIBLE
       - CUSTOM
+      - MONTHLY
     EnrollmentStatus:
       type: string
       enum:
@@ -6872,6 +6873,7 @@ components:
       - WEEKDAYS
       - WEEKLY
       - EVERY_N_DAYS
+      - MONTHLY
     RecurrenceStatus:
       type: string
       enum:

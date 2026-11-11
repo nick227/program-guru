@@ -56,7 +56,7 @@ interface UpdateProgramDraftDto { title?:string; description?:string|null; categ
   sessionMinutes?:number|null; sessionPresentation?:'SEPARATE'|'GROUPED'; tagSlugs?:string[]; durationDays?:number|null;
   frequency?:FrequencyDto; generationMode?:'ALL_EACH_DAY'|'ROTATE'; visibility?:'PRIVATE'|'UNLISTED'|'PUBLIC';
   expectedRevision:number; }
-interface FrequencyDto { kind:'DAILY'|'WEEKDAYS'|'N_PER_WEEK'|'FLEXIBLE'|'CUSTOM'; n?:number; offsets?:number[]; }
+interface FrequencyDto { kind:'DAILY'|'WEEKDAYS'|'N_PER_WEEK'|'FLEXIBLE'|'CUSTOM'|'MONTHLY'; n?:number; offsets?:number[]; }
 interface PlaceActivityDto { activityId:string; activityRevisionId?:string; relativeDay:number;
   time?:string|null; position?:number; targetOverrides?:Record<string,unknown>; }
 interface JoinProgramDto { programVersionId:string; startLocalDate:string; timezone:string;
@@ -126,13 +126,13 @@ Draft created in a single action from Type (other wizard answers editable later)
 
 `ProgramScheduleService.generate` is deterministic and runs whenever activities, duration, or frequency change.
 
-**Which days.** Frequency gives offsets within each 7-day block counted from Day 1: `DAILY` all days; `WEEKDAYS` and `N_PER_WEEK` n=5 `[0,1,2,3,4]`; n=1 `[0]`, n=2 `[0,3]`, n=3 `[0,2,4]`, n=4 `[0,1,3,4]`, n=6 `[0..5]`; `FLEXIBLE` behaves as n=3 and is labeled as a suggestion; `CUSTOM` uses author-chosen offsets. A Program with `WEEKDAYS` defaults its participant's start date to the next Monday.
+**Which days.** Frequency gives offsets within each 7-day block counted from Day 1 (`DAILY` all days; `WEEKDAYS` and `N_PER_WEEK` n=5 `[0,1,2,3,4]`; n=1 `[0]`, n=2 `[0,3]`, n=3 `[0,2,4]`, n=4 `[0,1,3,4]`, n=6 `[0..5]`; `FLEXIBLE` behaves as n=3 and is labeled as a suggestion; `CUSTOM` uses author-chosen offsets), or `MONTHLY` (calendar-month anchor, clamping end-of-month dates such as Jan 31 to Feb 28/29). A Program with `WEEKDAYS` defaults its participant's start date to the next Monday.
 
 **Which activities.** `generationMode` defaults to `ALL_EACH_DAY`: every selected Activity on every Program Day. `ROTATE` places one Activity per Program Day in round-robin order. The 3-activity, 3-days-a-week, 8-week example gives 24 Program Days and 72 placements under `ALL_EACH_DAY`, or 24 placements under `ROTATE`.
 
 **Per-Activity frequency (decided 2026-11-10).** Frequency belongs to each Activity in a Program, not to the Program. An Activity's effective frequency in a Program is, in order: the Program's override for that Activity (stored on its schedule items, `ProgramScheduleItem.frequency`, and copied with the version); else the pinned revision's `frequencySnapshot` (08 §2); else the version's legacy `ProgramVersion.frequency`, which is kept only so existing Programs schedule exactly as before and is no longer edited in authoring or Admin forms. Generation applies each Activity's effective frequency to the "Which days" rules above. Program **duration** is unchanged: `durationDays` (days or weeks) or null for ongoing.
 
-**Duration.** Finite Programs store every placement. Ongoing Programs (`durationDays` null) store one cycle with `cycleDays` default 7, repeated at enrollment.
+**Duration.** Finite Programs store every placement. Ongoing Programs (`durationDays` null) store one cycle with `cycleDays` default 7 (repeated in 7-day blocks), or `cycleDays: null` when `frequency.kind === 'MONTHLY'` (repeated by calendar month at enrollment).
 
 **Manual adjustment.** Moving, adding, or duplicating a placement sets `isManual`. Regeneration replaces only non-manual placements, and warns before removing manual placements for an Activity no longer selected. Displayed counts are always computed from actual placements: `programDayCount` distinct days, `placementCount` total rows, activity count distinct Activity IDs.
 

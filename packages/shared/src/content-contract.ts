@@ -22,6 +22,7 @@ export type FrequencyRule =
   | { kind: 'N_PER_WEEK'; n: number }
   | { kind: 'FLEXIBLE' }
   | { kind: 'CUSTOM'; offsets?: number[] }
+  | { kind: 'MONTHLY' }
 
 export type CategoryPalette = {
   from: string

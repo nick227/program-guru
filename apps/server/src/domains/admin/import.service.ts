@@ -268,7 +268,7 @@ async function writeProgram(tx: Prisma.TransactionClient, adminId: string, p: Pl
       sessionMinutes,
       sessionPresentation,
       durationDays,
-      cycleDays: durationDays === null ? 7 : null,
+      cycleDays: durationDays === null && p.input.frequency?.kind !== 'MONTHLY' ? 7 : null,
       frequency: (p.input.frequency ?? DEFAULT_FREQUENCY) as Prisma.InputJsonValue,
       ...(p.input.generationMode ? { generationMode: p.input.generationMode } : {}),
       createdById: adminId,

@@ -1,6 +1,6 @@
 // Automatic scheduling (07-PROGRAMS.md §7). Pure and deterministic: no database access.
 
-export type FrequencyKind = 'DAILY' | 'WEEKDAYS' | 'N_PER_WEEK' | 'FLEXIBLE' | 'CUSTOM'
+export type FrequencyKind = 'DAILY' | 'WEEKDAYS' | 'N_PER_WEEK' | 'FLEXIBLE' | 'CUSTOM' | 'MONTHLY'
 export type Frequency = { kind: FrequencyKind; n?: number; offsets?: number[] }
 export type GenerationMode = 'ALL_EACH_DAY' | 'ROTATE'
 
@@ -33,6 +33,8 @@ export function weeklyOffsets(f: Frequency): number[] {
       const offsets = [...new Set((f.offsets ?? []).filter((o) => Number.isInteger(o) && o >= 0 && o <= 6))].sort((a, b) => a - b)
       return offsets.length ? offsets : N_PER_WEEK_OFFSETS[3]!
     }
+    case 'MONTHLY':
+      return [0]
   }
 }
 
@@ -45,6 +47,8 @@ export function frequencyLabel(f: Frequency | null): string | null {
       return 'Weekdays'
     case 'FLEXIBLE':
       return 'Flexible'
+    case 'MONTHLY':
+      return 'Monthly'
     default: {
       const count = weeklyOffsets(f).length
       return `${count} ${count === 1 ? 'day' : 'days'}/week`
@@ -54,6 +58,12 @@ export function frequencyLabel(f: Frequency | null): string | null {
 
 /** Relative days that receive placements. Ongoing programs (no duration) get one cycle. */
 export function programDays(f: Frequency, durationDays: number | null, cycleDays = DEFAULT_CYCLE_DAYS): number[] {
+  if (f.kind === 'MONTHLY') {
+    if (durationDays === null) return [0]
+    const days: number[] = []
+    for (let m = 0; m * 30 < durationDays; m++) days.push(m * 30)
+    return days
+  }
   const span = durationDays ?? cycleDays
   const offsets = weeklyOffsets(f)
   const days: number[] = []

@@ -29,12 +29,16 @@ function authorName(html: string) {
 
 async function get(url: string): Promise<Response> {
   for (let attempt = 0; attempt < 6; attempt++) {
-    const res = await fetch(url, { headers: { 'User-Agent': UA } })
-    if (res.status !== 429) {
-      if (!res.ok) throw new Error(`${res.status} ${url}`)
-      return res
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': UA } })
+      if (res.status !== 429 && res.status < 500) {
+        if (!res.ok) throw new Error(`${res.status} ${url}`)
+        return res
+      }
+    } catch (err) {
+      if (attempt === 5) throw err
     }
-    await sleep(10_000 * (attempt + 1))
+    await sleep(3_000 * (attempt + 1))
   }
   throw new Error(`Rate limited: ${url}`)
 }

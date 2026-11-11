@@ -23,6 +23,7 @@ export const FREQUENCY_OPTIONS: { label: string; value: Frequency }[] = [
   { label: '5 days/week', value: { kind: 'N_PER_WEEK', n: 5 } },
   { label: 'Weekdays', value: { kind: 'WEEKDAYS' } },
   { label: 'Daily', value: { kind: 'DAILY' } },
+  { label: 'Monthly', value: { kind: 'MONTHLY' } },
   { label: 'Flexible', value: { kind: 'FLEXIBLE' } },
 ]
 

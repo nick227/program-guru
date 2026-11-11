@@ -7,6 +7,11 @@ import { deterministicUuid } from './utils'
  * and existing enrollments, calendar items, sessions, and results remain untouched.
  */
 export const RETIRED_STARTER_PROGRAM_SLUGS = [
+  'starter-beginner-core-strength',
+  'starter-daily-mindfulness-reflection',
+  'starter-weekly-savings-budget',
+  'starter-daily-language-study',
+  'starter-staying-in-touch',
   'starter-hiit-aerobic-conditioning',
   'starter-full-body-calisthenics',
   'starter-joint-mobility-flow',
@@ -28,6 +33,26 @@ export const RETIRED_STARTER_PROGRAM_SLUGS = [
 ] as const
 
 export const RETIRED_ACTIVITY_SLUGS = [
+  'warm-up',
+  'squats',
+  'morning-routine',
+  'guided-meditation',
+  'breathing-exercise',
+  'gratitude-journal',
+  'evening-wind-down',
+  'savings-contribution',
+  'weekly-budget-review',
+  'categorize-expenses',
+  'review-subscriptions',
+  'vocabulary-review',
+  'read-for-20-minutes',
+  'practice-speaking',
+  'listening-practice',
+  'write-a-summary',
+  'send-a-check-in-message',
+  'call-a-friend',
+  'plan-quality-time',
+  'write-a-thank-you-note',
   'side-plank',
   'bird-dog',
   'dead-bug',

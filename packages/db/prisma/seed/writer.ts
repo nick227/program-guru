@@ -525,6 +525,7 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
       sessionMinutes: programSessionMinutes,
       sessionPresentation: programSessionPresentation,
       durationDays: sp.durationDays,
+      cycleDays: sp.durationDays === null && sp.frequency.kind !== 'MONTHLY' ? 7 : null,
       frequency: sp.frequency as Prisma.InputJsonValue,
       generationMode: sp.generationMode,
       programDayCount,

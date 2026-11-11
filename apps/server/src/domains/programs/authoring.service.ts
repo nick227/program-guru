@@ -327,6 +327,14 @@ export async function updateDraft(
     const scheduleChanged = input.durationDays !== undefined || input.frequency !== undefined || input.generationMode !== undefined
     const title = input.title?.trim()
     const description = input.description === undefined ? undefined : input.description?.trim() || null
+    const nextDuration = input.durationDays !== undefined ? input.durationDays : version.durationDays
+    const nextFreq = input.frequency ?? parseFrequency(version.frequency)
+    const nextCycleDays =
+      input.durationDays !== undefined || input.frequency !== undefined
+        ? nextDuration === null && nextFreq.kind !== 'MONTHLY'
+          ? 7
+          : null
+        : undefined
     const updated = await tx.programVersion.update({
       where: { id: version.id },
       data: {
@@ -338,7 +346,7 @@ export async function updateDraft(
         sessionMinutes: input.sessionMinutes,
         sessionPresentation: input.sessionPresentation,
         durationDays: input.durationDays,
-        cycleDays: input.durationDays === null ? 7 : input.durationDays !== undefined ? null : undefined,
+        cycleDays: nextCycleDays,
         frequency: input.frequency as Prisma.InputJsonValue | undefined,
         generationMode: input.generationMode,
       },

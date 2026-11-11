@@ -11,8 +11,8 @@ describe('declarative content contract & taxonomy', () => {
       knownToolKeys: TOOL_DEFINITIONS.map((t) => t.key),
     })
     expect(issues).toEqual([])
-    expect(SEED_CONTENT_PACK.programs).toHaveLength(5)
-    expect(SEED_CONTENT_PACK.activities).toHaveLength(25)
+    expect(SEED_CONTENT_PACK.programs).toHaveLength(15)
+    expect(SEED_CONTENT_PACK.activities).toHaveLength(19)
   })
 
   it('supports rapid category registration with scoped focuses and reports cross-category errors', () => {

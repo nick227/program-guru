@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { countPlacements, frequencyLabel, generatePlacements, programDays } from '../../domains/programs/schedule'
-import { addDays, localToUtc, todayIn, weekday } from '../../lib/time'
+import { addDays, addMonths, localToUtc, todayIn, weekday } from '../../lib/time'
 
 describe('automatic scheduling (07 §7)', () => {
   it('3 activities, 3 days/week, 8 weeks: 24 program days; 72 placements all-each-day, 24 rotating', () => {
@@ -20,8 +20,11 @@ describe('automatic scheduling (07 §7)', () => {
     expect(programDays({ kind: 'CUSTOM', offsets: [6, 1, 1, 9] }, 7)).toEqual([1, 6])
   })
 
-  it('ongoing programs (no duration) store one 7-day cycle', () => {
+  it('ongoing programs (no duration) store one 7-day cycle, or one anchor placement for MONTHLY', () => {
     expect(programDays({ kind: 'DAILY' }, null)).toEqual([0, 1, 2, 3, 4, 5, 6])
+    expect(programDays({ kind: 'MONTHLY' }, null)).toEqual([0])
+    expect(programDays({ kind: 'MONTHLY' }, 60)).toEqual([0, 30])
+    expect(frequencyLabel({ kind: 'MONTHLY' })).toBe('Monthly')
   })
 
   it('ROTATE never drops a selected activity when there are fewer days than activities', () => {
@@ -54,8 +57,11 @@ describe('time model (09 §4)', () => {
     expect(localToUtc('2026-11-01', '01:30', 'America/Chicago').toISOString()).toBe('2026-11-01T06:30:00.000Z')
   })
 
-  it('does date arithmetic on local dates', () => {
+  it('does date arithmetic on local dates including month-end clamping', () => {
     expect(addDays('2026-02-27', 2)).toBe('2026-03-01')
+    expect(addMonths('2026-01-31', 1)).toBe('2026-02-28')
+    expect(addMonths('2026-01-31', 2)).toBe('2026-03-31')
+    expect(addMonths('2024-01-31', 1)).toBe('2024-02-29')
     expect(weekday('2026-11-09')).toBe(1)
     expect(todayIn('Pacific/Auckland', new Date('2026-11-07T12:00:00Z'))).toBe('2026-11-08')
   })

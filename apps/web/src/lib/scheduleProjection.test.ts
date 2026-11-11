@@ -92,5 +92,18 @@ describe('scheduleProjection', () => {
     expect(projected[4]).toMatchObject({ day: '2026-11-16', title: 'Monday Run' })
     expect(projected[5]).toMatchObject({ day: '2026-11-18', title: 'Wednesday Swim' })
   })
+
+  it('projects ongoing monthly programs across calendar months with end-of-month clamping', () => {
+    const placements = [{ id: 'p1', activityId: 'a1', title: 'Balance Budget', relativeDay: 0, localTime: '19:00' }]
+    const projected = projectProgramPlacements({
+      placements,
+      startDate: '2026-01-31',
+      durationDays: null,
+      frequency: { kind: 'MONTHLY' },
+      dates: ['2026-01-31', '2026-02-07', '2026-02-28', '2026-03-28', '2026-03-31'],
+    })
+
+    expect(projected.map((p) => p.day)).toEqual(['2026-01-31', '2026-02-28', '2026-03-31'])
+  })
 })
 
