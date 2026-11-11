@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { db, seedDatabase } from '@project/db'
+import { db, deterministicUuid, seedDatabase } from '@project/db'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 import { contractCase } from './helpers/contract'
@@ -44,29 +44,93 @@ describe('listMetricDefinitions', () => {
 })
 
 describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
-  it('deterministically and idempotently seeds 81 activities, starter programs, 7 achievements, and rights-cleared media', async () => {
+  it('deterministically and idempotently seeds taxonomy, 25 curated activities, 5 starter programs, 7 achievements, and rights-cleared media', async () => {
     const first = await seedDatabase(db)
     expect(first).toMatchObject({
       categories: 6,
       focuses: 20,
       programTypes: 17,
+      tags: 10,
       metrics: 11,
       tools: 6,
       achievements: 7,
-      activities: 81,
-      starterPrograms: 23,
+      activities: 25,
+      starterPrograms: 5,
     })
-    expect(first.platformMediaFiles).toBe(206) // (80 illustrations + 23 Program covers) × (original + thumbnail)
+    expect(first.platformMediaFiles).toBe(58) // (24 illustrations + 5 Program covers) × (original + thumbnail)
     // Running a second time is a no-op: same row counts, and no file is uploaded again.
     const second = await seedDatabase(db)
-    expect(second).toEqual({ ...first, platformMediaUploaded: 0 })
-    expect(await db.activity.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(81)
-    expect(await db.program.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(23)
+    expect(second).toEqual({ ...first, retiredPrograms: 0, retiredActivities: 0, platformMediaUploaded: 0 })
+    expect(await db.activity.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(25)
+    expect(await db.program.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(5)
     expect(await db.achievementDefinition.count()).toBe(7)
     expect(await db.mediaAsset.count({ where: { ownerId: null, license: null } })).toBe(0)
+    // Activities receive durationMinutes and default frequency snapshots; ProgramStats start neutral (no fake counts).
+    const squats = await db.activity.findUniqueOrThrow({ where: { slug: 'squats' }, include: { latestPublished: true } })
+    expect(squats.durationMinutes).toBe(8)
+    expect(squats.latestPublished?.durationMinutesSnapshot).toBe(8)
+    expect(squats.latestPublished?.frequencySnapshot).toEqual({ kind: 'N_PER_WEEK', n: 3 })
+    const stats = await db.programStat.findMany({ where: { program: { creatorId: null } } })
+    expect(stats.every((s) => s.enrollmentCount === 0 && Number(s.rankScore) === 0)).toBe(true)
     // Every starter Program shows its own curated CC0 cover, not a copied Activity image.
     const programs = await db.program.findMany({ where: { creatorId: null }, include: { coverMedia: true } })
     expect(programs.every((p) => p.coverMedia?.license === 'CC0-1.0' && p.coverMedia.attribution?.includes('commons.wikimedia.org'))).toBe(true)
+  }, 30000)
+
+  it('safely archives obsolete platform seeds without removing user enrollments or history', async () => {
+    const cat = await db.category.findUniqueOrThrow({ where: { slug: 'fitness' } })
+    const pt = await db.programType.findFirstOrThrow({ where: { categoryId: cat.id, slug: 'workout' } })
+    const obsoleteAct = await db.activity.create({
+      data: {
+        id: deterministicUuid('activity:brisk-walk'),
+        slug: 'brisk-walk',
+        creatorId: null,
+        categoryId: cat.id,
+        title: 'Brisk Walk',
+        status: 'PUBLISHED',
+        visibility: 'PUBLIC',
+      },
+    })
+    const obsoleteProgId = deterministicUuid('program:starter-hiit-aerobic-conditioning')
+    const obsoleteProg = await db.program.create({
+      data: {
+        id: obsoleteProgId,
+        slug: 'hiit-aerobic-conditioning',
+        creatorId: null,
+        categoryId: cat.id,
+        programTypeId: pt.id,
+        title: 'HIIT Cardio & Stamina',
+        status: 'PUBLISHED',
+        visibility: 'PUBLIC',
+      },
+    })
+    const version = await db.programVersion.create({
+      data: {
+        programId: obsoleteProg.id,
+        versionNumber: 1,
+        title: obsoleteProg.title,
+        programTypeId: pt.id,
+        frequency: { kind: 'N_PER_WEEK', n: 3 },
+        publishedAt: new Date(),
+      },
+    })
+    await db.programEnrollment.create({
+      data: {
+        userId: testUserId,
+        programId: obsoleteProg.id,
+        programVersionId: version.id,
+        startLocalDate: new Date('2026-11-01'),
+        timezone: 'UTC',
+        status: 'ACTIVE',
+      },
+    })
+
+    const summary = await seedDatabase(db)
+    expect(summary.retiredPrograms).toBe(1)
+    expect(summary.retiredActivities).toBe(1)
+    expect((await db.program.findUniqueOrThrow({ where: { id: obsoleteProg.id } })).status).toBe('ARCHIVED')
+    expect((await db.activity.findUniqueOrThrow({ where: { id: obsoleteAct.id } })).status).toBe('ARCHIVED')
+    expect(await db.programEnrollment.count({ where: { programId: obsoleteProg.id, userId: testUserId } })).toBe(1)
   }, 30000)
 })
 

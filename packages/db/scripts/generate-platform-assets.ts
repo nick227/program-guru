@@ -11,21 +11,15 @@ import { createHash } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { CATEGORIES, SEEDED_ACTIVITIES } from '../prisma/seed'
+import { CATEGORIES, SEEDED_ACTIVITIES, TAXONOMY } from '../prisma/seed'
 import { ASSET_DIR, MANIFEST_VERSION, type PlatformManifest } from '../prisma/platform-media'
 
 const W = 1200
 const H = 900
 
 type Palette = { from: string; to: string; glow: string; ink: string; soft: string }
-const PALETTE: Record<string, Palette> = {
-  fitness: { from: '#0D5960', to: '#1C8C8C', glow: '#F2B84B', ink: '#F4FBF9', soft: '#7FD6C9' },
-  wellness: { from: '#3A2F7A', to: '#6B5BA8', glow: '#F5B8CF', ink: '#F7F4FE', soft: '#B7A8F0' },
-  finance: { from: '#1B5234', to: '#2F7D4F', glow: '#F4D35E', ink: '#F3FAF5', soft: '#9ED8B0' },
-  relationships: { from: '#7E3029', to: '#C2625A', glow: '#FFD3A8', ink: '#FFF6F2', soft: '#F4A79B' },
-  education: { from: '#1A3D6E', to: '#2E5E9E', glow: '#F6C85F', ink: '#F3F7FD', soft: '#9CBDEB' },
-  custom: { from: '#353D48', to: '#5A6472', glow: '#7FD1C7', ink: '#F4F6F8', soft: '#AEB8C4' },
-}
+const FALLBACK_PALETTE: Palette = { from: '#353D48', to: '#5A6472', glow: '#7FD1C7', ink: '#F4F6F8', soft: '#AEB8C4' }
+const PALETTE: Record<string, Palette> = TAXONOMY.palettes
 
 type Glyph = 'weights' | 'path' | 'ripples' | 'moon' | 'book' | 'coins' | 'voices' | 'music' | 'spark'
 const GLYPH_RULES: [Glyph, RegExp][] = [
@@ -45,6 +39,7 @@ const DEFAULT_GLYPH: Record<string, Glyph> = {
   relationships: 'voices',
   education: 'book',
   custom: 'spark',
+  ...(TAXONOMY.defaultGlyphs as Record<string, Glyph>),
 }
 
 /** Deterministic PRNG seeded from the slug, so regeneration is byte-stable. */
@@ -134,7 +129,7 @@ function glyphSvg(glyph: Glyph, p: Palette, r: () => number): string {
 }
 
 function illustration(slug: string, title: string, categorySlug: string): string {
-  const p = PALETTE[categorySlug] ?? PALETTE.custom!
+  const p = PALETTE[categorySlug] ?? FALLBACK_PALETTE
   const r = rng(slug)
   const text = `${slug} ${title}`.toLowerCase()
   const glyph = GLYPH_RULES.find(([, re]) => re.test(text))?.[0] ?? DEFAULT_GLYPH[categorySlug] ?? 'spark'

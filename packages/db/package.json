@@ -19,7 +19,8 @@
     "assets:covers": "tsx scripts/fetch-program-covers.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.0.0"
+    "@prisma/client": "^5.0.0",
+    "@project/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
