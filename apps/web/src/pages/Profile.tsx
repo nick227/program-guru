@@ -173,7 +173,7 @@ export function ProfilePage() {
         active={profileNav.activeNav}
         returnTo={profileUrl}
       />
-      <div className="mx-auto mt-6 w-full max-w-7xl space-y-10 sm:space-y-12">
+      <div className="mx-auto mt-6 page--width space-y-10 sm:space-y-12">
         {/* 01 — Creator Hero (reuses ProgramHero layout) */}
         <section
           aria-label={`${p.displayName || `@${p.handle}`} profile`}

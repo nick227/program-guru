@@ -158,7 +158,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: var(--space-3);
   }
 
@@ -179,15 +179,7 @@
     font-size: var(--text-base);
     font-weight: 700;
     letter-spacing: -0.005em;
-    box-shadow:
-      0 1px 0 hsl(0 0% 100% / 0.18) inset,
-      0 6px 18px -6px hsl(var(--color-accent) / 0.55);
-  }
-
-  .activity-hero .activity-cta:not(:disabled):hover {
-    box-shadow:
-      0 1px 0 hsl(0 0% 100% / 0.18) inset,
-      0 10px 24px -8px hsl(var(--color-accent) / 0.65);
+    background-color: limegreen;
   }
 
   .activity-timer {

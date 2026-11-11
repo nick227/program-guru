@@ -90,7 +90,7 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
         <ErrorMessage error={create.error || add.error || mediaError} />
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-            Activity title
+            Title
           </span>
           <Input
             aria-label="Activity title"

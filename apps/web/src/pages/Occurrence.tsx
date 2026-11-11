@@ -650,7 +650,7 @@ function OccurrenceHero({
                     onClick={() => onPerform('FINISH', 'finish')}
                   >
                     {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
-                    Complete
+                    Mark as Complete
                   </Button>
                 ))}
               {phase === 'active' && (

@@ -16,8 +16,8 @@ import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { programHero } from '@/lib/hero'
 import { today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
-import { buildProgramUrl } from '@/lib/urls'
-import { WorkspaceTogether } from './WorkspaceTogether'
+import { buildProgramUrl, toAbsoluteUrl } from '@/lib/urls'
+import { ShareLinkField } from '@/components/social/ShareLink'
 import type { Workspace } from '@/components/program-authoring/types'
 
 export function PublishStep({
@@ -99,7 +99,7 @@ export function PublishStep({
         )}
       </Panel>
 
-      {/* Combined Visibility & Group Sharing (No sentence titles) */}
+      {/* Combined Visibility & Share Link */}
       <Panel className="rounded-xl bg-surface p-5 sm:p-6 space-y-5">
 
         {/* Visibility Controls */}
@@ -111,10 +111,16 @@ export function PublishStep({
           />
         </div>
 
-        {/* Group Sharing & Invites */}
-        {ws.status !== 'ARCHIVED' && (
-          <div className="pt-4 space-y-3">
-            <WorkspaceTogether ws={ws} />
+        {/* Share Link */}
+        {ws.status === 'PUBLISHED' && ws.visibility !== 'PRIVATE' && visibility !== 'PRIVATE' && (
+          <div className="pt-4 border-t border-border space-y-2">
+            <span className="block text-xs font-medium text-muted">Share Link</span>
+            <ShareLinkField
+              url={toAbsoluteUrl(buildProgramUrl({ id: ws.id, title: ws.title }))}
+              shareTitle={ws.title}
+              copiedMessage="Program link copied"
+              inputLabel="Program link"
+            />
           </div>
         )}
 

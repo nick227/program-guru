@@ -51,11 +51,6 @@ export function ProgramOwnerBanner({
             {programVisibilityLabel(ws.visibility)}
           </span>
         </div>
-        <p className="text-sm text-foreground">
-          {isDraft
-            ? 'This program is still a draft and cannot be joined until published.'
-            : 'You have unpublished draft changes that are not live for participants yet.'}
-        </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {!editing && (

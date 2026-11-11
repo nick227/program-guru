@@ -25,7 +25,6 @@ import { ProgramHero } from '@/components/program/ProgramHero'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
 import { ProgramSchedulePreview } from '@/components/program/ProgramSchedulePreview'
 import { ProgramTogether } from '@/components/program/ProgramTogether'
-import { ProgramGroups } from '@/components/program/ProgramGroups'
 import {
   ProgramPersonalDetailsGrid,
   ProgramPersonalOverview,
@@ -380,7 +379,7 @@ export function ProgramPage() {
         active={programNav.activeNav}
         returnTo={currentUrl}
       />
-      <div className="mx-auto mt-6 w-full max-w-7xl space-y-10 sm:space-y-12">
+      <div className="mx-auto mt-6 page--width">
         {/* 01 — Program Hero */}
         <ProgramHero
           title={displayTitle}
@@ -720,22 +719,6 @@ export function ProgramPage() {
             returnTo={currentUrl}
           />
         </div>
-
-        {/* 05 — Groups: an enrolled participant or the owner starts one and invites people (10 §2) */}
-        {signedIn && p.latestVersionId && (
-          <section aria-labelledby="program-together" className="space-y-4">
-            <SectionHeader id="program-together" title="Do this together" />
-            <ProgramGroups
-              title={null}
-              key={enrollment.data?.programVersionId ?? p.latestVersionId}
-              programId={id}
-              versionId={enrollment.data?.programVersionId ?? p.latestVersionId}
-              enrollmentId={p.myEnrollmentId}
-              isProgramOwner={isOwner}
-              timezone={tz}
-            />
-          </section>
-        )}
 
         <div className="flex justify-end">
           <ReportButton target={{ type: 'PROGRAM', id: p.id }} ownerId={p.creator?.id} />
