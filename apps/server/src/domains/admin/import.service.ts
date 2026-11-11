@@ -3,7 +3,8 @@
 // rules, reporting every issue before anything is written. A valid import is written in one
 // transaction (all or nothing) and is replay-safe through its idempotency key.
 import { randomUUID } from 'crypto'
-import { db, type Prisma } from '@project/db'
+import { db, type Prisma, type ProgramLevel } from '@project/db'
+import { PROGRAM_LEVELS } from '@project/shared'
 import { badRequest } from '../../lib/errors'
 import { requestHash, withIdempotency } from '../../lib/idempotency'
 import { isOpenlyReadable } from '../activities/access'
@@ -28,6 +29,9 @@ export type ImportProgram = {
   description?: string | null
   programType: string
   focus?: string | null
+  level?: ProgramLevel
+  sessionMinutes?: number | null
+  tags?: string[]
   visibility?: Visibility
   durationDays?: number | null
   frequency?: Frequency
@@ -51,11 +55,13 @@ async function loadReferences(programs: ImportProgram[]) {
   const anyOf = (values: string[]) => values.flatMap((v) => [bySlugOrId(v)])
   const typeNames = names(programs.map((p) => p.programType))
   const focusNames = names([...programs.map((p) => p.focus), ...all.flatMap((a) => a.focuses ?? [])])
+  const tagNames = names(programs.flatMap((p) => p.tags ?? []))
   const categoryNames = names(all.map((a) => a.category))
   const refs = names(all.map((a) => a.ref))
-  const [types, focuses, categories, activities, metrics, tools] = await Promise.all([
+  const [types, focuses, tags, categories, activities, metrics, tools] = await Promise.all([
     typeNames.length ? db.programType.findMany({ where: { OR: anyOf(typeNames), isActive: true, reviewState: 'APPROVED' } }) : [],
     focusNames.length ? db.focus.findMany({ where: { OR: anyOf(focusNames), isActive: true, reviewState: 'APPROVED' } }) : [],
+    tagNames.length ? db.tag.findMany({ where: { OR: anyOf(tagNames), isActive: true } }) : [],
     categoryNames.length ? db.category.findMany({ where: { OR: anyOf(categoryNames), isActive: true } }) : [],
     refs.length ? db.activity.findMany({ where: { OR: anyOf(refs) } }) : [],
     db.metricDefinition.findMany({ where: { key: { in: names(all.flatMap((a) => a.metrics?.map((m) => m.metric) ?? [])) }, ownerId: null } }),
@@ -69,6 +75,7 @@ async function loadReferences(programs: ImportProgram[]) {
   return {
     type: (v: string) => pick(types, v),
     focus: (v: string, categoryId: string) => pick(focuses, v, categoryId),
+    tag: (v: string) => tags.find((t) => t.id === v || t.slug === v),
     category: (v: string) => pick(categories, v),
     activity: (v: string) => activities.find((a) => a.id === v || a.slug === v),
     metric: (key: string) => metrics.find((m) => m.key === key),
@@ -90,6 +97,15 @@ async function check(input: ImportInput) {
     if (!type) add(`${at}.programType`, `no approved program type "${p.programType}"`)
     const focus = p.focus && type ? refs.focus(p.focus, type.categoryId) : null
     if (p.focus && type && !focus) add(`${at}.focus`, `no approved focus "${p.focus}"`)
+    if (p.level && !PROGRAM_LEVELS.includes(p.level)) add(`${at}.level`, `invalid level "${p.level}"`)
+    if (p.sessionMinutes !== undefined && p.sessionMinutes !== null && (!Number.isInteger(p.sessionMinutes) || p.sessionMinutes < 1 || p.sessionMinutes > 1440)) {
+      add(`${at}.sessionMinutes`, 'must be between 1 and 1440')
+    }
+    const tagIds = (p.tags ?? []).map((t, ti) => {
+      const row = refs.tag(t)
+      if (!row) add(`${at}.tags.${ti}`, `no active tag "${t}"`)
+      return row?.id ?? ''
+    })
     if (p.frequency?.kind === 'N_PER_WEEK' && !p.frequency.n) add(`${at}.frequency.n`, 'is required for N_PER_WEEK')
     const seen = new Set<string>()
     const activities = p.activities.map((a, ai) => {
@@ -127,7 +143,7 @@ async function check(input: ImportInput) {
       })
       return { kind: 'new' as const, input: a, categoryId, focusIds: [...new Set(focusIds)], metrics, tools }
     })
-    return { input: p, type, focus, activities }
+    return { input: p, type, focus, tagIds: [...new Set(tagIds.filter(Boolean))], activities }
   })
   if (newActivities > MAX_NEW_ACTIVITIES) add('programs', `creates ${newActivities} activities; the limit is ${MAX_NEW_ACTIVITIES} per import`)
   return { plan, issues }
@@ -175,6 +191,8 @@ async function writeProgram(tx: Prisma.TransactionClient, adminId: string, p: Pl
   const title = p.input.title.trim()
   const description = p.input.description?.trim() || null
   const durationDays = p.input.durationDays === undefined ? DEFAULT_DURATION_DAYS : p.input.durationDays
+  const level = p.input.level ?? 'ALL_LEVELS'
+  const sessionMinutes = p.input.sessionMinutes ?? null
   const program = await tx.program.create({
     data: {
       creatorId: null,
@@ -183,8 +201,11 @@ async function writeProgram(tx: Prisma.TransactionClient, adminId: string, p: Pl
       categoryId: p.type!.categoryId,
       programTypeId: p.type!.id,
       focusId: p.focus?.id ?? null,
+      level,
+      sessionMinutes,
       visibility: p.input.visibility ?? 'PRIVATE',
       policy: { create: { accessMode: 'OPEN' } },
+      ...(p.tagIds.length ? { tags: { create: p.tagIds.map((tagId, position) => ({ tagId, position })) } } : {}),
     },
   })
   const version = await tx.programVersion.create({
@@ -195,6 +216,8 @@ async function writeProgram(tx: Prisma.TransactionClient, adminId: string, p: Pl
       description,
       programTypeId: p.type!.id,
       focusId: p.focus?.id ?? null,
+      level,
+      sessionMinutes,
       durationDays,
       cycleDays: durationDays === null ? 7 : null,
       frequency: (p.input.frequency ?? DEFAULT_FREQUENCY) as Prisma.InputJsonValue,

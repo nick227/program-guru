@@ -134,6 +134,27 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
     })
   }
 
+  // 3b. Cross-category Tags
+  const tagBySlug = new Map<string, string>()
+  for (const t of TAGS) {
+    const row = await prisma.tag.upsert({
+      where: { slug: t.slug },
+      create: {
+        id: deterministicUuid(`tag:${t.slug}`),
+        slug: t.slug,
+        label: t.label,
+        group: t.group,
+        position: t.position,
+      },
+      update: {
+        label: t.label,
+        group: t.group,
+        position: t.position,
+      },
+    })
+    tagBySlug.set(t.slug, row.id)
+  }
+
   // 4. MetricDefinitions
   const metricByKey = new Map<string, string>()
   for (const m of METRIC_DEFINITIONS) {
@@ -434,10 +455,14 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
 
     // Content only, and only when changed: never re-publish an archived or moderated starter Program.
     const canonicalSlug = sp.slug.replace(/^starter-/, '')
+    const programLevel = sp.level ?? 'ALL_LEVELS'
+    const programSessionMinutes = sp.sessionMinutes ?? null
     const programContent = {
       categoryId,
       programTypeId,
       focusId,
+      level: programLevel,
+      sessionMinutes: programSessionMinutes,
       title: sp.title,
       description: sp.description,
       coverMediaId,
@@ -451,6 +476,20 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
     } else if (changed(existingProgram, programContent)) {
       await prisma.program.update({ where: { id: programId }, data: programContent })
     }
+
+    const desiredTagIds: string[] = []
+    for (const [pos, tagSlug] of (sp.tagSlugs ?? []).entries()) {
+      const tagId = tagBySlug.get(tagSlug)!
+      desiredTagIds.push(tagId)
+      await prisma.programTag.upsert({
+        where: { programId_tagId: { programId, tagId } },
+        create: { programId, tagId, position: pos },
+        update: { position: pos },
+      })
+    }
+    await prisma.programTag.deleteMany({
+      where: { programId, tagId: { notIn: desiredTagIds } },
+    })
 
     const aliasId = deterministicUuid(`program-alias:${sp.slug}`)
     const existingAlias = await prisma.programSlugAlias.findFirst({
@@ -480,6 +519,8 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
       description: sp.description,
       programTypeId,
       focusId,
+      level: programLevel,
+      sessionMinutes: programSessionMinutes,
       durationDays: sp.durationDays,
       frequency: sp.frequency as Prisma.InputJsonValue,
       generationMode: sp.generationMode,

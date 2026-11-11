@@ -34,7 +34,7 @@ describe('browse URL and filter helpers', () => {
   it('resolves explicit filters and keeps legacy ?facet= compatibility', () => {
     expect(
       resolveBrowseFilters(
-        new URLSearchParams('type=type-1&facet=focus-1'),
+        new URLSearchParams('type=type-1&facet=focus-1&level=BEGINNER&session=20&tags=at-home,no-equipment'),
         'programs',
       ),
     ).toEqual({
@@ -42,13 +42,16 @@ describe('browse URL and filter helpers', () => {
       category: '',
       type: 'type-1',
       focus: 'focus-1',
+      level: 'BEGINNER',
+      maxSessionMinutes: '20',
+      tags: ['at-home', 'no-equipment'],
       sort: 'POPULAR',
       creator: 'ALL',
     })
 
     expect(
       resolveBrowseFilters(
-        new URLSearchParams('kind=activities&facet=cat-1'),
+        new URLSearchParams('kind=activities&facet=cat-1&level=BEGINNER&tags=at-home'),
         'activities',
       ),
     ).toEqual({
@@ -56,6 +59,9 @@ describe('browse URL and filter helpers', () => {
       category: 'cat-1',
       type: '',
       focus: '',
+      level: '',
+      maxSessionMinutes: '',
+      tags: [],
       sort: 'POPULAR',
       creator: 'ALL',
     })
@@ -71,6 +77,9 @@ describe('browse URL and filter helpers', () => {
       category: 'cat-2',
       type: 'locked-type',
       focus: 'focus-2',
+      level: '',
+      maxSessionMinutes: '',
+      tags: [],
       sort: 'POPULAR',
       creator: 'ALL',
     })

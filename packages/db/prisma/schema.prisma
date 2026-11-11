@@ -353,6 +353,32 @@ model ActivityFocus {
   @@index([focusId])
 }
 
+model Tag {
+  id        String   @id @default(uuid()) @db.Char(36)
+  slug      String   @unique @db.VarChar(64)
+  label     String   @db.VarChar(80)
+  group     String?  @db.VarChar(40)
+  position  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  programs ProgramTag[]
+
+  @@index([isActive, position])
+}
+
+model ProgramTag {
+  programId String @db.Char(36)
+  tagId     String @db.Char(36)
+  position  Int    @default(0)
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([programId, tagId])
+  @@index([tagId])
+}
+
 // ─── Activities (08-ACTIVITIES) ──────────────────────────────────────────────
 
 enum ActivityStatus {
@@ -565,6 +591,13 @@ enum ScheduleGenerationMode {
   ROTATE
 }
 
+enum ProgramLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ALL_LEVELS
+}
+
 enum EnrollmentStatus {
   PENDING_ACCESS
   ACTIVE
@@ -597,6 +630,8 @@ model Program {
   categoryId               String        @db.Char(36)
   programTypeId            String        @db.Char(36)
   focusId                  String?       @db.Char(36)
+  level                    ProgramLevel  @default(ALL_LEVELS)
+  sessionMinutes           Int?
   coverMediaId             String?       @db.Char(36)
   visibility               Visibility    @default(PRIVATE)
   status                   ProgramStatus @default(DRAFT)
@@ -628,11 +663,14 @@ model Program {
   attachments      MediaAttachment[]
   publications     MediaPublication[]
   slugAliases      ProgramSlugAlias[]       @relation("ProgramAliases")
+  tags             ProgramTag[]
 
   @@unique([creatorId, slug])
   @@index([slug])
   @@index([creatorId, status])
   @@index([categoryId, programTypeId, status, visibility])
+  @@index([level, status, visibility])
+  @@index([sessionMinutes])
   @@index([focusId])
   @@index([programTypeId])
   @@index([coverMediaId])
@@ -674,6 +712,8 @@ model ProgramVersion {
   description     String?                @db.Text
   programTypeId   String                 @db.Char(36)
   focusId         String?                @db.Char(36)
+  level           ProgramLevel           @default(ALL_LEVELS)
+  sessionMinutes  Int?
   durationDays    Int?
   cycleDays       Int?
   frequency       Json

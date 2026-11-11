@@ -1119,6 +1119,29 @@ paths:
                       $ref: '#/components/schemas/ToolDefinition'
         '400':
           $ref: '#/components/responses/BadRequest'
+  /catalog/tags:
+    get:
+      operationId: listTags
+      summary: List tags
+      tags:
+      - catalog
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /activities:
     get:
       operationId: listActivities
@@ -5289,6 +5312,25 @@ paths:
         schema:
           $ref: '#/components/schemas/AccessMode'
       - in: query
+        name: level
+        schema:
+          $ref: '#/components/schemas/ProgramLevel'
+      - in: query
+        name: duration
+        schema:
+          $ref: '#/components/schemas/DiscoverDuration'
+      - in: query
+        name: maxSessionMinutes
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1440
+      - in: query
+        name: tags
+        schema:
+          type: string
+        description: Comma-separated tag slugs (all listed tags must match).
+      - in: query
         name: sort
         schema:
           $ref: '#/components/schemas/DiscoverSort'
@@ -7433,6 +7475,39 @@ components:
           type: string
         label:
           type: string
+    Tag:
+      type: object
+      required:
+      - id
+      - slug
+      - label
+      - group
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        label:
+          type: string
+        group:
+          type:
+          - string
+          - 'null'
+    ProgramLevel:
+      type: string
+      enum:
+      - BEGINNER
+      - INTERMEDIATE
+      - ADVANCED
+      - ALL_LEVELS
+    DiscoverDuration:
+      type: string
+      enum:
+      - SHORT
+      - MEDIUM
+      - LONG
+      - ONGOING
     MetricDefinition:
       type: object
       required:
@@ -8258,6 +8333,9 @@ components:
       - title
       - type
       - focus
+      - level
+      - sessionMinutes
+      - tags
       - creator
       - coverUrl
       - durationDays
@@ -8281,6 +8359,18 @@ components:
           anyOf:
           - $ref: '#/components/schemas/Focus'
           - type: 'null'
+        level:
+          $ref: '#/components/schemas/ProgramLevel'
+        sessionMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
         creator:
           anyOf:
           - $ref: '#/components/schemas/UserSummary'
@@ -8422,6 +8512,9 @@ components:
       - title
       - type
       - focus
+      - level
+      - sessionMinutes
+      - tags
       - creator
       - coverUrl
       - durationDays
@@ -8456,6 +8549,18 @@ components:
           anyOf:
           - $ref: '#/components/schemas/Focus'
           - type: 'null'
+        level:
+          $ref: '#/components/schemas/ProgramLevel'
+        sessionMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
         creator:
           anyOf:
           - $ref: '#/components/schemas/UserSummary'
@@ -8576,6 +8681,9 @@ components:
       - title
       - type
       - focus
+      - level
+      - sessionMinutes
+      - tags
       - creator
       - coverUrl
       - durationDays
@@ -8608,6 +8716,18 @@ components:
           anyOf:
           - $ref: '#/components/schemas/Focus'
           - type: 'null'
+        level:
+          $ref: '#/components/schemas/ProgramLevel'
+        sessionMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
         creator:
           anyOf:
           - $ref: '#/components/schemas/UserSummary'
@@ -8838,6 +8958,19 @@ components:
           - string
           - 'null'
           format: uuid
+        level:
+          $ref: '#/components/schemas/ProgramLevel'
+        sessionMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+        tagSlugs:
+          type: array
+          maxItems: 10
+          items:
+            type: string
         coverMediaId:
           type:
           - string
@@ -11450,6 +11583,19 @@ components:
           type:
           - string
           - 'null'
+        level:
+          $ref: '#/components/schemas/ProgramLevel'
+        sessionMinutes:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 1440
+        tags:
+          type: array
+          maxItems: 10
+          items:
+            type: string
         visibility:
           $ref: '#/components/schemas/Visibility'
         durationDays:

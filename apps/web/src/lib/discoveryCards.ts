@@ -1,3 +1,4 @@
+import { formatProgramLevel } from '@/lib/browse'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { formatTargetTime } from '@/lib/targetTime'
 import type { components } from '@project/sdk'
@@ -14,10 +15,18 @@ export function programCard(
   const weeks = program.durationDays
     ? `${Math.ceil(program.durationDays / 7)} weeks`
     : null
+  const levelLabel = program.level !== 'ALL_LEVELS' ? formatProgramLevel(program.level) : null
+  const sessionLabel = program.sessionMinutes ? `${program.sessionMinutes} min` : null
   return {
     id: program.id,
     title: program.title,
-    meta: [program.focus?.label ?? program.type.label, program.frequencyLabel || null, weeks]
+    meta: [
+      program.focus?.label ?? program.type.label,
+      levelLabel,
+      sessionLabel,
+      program.frequencyLabel || null,
+      weeks,
+    ]
       .filter(Boolean)
       .join(' · '),
     hero: programHero(program, categorySlugOf),

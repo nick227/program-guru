@@ -1,6 +1,8 @@
 import type { components } from '@project/sdk'
 
 type DiscoverSort = components['schemas']['DiscoverSort']
+type DiscoverDuration = components['schemas']['DiscoverDuration']
+type ProgramLevel = components['schemas']['ProgramLevel']
 
 export type BrowseKind = 'programs' | 'activities'
 export type BrowsePick = 'program' | 'activity'
@@ -15,6 +17,9 @@ export const BROWSE_PARAM = {
   type: 'type',
   focus: 'focus',
   duration: 'duration',
+  level: 'level',
+  session: 'session',
+  tags: 'tags',
   facet: 'facet',
 } as const
 
@@ -24,6 +29,9 @@ export interface BrowseUrlOptions {
   type?: string
   focus?: string
   duration?: BrowseDuration
+  level?: ProgramLevel | ''
+  maxSessionMinutes?: number | null
+  tags?: string[]
   pick?: BrowsePick
   programId?: string
   returnTo?: string
@@ -34,8 +42,43 @@ export interface BrowseFilters {
   category: string
   type: string
   focus: string
+  level: ProgramLevel | ''
+  maxSessionMinutes: string
+  tags: string[]
   sort: DiscoverSort
   creator: BrowseCreator
+}
+
+const VALID_LEVELS: readonly ProgramLevel[] = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'ALL_LEVELS']
+
+export function formatProgramLevel(level?: ProgramLevel | null): string | null {
+  switch (level) {
+    case 'BEGINNER':
+      return 'Beginner'
+    case 'INTERMEDIATE':
+      return 'Intermediate'
+    case 'ADVANCED':
+      return 'Advanced'
+    case 'ALL_LEVELS':
+      return 'All levels'
+    default:
+      return null
+  }
+}
+
+export function toServerDiscoverDuration(duration: BrowseDuration): DiscoverDuration | undefined {
+  switch (duration) {
+    case 'short':
+      return 'SHORT'
+    case 'medium':
+      return 'MEDIUM'
+    case 'long':
+      return 'LONG'
+    case 'ongoing':
+      return 'ONGOING'
+    default:
+      return undefined
+  }
 }
 
 /** Build a `/browse` URL for standalone discovery or picker flows. */
@@ -46,6 +89,9 @@ export function buildBrowseUrl(options: BrowseUrlOptions = {}): string {
   if (options.type) query.set(BROWSE_PARAM.type, options.type)
   if (options.focus) query.set(BROWSE_PARAM.focus, options.focus)
   if (options.duration) query.set(BROWSE_PARAM.duration, options.duration)
+  if (options.level) query.set(BROWSE_PARAM.level, options.level)
+  if (options.maxSessionMinutes) query.set(BROWSE_PARAM.session, String(options.maxSessionMinutes))
+  if (options.tags?.length) query.set(BROWSE_PARAM.tags, options.tags.join(','))
   if (options.pick) query.set('pick', options.pick)
   if (options.programId) query.set('programId', options.programId)
   if (options.returnTo) query.set('returnTo', options.returnTo)
@@ -53,7 +99,7 @@ export function buildBrowseUrl(options: BrowseUrlOptions = {}): string {
   return qs ? `/browse?${qs}` : '/browse'
 }
 
-/** Resolve the client-side duration bucket filter from query params. */
+/** Resolve the duration bucket filter from query params. */
 export function resolveBrowseDuration(
   params: URLSearchParams,
   kind: BrowseKind,
@@ -94,6 +140,20 @@ export function resolveBrowseFilters(
   lockedProgramTypeId?: string,
 ): BrowseFilters {
   const legacyFacet = params.get(BROWSE_PARAM.facet) ?? ''
+  const rawLevel = params.get(BROWSE_PARAM.level) ?? ''
+  const level = VALID_LEVELS.includes(rawLevel as ProgramLevel) ? (rawLevel as ProgramLevel) : ''
+  const rawSession = params.get(BROWSE_PARAM.session) ?? ''
+  const parsedSession = Number(rawSession)
+  const maxSessionMinutes =
+    kind === 'programs' && Number.isInteger(parsedSession) && parsedSession > 0
+      ? String(parsedSession)
+      : ''
+  const rawTags = params.get(BROWSE_PARAM.tags) ?? ''
+  const tags =
+    kind === 'programs'
+      ? [...new Set(rawTags.split(',').map((s) => s.trim()).filter(Boolean))]
+      : []
+
   return {
     q: params.get(BROWSE_PARAM.q) ?? '',
     category:
@@ -106,6 +166,9 @@ export function resolveBrowseFilters(
     focus:
       params.get(BROWSE_PARAM.focus) ??
       (kind === 'programs' ? legacyFacet : ''),
+    level: kind === 'programs' ? level : '',
+    maxSessionMinutes,
+    tags,
     sort: (params.get(BROWSE_PARAM.sort) as DiscoverSort | null) ?? 'POPULAR',
     creator: (params.get(BROWSE_PARAM.creator) as BrowseCreator | null) ?? 'ALL',
   }
@@ -136,4 +199,3 @@ export function clearBrowseDraft(key: string) {
     /* ignore storage errors */
   }
 }
-

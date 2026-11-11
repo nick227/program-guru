@@ -11,6 +11,10 @@ export type DiscoverProgramsOptions = {
   categoryId?: string
   programTypeId?: string
   focusId?: string
+  level?: S['ProgramLevel']
+  duration?: S['DiscoverDuration']
+  maxSessionMinutes?: number
+  tags?: string[]
   sort?: S['DiscoverSort']
   accessMode?: S['AccessMode']
   enabled?: boolean
@@ -34,6 +38,10 @@ export function useDiscoverPrograms(
   const queryCategoryId = opts.categoryId || undefined
   const queryTypeId = opts.programTypeId || undefined
   const queryFocusId = opts.focusId || undefined
+  const queryLevel = opts.level || undefined
+  const queryDuration = opts.duration || undefined
+  const queryMaxSessionMinutes = opts.maxSessionMinutes || undefined
+  const queryTags = opts.tags?.length ? opts.tags.join(',') : undefined
   const querySort = opts.sort || undefined
   const queryAccessMode = opts.accessMode || undefined
   const queryEnabled =
@@ -49,6 +57,10 @@ export function useDiscoverPrograms(
         categoryId: queryCategoryId,
         programTypeId: queryTypeId,
         focusId: queryFocusId,
+        level: queryLevel,
+        duration: queryDuration,
+        maxSessionMinutes: queryMaxSessionMinutes,
+        tags: queryTags,
         sort: querySort,
         accessMode: queryAccessMode,
       },
@@ -66,6 +78,10 @@ export function useDiscoverPrograms(
               categoryId: queryCategoryId,
               programTypeId: queryTypeId,
               focusId: queryFocusId,
+              level: queryLevel,
+              duration: queryDuration,
+              maxSessionMinutes: queryMaxSessionMinutes,
+              tags: queryTags,
               sort: querySort,
               accessMode: queryAccessMode,
               cursor: pageParam,
@@ -148,6 +164,13 @@ export function useCategories() {
     queryKey: useViewerKey(keys.categories),
     queryFn: async ({ signal }) =>
       apiData(await getApiClient().GET('/catalog/categories', { signal })).data,
+  })
+}
+export function useTags() {
+  return useQuery({
+    queryKey: useViewerKey(keys.tags),
+    queryFn: async ({ signal }) =>
+      apiData(await getApiClient().GET('/catalog/tags', { signal })).data,
   })
 }
 export type FocusesFilter = {

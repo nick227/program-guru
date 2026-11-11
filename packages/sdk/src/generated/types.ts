@@ -519,6 +519,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/catalog/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tags */
+        get: operations["listTags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/activities": {
         parameters: {
             query?: never;
@@ -2960,6 +2977,17 @@ export interface components {
             slug: string;
             label: string;
         };
+        Tag: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            label: string;
+            group: string | null;
+        };
+        /** @enum {string} */
+        ProgramLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ALL_LEVELS";
+        /** @enum {string} */
+        DiscoverDuration: "SHORT" | "MEDIUM" | "LONG" | "ONGOING";
         MetricDefinition: {
             /** Format: uuid */
             id: string;
@@ -3237,6 +3265,9 @@ export interface components {
             title: string;
             type: components["schemas"]["ProgramType"];
             focus: components["schemas"]["Focus"] | null;
+            level: components["schemas"]["ProgramLevel"];
+            sessionMinutes: number | null;
+            tags: components["schemas"]["Tag"][];
             creator: components["schemas"]["UserSummary"] | null;
             coverUrl: string | null;
             coverMedia?: components["schemas"]["MediaPresentation"] | null;
@@ -3287,6 +3318,9 @@ export interface components {
             title: string;
             type: components["schemas"]["ProgramType"];
             focus: components["schemas"]["Focus"] | null;
+            level: components["schemas"]["ProgramLevel"];
+            sessionMinutes: number | null;
+            tags: components["schemas"]["Tag"][];
             creator: components["schemas"]["UserSummary"] | null;
             coverUrl: string | null;
             coverMedia?: components["schemas"]["MediaPresentation"] | null;
@@ -3331,6 +3365,9 @@ export interface components {
             title: string;
             type: components["schemas"]["ProgramType"];
             focus: components["schemas"]["Focus"] | null;
+            level: components["schemas"]["ProgramLevel"];
+            sessionMinutes: number | null;
+            tags: components["schemas"]["Tag"][];
             creator: components["schemas"]["UserSummary"] | null;
             coverUrl: string | null;
             coverMedia?: components["schemas"]["MediaPresentation"] | null;
@@ -3414,6 +3451,9 @@ export interface components {
             programTypeId?: string;
             /** Format: uuid */
             focusId?: string | null;
+            level?: components["schemas"]["ProgramLevel"];
+            sessionMinutes?: number | null;
+            tagSlugs?: string[];
             /** Format: uuid */
             coverMediaId?: string | null;
             durationDays?: number | null;
@@ -4382,6 +4422,9 @@ export interface components {
             description?: string | null;
             programType: string;
             focus?: string | null;
+            level?: components["schemas"]["ProgramLevel"];
+            sessionMinutes?: number | null;
+            tags?: string[];
             visibility?: components["schemas"]["Visibility"];
             /** @description Null is an ongoing Program. Omitted uses the default (28). */
             durationDays?: number | null;
@@ -5573,6 +5616,29 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["ToolDefinition"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    listTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Tag"][];
                     };
                 };
             };
@@ -8904,6 +8970,11 @@ export interface operations {
                 programTypeId?: string;
                 focusId?: string;
                 accessMode?: components["schemas"]["AccessMode"];
+                level?: components["schemas"]["ProgramLevel"];
+                duration?: components["schemas"]["DiscoverDuration"];
+                maxSessionMinutes?: number;
+                /** @description Comma-separated tag slugs (all listed tags must match). */
+                tags?: string;
                 sort?: components["schemas"]["DiscoverSort"];
             };
             header?: never;

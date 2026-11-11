@@ -31,3 +31,7 @@ export async function listMetricDefinitions(request: any) {
 export async function listToolDefinitions() {
   return { data: await catalog.listToolDefinitions() }
 }
+
+export async function listTags() {
+  return { data: await catalog.listTags() }
+}

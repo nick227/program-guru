@@ -7,6 +7,7 @@ import type { ViewerAccess } from './access'
 export const programInclude = {
   programType: { include: { focuses: true } },
   focus: true,
+  tags: { include: { tag: true }, orderBy: { position: 'asc' as const } },
   creator: { include: { profile: true } },
   policy: true,
   prices: { where: { active: true }, orderBy: { kind: 'asc' } },
@@ -36,6 +37,11 @@ export function toProgramSummary(p: ProgramFull, viewerAccess: ViewerAccess, ver
     title: version?.title ?? p.title,
     type: toProgramType(p.programType),
     focus: p.focus ? { id: p.focus.id, categoryId: p.focus.categoryId, slug: p.focus.slug, label: p.focus.label } : null,
+    level: version?.level ?? p.level,
+    sessionMinutes: version ? version.sessionMinutes : p.sessionMinutes,
+    tags: p.tags
+      .filter((pt) => pt.tag.isActive)
+      .map((pt) => ({ id: pt.tag.id, slug: pt.tag.slug, label: pt.tag.label, group: pt.tag.group ?? null })),
     creator: p.creator?.profile ? toUserSummary(p.creator.profile) : null,
     coverUrl: p.coverMediaId
       ? p.coverMedia?.type === 'VIDEO'

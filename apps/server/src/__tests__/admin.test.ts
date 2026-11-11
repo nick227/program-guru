@@ -216,6 +216,9 @@ describe('content import', () => {
         description: 'Ten minutes a day.',
         programType: c.workout.slug,
         focus: c.strength.slug,
+        level: 'BEGINNER',
+        sessionMinutes: 15,
+        tags: ['no-equipment'],
         durationDays: 14,
         frequency: { kind: 'DAILY' },
         activities: [
@@ -256,6 +259,7 @@ describe('content import', () => {
   it('imports drafts with nested Activities in one transaction, replay-safe, then publishes after review', async () => {
     await admin()
     const c = await catalog()
+    await db.tag.create({ data: { slug: 'no-equipment', label: 'No Equipment', group: 'equipment', position: 1 } })
     const preview = await data(call(rootAdminId, 'POST', '/admin/content/import', { ...batch(c), dryRun: true }))
     expect(preview).toMatchObject({ valid: true, dryRun: true })
     expect(preview.programs.map((p: any) => [p.id, p.activityCount, p.newActivityCount])).toEqual([[null, 2, 1], [null, 1, 1]])
@@ -268,7 +272,7 @@ describe('content import', () => {
     const programs = await db.program.findMany({ where: { id: { in: ids } }, include: { versions: { include: { items: true } } } })
     for (const p of programs) expect(p).toMatchObject({ creatorId: null, status: 'DRAFT' })
     const mobility = programs.find((p) => p.title === 'Mobility Starter')!
-    expect(mobility.versions[0]).toMatchObject({ durationDays: 14, createdById: rootAdminId })
+    expect(mobility.versions[0]).toMatchObject({ durationDays: 14, level: 'BEGINNER', sessionMinutes: 15, createdById: rootAdminId })
     expect(mobility.versions[0]!.items.length).toBe(28) // 2 Activities × 14 days, DAILY
     const catCow = await db.activity.findFirstOrThrow({ where: { title: 'Cat Cow' }, include: { revisions: { include: { instructions: true, metrics: true, tools: true } }, focuses: true } })
     expect(catCow).toMatchObject({ creatorId: null, status: 'DRAFT' })

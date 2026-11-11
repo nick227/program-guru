@@ -1,7 +1,7 @@
 // Program authoring (07-PROGRAMS.md §6–7, 03-UX.md §3–4).
 // The draft is a ProgramVersion with publishedAt = null. Publishing freezes it; the next edit opens
 // a new draft copied from the latest published version. Program.draftRevision guards concurrent edits.
-import { Prisma, db, type ProgramVersion } from '@project/db'
+import { Prisma, db, type ProgramLevel, type ProgramVersion } from '@project/db'
 import { badRequest, forbidden, notFound, versionConflict } from '../../lib/errors'
 import { enqueue } from '../../lib/outbox'
 import { afterCursor, pageArgs, pageOrder, toPage } from '../../lib/paging'
@@ -283,6 +283,9 @@ export async function updateDraft(
     categoryId?: string
     programTypeId?: string
     focusId?: string | null
+    level?: ProgramLevel
+    sessionMinutes?: number | null
+    tagSlugs?: string[]
     coverMediaId?: string | null
     durationDays?: number | null
     frequency?: Frequency
@@ -292,6 +295,9 @@ export async function updateDraft(
   },
 ) {
   if (input.title !== undefined && !input.title.trim()) throw badRequest('Name the program', { title: 'is required' })
+  if (input.sessionMinutes !== undefined && input.sessionMinutes !== null && (!Number.isInteger(input.sessionMinutes) || input.sessionMinutes < 1 || input.sessionMinutes > 1440)) {
+    throw badRequest('Choose a valid session length', { sessionMinutes: 'must be between 1 and 1440 minutes' })
+  }
   if (input.programTypeId) {
     const t = await db.programType.findFirst({ where: { id: input.programTypeId, OR: [{ reviewState: 'APPROVED' }, { createdById: userId }] } })
     if (!t) throw badRequest('Choose a type', { programTypeId: 'not found' })
@@ -300,6 +306,15 @@ export async function updateDraft(
   if (input.focusId) {
     const f = await db.focus.findFirst({ where: { id: input.focusId, OR: [{ reviewState: 'APPROVED' }, { createdById: userId }] } })
     if (!f) throw badRequest('Choose a focus', { focusId: 'not found' })
+  }
+  const tagSlugs = input.tagSlugs !== undefined ? [...new Set(input.tagSlugs.map((s) => s.trim()).filter(Boolean))] : undefined
+  const resolvedTags = tagSlugs !== undefined
+    ? await db.tag.findMany({ where: { slug: { in: tagSlugs }, isActive: true } })
+    : undefined
+  if (tagSlugs !== undefined && resolvedTags && resolvedTags.length !== tagSlugs.length) {
+    const found = new Set(resolvedTags.map((t) => t.slug))
+    const missing = tagSlugs.find((s) => !found.has(s))
+    throw badRequest(`Unknown tag "${missing}"`, { tagSlugs: `unknown tag "${missing}"` })
   }
   if (input.coverMediaId) await assertCover(userId, input.coverMediaId)
   if (input.frequency?.kind === 'N_PER_WEEK' && !input.frequency.n) throw badRequest('Choose how many days a week', { 'frequency.n': 'is required' })
@@ -318,6 +333,8 @@ export async function updateDraft(
         description,
         programTypeId: input.programTypeId,
         focusId: input.focusId,
+        level: input.level,
+        sessionMinutes: input.sessionMinutes,
         durationDays: input.durationDays,
         cycleDays: input.durationDays === null ? 7 : input.durationDays !== undefined ? null : undefined,
         frequency: input.frequency as Prisma.InputJsonValue | undefined,
@@ -332,10 +349,21 @@ export async function updateDraft(
         categoryId: input.categoryId,
         programTypeId: input.programTypeId,
         focusId: input.focusId,
+        level: input.level,
+        sessionMinutes: input.sessionMinutes,
         coverMediaId: input.coverMediaId,
         visibility: input.visibility,
       },
     })
+    if (tagSlugs !== undefined && resolvedTags) {
+      const bySlug = new Map(resolvedTags.map((t) => [t.slug, t.id]))
+      await tx.programTag.deleteMany({ where: { programId } })
+      if (tagSlugs.length) {
+        await tx.programTag.createMany({
+          data: tagSlugs.map((slug, position) => ({ programId, tagId: bySlug.get(slug)!, position })),
+        })
+      }
+    }
     if (title) {
       await allocateProgramSlug(tx, { programId, creatorId: program.creatorId, title })
     }
@@ -655,7 +683,7 @@ export async function archive(userId: string, programId: string) {
 
 /** Copy and customize someone's Program (or your own) into a new private draft with provenance. */
 export async function copy(userId: string, programId: string) {
-  const src = await db.program.findUnique({ where: { id: programId } })
+  const src = await db.program.findUnique({ where: { id: programId }, include: { tags: true } })
   if (!src || src.deletedAt || !(await canSeeProgram(userId, src))) throw notFound('Program')
   const owner = isProgramOwner(src, userId)
   const from = owner
@@ -681,9 +709,12 @@ export async function copy(userId: string, programId: string) {
         categoryId: src.categoryId,
         programTypeId: from.programTypeId,
         focusId: from.focusId,
+        level: from.level,
+        sessionMinutes: from.sessionMinutes,
         coverMediaId: src.coverMediaId,
         visibility: 'PRIVATE',
         policy: { create: { accessMode: 'OPEN' } },
+        ...(src.tags.length ? { tags: { create: src.tags.map((t) => ({ tagId: t.tagId, position: t.position })) } } : {}),
         ...(src.latestPublishedVersionId ? { source: { create: { sourceProgramVersionId: sourceVersionId, copiedById: userId } } } : {}),
       },
     })
@@ -695,6 +726,8 @@ export async function copy(userId: string, programId: string) {
         description: from.description,
         programTypeId: from.programTypeId,
         focusId: from.focusId,
+        level: from.level,
+        sessionMinutes: from.sessionMinutes,
         durationDays: from.durationDays,
         cycleDays: from.cycleDays,
         frequency: from.frequency as Prisma.InputJsonValue,

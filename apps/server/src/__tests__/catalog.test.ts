@@ -70,6 +70,17 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
     expect(squats.durationMinutes).toBe(8)
     expect(squats.latestPublished?.durationMinutesSnapshot).toBe(8)
     expect(squats.latestPublished?.frequencySnapshot).toEqual({ kind: 'N_PER_WEEK', n: 3 })
+    const core = await db.program.findFirstOrThrow({
+      where: { slug: 'beginner-core-strength', creatorId: null },
+      include: { tags: { include: { tag: true }, orderBy: { position: 'asc' } } },
+    })
+    expect(core.level).toBe('BEGINNER')
+    expect(core.sessionMinutes).toBe(40)
+    expect(core.tags.map((t) => t.tag.slug)).toEqual(['no-equipment', 'at-home', 'guided'])
+    const tagsRes = await app.inject({ method: 'GET', url: '/catalog/tags' })
+    expect(tagsRes.statusCode).toBe(200)
+    await validateResponse('listTags', 200, tagsRes.json())
+    expect(tagsRes.json().data).toHaveLength(10)
     const stats = await db.programStat.findMany({ where: { program: { creatorId: null } } })
     expect(stats.every((s) => s.enrollmentCount === 0 && Number(s.rankScore) === 0)).toBe(true)
     // Every starter Program shows its own curated CC0 cover, not a copied Activity image.

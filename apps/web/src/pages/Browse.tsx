@@ -12,6 +12,7 @@ import {
   useProgramPrefetch,
   useProgramTypes,
   useProgramWorkspace,
+  useTags,
   type components,
 } from '@project/sdk'
 import {
@@ -38,9 +39,11 @@ import { useAddExistingActivity } from '@/components/program-authoring/useAddExi
 import type { Workspace } from '@/components/program-authoring/types'
 import {
   BROWSE_PARAM,
+  formatProgramLevel,
   matchesBrowseDuration,
   resolveBrowseDuration,
   resolveBrowseFilters,
+  toServerDiscoverDuration,
   type BrowseCreator,
   type BrowseDuration,
   type BrowseKind,
@@ -97,6 +100,21 @@ const ACTIVITY_DURATION_OPTIONS: DurationOption[] = [
   { value: 'short', label: '15 min or less' },
   { value: 'medium', label: '16–30 min' },
   { value: 'long', label: 'Over 30 min' },
+]
+
+const PROGRAM_LEVEL_OPTIONS: { value: S['ProgramLevel'] | ''; label: string }[] = [
+  { value: '', label: 'Any level' },
+  { value: 'BEGINNER', label: 'Beginner' },
+  { value: 'INTERMEDIATE', label: 'Intermediate' },
+  { value: 'ADVANCED', label: 'Advanced' },
+  { value: 'ALL_LEVELS', label: 'All levels' },
+]
+
+const SESSION_LENGTH_OPTIONS = [
+  { value: '', label: 'Any session length' },
+  { value: '15', label: '15 min or less' },
+  { value: '30', label: '30 min or less' },
+  { value: '45', label: '45 min or less' },
 ]
 
 function uniqueLabels(values: (string | null | undefined)[]): string[] {
@@ -408,6 +426,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const categorySlugOf = useCategorySlugOf()
   const types = useProgramTypes()
   const categories = useCategories()
+  const tagsCatalog = useTags()
   const prefetch = useProgramPrefetch()
   const prefetchProgram = (id: string) => {
     if (mode.prefetchOnHover) prefetch(id)
@@ -422,6 +441,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const categoryId = filters.category
   const programTypeId = filters.type
   const focusId = filters.focus
+  const level = filters.level
+  const maxSessionMinutes = filters.maxSessionMinutes
+  const selectedTags = filters.tags
   const search = filters.q
   const sort = filters.sort
   const creator = filters.creator
@@ -491,6 +513,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         if (nextKind === 'activities') {
           next.set('kind', 'activities')
           next.delete(BROWSE_PARAM.type)
+          next.delete(BROWSE_PARAM.level)
+          next.delete(BROWSE_PARAM.session)
+          next.delete(BROWSE_PARAM.tags)
           if (next.get(BROWSE_PARAM.duration) === 'ongoing') {
             next.delete(BROWSE_PARAM.duration)
           }
@@ -542,11 +567,22 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     )
   }
 
+  const toggleTag = (slug: string) => {
+    const nextTags = selectedTags.includes(slug)
+      ? selectedTags.filter((s) => s !== slug)
+      : [...selectedTags, slug]
+    setParam(BROWSE_PARAM.tags, nextTags.join(','))
+  }
+
   const programs = useDiscoverPrograms({
     q: search,
     categoryId: categoryId || undefined,
     programTypeId: programTypeId || undefined,
     focusId: focusId || undefined,
+    level: level || undefined,
+    duration: toServerDiscoverDuration(duration),
+    maxSessionMinutes: maxSessionMinutes ? Number(maxSessionMinutes) : undefined,
+    tags: selectedTags.length ? selectedTags : undefined,
     sort,
     enabled: mode.kind === 'programs',
   })
@@ -612,9 +648,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
               categoryLabelOf(program.type.categoryId),
               program.type.label,
               program.focus?.label,
+              program.level !== 'ALL_LEVELS' ? formatProgramLevel(program.level) : null,
             ]).join(' · ')
             const schedule = [
               formatProgramDuration(program.durationDays),
+              program.sessionMinutes ? `${program.sessionMinutes} min/session` : null,
               program.frequencyLabel || null,
             ]
               .filter(Boolean)
@@ -693,6 +731,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     !!categoryId ||
     (!mode.lockedProgramTypeId && !!programTypeId) ||
     !!focusId ||
+    !!level ||
+    !!maxSessionMinutes ||
+    selectedTags.length > 0 ||
     !!duration ||
     !!search ||
     sort !== 'POPULAR' ||
@@ -702,9 +743,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     categoryId,
     !mode.lockedProgramTypeId ? programTypeId : '',
     focusId,
+    level,
+    maxSessionMinutes,
     duration,
     creator !== 'ALL' ? creator : '',
-  ].filter(Boolean).length
+  ].filter(Boolean).length + selectedTags.length
 
   const reset = () => {
     setQuery('')
@@ -716,6 +759,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         next.delete(BROWSE_PARAM.creator)
         next.delete(BROWSE_PARAM.category)
         next.delete(BROWSE_PARAM.focus)
+        next.delete(BROWSE_PARAM.level)
+        next.delete(BROWSE_PARAM.session)
+        next.delete(BROWSE_PARAM.tags)
         next.delete(BROWSE_PARAM.duration)
         next.delete(BROWSE_PARAM.facet)
         if (!mode.lockedProgramTypeId) next.delete(BROWSE_PARAM.type)
@@ -764,6 +810,28 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       key: 'duration',
       label: durationLabel,
       onRemove: () => setParam(BROWSE_PARAM.duration, ''),
+    })
+  }
+  if (level) {
+    activeFilterChips.push({
+      key: 'level',
+      label: formatProgramLevel(level) ?? level,
+      onRemove: () => setParam(BROWSE_PARAM.level, ''),
+    })
+  }
+  if (maxSessionMinutes) {
+    activeFilterChips.push({
+      key: 'session',
+      label: `${maxSessionMinutes} min or less`,
+      onRemove: () => setParam(BROWSE_PARAM.session, ''),
+    })
+  }
+  for (const slug of selectedTags) {
+    const label = tagsCatalog.data?.find((t) => t.slug === slug)?.label ?? slug
+    activeFilterChips.push({
+      key: `tag:${slug}`,
+      label: `#${label}`,
+      onRemove: () => toggleTag(slug),
     })
   }
   if (creator !== 'ALL') {
@@ -954,6 +1022,55 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       }
                     />
                   </FilterGroup>
+
+                  {/* 6b. Level & Session length (Programs) */}
+                  {mode.kind === 'programs' && (
+                    <>
+                      <FilterGroup title="Level" defaultOpen={!!level}>
+                        <FilterOptionList
+                          ariaLabel="Filter by level"
+                          options={PROGRAM_LEVEL_OPTIONS}
+                          value={level}
+                          onChange={(value) => setParam(BROWSE_PARAM.level, value)}
+                        />
+                      </FilterGroup>
+
+                      <FilterGroup title="Session length" defaultOpen={!!maxSessionMinutes}>
+                        <FilterOptionList
+                          ariaLabel="Filter by session length"
+                          options={SESSION_LENGTH_OPTIONS}
+                          value={maxSessionMinutes}
+                          onChange={(value) => setParam(BROWSE_PARAM.session, value)}
+                        />
+                      </FilterGroup>
+
+                      {(tagsCatalog.data?.length ?? 0) > 0 && (
+                        <FilterGroup title="Tags" defaultOpen={selectedTags.length > 0}>
+                          <div role="group" aria-label="Filter by tags" className="flex flex-wrap gap-1.5">
+                            {(tagsCatalog.data ?? []).map((tag) => {
+                              const active = selectedTags.includes(tag.slug)
+                              return (
+                                <button
+                                  key={tag.id}
+                                  type="button"
+                                  aria-pressed={active}
+                                  onClick={() => toggleTag(tag.slug)}
+                                  className={cn(
+                                    'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-fast',
+                                    active
+                                      ? 'border-accent bg-accent/15 text-accent'
+                                      : 'border-border/70 text-muted hover:border-border hover:text-foreground',
+                                  )}
+                                >
+                                  {tag.label}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </FilterGroup>
+                      )}
+                    </>
+                  )}
 
                   {/* Creator filter (collapsed unless active) */}
                   <FilterGroup

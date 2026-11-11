@@ -149,3 +149,16 @@ export async function listToolDefinitions() {
     defaultConfig: (t.defaultConfig as Record<string, unknown> | null) ?? null,
   }))
 }
+
+export async function listTags() {
+  const rows = await db.tag.findMany({
+    where: { isActive: true },
+    orderBy: [{ position: 'asc' }, { label: 'asc' }],
+  })
+  return rows.map((t) => ({
+    id: t.id,
+    slug: t.slug,
+    label: t.label,
+    group: t.group ?? null,
+  }))
+}

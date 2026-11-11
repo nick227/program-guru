@@ -35,6 +35,42 @@ describe('discover and creator profiles', () => {
     await validateResponse('listUserPrograms', 200, list.json())
     expect(list.json().data).toHaveLength(1)
   })
+
+  it('supports composable server-side discovery filters for level, duration, session length, and tags', async () => {
+    await db.tag.createMany({
+      data: [
+        { slug: 'no-equipment', label: 'No Equipment', group: 'equipment', position: 1 },
+        { slug: 'at-home', label: 'At Home', group: 'setting', position: 2 },
+        { slug: 'outdoors', label: 'Outdoors', group: 'setting', position: 3 },
+      ],
+    })
+    const makeProgram = async (
+      title: string,
+      patch: { level: 'BEGINNER' | 'INTERMEDIATE'; durationDays: number | null; sessionMinutes: number; tagSlugs: string[] },
+    ) => {
+      let ws = (await req('POST', '/programs', { programTypeId: cat.workout.id, focusId: cat.strength.id })).json().data
+      ws = (await req('POST', `/programs/${ws.id}/draft/activities`, { activityIds: [cat.squats.activity.id], expectedRevision: ws.draftRevision })).json().data
+      ws = (await req('PATCH', `/programs/${ws.id}/draft`, { title, ...patch, expectedRevision: ws.draftRevision })).json().data
+      await req('POST', `/programs/${ws.id}/publish`, { visibility: 'PUBLIC', accessMode: 'OPEN', expectedRevision: ws.draftRevision })
+      return ws.id
+    }
+
+    await makeProgram('Quick Home Core', { level: 'BEGINNER', durationDays: 14, sessionMinutes: 15, tagSlugs: ['no-equipment', 'at-home'] })
+    await makeProgram('Outdoor Endurance', { level: 'INTERMEDIATE', durationDays: 42, sessionMinutes: 45, tagSlugs: ['no-equipment', 'outdoors'] })
+    await makeProgram('Ongoing Habit', { level: 'BEGINNER', durationDays: null, sessionMinutes: 25, tagSlugs: ['at-home'] })
+
+    const queryTitles = async (qs: string) => {
+      const res = await app.inject({ method: 'GET', url: `/discover?kind=PROGRAM&${qs}` })
+      expect(res.statusCode).toBe(200)
+      await validateResponse('discover', 200, res.json())
+      return res.json().data.map((d: any) => d.program.title)
+    }
+
+    expect(await queryTitles('level=BEGINNER&duration=SHORT')).toEqual(['Quick Home Core'])
+    expect(await queryTitles('level=BEGINNER&duration=ONGOING')).toEqual(['Ongoing Habit'])
+    expect(await queryTitles('maxSessionMinutes=25&tags=no-equipment,at-home')).toEqual(['Quick Home Core'])
+    expect(await queryTitles('duration=LONG&tags=outdoors')).toEqual(['Outdoor Endurance'])
+  })
 })
 
 describe('discover activities by popularity', () => {

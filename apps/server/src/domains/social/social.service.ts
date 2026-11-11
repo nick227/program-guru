@@ -1,5 +1,5 @@
 // Discovery, creator portfolio, engagement (12-SOCIAL.md, 13-PROFILES-AND-EXPERIENCE.md §3).
-import { db, type Prisma } from '@project/db'
+import { db, type Prisma, type ProgramLevel } from '@project/db'
 import { sha256 } from '../../lib/auth'
 import { badRequest, notFound } from '../../lib/errors'
 import { withIdempotency } from '../../lib/idempotency'
@@ -23,6 +23,10 @@ type DiscoverQuery = PageQuery & {
   programTypeId?: string
   focusId?: string
   accessMode?: 'OPEN' | 'APPROVAL' | 'PAID'
+  level?: ProgramLevel
+  duration?: 'SHORT' | 'MEDIUM' | 'LONG' | 'ONGOING'
+  maxSessionMinutes?: number
+  tags?: string
   sort?: 'RELEVANT' | 'NEW' | 'POPULAR'
 }
 
@@ -38,6 +42,23 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
   const q = query.q?.trim()
 
   if (query.kind === 'PROGRAM') {
+    const tagSlugs = query.tags
+      ? [...new Set(query.tags.split(',').map((s) => s.trim()).filter(Boolean))]
+      : []
+    const durationWhere: Prisma.ProgramWhereInput =
+      query.duration === 'ONGOING'
+        ? { latestPublished: { is: { durationDays: null } } }
+        : query.duration === 'SHORT'
+          ? { latestPublished: { is: { durationDays: { lte: 14 } } } }
+          : query.duration === 'MEDIUM'
+            ? { latestPublished: { is: { durationDays: { gt: 14, lte: 28 } } } }
+            : query.duration === 'LONG'
+              ? { latestPublished: { is: { durationDays: { gt: 28 } } } }
+              : {}
+    const andClauses: Prisma.ProgramWhereInput[] = [
+      ...(q ? [{ OR: [{ title: { contains: q } }, { description: { contains: q } }] }] : []),
+      ...tagSlugs.map((slug) => ({ tags: { some: { tag: { slug, isActive: true } } } })),
+    ]
     const where: Prisma.ProgramWhereInput = {
       ...discoverableProgramWhere,
       ...(hidden.length ? { OR: [{ creatorId: null }, { creatorId: { notIn: hidden } }] } : {}),
@@ -45,7 +66,10 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
       ...(query.programTypeId ? { programTypeId: query.programTypeId } : {}),
       ...(query.focusId ? { focusId: query.focusId } : {}),
       ...(query.accessMode ? { policy: { accessMode: query.accessMode } } : {}),
-      ...(q ? { AND: [{ OR: [{ title: { contains: q } }, { description: { contains: q } }] }] } : {}),
+      ...(query.level ? { level: query.level } : {}),
+      ...(query.maxSessionMinutes !== undefined ? { sessionMinutes: { lte: query.maxSessionMinutes } } : {}),
+      ...durationWhere,
+      ...(andClauses.length ? { AND: andClauses } : {}),
     }
     // RELEVANT: seeded Programs lead (12 §5), then completion/retention rank (decision 19), then recency.
     const orderBy: Prisma.ProgramOrderByWithRelationInput[] =
