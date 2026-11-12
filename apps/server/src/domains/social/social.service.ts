@@ -8,6 +8,7 @@ import { afterCursor, offsetArgs, pageArgs, pageOrder, toOffsetPage, toPage, typ
 import { loadRevisions, activityInclude, toActivitySummary } from '../activities/mapper'
 import { canSeeProgram, discoverableProgramWhere } from '../programs/access'
 import { programInclude, toProgramSummary } from '../programs/mapper'
+import { participationSummaries } from '../programs/participation.service'
 import { featuredGroupsForPrograms, startingSoonProgramIds } from '../groups/group.service'
 import { canSeePublication } from '../media/media.service'
 import { mediaUrl } from '../media/urls'
@@ -23,6 +24,7 @@ type DiscoverQuery = PageQuery & {
   categoryId?: string
   programTypeId?: string
   focusId?: string
+  activityId?: string
   accessMode?: 'OPEN' | 'APPROVAL' | 'PAID'
   level?: ProgramLevel
   duration?: 'SHORT' | 'MEDIUM' | 'LONG' | 'ONGOING'
@@ -63,6 +65,15 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
       ...(q ? [{ OR: [{ title: { contains: q } }, { description: { contains: q } }] }] : []),
       ...tagSlugs.map((slug) => ({ tags: { some: { tag: { slug, isActive: true } } } })),
     ]
+    const activityMatchIds = query.activityId
+      ? await db.activity
+          .findUnique({ where: { id: query.activityId }, select: { sourceActivityId: true } })
+          .then((row) =>
+            row?.sourceActivityId && row.sourceActivityId !== query.activityId
+              ? [query.activityId!, row.sourceActivityId]
+              : [query.activityId!],
+          )
+      : null
     const where: Prisma.ProgramWhereInput = {
       ...discoverableProgramWhere,
       ...(startingSoonIds ? { id: { in: startingSoonIds } } : {}),
@@ -70,6 +81,9 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(query.programTypeId ? { programTypeId: query.programTypeId } : {}),
       ...(query.focusId ? { focusId: query.focusId } : {}),
+      ...(activityMatchIds
+        ? { latestPublished: { is: { items: { some: { activityId: { in: activityMatchIds } } } } } }
+        : {}),
       ...(query.accessMode ? { policy: { accessMode: query.accessMode } } : {}),
       ...(query.level ? { level: query.level } : {}),
       ...(query.maxSessionMinutes !== undefined ? { sessionMinutes: { lte: query.maxSessionMinutes } } : {}),
@@ -85,13 +99,17 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
           : [{ creatorId: { sort: 'asc', nulls: 'first' } }, { stat: { rankScore: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
     const rows = await db.program.findMany({ where, orderBy, skip, take, include: programInclude })
     const pageIds = rows.slice(0, limit).map((p) => p.id)
-    const featuredGroups = await featuredGroupsForPrograms(viewerId, pageIds, query.timing)
+    const [featuredGroups, participation] = await Promise.all([
+      featuredGroupsForPrograms(viewerId, pageIds, query.timing),
+      participationSummaries(viewerId, pageIds),
+    ])
     return toOffsetPage(rows, limit, skip, (p) => ({
       kind: 'PROGRAM' as const,
       program: toProgramSummary(p, 'PREVIEW'),
       activity: null,
       creator: null,
       featuredGroup: featuredGroups.get(p.id) ?? null,
+      participantCount: participation.get(p.id)?.participantCount ?? null,
     }))
   }
 

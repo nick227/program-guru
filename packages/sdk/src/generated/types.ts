@@ -4538,6 +4538,7 @@ export interface components {
             activity: components["schemas"]["ActivitySummary"] | null;
             creator: components["schemas"]["UserSummary"] | null;
             featuredGroup?: components["schemas"]["PublicGroupSummary"] | null;
+            participantCount?: number | null;
         };
         MediaComment: {
             /** Format: uuid */
@@ -9513,6 +9514,7 @@ export interface operations {
                 categoryId?: string;
                 programTypeId?: string;
                 focusId?: string;
+                activityId?: string;
                 accessMode?: components["schemas"]["AccessMode"];
                 level?: components["schemas"]["ProgramLevel"];
                 duration?: components["schemas"]["DiscoverDuration"];

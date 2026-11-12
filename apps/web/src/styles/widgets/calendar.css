@@ -1836,12 +1836,30 @@
   color: hsl(var(--color-muted));
 }
 
-.calendar-panel__instructions .activity-steps {
-  gap: 0.5rem;
+.calendar-panel__steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
-.calendar-panel__instructions .activity-step {
-  padding: 0.5rem 0.65rem;
+.calendar-panel__step {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: hsl(var(--color-text));
+}
+
+.calendar-panel__step-num {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: hsl(var(--color-muted));
 }
 
 .calendar-panel__cat-badge {

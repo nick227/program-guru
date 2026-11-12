@@ -17,10 +17,9 @@ import {
   useAddCompletionReaction,
   useCompletionComments,
   useCreateCheckIns,
-  useCreateGroup,
   useCurrentUser,
   useDeleteCompletionComment,
-  useEnrollment,
+  useDiscoverPrograms,
   useGroupCompletions,
   useGroupMedia,
   useMediaPublication,
@@ -29,7 +28,6 @@ import {
   type components,
 } from '@project/sdk'
 import { toast } from 'sonner'
-import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
@@ -39,9 +37,9 @@ import { GroupCheckInModal } from '@/components/group-stage/GroupCheckInModal'
 import { MediaViewer, type ViewerItem } from '@/components/media/MediaViewer'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { resolveActivityCategory } from '@/lib/activityCategory'
-import { buildBrowseUrl } from '@/lib/browse'
 import { formatRelativeTime } from '@/lib/dates'
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
+import { buildProfileUrl, buildProgramUrl } from '@/lib/urls'
 import { useMediaUploads } from '@/lib/useMediaUploads'
 import { useOnline } from '@/lib/useOnline'
 import { cn } from '@/lib/utils'
@@ -79,9 +77,6 @@ function PanelBody({
   const item = occurrence?.item
 
   const [editingTime, setEditingTime] = useState(false)
-  const [creatingGroup, setCreatingGroup] = useState(false)
-  const [groupName, setGroupName] = useState('')
-  const [groupVisibility, setGroupVisibility] = useState<'PRIVATE' | 'PUBLIC'>('PRIVATE')
   const [checkInOpen, setCheckInOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
@@ -93,13 +88,10 @@ function PanelBody({
   const addReaction = useAddCompletionReaction()
   const removeReaction = useRemoveCompletionReaction()
   const createCheckIn = useCreateCheckIns()
-  const createGroup = useCreateGroup()
   const publishMedia = useMediaPublication()
 
   useEffect(() => {
     setEditingTime(false)
-    setCreatingGroup(false)
-    setGroupName('')
     setViewerIndex(null)
     setThumbFailed(false)
   }, [itemId])
@@ -116,17 +108,31 @@ function PanelBody({
   }, [editingTime])
 
   const activityId = item?.locked ? '' : (item?.activityId ?? '')
-  const enrollment = useEnrollment(item?.enrollmentId ?? '')
   const activityGroups = useActivityGroups(activityId, {
     enabled: Boolean(activityId && !occurrence?.collaborators),
   })
   const fallbackGroup = useMemo(() => {
     const groups = activityGroups.data?.pages.flatMap((p) => p.data) ?? []
-    return groups.find((g) => g.viewerIsMember) ?? groups[0] ?? null
+    return groups.find((g) => g.viewerIsMember) ?? null
   }, [activityGroups.data])
 
   const groupId = occurrence?.collaborators?.groupId ?? fallbackGroup?.id ?? ''
   const occurrenceKey = occurrence?.collaborators?.occurrenceKey ?? undefined
+
+  const relatedProgramsQuery = useDiscoverPrograms({
+    activityId,
+    limit: 3,
+    enabled: Boolean(activityId && !groupId),
+  })
+  const relatedPrograms = useMemo(() => {
+    const pages = relatedProgramsQuery.data?.pages ?? []
+    return pages
+      .flatMap((p) => p.data)
+      .filter((row): row is typeof row & { program: NonNullable<typeof row.program> } =>
+        Boolean(row.program),
+      )
+      .slice(0, 3)
+  }, [relatedProgramsQuery.data])
 
   const completionsQuery = useGroupCompletions(groupId, occurrenceKey)
   const groupMediaQuery = useGroupMedia(groupId, Boolean(groupId), occurrenceKey)
@@ -241,8 +247,15 @@ function PanelBody({
     null
 
   const instructions = occurrence?.instructions ?? []
-  const programVersionId = enrollment.data?.programVersionId ?? null
-  const programId = enrollment.data?.program.id ?? null
+  const communityStats = occurrence?.communityStats ?? null
+  const participationParts = [
+    communityStats?.participants != null
+      ? `${communityStats.participants} active`
+      : null,
+    communityStats?.completions != null
+      ? `${communityStats.completions} recent check-ins`
+      : null,
+  ].filter(Boolean)
 
   const groupPeople =
     occurrence?.collaborators?.members.map((m) => ({
@@ -304,26 +317,6 @@ function PanelBody({
       }
     } catch {
       // Mutation error displayed below.
-    }
-  }
-
-  const handleCreateGroup = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!programVersionId || !online || createGroup.isPending) return
-    try {
-      await createGroup.mutateAsync({
-        programVersionId,
-        name: groupName.trim() || null,
-        mode: 'ASYNC',
-        visibility: groupVisibility,
-        joinPolicy: groupVisibility === 'PUBLIC' ? 'OPEN' : 'INVITE_ONLY',
-      })
-      toast.success('Group created')
-      setCreatingGroup(false)
-      setGroupName('')
-      void occurrenceQuery.refetch()
-    } catch {
-      // Error surfaced below.
     }
   }
 
@@ -414,7 +407,7 @@ function PanelBody({
                   type="button"
                   disabled={isLocked || status === 'CANCELLED'}
                   onClick={() => setEditingTime(true)}
-                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 -ml-1.5 text-xs text-muted transition-colors hover:bg-surface-muted hover:text-foreground disabled:pointer-events-none"
+                  className="-ml-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted transition-colors hover:bg-surface-muted hover:text-foreground disabled:pointer-events-none"
                 >
                   <Clock3 size={12} aria-hidden />
                   <span>{timeDisplay ?? 'Any time'}</span>
@@ -468,13 +461,27 @@ function PanelBody({
           )}
         </div>
 
-        {/* 3. Concise Instructions */}
-        {instructions.length > 0 && (
+        {/* 3. Concise Numbered Instructions */}
+        {instructions.length > 0 && !isLocked && (
           <section className="calendar-panel__section" aria-label="Instructions">
             <h3 className="calendar-panel__section-title">Instructions</h3>
-            <div className="calendar-panel__instructions">
-              <ActivityInstructions instructions={instructions} locked={isLocked} />
-            </div>
+            <ol className="calendar-panel__steps">
+              {instructions.map((step, index) => (
+                <li key={step.id} className="calendar-panel__step">
+                  <span className="calendar-panel__step-num" aria-hidden>
+                    {index + 1}.
+                  </span>
+                  <div className="min-w-0">
+                    {step.title && (
+                      <p className="font-medium text-foreground">{step.title}</p>
+                    )}
+                    {step.body && (
+                      <p className="text-foreground/85">{step.body}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
           </section>
         )}
 
@@ -483,15 +490,19 @@ function PanelBody({
             addReaction.error ||
             removeReaction.error ||
             addComment.error ||
-            createCheckIn.error ||
-            createGroup.error
+            createCheckIn.error
           }
         />
 
-        {/* 4. Together (always included, even when there are no Groups) */}
-        <section className="calendar-panel__section" aria-label="Together">
+        {/* 4. Activity Participation & Programs (or Shared Check-ins when active) */}
+        <section
+          className="calendar-panel__section"
+          aria-label="Participation and Programs"
+        >
           <div className="flex items-center justify-between gap-2">
-            <h3 className="calendar-panel__section-title">Together</h3>
+            <h3 className="calendar-panel__section-title">
+              {groupId ? 'Together' : 'Community'}
+            </h3>
             {groupId && (
               <button
                 type="button"
@@ -504,92 +515,11 @@ function PanelBody({
             )}
           </div>
 
-          {!groupId ? (
-            <div className="rounded-xl border border-dashed border-border/80 bg-background/40 p-3.5">
-              <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-                <Users size={15} className="text-muted" aria-hidden />
-                <span>No Group yet</span>
-              </div>
-              <p className="mt-1 text-xs text-muted">
-                Join or start a group to share check-ins, encouragement, and media.
-              </p>
+          {participationParts.length > 0 && (
+            <p className="text-xs text-muted">{participationParts.join(' · ')}</p>
+          )}
 
-              {creatingGroup && programVersionId ? (
-                <form
-                  onSubmit={(e) => void handleCreateGroup(e)}
-                  className="mt-3 space-y-2 border-t border-border/60 pt-3"
-                >
-                  <input
-                    type="text"
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    placeholder="Group name (optional)"
-                    className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted"
-                  />
-                  <select
-                    value={groupVisibility}
-                    onChange={(e) =>
-                      setGroupVisibility(e.target.value as 'PRIVATE' | 'PUBLIC')
-                    }
-                    aria-label="Group visibility"
-                    className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground"
-                  >
-                    <option value="PRIVATE">Private (invite only)</option>
-                    <option value="PUBLIC">Public (open to join)</option>
-                  </select>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={!online || createGroup.isPending}
-                      loading={createGroup.isPending}
-                    >
-                      Create
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setCreatingGroup(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Link
-                    to={
-                      programId
-                        ? `/programs/${programId}#groups`
-                        : buildBrowseUrl({ kind: 'programs' })
-                    }
-                    className="btn btn--outline btn--sm text-xs"
-                  >
-                    Find Group
-                  </Link>
-                  {programVersionId ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setCreatingGroup(true)}
-                      disabled={!online}
-                    >
-                      Create Group
-                    </Button>
-                  ) : (
-                    <Link
-                      to="/programs/new"
-                      className="btn btn--outline btn--sm text-xs"
-                    >
-                      Create Group
-                    </Link>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : (
+          {groupId ? (
             <div className="space-y-3">
               {/* Participants */}
               <div className="flex items-center justify-between gap-2">
@@ -600,7 +530,7 @@ function PanelBody({
                     <Users size={16} className="text-muted" aria-hidden />
                   )}
                   <span className="truncate text-xs font-medium text-muted">
-                    {groupCount > 0 ? `${groupCount} in this group` : 'Group'}
+                    {groupCount > 0 ? `${groupCount} in this group` : 'Sharing'}
                   </span>
                 </div>
                 <GroupStatus
@@ -772,11 +702,58 @@ function PanelBody({
                 </ul>
               )}
             </div>
-          )}
+          ) : relatedProgramsQuery.isPending ? (
+            <Loading />
+          ) : relatedPrograms.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted">Featured in public Programs</p>
+              <ul className="space-y-1.5">
+                {relatedPrograms.map(({ program: prog, participantCount }) => (
+                  <li
+                    key={prog.id}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-surface-raised/50 px-2.5 py-2 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to={buildProgramUrl(prog)}
+                        className="block truncate font-semibold text-foreground hover:text-accent hover:underline"
+                      >
+                        {prog.title}
+                      </Link>
+                      {prog.creator && (
+                        <span className="block truncate text-[11px] text-muted">
+                          by{' '}
+                          {prog.creator.handle ? (
+                            <Link
+                              to={buildProfileUrl(prog.creator.handle)}
+                              className="hover:text-foreground hover:underline"
+                            >
+                              {prog.creator.displayName}
+                            </Link>
+                          ) : (
+                            prog.creator.displayName
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    {participantCount != null && (
+                      <span className="shrink-0 text-[11px] font-medium text-muted">
+                        {participantCount} active
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : participationParts.length === 0 ? (
+            <p className="text-xs text-muted">
+              No public Programs include this activity yet.
+            </p>
+          ) : null}
         </section>
       </div>
 
-      {/* Bottom Composer (when Group exists) */}
+      {/* Bottom Composer (when sharing in a Group) */}
       {groupId && (
         <form
           onSubmit={(e) => void handleSendMessage(e)}
@@ -869,7 +846,7 @@ export function SelectedActivityPanel(props: SelectedActivityPanelProps) {
             </p>
             <p className="mt-1 text-xs text-muted">
               Click any activity on the timeline to complete it, adjust its time,
-              or participate with your group.
+              or view its community.
             </p>
           </div>
         )}

@@ -5655,6 +5655,11 @@ paths:
           type: string
           format: uuid
       - in: query
+        name: activityId
+        schema:
+          type: string
+          format: uuid
+      - in: query
         name: accessMode
         schema:
           $ref: '#/components/schemas/AccessMode'
@@ -11866,6 +11871,10 @@ components:
         featuredGroup:
           anyOf:
           - $ref: '#/components/schemas/PublicGroupSummary'
+          - type: 'null'
+        participantCount:
+          anyOf:
+          - type: integer
           - type: 'null'
     MediaComment:
       type: object

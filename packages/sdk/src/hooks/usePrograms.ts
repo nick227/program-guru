@@ -18,6 +18,8 @@ export type DiscoverProgramsOptions = {
   sort?: S['DiscoverSort']
   timing?: S['DiscoverTiming']
   accessMode?: S['AccessMode']
+  activityId?: string
+  limit?: number
   enabled?: boolean
 }
 
@@ -46,8 +48,14 @@ export function useDiscoverPrograms(
   const querySort = opts.sort || undefined
   const queryTiming = opts.timing && opts.timing !== 'ALL' ? opts.timing : undefined
   const queryAccessMode = opts.accessMode || undefined
+  const queryActivityId = opts.activityId || undefined
+  const queryLimit = opts.limit ?? 20
   const queryEnabled =
-    opts.enabled ?? (!!opts.categoryId || !!opts.programTypeId || !!opts.q)
+    opts.enabled ??
+    (!!opts.categoryId ||
+      !!opts.programTypeId ||
+      !!opts.q ||
+      !!opts.activityId)
 
   return useInfiniteQuery({
     queryKey: useViewerKey([
@@ -59,6 +67,7 @@ export function useDiscoverPrograms(
         categoryId: queryCategoryId,
         programTypeId: queryTypeId,
         focusId: queryFocusId,
+        activityId: queryActivityId,
         level: queryLevel,
         duration: queryDuration,
         maxSessionMinutes: queryMaxSessionMinutes,
@@ -66,6 +75,7 @@ export function useDiscoverPrograms(
         sort: querySort,
         timing: queryTiming,
         accessMode: queryAccessMode,
+        limit: queryLimit,
       },
     ]),
     enabled: queryEnabled,
@@ -81,6 +91,7 @@ export function useDiscoverPrograms(
               categoryId: queryCategoryId,
               programTypeId: queryTypeId,
               focusId: queryFocusId,
+              activityId: queryActivityId,
               level: queryLevel,
               duration: queryDuration,
               maxSessionMinutes: queryMaxSessionMinutes,
@@ -89,7 +100,7 @@ export function useDiscoverPrograms(
               timing: queryTiming,
               accessMode: queryAccessMode,
               cursor: pageParam,
-              limit: 20,
+              limit: queryLimit,
             },
           },
         }),
