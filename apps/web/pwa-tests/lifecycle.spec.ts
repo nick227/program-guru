@@ -49,7 +49,6 @@ test('production installability, auth/deep links, offline shell, cache isolation
 
   await context.setOffline(true)
   await page.goto(`/programs/${programId}/workspace?step=details`)
-  console.log('offline-cold-launch', await page.evaluate(() => ({ url: location.href, online: navigator.onLine, body: document.body.innerText.slice(0, 2000), controller: !!navigator.serviceWorker.controller })))
   await expect(page.getByRole('heading', { name: 'Connect to load your account' })).toBeVisible()
   await context.setOffline(false)
   console.log('reconnect', await page.evaluate(() => ({ online: navigator.onLine, visibility: document.visibilityState })))
