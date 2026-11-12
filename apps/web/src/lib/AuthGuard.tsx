@@ -7,7 +7,11 @@ export function AuthGuard() {
   const me = useCurrentUser()
   const online = useOnline()
   const location = useLocation()
-  if (!me.data && !online)
+  // Service-worker navigations can report navigator.onLine=true while API fetches fail.
+  // Treat a transport failure as recoverable connectivity loss, not a signed-out session.
+  const connectionUnavailable = !online ||
+    (me.error instanceof TypeError && /failed to fetch|networkerror|load failed/i.test(me.error.message))
+  if (!me.data && connectionUnavailable)
     return (
       <Page>
         <h1>Connect to load your account</h1>
