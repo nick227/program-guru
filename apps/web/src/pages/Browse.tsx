@@ -166,6 +166,36 @@ function saveBrowseScroll(url: string) {
   }
 }
 
+function diversifyByVisual(items: BrowseFeedItem[]): BrowseFeedItem[] {
+  const picked: BrowseFeedItem[] = []
+  const pickedIds = new Set<string>()
+  const seenVisuals = new Set<string>()
+  const seenCategories = new Set<string>()
+
+  for (const item of items) {
+    const visualKey = item.hero.src ? `img:${item.hero.src}` : `cat:${item.hero.category}`
+    if (!seenVisuals.has(visualKey) && !seenCategories.has(item.hero.category)) {
+      picked.push(item)
+      pickedIds.add(item.id)
+      seenVisuals.add(visualKey)
+      seenCategories.add(item.hero.category)
+    }
+  }
+  for (const item of items) {
+    if (pickedIds.has(item.id)) continue
+    const visualKey = item.hero.src ? `img:${item.hero.src}` : `cat:${item.hero.category}`
+    if (!seenVisuals.has(visualKey)) {
+      picked.push(item)
+      pickedIds.add(item.id)
+      seenVisuals.add(visualKey)
+    }
+  }
+  for (const item of items) {
+    if (!pickedIds.has(item.id)) picked.push(item)
+  }
+  return picked
+}
+
 /** Dedicated `/browse` page supporting standalone discovery and picker flows. */
 export function LibraryBrowserPage() {
   const [params] = useSearchParams()
@@ -467,7 +497,7 @@ function CreatorAvatar({
       src={creator.avatarUrl}
       name={creatorName ?? undefined}
       size="md"
-      className="h-10 w-10 transition-opacity hover:opacity-85"
+      className="h-9 w-9 transition-opacity hover:opacity-85"
     />
   )
 
@@ -545,7 +575,7 @@ function CreatorRowCard({
           {thumbs.map((prog) => (
             <div
               key={prog.id}
-              className="browse-thumb aspect-video overflow-hidden rounded-lg bg-surface-muted"
+              className="browse-thumb aspect-video overflow-hidden rounded-xl bg-surface-muted"
             >
               <EntityHero
                 hero={prog.hero}
@@ -610,19 +640,29 @@ function BrowseFeedTile({
     ? buildProfileUrl(item.creator.handle)
     : null
 
+  const [hovered, setHovered] = useState(false)
+  const videoPlaybackUrl =
+    item.hero.media?.type === 'VIDEO' ? item.hero.media.playbackUrl ?? null : null
+  const videoPosterUrl =
+    item.hero.media?.posterUrl ?? item.hero.src ?? undefined
+
   const titleClass =
     titleSize === 'xl'
-      ? 'line-clamp-2 font-display text-2xl font-semibold leading-snug tracking-[-0.02em] text-foreground transition-colors hover:text-accent'
+      ? 'line-clamp-2 font-display text-xl font-semibold leading-[1.35] tracking-[-0.02em] text-foreground transition-colors group-hover:text-accent sm:text-2xl'
       : titleSize === 'lg'
-        ? 'line-clamp-2 font-display text-xl font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-[21px]'
-        : 'line-clamp-2 font-display text-lg font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-[19px]'
+        ? 'line-clamp-2 font-display text-lg font-semibold leading-[1.35] tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-[18px]'
+        : 'line-clamp-2 font-display text-base font-semibold leading-[1.35] tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-[17px]'
 
   const mediaNode = (
     <button
       type="button"
       aria-label={`${actionLabel}: ${item.title}`}
       onClick={item.onSelect}
-      className="group block w-full text-left"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
+      className="group block w-full rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <div
         className={cn(
@@ -635,8 +675,20 @@ function BrowseFeedTile({
           size="card"
           interactive={false}
           showVideoBadge={false}
-          className="h-full w-full rounded-none transition-transform duration-200 group-hover:scale-[1.02]"
+          className="h-full w-full rounded-none transition-transform duration-200 ease-out group-hover:scale-[1.015]"
         />
+        {hovered && videoPlaybackUrl && (
+          <video
+            src={videoPlaybackUrl}
+            poster={videoPosterUrl}
+            muted
+            playsInline
+            autoPlay
+            loop
+            aria-hidden
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
       </div>
     </button>
   )
@@ -644,7 +696,7 @@ function BrowseFeedTile({
   const participantCount = item.participantCount ?? 0
 
   const metaNode = (
-    <div className={cn('flex items-start gap-3.5', titleSize !== 'xl' && 'mt-4')}>
+    <div className={cn('flex items-start gap-3', titleSize !== 'xl' && 'mt-3.5')}>
       <CreatorAvatar
         creator={item.creator}
         creatorName={creatorName}
@@ -656,30 +708,30 @@ function BrowseFeedTile({
         <button
           type="button"
           onClick={item.onSelect}
-          className="block w-full text-left"
+          className="block w-full rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <h3 className={titleClass}>{item.title}</h3>
         </button>
 
         {creatorName && (
-          <div className="mt-1.5">
+          <div className="mt-1">
             {onSelectCreator && item.creator?.handle ? (
               <button
                 type="button"
                 onClick={() => onSelectCreator(item.creator!.handle)}
-                className="inline-block max-w-full truncate text-left text-[15px] font-semibold text-foreground/90 transition-colors hover:text-accent"
+                className="inline-block max-w-full truncate rounded text-left text-sm font-medium text-foreground/85 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 {creatorName}
               </button>
             ) : creatorProfileUrl ? (
               <Link
                 to={creatorProfileUrl}
-                className="inline-block max-w-full truncate text-[15px] font-semibold text-foreground/90 transition-colors hover:text-foreground"
+                className="inline-block max-w-full truncate text-sm font-medium text-foreground/85 transition-colors hover:text-foreground"
               >
                 {creatorName}
               </Link>
             ) : (
-              <p className="truncate text-[15px] font-medium text-foreground/80">
+              <p className="truncate text-sm font-medium text-foreground/75">
                 {creatorName}
               </p>
             )}
@@ -687,7 +739,7 @@ function BrowseFeedTile({
         )}
 
         {(item.scheduleLine || (!g && participantCount > 0)) && (
-          <p className="mt-1 truncate text-sm text-muted">
+          <p className="mt-0.5 truncate text-[13px] text-muted">
             {[
               item.scheduleLine,
               !g && participantCount > 0
@@ -1423,38 +1475,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     return (a.durationMinutes ?? 999) - (b.durationMinutes ?? 999)
   })
 
-  const quickActivityItems: BrowseFeedItem[] = (() => {
-    const picked: BrowseFeedItem[] = []
-    const pickedIds = new Set<string>()
-    const seenVisuals = new Set<string>()
-    const seenCategories = new Set<string>()
-
-    // Pass 1: unique image + unique category first to avoid near-identical cards
-    for (const item of sortedQuickActivities) {
-      const visualKey = item.hero.src ? `img:${item.hero.src}` : `cat:${item.hero.category}`
-      if (!seenVisuals.has(visualKey) && !seenCategories.has(item.hero.category)) {
-        picked.push(item)
-        pickedIds.add(item.id)
-        seenVisuals.add(visualKey)
-        seenCategories.add(item.hero.category)
-      }
-    }
-    // Pass 2: unique image (even if category repeats)
-    for (const item of sortedQuickActivities) {
-      if (pickedIds.has(item.id)) continue
-      const visualKey = item.hero.src ? `img:${item.hero.src}` : `cat:${item.hero.category}`
-      if (!seenVisuals.has(visualKey)) {
-        picked.push(item)
-        pickedIds.add(item.id)
-        seenVisuals.add(visualKey)
-      }
-    }
-    // Pass 3: remaining activities if fewer than 4 unique visuals exist
-    for (const item of sortedQuickActivities) {
-      if (!pickedIds.has(item.id)) picked.push(item)
-    }
-    return picked
-  })()
+  const quickActivityItems: BrowseFeedItem[] = diversifyByVisual(sortedQuickActivities)
 
   const happeningNowItems: BrowseFeedItem[] = [
     ...liveSessionItems,
@@ -1468,8 +1489,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const uniqueBottomActivities = activityItems.filter(
     (item) => !happeningNowActivityIds.has(item.id),
   )
-  const bottomActivityItems =
-    uniqueBottomActivities.length >= 4 ? uniqueBottomActivities : activityItems
+  const bottomActivityItems = diversifyByVisual(
+    uniqueBottomActivities.length >= 4 ? uniqueBottomActivities : activityItems,
+  )
 
   const recentActivityItems: BrowseFeedItem[] = programItems
     .filter(
@@ -2269,24 +2291,66 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   />
 
                   {results.isPending ? (
-                    <div
-                      className={GRID_CLASS}
-                      role="status"
-                      aria-label={`Loading ${nounPlural}`}
-                    >
-                      {Array.from({ length: 8 }, (_, index) => (
-                        <div key={index} className="flex flex-col gap-3">
-                          <Skeleton className="aspect-video w-full rounded-xl" />
-                          <div className="flex items-start gap-3">
-                            <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
-                            <div className="flex-1 space-y-2">
-                              <Skeleton className="h-4 w-4/5" />
-                              <Skeleton className="h-3.5 w-1/2" />
-                            </div>
+                    showDirectorySections ? (
+                      <div
+                        className="space-y-16"
+                        role="status"
+                        aria-label="Loading Community"
+                      >
+                        <div className="space-y-6">
+                          <Skeleton className="h-7 w-40" />
+                          <div className="flex gap-7 overflow-hidden">
+                            {Array.from({ length: 4 }, (_, index) => (
+                              <div
+                                key={index}
+                                className="w-[290px] shrink-0 space-y-3.5 sm:w-[320px] lg:w-[340px]"
+                              >
+                                <Skeleton className="aspect-video w-full rounded-xl" />
+                                <Skeleton className="h-5 w-3/4" />
+                                <Skeleton className="h-4 w-1/2" />
+                                <Skeleton className="h-10 w-full rounded-lg" />
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        <div className="space-y-6">
+                          <Skeleton className="h-7 w-28" />
+                          <div className={GRID_CLASS}>
+                            {Array.from({ length: 8 }, (_, index) => (
+                              <div key={index} className="flex flex-col gap-3.5">
+                                <Skeleton className="aspect-video w-full rounded-xl" />
+                                <div className="flex items-start gap-3">
+                                  <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                                  <div className="flex-1 space-y-2">
+                                    <Skeleton className="h-4 w-4/5" />
+                                    <Skeleton className="h-3.5 w-1/2" />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={GRID_CLASS}
+                        role="status"
+                        aria-label={`Loading ${nounPlural}`}
+                      >
+                        {Array.from({ length: 8 }, (_, index) => (
+                          <div key={index} className="flex flex-col gap-3.5">
+                            <Skeleton className="aspect-video w-full rounded-xl" />
+                            <div className="flex items-start gap-3">
+                              <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                              <div className="flex-1 space-y-2">
+                                <Skeleton className="h-4 w-4/5" />
+                                <Skeleton className="h-3.5 w-1/2" />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
                   ) : showDirectorySections ? (
                     <div className="space-y-16">
                       {communitySections.map((section) => {
@@ -2344,7 +2408,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                             <div className="mb-6 flex items-baseline justify-between gap-3">
                               <h2
                                 id={`section-${section.id}`}
-                                className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
+                                className="font-display text-[22px] font-semibold tracking-[-0.02em] text-foreground sm:text-2xl"
                               >
                                 {section.title}
                               </h2>
