@@ -92,8 +92,9 @@ function Root() {
               />
               <span className="max-[459px]:sr-only">Program.Guru</span>
             </Link>
-            {showHeaderMenu && <HeaderNavMenu />}
           </div>
+          <div className="flex items-center gap-2 sm:gap-4">
+            {showHeaderMenu && <HeaderNavMenu />}
           {me.data ? (
             <AccountMenu />
           ) : (
@@ -103,6 +104,7 @@ function Root() {
               </Link>
             </div>
           )}
+          </div>
         </div>
       </header>
       <Outlet />
