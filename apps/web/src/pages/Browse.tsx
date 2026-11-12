@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   Link,
   useLocation,
@@ -6,7 +6,6 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import {
-  useAddCalendarItem,
   useCategories,
   useCurrentUser,
   useDiscoverActivities,
@@ -21,14 +20,10 @@ import {
   type components,
 } from '@project/sdk'
 import {
-  Calendar,
   CalendarClock,
-  CalendarPlus,
   Check,
   ChevronDown,
-  Clock,
   LayoutGrid,
-  Repeat,
   RotateCcw,
   Search,
   SlidersHorizontal,
@@ -63,7 +58,7 @@ import {
   type BrowseDuration,
   type BrowseKind,
 } from '@/lib/browse'
-import { dateLabel, safeReturn, today } from '@/lib/dates'
+import { dateLabel, safeReturn } from '@/lib/dates'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { activityHero, programHero, toHeroCategory, type Hero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
@@ -75,7 +70,7 @@ type Sort = S['DiscoverSort']
 
 const SCROLL_KEY_PREFIX = 'browse-scroll:'
 const GRID_CLASS =
-  'grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+  'grid grid-cols-1 gap-x-4 gap-y-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
 
 interface BrowserMode {
   kind: BrowseKind
@@ -92,16 +87,10 @@ interface BrowserMode {
 interface BrowseFeedItem {
   id: string
   kind: BrowseKind
-  revisionId?: string | null
   title: string
   description: string | null
-  creatorLabel: string | null
-  categoryLabel: string | null
-  focusLabel: string | null
-  levelLabel: string | null
-  sessionLabel: string | null
-  frequencyLabel: string | null
-  lengthLabel: string | null
+  creator: S['UserSummary'] | null
+  scheduleLine: string | null
   hero: Hero
   featuredGroup?: S['PublicGroupSummary'] | null
   onSelect: () => void
@@ -411,19 +400,13 @@ function FilterOptionList<T extends string>({
   )
 }
 
-function GroupAvatars({
+function ParticipationAvatars({
   avatars,
 }: {
   avatars?: S['UserSummary'][]
 }) {
   const list = (avatars ?? []).slice(0, 3)
-  if (list.length === 0) {
-    return (
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted">
-        <Users size={12} aria-hidden />
-      </span>
-    )
-  }
+  if (list.length === 0) return null
   return (
     <span className="flex shrink-0 -space-x-1.5" aria-hidden>
       {list.map((u) => (
@@ -432,14 +415,14 @@ function GroupAvatars({
           name={u.displayName}
           src={u.avatarUrl}
           size="sm"
-          className="h-6 w-6 text-[10px] ring-2 ring-surface"
+          className="h-5 w-5 text-[9px] ring-2 ring-background"
         />
       ))}
     </span>
   )
 }
 
-function BrowseFeedCard({
+function BrowseFeedTile({
   item,
   actionLabel,
   isPicker,
@@ -448,9 +431,6 @@ function BrowseFeedCard({
   joinedIds,
   joiningGroupId,
   onQuickJoin,
-  addedActivityIds,
-  addingActivityId,
-  onAddActivityToToday,
 }: {
   item: BrowseFeedItem
   actionLabel: string
@@ -460,9 +440,6 @@ function BrowseFeedCard({
   joinedIds: Set<string>
   joiningGroupId: string | null
   onQuickJoin: (groupId: string) => void
-  addedActivityIds?: Set<string>
-  addingActivityId?: string | null
-  onAddActivityToToday?: (item: BrowseFeedItem) => void
 }) {
   const g = !isPicker && item.featuredGroup?.visibility === 'PUBLIC' ? item.featuredGroup : null
   const groupName = g ? (g.name?.trim() || `${item.title} group`) : null
@@ -470,197 +447,108 @@ function BrowseFeedCard({
   const canQuickJoin = !!g && !isMember && g.joinPolicy === 'OPEN'
   const recentCheckIns = g?.recentCheckInCount ?? 0
   const groupSchedule = g?.startLocalDate ? `Starts ${dateLabel(g.startLocalDate)}` : null
-  const tone = `var(--cat-${item.hero.category}, var(--color-accent))`
-  const isActivity = item.kind === 'activities'
-  const isActivityAdded = !!addedActivityIds?.has(item.id)
-  const isAddingActivity = addingActivityId === item.id
 
   return (
-    <article className="flex h-full flex-col justify-between rounded-xl border border-border/80 bg-surface p-3 transition-colors hover:border-border">
+    <article className="flex flex-col">
       <button
         type="button"
         aria-label={`${actionLabel}: ${item.title}`}
         onClick={item.onSelect}
         className="group flex w-full flex-col gap-2.5 text-left"
       >
-        <div className="browse-thumb relative aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-surface-muted">
+        <div className="browse-thumb relative aspect-video w-full overflow-hidden rounded-lg bg-surface-muted">
           <EntityHero
             hero={item.hero}
             size="card"
             interactive={false}
             showVideoBadge={false}
-            className="h-full w-full rounded-none"
+            className="h-full w-full rounded-none transition-transform duration-200 group-hover:scale-[1.02]"
           />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          {(item.categoryLabel || item.focusLabel || item.levelLabel) && (
-            <div className="flex flex-wrap items-center gap-1">
-              {item.categoryLabel && (
-                <span
-                  style={
-                    {
-                      color: `hsl(${tone})`,
-                      backgroundColor: `hsl(${tone} / 0.14)`,
-                      borderColor: `hsl(${tone} / 0.3)`,
-                    } as CSSProperties
-                  }
-                  className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight border"
-                >
-                  {item.categoryLabel}
-                </span>
-              )}
-              {item.focusLabel && (
-                <span className="inline-flex items-center rounded border border-border/60 bg-surface-muted/70 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-foreground/85">
-                  {item.focusLabel}
-                </span>
-              )}
-              {item.levelLabel && (
-                <span className="ml-auto inline-flex items-center rounded border border-border/70 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-muted">
-                  {item.levelLabel}
-                </span>
-              )}
-            </div>
+        <div className="flex w-full items-start gap-2.5">
+          {item.creator && (
+            <Avatar
+              src={item.creator.avatarUrl}
+              name={item.creator.displayName}
+              size="sm"
+              className="mt-0.5"
+            />
           )}
 
-          <h3 className="line-clamp-2 font-display text-sm font-semibold leading-snug tracking-[-0.01em] text-foreground transition-colors group-hover:text-accent">
-            {item.title}
-          </h3>
+          <div className="min-w-0 flex-1">
+            <h3 className="line-clamp-2 font-display text-sm font-semibold leading-snug tracking-[-0.01em] text-foreground transition-colors group-hover:text-accent">
+              {item.title}
+            </h3>
 
-          {item.description && (
-            <p className="line-clamp-2 text-xs leading-relaxed text-muted">
-              {item.description}
-            </p>
-          )}
+            {item.description && (
+              <p className="mt-0.5 line-clamp-1 text-xs text-muted">
+                {item.description}
+              </p>
+            )}
 
-          {item.creatorLabel && (
-            <p className="truncate text-[11px] text-muted/85">
-              {item.creatorLabel}
-            </p>
-          )}
+            {item.creator?.displayName && (
+              <p className="mt-0.5 truncate text-xs text-muted">
+                {item.creator.displayName}
+              </p>
+            )}
 
-          {(item.sessionLabel || item.frequencyLabel || item.lengthLabel) && (
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5 text-[11px] text-muted">
-              {item.sessionLabel && (
-                <span className="inline-flex items-center gap-1">
-                  <Clock size={11} aria-hidden className="shrink-0 opacity-80" />
-                  <span>{item.sessionLabel}</span>
-                </span>
-              )}
-              {item.frequencyLabel && (
-                <span className="inline-flex items-center gap-1">
-                  <Repeat size={11} aria-hidden className="shrink-0 opacity-80" />
-                  <span>{item.frequencyLabel}</span>
-                </span>
-              )}
-              {item.lengthLabel && (
-                <span className="inline-flex items-center gap-1">
-                  <Calendar size={11} aria-hidden className="shrink-0 opacity-80" />
-                  <span>{item.lengthLabel}</span>
-                </span>
-              )}
-            </div>
-          )}
+            {item.scheduleLine && (
+              <p className="mt-0.5 truncate text-xs text-muted/85">
+                {item.scheduleLine}
+              </p>
+            )}
+          </div>
         </div>
       </button>
 
-      {g && groupName ? (
-        <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <GroupAvatars avatars={g.memberAvatars} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-foreground">
-                {groupName}
-              </p>
-              <p className="truncate text-[11px] text-muted">
-                {g.memberCount} {g.memberCount === 1 ? 'member' : 'members'}
-                {recentCheckIns > 0
-                  ? ` · ${recentCheckIns} recent ${recentCheckIns === 1 ? 'check-in' : 'check-ins'}`
-                  : ''}
-                {groupSchedule ? ` · ${groupSchedule}` : ''}
-                {g.joinPolicy === 'INVITE_ONLY' && !isMember ? ' · Invite only' : ''}
-              </p>
-            </div>
-          </div>
-          {isMember ? (
-            <Link
-              to={buildGroupUrl(g.id, { returnTo: currentUrl })}
-              aria-label={`Open Group ${groupName}`}
-              className="btn btn--outline btn--sm shrink-0"
-            >
-              Open
-            </Link>
-          ) : canQuickJoin && signedIn ? (
-            <Button
-              type="button"
-              size="sm"
-              loading={joiningGroupId === g.id}
-              disabled={joiningGroupId === g.id}
-              aria-label={`Join ${groupName}`}
-              onClick={() => onQuickJoin(g.id)}
-              className="shrink-0"
-            >
-              Join
-            </Button>
-          ) : (
-            <Link
-              to={buildGroupUrl(g.id, { returnTo: currentUrl })}
-              aria-label={`${canQuickJoin ? 'Join' : 'View'} ${groupName}`}
-              className={cn(
-                'btn btn--sm shrink-0',
-                canQuickJoin ? 'btn--primary' : 'btn--outline',
-              )}
-            >
-              {canQuickJoin ? 'Join' : 'View'}
-            </Link>
+      {g && groupName && (
+        <div
+          className={cn(
+            'mt-1.5 flex items-center justify-between gap-2',
+            item.creator && 'pl-[2.375rem]',
           )}
-        </div>
-      ) : (
-        isActivity &&
-        !isPicker && (
-          <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
-            <span className="truncate text-[11px] text-muted">
-              Standalone Activity
-            </span>
-            {signedIn && onAddActivityToToday ? (
-              <Button
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <ParticipationAvatars avatars={g.memberAvatars} />
+            <p className="min-w-0 truncate text-xs text-muted">
+              {groupName} · {g.memberCount}{' '}
+              {g.memberCount === 1 ? 'member' : 'members'}
+              {recentCheckIns > 0
+                ? ` · ${recentCheckIns} recent ${recentCheckIns === 1 ? 'check-in' : 'check-ins'}`
+                : ''}
+              {groupSchedule ? ` · ${groupSchedule}` : ''}
+              {g.joinPolicy === 'INVITE_ONLY' && !isMember ? ' · Invite only' : ''}
+            </p>
+          </div>
+
+          {canQuickJoin &&
+            (signedIn ? (
+              <button
                 type="button"
-                size="sm"
-                variant={isActivityAdded ? 'outline' : 'default'}
-                loading={isAddingActivity}
-                disabled={isAddingActivity || isActivityAdded}
-                aria-label={`Add ${item.title} to today`}
-                onClick={() => onAddActivityToToday(item)}
-                className="shrink-0 gap-1"
+                disabled={joiningGroupId === g.id}
+                aria-label={`Join ${groupName}`}
+                onClick={() => onQuickJoin(g.id)}
+                className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15 disabled:opacity-50"
               >
-                {isActivityAdded ? (
-                  <>
-                    <Check size={12} aria-hidden />
-                    <span>Added</span>
-                  </>
-                ) : (
-                  <>
-                    <CalendarPlus size={12} aria-hidden />
-                    <span>Add today</span>
-                  </>
-                )}
-              </Button>
+                {joiningGroupId === g.id ? 'Joining…' : 'Join'}
+              </button>
             ) : (
               <Link
-                to={`/activities/${item.id}?returnTo=${encodeURIComponent(currentUrl)}`}
-                className="btn btn--outline btn--sm shrink-0"
+                to={buildGroupUrl(g.id, { returnTo: currentUrl })}
+                aria-label={`Join ${groupName}`}
+                className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15"
               >
-                Open
+                Join
               </Link>
-            )}
-          </div>
-        )
+            ))}
+        </div>
       )}
     </article>
   )
 }
 
-function MyGroupCard({
+function MyGroupTile({
   group,
   currentUrl,
 }: {
@@ -674,28 +562,18 @@ function MyGroupCard({
     : null
 
   return (
-    <article className="flex flex-col justify-between gap-3 rounded-xl border border-border/80 bg-surface p-3.5 transition-colors hover:border-border">
-      <div className="flex items-start justify-between gap-2.5">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-medium text-muted">
-            {group.programTitle}
-          </p>
-          <h3 className="mt-0.5 truncate font-display text-sm font-semibold text-foreground">
-            {groupName}
-          </h3>
-        </div>
-        <Link
-          to={buildGroupUrl(group.id, { returnTo: currentUrl })}
-          aria-label={`Open Group ${groupName}`}
-          className="btn btn--outline btn--sm shrink-0"
-        >
-          Open
-        </Link>
-      </div>
-
-      <div className="flex items-center gap-2 border-t border-border/60 pt-2.5">
-        <GroupAvatars avatars={group.memberAvatars} />
-        <p className="min-w-0 flex-1 truncate text-[11px] text-muted">
+    <Link
+      to={buildGroupUrl(group.id, { returnTo: currentUrl })}
+      aria-label={`Open Group ${groupName}`}
+      className="group flex flex-col gap-1.5 rounded-lg py-1 transition-colors"
+    >
+      <p className="truncate text-xs text-muted">{group.programTitle}</p>
+      <h3 className="truncate font-display text-sm font-semibold text-foreground transition-colors group-hover:text-accent">
+        {groupName}
+      </h3>
+      <div className="flex items-center gap-2">
+        <ParticipationAvatars avatars={group.memberAvatars} />
+        <p className="min-w-0 truncate text-xs text-muted">
           {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
           {recentCheckIns > 0
             ? ` · ${recentCheckIns} recent ${recentCheckIns === 1 ? 'check-in' : 'check-ins'}`
@@ -703,7 +581,7 @@ function MyGroupCard({
           {groupSchedule ? ` · ${groupSchedule}` : ''}
         </p>
       </div>
-    </article>
+    </Link>
   )
 }
 
@@ -764,11 +642,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const me = useCurrentUser()
   const myGroups = useMyGroups(!!me.data && !mode.isPicker && mode.kind === 'programs')
   const joinGroup = useJoinPublicGroupById()
-  const addCalendarItem = useAddCalendarItem()
   const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(() => new Set())
   const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null)
-  const [addedActivityIds, setAddedActivityIds] = useState<Set<string>>(() => new Set())
-  const [addingActivityId, setAddingActivityId] = useState<string | null>(null)
 
   const handleQuickJoin = async (groupId: string) => {
     if (joiningGroupId) return
@@ -781,28 +656,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       toast.error(err instanceof Error ? err.message : 'Could not join group')
     } finally {
       setJoiningGroupId(null)
-    }
-  }
-
-  const handleAddActivityToToday = async (item: BrowseFeedItem) => {
-    if (addingActivityId) return
-    setAddingActivityId(item.id)
-    try {
-      await addCalendarItem.mutateAsync({
-        activityId: item.id,
-        revisionId: item.revisionId ?? undefined,
-        localDate: today(
-          me.data?.data.preferences.timezone ??
-            Intl.DateTimeFormat().resolvedOptions().timeZone,
-        ),
-        idempotencyKey: crypto.randomUUID(),
-      })
-      setAddedActivityIds((prev) => new Set(prev).add(item.id))
-      toast.success(`Added "${item.title}" to today`)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not add activity')
-    } finally {
-      setAddingActivityId(null)
     }
   }
 
@@ -1039,56 +892,48 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const mapProgramItem = (
     program: S['ProgramSummary'],
     featuredGroup: S['PublicGroupSummary'] | null,
-  ): BrowseFeedItem => ({
-    id: program.id,
-    kind: 'programs',
-    title: program.title,
-    description: program.description?.trim() || null,
-    creatorLabel: program.creator?.displayName
-      ? `by ${program.creator.displayName}`
-      : null,
-    categoryLabel: categoryLabelOf(program.type.categoryId),
-    focusLabel: program.focus?.label ?? null,
-    levelLabel: formatProgramLevel(program.level),
-    sessionLabel: program.sessionMinutes
-      ? `${program.sessionMinutes} min`
-      : null,
-    frequencyLabel: program.frequencyLabel || null,
-    lengthLabel: formatProgramDuration(program.durationDays),
-    hero: programHero(program, categorySlugOf),
-    featuredGroup,
-    onSelect: () => {
-      if (mode.onPickProgram) {
-        mode.onPickProgram(program)
-      } else {
-        saveBrowseScroll(currentUrl)
-        navigate(
-          `/programs/${program.id}?returnTo=${encodeURIComponent(currentUrl)}`,
-        )
-      }
-    },
-  })
+  ): BrowseFeedItem => {
+    const scheduleParts = [
+      program.sessionMinutes ? `${program.sessionMinutes} min` : null,
+      program.frequencyLabel || null,
+      formatProgramDuration(program.durationDays),
+    ].filter(Boolean)
+
+    return {
+      id: program.id,
+      kind: 'programs',
+      title: program.title,
+      description: program.description?.trim() || null,
+      creator: program.creator ?? null,
+      scheduleLine: scheduleParts.length > 0 ? scheduleParts.join(' · ') : null,
+      hero: programHero(program, categorySlugOf),
+      featuredGroup,
+      onSelect: () => {
+        if (mode.onPickProgram) {
+          mode.onPickProgram(program)
+        } else {
+          saveBrowseScroll(currentUrl)
+          navigate(
+            `/programs/${program.id}?returnTo=${encodeURIComponent(currentUrl)}`,
+          )
+        }
+      },
+    }
+  }
 
   const mapActivityItem = (activity: S['ActivitySummary']): BrowseFeedItem => {
-    const firstFocus =
-      activity.focusIds
-        .map(focusLabelOf)
-        .find((label): label is string => !!label) ?? null
+    const scheduleParts = [
+      formatDurationMinutes(activity.durationMinutes),
+      formatFrequency(activity.frequency) || null,
+    ].filter(Boolean)
+
     return {
       id: activity.id,
       kind: 'activities',
-      revisionId: activity.revisionId,
       title: activity.title,
       description: activity.summary?.trim() || null,
-      creatorLabel: activity.creator?.displayName
-        ? `by ${activity.creator.displayName}`
-        : null,
-      categoryLabel: categoryLabelOf(activity.categoryId),
-      focusLabel: firstFocus,
-      levelLabel: null,
-      sessionLabel: formatDurationMinutes(activity.durationMinutes),
-      frequencyLabel: formatFrequency(activity.frequency) || null,
-      lengthLabel: null,
+      creator: activity.creator ?? null,
+      scheduleLine: scheduleParts.length > 0 ? scheduleParts.join(' · ') : null,
       hero: activityHero(activity, categorySlugOf),
       onSelect: () => {
         if (mode.onPickActivity && mode.kind === 'activities') {
@@ -1302,9 +1147,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const displayedCount = isMyGroups ? myGroupItems.length : items.length
   const myGroupsCount = me.data && !myGroups.isPending ? myGroupItems.length : null
 
-  const renderCardGrid = (cardItems: BrowseFeedItem[]) => (
+  const renderTileGrid = (tileItems: BrowseFeedItem[]) => (
     <ul className={GRID_CLASS}>
-      {cardItems.map((item) => (
+      {tileItems.map((item) => (
         <li
           key={`${item.kind}:${item.id}`}
           onPointerEnter={() => {
@@ -1314,7 +1159,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             if (item.kind === 'programs') prefetchProgram(item.id)
           }}
         >
-          <BrowseFeedCard
+          <BrowseFeedTile
             item={item}
             actionLabel={
               mode.isPicker
@@ -1329,9 +1174,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             joinedIds={joinedGroupIds}
             joiningGroupId={joiningGroupId}
             onQuickJoin={(groupId) => void handleQuickJoin(groupId)}
-            addedActivityIds={addedActivityIds}
-            addingActivityId={addingActivityId}
-            onAddActivityToToday={(act) => void handleAddActivityToToday(act)}
           />
         </li>
       ))}
@@ -1341,7 +1183,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   return (
     <Page className="page--wide pb-20">
       <div className="mx-auto w-full pt-4 md:pt-6">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-7">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
           {/* Left: Fixed 248px sticky sidebar on desktop, slide-over drawer on mobile */}
           <aside
             aria-label="Filters"
@@ -1452,7 +1294,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       </FilterGroup>
                     )}
 
-                  {/* Collapsed by default unless active: Program type, Focus, Level, Duration, Tags, Creator */}
+                  {/* Collapsed by default unless active */}
                   {mode.kind === 'programs' && !mode.lockedProgramTypeId && (
                     <FilterGroup
                       title="Program type"
@@ -1606,21 +1448,12 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             </div>
           </aside>
 
-          {/* Right: Main header, prominent search, active chips, and sections / grid */}
+          {/* Right: Main header, prominent search, active chips, and borderless tiles */}
           <section aria-label={`${nounPlural} feed`} className="min-w-0 flex-1">
-            <header className="mb-5">
+            <header className="mb-4">
               <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                 {title}
               </h1>
-              <p className="mt-1 text-sm text-muted">
-                {mode.isPicker
-                  ? mode.kind === 'programs'
-                    ? 'Choose a Program to use as a starting point.'
-                    : 'Choose an Activity to add.'
-                  : isMyGroups
-                    ? 'Groups you belong to.'
-                    : 'Programs, Activities, and open Groups from the community.'}
-              </p>
             </header>
 
             {/* Prominent search + sort row */}
@@ -1742,7 +1575,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             </div>
 
             {/* Feed */}
-            <div className="mt-5">
+            <div className="mt-6">
               {isMyGroups ? (
                 !me.data ? (
                   <EmptyState
@@ -1771,13 +1604,10 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                         aria-label="Loading groups"
                       >
                         {Array.from({ length: 5 }, (_, index) => (
-                          <div
-                            key={index}
-                            className="rounded-xl border border-border/60 bg-surface p-3.5"
-                          >
+                          <div key={index} className="space-y-2">
                             <Skeleton className="h-3 w-24" />
-                            <Skeleton className="mt-2 h-5 w-2/3" />
-                            <Skeleton className="mt-4 h-6 w-1/2" />
+                            <Skeleton className="h-5 w-2/3" />
+                            <Skeleton className="h-4 w-1/2" />
                           </div>
                         ))}
                       </div>
@@ -1785,7 +1615,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       <ul className={GRID_CLASS}>
                         {myGroupItems.map((group) => (
                           <li key={group.id}>
-                            <MyGroupCard group={group} currentUrl={currentUrl} />
+                            <MyGroupTile group={group} currentUrl={currentUrl} />
                           </li>
                         ))}
                       </ul>
@@ -1817,7 +1647,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     )}
 
                     {myGroupItems.length > 0 && myGroups.hasNextPage && (
-                      <div className="mt-6 flex justify-center border-t border-border/60 pt-6">
+                      <div className="mt-8 flex justify-center border-t border-border/50 pt-6">
                         <Button
                           variant="outline"
                           loading={myGroups.isFetchingNextPage}
@@ -1843,31 +1673,30 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       aria-label={`Loading ${nounPlural}`}
                     >
                       {Array.from({ length: 10 }, (_, index) => (
-                        <div
-                          key={index}
-                          className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-surface p-3"
-                        >
+                        <div key={index} className="flex flex-col gap-2.5">
                           <Skeleton className="aspect-video w-full rounded-lg" />
-                          <Skeleton className="h-3.5 w-24" />
-                          <Skeleton className="h-4 w-3/4" />
-                          <Skeleton className="h-3 w-full" />
+                          <div className="flex items-start gap-2.5">
+                            <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+                            <div className="flex-1 space-y-1.5">
+                              <Skeleton className="h-4 w-4/5" />
+                              <Skeleton className="h-3 w-1/2" />
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
                   ) : showDirectorySections ? (
-                    <div className="space-y-8">
+                    <div className="space-y-10">
                       {/* 1. Recent Activity (hidden if empty) */}
                       {recentActivityItems.length > 0 && (
                         <section aria-labelledby="section-recent-activity">
-                          <div className="mb-3 flex items-baseline justify-between gap-2">
-                            <h2
-                              id="section-recent-activity"
-                              className="font-display text-base font-semibold tracking-tight text-foreground"
-                            >
-                              Recent Activity
-                            </h2>
-                          </div>
-                          {renderCardGrid(recentActivityItems)}
+                          <h2
+                            id="section-recent-activity"
+                            className="mb-3.5 font-display text-base font-semibold tracking-tight text-foreground"
+                          >
+                            Recent Activity
+                          </h2>
+                          {renderTileGrid(recentActivityItems)}
                         </section>
                       )}
 
@@ -1875,7 +1704,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       {!startingSoonPrograms.isPending &&
                         startingSoonItems.length > 0 && (
                           <section aria-labelledby="section-starting-soon">
-                            <div className="mb-3 flex items-baseline justify-between gap-2">
+                            <div className="mb-3.5 flex items-baseline justify-between gap-2">
                               <h2
                                 id="section-starting-soon"
                                 className="font-display text-base font-semibold tracking-tight text-foreground"
@@ -1890,25 +1719,23 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                                 View all
                               </button>
                             </div>
-                            {renderCardGrid(startingSoonItems)}
+                            {renderTileGrid(startingSoonItems)}
                           </section>
                         )}
 
                       {/* 3. Programs */}
                       <section aria-labelledby="section-programs">
-                        <div className="mb-3 flex items-baseline justify-between gap-2">
-                          <h2
-                            id="section-programs"
-                            className="font-display text-base font-semibold tracking-tight text-foreground"
-                          >
-                            Programs
-                          </h2>
-                        </div>
+                        <h2
+                          id="section-programs"
+                          className="mb-3.5 font-display text-base font-semibold tracking-tight text-foreground"
+                        >
+                          Programs
+                        </h2>
                         {programItems.length > 0 ? (
                           <>
-                            {renderCardGrid(programItems)}
+                            {renderTileGrid(programItems)}
                             {programs.hasNextPage && (
-                              <div className="mt-5 flex justify-center border-t border-border/60 pt-5">
+                              <div className="mt-8 flex justify-center border-t border-border/50 pt-6">
                                 <Button
                                   variant="outline"
                                   loading={programs.isFetchingNextPage}
@@ -1932,7 +1759,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       {/* 4. Activities (hidden if empty) */}
                       {!activities.isPending && activityItems.length > 0 && (
                         <section aria-labelledby="section-activities">
-                          <div className="mb-3 flex items-baseline justify-between gap-2">
+                          <div className="mb-3.5 flex items-baseline justify-between gap-2">
                             <h2
                               id="section-activities"
                               className="font-display text-base font-semibold tracking-tight text-foreground"
@@ -1947,15 +1774,15 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                               View all
                             </button>
                           </div>
-                          {renderCardGrid(activityItems.slice(0, 5))}
+                          {renderTileGrid(activityItems.slice(0, 5))}
                         </section>
                       )}
                     </div>
                   ) : items.length > 0 ? (
                     <>
-                      {renderCardGrid(items)}
+                      {renderTileGrid(items)}
                       {results.hasNextPage && (
-                        <div className="mt-6 flex justify-center border-t border-border/60 pt-6">
+                        <div className="mt-8 flex justify-center border-t border-border/50 pt-6">
                           <Button
                             variant="outline"
                             loading={results.isFetchingNextPage}
