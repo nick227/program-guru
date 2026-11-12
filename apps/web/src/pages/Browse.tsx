@@ -501,29 +501,63 @@ function CreatorAvatar({
 
 function CreatorRowCard({
   creator,
+  programs = [],
   onSelect,
 }: {
   creator: S['UserSummary']
+  programs?: BrowseFeedItem[]
   onSelect: (handle: string) => void
 }) {
+  const thumbs = programs.slice(0, 3)
+
   return (
     <button
       type="button"
       onClick={() => onSelect(creator.handle)}
-      className="group flex w-44 shrink-0 snap-start flex-col items-center rounded-xl p-4 text-center transition-colors hover:bg-surface-muted/40 sm:w-48"
+      className="group flex w-72 shrink-0 snap-start flex-col gap-3 rounded-xl p-2 text-left transition-colors hover:bg-surface-muted/35 sm:w-80"
     >
-      <Avatar
-        src={creator.avatarUrl}
-        name={creator.displayName || creator.handle}
-        size="lg"
-        className="h-16 w-16 transition-transform duration-200 group-hover:scale-105"
-      />
-      <p className="mt-3 w-full truncate font-display text-base font-semibold text-foreground transition-colors group-hover:text-accent">
-        {creator.displayName || `@${creator.handle}`}
-      </p>
-      <p className="mt-0.5 w-full truncate text-sm text-muted">
-        @{creator.handle}
-      </p>
+      <div className="flex items-center gap-3">
+        <Avatar
+          src={creator.avatarUrl}
+          name={creator.displayName || creator.handle}
+          size="md"
+          className="h-11 w-11 shrink-0 transition-transform duration-200 group-hover:scale-105"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-base font-semibold text-foreground transition-colors group-hover:text-accent">
+            {creator.displayName || `@${creator.handle}`}
+          </p>
+          <p className="truncate text-sm text-muted">@{creator.handle}</p>
+        </div>
+      </div>
+
+      {thumbs.length > 0 && (
+        <div
+          className={cn(
+            'grid gap-2',
+            thumbs.length === 1
+              ? 'grid-cols-1'
+              : thumbs.length === 2
+                ? 'grid-cols-2'
+                : 'grid-cols-3',
+          )}
+        >
+          {thumbs.map((prog) => (
+            <div
+              key={prog.id}
+              className="browse-thumb aspect-video overflow-hidden rounded-lg bg-surface-muted"
+            >
+              <EntityHero
+                hero={prog.hero}
+                size="card"
+                interactive={false}
+                showVideoBadge={false}
+                className="h-full w-full rounded-none"
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </button>
   )
 }
@@ -633,19 +667,19 @@ function BrowseFeedTile({
               <button
                 type="button"
                 onClick={() => onSelectCreator(item.creator!.handle)}
-                className="inline-block max-w-full truncate text-left text-[15px] font-medium text-foreground/85 transition-colors hover:text-accent"
+                className="inline-block max-w-full truncate text-left text-[15px] font-semibold text-foreground/90 transition-colors hover:text-accent"
               >
                 {creatorName}
               </button>
             ) : creatorProfileUrl ? (
               <Link
                 to={creatorProfileUrl}
-                className="inline-block max-w-full truncate text-[15px] font-medium text-foreground/85 transition-colors hover:text-foreground"
+                className="inline-block max-w-full truncate text-[15px] font-semibold text-foreground/90 transition-colors hover:text-foreground"
               >
                 {creatorName}
               </Link>
             ) : (
-              <p className="truncate text-[15px] font-medium text-foreground/85">
+              <p className="truncate text-[15px] font-medium text-foreground/80">
                 {creatorName}
               </p>
             )}
@@ -2260,7 +2294,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                           const visibleCreators = section.limit
                             ? creatorItems.slice(0, section.limit)
                             : creatorItems
-                          if (visibleCreators.length === 0) return null
+                          if (visibleCreators.length < 2) return null
                           return (
                             <section
                               key={section.id}
@@ -2280,6 +2314,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                                   <li key={c.id}>
                                     <CreatorRowCard
                                       creator={c}
+                                      programs={programItems.filter(
+                                        (p) => p.creator?.id === c.id,
+                                      )}
                                       onSelect={(h) => setPreviewCreatorHandle(h)}
                                     />
                                   </li>
@@ -2357,6 +2394,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                               <li key={c.id}>
                                 <CreatorRowCard
                                   creator={c}
+                                  programs={programItems.filter(
+                                    (p) => p.creator?.id === c.id,
+                                  )}
                                   onSelect={(h) => setPreviewCreatorHandle(h)}
                                 />
                               </li>
