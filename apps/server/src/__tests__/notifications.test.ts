@@ -9,7 +9,6 @@ import {
 import {
   buildTestApp,
   seedUser,
-  testAdminId,
   testOtherUserId,
   testUserId,
 } from './helpers'
