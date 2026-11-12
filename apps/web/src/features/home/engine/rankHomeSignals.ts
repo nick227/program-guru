@@ -198,7 +198,8 @@ export function rankHomeSignals(
   // Tier 3: Happening now (live / starting-soon public sessions)
   const liveSession = signals.liveSessions.find((item) => {
     const id = item.featuredGroup?.id ?? item.program?.id
-    return id && !excluded.has(id)
+    return id && !excluded.has(id) &&
+      (Boolean(item.featuredGroup) || Boolean(item.program && canSuggestNewProgram(item.program, signals)))
   })
   if (liveSession) {
     const card = mapSessionToCard(liveSession)
