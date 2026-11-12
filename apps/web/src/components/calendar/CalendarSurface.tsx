@@ -266,6 +266,13 @@ function DayHourlyTable({
             const slotTime = `${hourKey}:00`
             const hourEntries = byHour.get(hourKey) ?? []
             const isNowHour = isViewingToday && hour === now.hour
+            const hasSelected =
+              Boolean(selectedItemId) &&
+              hourEntries.some((entry) =>
+                entry.kind === 'group'
+                  ? entry.items.some((it) => it.id === selectedItemId)
+                  : entry.item.id === selectedItemId,
+              )
 
             return (
               <React.Fragment key={hourKey}>
@@ -299,6 +306,7 @@ function DayHourlyTable({
                     'calendar-day-table__row calendar-day-table__row--interactive',
                     hourEntries.length > 0 && 'calendar-day-table__row--populated',
                     isNowHour && 'calendar-day-table__row--now',
+                    hasSelected && 'calendar-day-table__row--selected',
                     dropSlot === hourKey && 'calendar-day-table__row--drop',
                     addingSlot === hourKey && 'calendar-day-table__row--adding',
                   )}

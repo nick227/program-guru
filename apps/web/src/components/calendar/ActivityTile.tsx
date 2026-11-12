@@ -321,12 +321,8 @@ export function ActivityTile({
   if (density === 'day') {
     const dayBadgeContent = (
       <>
-        <span className="calendar-badge__icon" aria-hidden>
-          {isDone ? (
-            <Check size={14} className="text-success" />
-          ) : (
-            <CategoryIcon category={category} size={15} />
-          )}
+        <span className="calendar-badge__dot" aria-hidden>
+          {isDone && <Check size={12} className="text-success" />}
         </span>
         <span
           className={cn(

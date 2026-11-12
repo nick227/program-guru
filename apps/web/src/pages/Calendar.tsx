@@ -403,16 +403,30 @@ export function CalendarPage() {
           <div className="calendar-toolbar__controls">
             <button
               type="button"
-              aria-pressed={showAllHours}
-              onClick={() => setShowAllHours((v) => !v)}
+              aria-pressed={!showAllHours}
+              onClick={() => setShowAllHours(false)}
               className={cn(
                 'calendar-toolbar__toggle',
-                showAllHours && 'calendar-toolbar__toggle--active',
+                !showAllHours && 'calendar-toolbar__toggle--active',
               )}
-              title={showAllHours ? 'Switch to Focused Hours' : 'Show all 24 hours'}
+              title="Show only Any time and hours with scheduled activities"
             >
               <Clock3 size={15} aria-hidden />
-              <span>{showAllHours ? 'All 24h' : 'Focused Hours'}</span>
+              <span>Focused Hours</span>
+            </button>
+
+            <button
+              type="button"
+              aria-pressed={showAllHours}
+              onClick={() => setShowAllHours(true)}
+              className={cn(
+                'calendar-toolbar__toggle calendar-toolbar__toggle--secondary',
+                showAllHours && 'calendar-toolbar__toggle--active',
+              )}
+              title="Show all 24 hours"
+            >
+              <Clock3 size={15} aria-hidden />
+              <span>All 24h</span>
             </button>
 
             <button
@@ -636,12 +650,6 @@ export function CalendarPage() {
                     className="btn btn--primary"
                   >
                     + Program
-                  </Link>
-                  <Link
-                    to={`/add-activity?day=${selected}`}
-                    className="btn btn--link"
-                  >
-                    + Activity
                   </Link>
                 </Stack>
               </Panel>
