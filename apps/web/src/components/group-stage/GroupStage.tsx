@@ -9,6 +9,8 @@ import {
   X,
 } from 'lucide-react'
 import {
+  heartbeatGroupPresence,
+  leaveGroupPresence,
   useProgramVersion,
   useUpdateGroup,
   type components,
@@ -98,6 +100,35 @@ export function GroupStage({
       updateGroup.mutate({ stageTheme: next })
     }
   }
+
+  const activeActivityTitle = activityOptions[0]?.title
+
+  useEffect(() => {
+    if (!viewerId || !online) return
+    let disposed = false
+
+    const beat = () => {
+      if (disposed) return
+      void heartbeatGroupPresence(g.id, activeActivityTitle).catch(() => {})
+    }
+
+    beat()
+    const intervalId = window.setInterval(beat, 20_000)
+
+    const onUnload = () => {
+      void leaveGroupPresence(g.id, true).catch(() => {})
+    }
+    window.addEventListener('pagehide', onUnload)
+    window.addEventListener('beforeunload', onUnload)
+
+    return () => {
+      disposed = true
+      window.clearInterval(intervalId)
+      window.removeEventListener('pagehide', onUnload)
+      window.removeEventListener('beforeunload', onUnload)
+      void leaveGroupPresence(g.id, false).catch(() => {})
+    }
+  }, [g.id, viewerId, online, activeActivityTitle])
 
   const backHref = returnTo || '/browse'
 

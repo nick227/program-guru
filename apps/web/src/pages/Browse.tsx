@@ -6,13 +6,13 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import {
-  useAddCalendarItem,
   useCategories,
   useCurrentUser,
   useDiscoverActivities,
   useDiscoverPrograms,
   useFocuses,
   useJoinPublicGroupById,
+  useLiveSessions,
   useMyGroups,
   useProgramPrefetch,
   useProgramTypes,
@@ -59,7 +59,7 @@ import {
   type BrowseDuration,
   type BrowseKind,
 } from '@/lib/browse'
-import { dateLabel, safeReturn, today } from '@/lib/dates'
+import { dateLabel, formatRelativeTime, safeReturn } from '@/lib/dates'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { activityHero, programHero, toHeroCategory, type Hero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
@@ -113,6 +113,7 @@ interface BrowseFeedItem {
   scheduleLine: string | null
   hero: Hero
   featuredGroup?: S['PublicGroupSummary'] | null
+  liveSession?: S['LiveSessionSummary'] | null
   participantCount?: number | null
   onSelect: () => void
 }
@@ -497,12 +498,9 @@ function BrowseFeedTile({
   joinedIds,
   joiningGroupId,
   onQuickJoin,
+  onJoinSession,
   aspect = 'video',
   titleSize = 'base',
-  actionable = false,
-  isAdded = false,
-  isAdding = false,
-  onDoNow,
 }: {
   item: BrowseFeedItem
   actionLabel: string
@@ -512,14 +510,12 @@ function BrowseFeedTile({
   joinedIds: Set<string>
   joiningGroupId: string | null
   onQuickJoin: (groupId: string) => void
+  onJoinSession?: (session: S['LiveSessionSummary']) => void
   aspect?: 'video' | 'portrait'
   titleSize?: 'base' | 'lg' | 'xl'
-  actionable?: boolean
-  isAdded?: boolean
-  isAdding?: boolean
-  onDoNow?: (item: BrowseFeedItem) => void
 }) {
-  const g = !isPicker && item.featuredGroup?.visibility === 'PUBLIC' ? item.featuredGroup : null
+  const live = !isPicker ? item.liveSession ?? null : null
+  const g = !isPicker && !live && item.featuredGroup?.visibility === 'PUBLIC' ? item.featuredGroup : null
   const groupName = g ? (g.name?.trim() || `${item.title} group`) : null
   const isMember = !!g && (g.viewerIsMember || joinedIds.has(g.id))
   const canQuickJoin = !!g && !isMember && g.joinPolicy === 'OPEN'
@@ -611,34 +607,36 @@ function BrowseFeedTile({
           </p>
         )}
 
-        {actionable && item.kind === 'activities' && !isPicker && (
-          <div className="mt-4">
-            {signedIn && onDoNow ? (
-              isAdded ? (
-                <Link
-                  to="/"
-                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/15 px-5 py-2.5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent/25"
-                >
-                  <Check size={16} aria-hidden />
-                  <span>On today · Open</span>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled={isAdding}
-                  aria-label={`Do ${item.title} now`}
-                  onClick={() => onDoNow(item)}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90 disabled:opacity-50"
-                >
-                  {isAdding ? 'Adding…' : 'Do now'}
-                </button>
-              )
+        {live && (
+          <div className="mt-2.5 space-y-3">
+            <div className="flex items-center gap-2.5">
+              <ParticipationAvatars avatars={live.participants} />
+              <p className="min-w-0 truncate text-sm text-foreground/85">
+                <span className="font-medium">
+                  {live.activeCount} {live.activeCount === 1 ? 'person' : 'people'} in session
+                </span>
+                <span className="text-muted">
+                  {' · '}Started {formatRelativeTime(live.startedAt)}
+                </span>
+              </p>
+            </div>
+
+            {signedIn && onJoinSession ? (
+              <button
+                type="button"
+                disabled={joiningGroupId === live.groupId}
+                aria-label={`Join session for ${item.title}`}
+                onClick={() => onJoinSession(live)}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90 disabled:opacity-50"
+              >
+                {joiningGroupId === live.groupId ? 'Joining session…' : 'Join Session'}
+              </button>
             ) : (
               <Link
-                to={`/activities/${item.id}?returnTo=${encodeURIComponent(currentUrl)}`}
+                to={buildGroupUrl(live.groupId, { returnTo: currentUrl })}
                 className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90"
               >
-                Do now
+                Join Session
               </Link>
             )}
           </div>
@@ -795,11 +793,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const me = useCurrentUser()
   const myGroups = useMyGroups(!!me.data && !mode.isPicker && mode.kind === 'programs')
   const joinGroup = useJoinPublicGroupById()
-  const addCalendarItem = useAddCalendarItem()
   const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(() => new Set())
   const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null)
-  const [addedActivityIds, setAddedActivityIds] = useState<Set<string>>(() => new Set())
-  const [addingActivityId, setAddingActivityId] = useState<string | null>(null)
 
   const handleQuickJoin = async (groupId: string) => {
     if (joiningGroupId) return
@@ -815,25 +810,25 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     }
   }
 
-  const handleDoNow = async (item: BrowseFeedItem) => {
-    if (addingActivityId) return
-    setAddingActivityId(item.id)
+  const handleJoinSession = async (session: S['LiveSessionSummary']) => {
+    const alreadyMember =
+      session.viewerIsMember || joinedGroupIds.has(session.groupId)
+    if (alreadyMember) {
+      saveBrowseScroll(currentUrl)
+      navigate(buildGroupUrl(session.groupId, { returnTo: currentUrl }))
+      return
+    }
+    if (joiningGroupId) return
+    setJoiningGroupId(session.groupId)
     try {
-      await addCalendarItem.mutateAsync({
-        activityId: item.id,
-        revisionId: item.revisionId ?? undefined,
-        localDate: today(
-          me.data?.data.preferences.timezone ??
-            Intl.DateTimeFormat().resolvedOptions().timeZone,
-        ),
-        idempotencyKey: crypto.randomUUID(),
-      })
-      setAddedActivityIds((prev) => new Set(prev).add(item.id))
-      toast.success(`Added "${item.title}" to today`)
+      await joinGroup.mutateAsync({ groupId: session.groupId })
+      setJoinedGroupIds((prev) => new Set(prev).add(session.groupId))
+      saveBrowseScroll(currentUrl)
+      navigate(buildGroupUrl(session.groupId, { returnTo: currentUrl }))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not add activity')
+      toast.error(err instanceof Error ? err.message : 'Could not join session')
     } finally {
-      setAddingActivityId(null)
+      setJoiningGroupId(null)
     }
   }
 
@@ -1020,6 +1015,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     enabled: mode.kind === 'activities' || showDirectorySections,
   })
 
+  const liveSessions = useLiveSessions(showDirectorySections)
+
   const results = isMyGroups
     ? myGroups
     : mode.kind === 'programs'
@@ -1174,24 +1171,38 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       mapActivityItem(activity, featuredGroup, participantCount),
     )
 
-  const happeningNowItems: BrowseFeedItem[] = [...activityItems]
-    .sort((a, b) => {
-      const aQuick = a.durationMinutes != null && a.durationMinutes <= 20 ? 0 : 1
-      const bQuick = b.durationMinutes != null && b.durationMinutes <= 20 ? 0 : 1
-      if (aQuick !== bQuick) return aQuick - bQuick
-      const aParticipants = a.participantCount ?? 0
-      const bParticipants = b.participantCount ?? 0
-      if (aParticipants !== bParticipants) return bParticipants - aParticipants
-      return (a.durationMinutes ?? 999) - (b.durationMinutes ?? 999)
-    })
+  const happeningNowItems: BrowseFeedItem[] = (liveSessions.data ?? [])
     .slice(0, 4)
+    .map((session) => {
+      const scheduleParts = [
+        session.groupName || session.programTitle,
+        formatDurationMinutes(session.durationMinutes),
+      ].filter(Boolean)
 
-  const happeningNowIds = new Set(happeningNowItems.map((item) => item.id))
-  const uniqueBottomActivities = activityItems.filter(
-    (item) => !happeningNowIds.has(item.id),
-  )
-  const bottomActivityItems =
-    uniqueBottomActivities.length >= 4 ? uniqueBottomActivities : activityItems
+      return {
+        id: session.groupId,
+        kind: 'programs',
+        durationMinutes: session.durationMinutes,
+        title: session.activityTitle,
+        creator: session.participants[0] ?? null,
+        isPlatform: false,
+        scheduleLine: scheduleParts.length > 0 ? scheduleParts.join(' · ') : null,
+        hero: activityHero(
+          {
+            title: session.activityTitle,
+            thumbnailUrl: session.thumbnailUrl,
+            coverMedia: session.coverMedia ?? null,
+            categoryId: session.categoryId,
+          },
+          categorySlugOf,
+        ),
+        liveSession: session,
+        onSelect: () => {
+          saveBrowseScroll(currentUrl)
+          navigate(buildGroupUrl(session.groupId, { returnTo: currentUrl }))
+        },
+      }
+    })
 
   const recentActivityItems: BrowseFeedItem[] = programItems
     .filter(
@@ -1431,16 +1442,14 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
               item={item}
               aspect={aspect}
               titleSize={titleSize}
-              actionable={layout === 'action-row'}
-              isAdded={addedActivityIds.has(item.id)}
-              isAdding={addingActivityId === item.id}
-              onDoNow={(act) => void handleDoNow(act)}
               actionLabel={
                 mode.isPicker
                   ? mode.actionLabel
-                  : item.kind === 'programs'
-                    ? 'View Program'
-                    : 'View Activity'
+                  : item.liveSession
+                    ? 'Join Session'
+                    : item.kind === 'programs'
+                      ? 'View Program'
+                      : 'View Activity'
               }
               isPicker={mode.isPicker}
               currentUrl={currentUrl}
@@ -1448,6 +1457,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
               joinedIds={joinedGroupIds}
               joiningGroupId={joiningGroupId}
               onQuickJoin={(groupId) => void handleQuickJoin(groupId)}
+              onJoinSession={(session) => void handleJoinSession(session)}
             />
           </li>
         ))}
@@ -1456,11 +1466,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   }
 
   const sectionItemsBySource: Record<SectionSource, BrowseFeedItem[]> = {
-    'happening-now': activities.isPending ? [] : happeningNowItems,
+    'happening-now': liveSessions.isPending ? [] : happeningNowItems,
     'recent-activity': recentActivityItems,
     'starting-soon': startingSoonPrograms.isPending ? [] : startingSoonItems,
     programs: programItems,
-    activities: activities.isPending ? [] : bottomActivityItems,
+    activities: activities.isPending ? [] : activityItems,
   }
 
   const communitySections: CommunitySectionConfig[] = [
@@ -1470,7 +1480,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       source: 'happening-now',
       layout: 'action-row',
       limit: 4,
-      onViewAll: () => switchKind('activities'),
     },
     {
       id: 'recent-activity',

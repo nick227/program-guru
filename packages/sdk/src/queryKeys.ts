@@ -79,6 +79,7 @@ export const queryKeys = {
   enrollments: ['enrollments'] as const,
   enrollment: (id: string) => ['enrollments', id] as const,
   groups: ['groups'] as const,
+  liveSessions: ['groups', 'live'] as const,
   programGroups: (programId: string, timing = 'ALL') =>
     ['programs', programId, 'groups', timing] as const,
   activityGroups: (activityId: string, programId = '') =>

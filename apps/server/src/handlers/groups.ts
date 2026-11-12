@@ -1,5 +1,6 @@
 import { requireUser, resolveViewer } from '../lib/auth'
 import * as groups from '../domains/groups/group.service'
+import * as presence from '../domains/groups/presence.service'
 
 const uid = (request: any) => requireUser(request).id
 
@@ -91,5 +92,20 @@ export async function addCompletionComment(request: any) {
 }
 export async function deleteCompletionComment(request: any) {
   await groups.deleteCompletionComment(uid(request), request.params.commentId)
+  return { data: { ok: true } }
+}
+export async function listLiveSessions(request: any) {
+  const viewer = await resolveViewer(request)
+  return { data: await presence.listLivePublicSessions(viewer?.id ?? null) }
+}
+export async function heartbeatGroupPresence(request: any) {
+  return { data: await presence.heartbeat(uid(request), request.params.groupId, request.body ?? undefined) }
+}
+export async function leaveGroupPresence(request: any) {
+  presence.leave(uid(request), request.params.groupId)
+  return { data: { ok: true } }
+}
+export async function leaveGroupPresenceBeacon(request: any) {
+  presence.leave(uid(request), request.params.groupId)
   return { data: { ok: true } }
 }

@@ -575,3 +575,43 @@ export function useDeleteCompletionComment(shareId: string) {
     [keys.completionComments(shareId), keys.groups, keys.occurrences],
   )
 }
+
+export function useLiveSessions(enabled = true) {
+  return useQuery({
+    queryKey: useViewerKey(keys.liveSessions),
+    enabled,
+    refetchInterval: enabled ? 10_000 : false,
+    refetchIntervalInBackground: false,
+    queryFn: async ({ signal }) =>
+      apiData(
+        await getApiClient().GET('/groups/live', {
+          signal,
+        }),
+      ).data,
+  })
+}
+
+export async function heartbeatGroupPresence(
+  groupId: string,
+  activityTitle?: string,
+) {
+  return apiData(
+    await getApiClient().PUT('/groups/{groupId}/presence', {
+      params: { path: { groupId } },
+      body: activityTitle ? { activityTitle } : undefined,
+    }),
+  ).data
+}
+
+export async function leaveGroupPresence(groupId: string, beacon = false) {
+  if (beacon) {
+    await getApiClient().POST('/groups/{groupId}/presence/leave', {
+      params: { path: { groupId } },
+      keepalive: true,
+    })
+    return
+  }
+  await getApiClient().DELETE('/groups/{groupId}/presence', {
+    params: { path: { groupId } },
+  })
+}

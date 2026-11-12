@@ -1762,6 +1762,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/groups/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List live joinable public group sessions */
+        get: operations["listLiveSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/groups/{groupId}": {
         parameters: {
             query?: never;
@@ -1778,6 +1795,41 @@ export interface paths {
         head?: never;
         /** Update group */
         patch: operations["updateGroup"];
+        trace?: never;
+    };
+    "/groups/{groupId}/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Heartbeat active presence in a group session */
+        put: operations["heartbeatGroupPresence"];
+        post?: never;
+        /** Leave active presence in a group session */
+        delete: operations["leaveGroupPresence"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/groups/{groupId}/presence/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leave active presence on page unload */
+        post: operations["leaveGroupPresenceBeacon"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/groups/{groupId}/preview": {
@@ -4143,6 +4195,36 @@ export interface components {
             activityTitle: string;
             /** Format: date-time */
             completedAt: string;
+        };
+        GroupPresenceSummary: {
+            /** Format: uuid */
+            groupId: string;
+            activeCount: number;
+            participants: components["schemas"]["UserSummary"][];
+            /** Format: date-time */
+            startedAt: string | null;
+        };
+        LiveSessionSummary: {
+            /** Format: uuid */
+            groupId: string;
+            groupName: string | null;
+            /** Format: uuid */
+            programId: string;
+            programTitle: string;
+            activityTitle: string;
+            durationMinutes: number | null;
+            thumbnailUrl: string | null;
+            coverMedia?: components["schemas"]["MediaPresentation"] | null;
+            /** Format: uuid */
+            categoryId: string;
+            activeCount: number;
+            participants: components["schemas"]["UserSummary"][];
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            lastActiveAt: string;
+            viewerIsMember: boolean;
+            joinPolicy: components["schemas"]["GroupJoinPolicy"];
         };
         PublicGroupSummary: {
             /** Format: uuid */
@@ -8364,6 +8446,28 @@ export interface operations {
             429: components["responses"]["RateLimited"];
         };
     };
+    listLiveSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LiveSessionSummary"][];
+                    };
+                };
+            };
+        };
+    };
     getGroup: {
         parameters: {
             query?: never;
@@ -8424,6 +8528,93 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    heartbeatGroupPresence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                groupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    activityTitle?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GroupPresenceSummary"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    leaveGroupPresence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                groupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            ok: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    leaveGroupPresenceBeacon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                groupId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            ok: boolean;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     getPublicGroupPreview: {

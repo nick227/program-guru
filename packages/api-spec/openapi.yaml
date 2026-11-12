@@ -4186,6 +4186,27 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /groups/live:
+    get:
+      operationId: listLiveSessions
+      summary: List live joinable public group sessions
+      tags:
+      - groups
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LiveSessionSummary'
   /groups/{groupId}:
     get:
       operationId: getGroup
@@ -4261,6 +4282,110 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /groups/{groupId}/presence:
+    put:
+      operationId: heartbeatGroupPresence
+      summary: Heartbeat active presence in a group session
+      tags:
+      - groups
+      parameters:
+      - in: path
+        name: groupId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                activityTitle:
+                  type: string
+                  maxLength: 160
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GroupPresenceSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: leaveGroupPresence
+      summary: Leave active presence in a group session
+      tags:
+      - groups
+      parameters:
+      - in: path
+        name: groupId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                    - ok
+                    properties:
+                      ok:
+                        type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /groups/{groupId}/presence/leave:
+    post:
+      operationId: leaveGroupPresenceBeacon
+      summary: Leave active presence on page unload
+      tags:
+      - groups
+      parameters:
+      - in: path
+        name: groupId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                    - ok
+                    properties:
+                      ok:
+                        type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /groups/{groupId}/preview:
     get:
       operationId: getPublicGroupPreview
@@ -10826,6 +10951,93 @@ components:
         completedAt:
           type: string
           format: date-time
+    GroupPresenceSummary:
+      type: object
+      required:
+      - groupId
+      - activeCount
+      - participants
+      - startedAt
+      properties:
+        groupId:
+          type: string
+          format: uuid
+        activeCount:
+          type: integer
+          minimum: 0
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        startedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    LiveSessionSummary:
+      type: object
+      required:
+      - groupId
+      - groupName
+      - programId
+      - programTitle
+      - activityTitle
+      - durationMinutes
+      - thumbnailUrl
+      - categoryId
+      - activeCount
+      - participants
+      - startedAt
+      - lastActiveAt
+      - viewerIsMember
+      - joinPolicy
+      properties:
+        groupId:
+          type: string
+          format: uuid
+        groupName:
+          type:
+          - string
+          - 'null'
+        programId:
+          type: string
+          format: uuid
+        programTitle:
+          type: string
+        activityTitle:
+          type: string
+        durationMinutes:
+          type:
+          - integer
+          - 'null'
+        thumbnailUrl:
+          type:
+          - string
+          - 'null'
+        coverMedia:
+          anyOf:
+          - $ref: '#/components/schemas/MediaPresentation'
+          - type: 'null'
+        categoryId:
+          type: string
+          format: uuid
+        activeCount:
+          type: integer
+          minimum: 1
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        startedAt:
+          type: string
+          format: date-time
+        lastActiveAt:
+          type: string
+          format: date-time
+        viewerIsMember:
+          type: boolean
+        joinPolicy:
+          $ref: '#/components/schemas/GroupJoinPolicy'
     PublicGroupSummary:
       type: object
       required:
