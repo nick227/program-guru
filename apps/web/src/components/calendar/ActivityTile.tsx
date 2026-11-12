@@ -322,7 +322,11 @@ export function ActivityTile({
     const dayBadgeContent = (
       <>
         <span className="calendar-badge__icon" aria-hidden>
-          <CategoryIcon category={category} size={15} />
+          {isDone ? (
+            <Check size={14} className="text-success" />
+          ) : (
+            <CategoryIcon category={category} size={15} />
+          )}
         </span>
         <span
           className={cn(

@@ -71,7 +71,7 @@ export function CalendarPage() {
     me.data!.data.preferences.notifications?.dailyReminderTime ?? '08:00'
   const [reminderTime, setReminderTime] = useState(defaultReminderTime)
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [showAllHours, setShowAllHours] = useState(true)
+  const [showAllHours, setShowAllHours] = useState(false)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
   const datePickerRef = useRef<HTMLDivElement>(null)
@@ -409,10 +409,10 @@ export function CalendarPage() {
                 'calendar-toolbar__toggle',
                 showAllHours && 'calendar-toolbar__toggle--active',
               )}
-              title={showAllHours ? 'Show active hours only' : 'Show all 24 hours'}
+              title={showAllHours ? 'Switch to Focused Hours' : 'Show all 24 hours'}
             >
               <Clock3 size={15} aria-hidden />
-              <span>{showAllHours ? 'All 24h' : 'All hours'}</span>
+              <span>{showAllHours ? 'All 24h' : 'Focused Hours'}</span>
             </button>
 
             <button

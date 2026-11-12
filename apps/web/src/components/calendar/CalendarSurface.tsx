@@ -110,23 +110,31 @@ function DayHourlyTable({
 
   const visibleHours = (() => {
     if (showAllHours) return HOURS
-    if (dayEntries.length === 0) return []
-    const activeSet = new Set<number>()
+    const anchors: number[] = []
     for (const hourKey of byHour.keys()) {
-      activeSet.add(Number(hourKey))
+      anchors.push(Number(hourKey))
     }
     if (isViewingToday) {
-      activeSet.add(now.hour)
+      anchors.push(now.hour)
     }
-    return [...activeSet].sort((a, b) => a - b)
+    if (anchors.length === 0) {
+      return HOURS.slice(7, 20)
+    }
+    const minAnchor = Math.min(...anchors)
+    const maxAnchor = Math.max(...anchors)
+    let start = Math.max(0, minAnchor - 1)
+    let end = Math.min(23, maxAnchor + 2)
+    // Ensure at least a 6-hour focused window so the timeline feels usable.
+    while (end - start < 5 && (start > 0 || end < 23)) {
+      if (start > 0) start--
+      if (end - start < 5 && end < 23) end++
+    }
+    const range: number[] = []
+    for (let h = start; h <= end; h++) range.push(h)
+    return range
   })()
 
-  if (!showAllHours && dayEntries.length === 0) {
-    return null
-  }
-
-  const showAnyTimeRow =
-    showAllHours || untimedEntries.length > 0 || draggingId !== null
+  const showAnyTimeRow = true
 
   const handleDragStart = (event: React.DragEvent<HTMLElement>, item: SurfaceItem) => {
     draggingIdRef.current = item.id
@@ -334,13 +342,26 @@ function DayHourlyTable({
                     )}
                     <div className="calendar-day-table__list">
                       {hourEntries.map(renderDayEntry)}
-                      {addingSlot === hourKey && (
+                      {addingSlot === hourKey ? (
                         <InlineActivityPicker
                           day={day.id}
                           localTime={slotTime}
                           onScheduled={(itemId) => onItemScheduled?.(itemId)}
                           onClose={() => setAddingSlot(null)}
                         />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setAddingSlot(hourKey)
+                          }}
+                          className="calendar-day-table__row-add"
+                          aria-label={`Add activity at ${formatHourLabel(hour)}`}
+                        >
+                          <Plus size={13} aria-hidden />
+                          <span>Add</span>
+                        </button>
                       )}
                     </div>
                   </td>
@@ -349,22 +370,25 @@ function DayHourlyTable({
             )
           })}
 
-          {!showAllHours && visibleHours.length === 0 && onToggleAllHours && (
-            <tr className="calendar-day-table__row calendar-day-table__row--gap">
-              <th scope="row" className="calendar-day-table__time" aria-hidden>
-                Hours
-              </th>
-              <td className="calendar-day-table__gap-cell">
-                <button
-                  type="button"
-                  onClick={onToggleAllHours}
-                  className="calendar-day-table__gap-btn"
-                >
-                  Show all 24 hours to drag &amp; schedule by time
-                </button>
-              </td>
-            </tr>
-          )}
+          {!showAllHours &&
+            visibleHours.length > 0 &&
+            (visibleHours[0]! > 0 || visibleHours[visibleHours.length - 1]! < 23) &&
+            onToggleAllHours && (
+              <tr className="calendar-day-table__row calendar-day-table__row--gap">
+                <th scope="row" className="calendar-day-table__time" aria-hidden>
+                  ···
+                </th>
+                <td className="calendar-day-table__gap-cell">
+                  <button
+                    type="button"
+                    onClick={onToggleAllHours}
+                    className="calendar-day-table__gap-btn"
+                  >
+                    Show all 24 hours
+                  </button>
+                </td>
+              </tr>
+            )}
 
           {showAllHours && (
             <tr className="calendar-day-table__row calendar-day-table__row--end" aria-hidden="true">

@@ -19,6 +19,7 @@ import {
   useCancelCalendarItem,
   useCompletionComments,
   useCreateCheckIns,
+  useCreateSession,
   useCurrentUser,
   useDeleteCompletionComment,
   useGroupCompletions,
@@ -26,9 +27,12 @@ import {
   useMediaPublication,
   useOccurrence,
   useRemoveCompletionReaction,
+  useSaveResults,
   type components,
 } from '@project/sdk'
 import { toast } from 'sonner'
+import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
+import { MetricInput } from '@/components/activity/MetricInput'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
@@ -46,7 +50,9 @@ import { cn } from '@/lib/utils'
 import type { SurfaceItem } from '@/lib/calendarGrouping'
 
 type S = components['schemas']
-type PanelTab = 'activity' | 'comments' | 'media'
+
+const metricKey = (m: S['MetricInput']) =>
+  `${m.instructionId ?? ''}:${m.metricDefinitionId}`
 
 export interface SelectedActivityPanelProps {
   itemId: string | null
@@ -77,16 +83,23 @@ function PanelBody({
   const occurrence = occurrenceQuery.data
   const item = occurrence?.item
 
-  const [activeTab, setActiveTab] = useState<PanelTab>('activity')
   const [menuOpen, setMenuOpen] = useState(false)
   const [groupOpen, setGroupOpen] = useState(false)
   const [checkInOpen, setCheckInOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
-  const [heroFailed, setHeroFailed] = useState(false)
+  const [thumbFailed, setThumbFailed] = useState(false)
+  const [dirtyMetrics, setDirtyMetrics] = useState<
+    Record<string, string | number | boolean>
+  >({})
+  const [savingMetrics, setSavingMetrics] = useState(false)
+
   const menuRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const sessionCreateKey = useRef(crypto.randomUUID())
 
+  const createSession = useCreateSession(itemId ?? '')
+  const saveResults = useSaveResults(itemId ?? '')
   const addReaction = useAddCompletionReaction()
   const removeReaction = useRemoveCompletionReaction()
   const createCheckIn = useCreateCheckIns()
@@ -94,11 +107,12 @@ function PanelBody({
   const publishMedia = useMediaPublication()
 
   useEffect(() => {
-    setActiveTab('activity')
     setMenuOpen(false)
     setGroupOpen(false)
     setViewerIndex(null)
-    setHeroFailed(false)
+    setThumbFailed(false)
+    setDirtyMetrics({})
+    sessionCreateKey.current = crypto.randomUUID()
   }, [itemId])
 
   useEffect(() => {
@@ -154,7 +168,7 @@ function PanelBody({
         })
         toast.success('Photo shared with group')
       } catch {
-        // Error surfaced by mutation state if needed.
+        // Error surfaced below.
       }
     },
   })
@@ -230,15 +244,22 @@ function PanelBody({
   const metaParts = [
     timeDisplay ?? 'Any time',
     durationMinutes ? `${durationMinutes} min` : null,
+    programTitle || null,
   ].filter(Boolean)
 
-  const heroImageUrl =
-    (!heroFailed &&
-      (sharedMediaList[0]?.thumbnailUrl ||
-        myMediaList[0]?.thumbnailUrl ||
-        item?.thumbnailUrl ||
-        calendarItem?.thumbnailUrl)) ||
+  const thumbUrl =
+    (!thumbFailed &&
+      (item?.thumbnailUrl ||
+        calendarItem?.thumbnailUrl ||
+        sharedMediaList[0]?.thumbnailUrl ||
+        myMediaList[0]?.thumbnailUrl)) ||
     null
+
+  const resultInputs = (occurrence?.resultInputs ?? []).filter(
+    (m) => m.valueType !== 'DURATION',
+  )
+  const instructions = occurrence?.instructions ?? []
+  const hasDirtyMetrics = Object.keys(dirtyMetrics).length > 0
 
   const groupPeople =
     occurrence?.collaborators?.members.map((m) => ({
@@ -261,6 +282,66 @@ function PanelBody({
     !isLocked &&
     status !== 'NOT_PARTICIPATING' &&
     status !== 'CANCELLED'
+
+  async function persistMetricsIfDirty() {
+    if (!hasDirtyMetrics || !item) return
+    const session =
+      occurrence?.session &&
+      !['FINISHED', 'ABANDONED'].includes(occurrence.session.status)
+        ? occurrence.session
+        : await createSession.mutateAsync({
+            calendarItemId: item.id,
+            idempotencyKey: sessionCreateKey.current,
+          })
+
+    const groups = new Map<string, S['MetricInput'][]>()
+    for (const m of resultInputs) {
+      if (dirtyMetrics[metricKey(m)] !== undefined) {
+        const k = m.instructionId ?? ''
+        groups.set(k, [...(groups.get(k) ?? []), m])
+      }
+    }
+    for (const [instructionId, metrics] of groups) {
+      await saveResults.mutateAsync({
+        sessionId: session.id,
+        instructionId: instructionId || null,
+        values: metrics.map((m) => ({
+          metricDefinitionId: m.metricDefinitionId,
+          value: dirtyMetrics[metricKey(m)]!,
+          ...(m.unit ? { unit: m.unit } : {}),
+        })),
+      })
+    }
+    setDirtyMetrics({})
+  }
+
+  async function handleSaveMetrics() {
+    if (!online || savingMetrics || !hasDirtyMetrics) return
+    setSavingMetrics(true)
+    try {
+      await persistMetricsIfDirty()
+      toast.success('Metrics saved')
+    } catch {
+      // Surfaced via ErrorMessage.
+    } finally {
+      setSavingMetrics(false)
+    }
+  }
+
+  async function handleCompleteClick() {
+    if (!itemId) return
+    if (hasDirtyMetrics) {
+      setSavingMetrics(true)
+      try {
+        await persistMetricsIfDirty()
+      } catch {
+        setSavingMetrics(false)
+        return
+      }
+      setSavingMetrics(false)
+    }
+    await onComplete(itemId)
+  }
 
   const toggleHeart = (share: S['CompletionShare']) => {
     const emoji = '❤️'
@@ -287,7 +368,6 @@ function PanelBody({
           idempotencyKey: crypto.randomUUID(),
         })
         setMessage('')
-        if (activeTab !== 'comments') setActiveTab('comments')
       } else if (groupId && item?.activityId) {
         await createCheckIn.mutateAsync({
           activityId: item.activityId,
@@ -322,28 +402,21 @@ function PanelBody({
         </div>
       )}
 
-      {/* 1. Activity Hero Media */}
-      <div className="calendar-panel__hero">
-        {heroImageUrl ? (
-          <img
-            src={heroImageUrl}
-            alt={title}
-            onError={() => setHeroFailed(true)}
-            className="calendar-panel__hero-img"
-          />
-        ) : (
-          <div className="calendar-panel__hero-fallback" aria-hidden>
-            <CategoryIcon category={category} size={36} />
-          </div>
-        )}
-      </div>
-
       <div className="calendar-panel__content">
-        {/* 2. Title + Meta + Overflow Actions */}
+        {/* 1. Compact Header with Modest Activity Media */}
         <div className="calendar-panel__header">
-          <span className="calendar-panel__cat-badge" aria-hidden>
-            <CategoryIcon category={category} size={20} />
-          </span>
+          {thumbUrl ? (
+            <img
+              src={thumbUrl}
+              alt=""
+              onError={() => setThumbFailed(true)}
+              className="calendar-panel__thumb"
+            />
+          ) : (
+            <span className="calendar-panel__cat-badge" aria-hidden>
+              <CategoryIcon category={category} size={20} />
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             <h2 className="calendar-panel__title">{title}</h2>
             <p className="calendar-panel__subtitle">{metaParts.join(' · ')}</p>
@@ -429,7 +502,7 @@ function PanelBody({
           </div>
         </div>
 
-        {/* 3. Completion Action */}
+        {/* 2. Completion Action */}
         <div className="calendar-panel__complete-wrap">
           {isLocked ? (
             <Link
@@ -457,19 +530,71 @@ function PanelBody({
           ) : (
             <button
               type="button"
-              disabled={!online || !canComplete || completing}
-              onClick={() => void onComplete(itemId)}
+              disabled={!online || !canComplete || completing || savingMetrics}
+              onClick={() => void handleCompleteClick()}
               className="calendar-panel__complete-btn"
             >
               <Check size={16} aria-hidden />
-              <span>{completing ? 'Saving...' : 'Mark as Complete'}</span>
+              <span>
+                {completing || savingMetrics ? 'Saving...' : 'Mark as Complete'}
+              </span>
             </button>
           )}
         </div>
 
-        {/* 4. Group Members Row */}
+        {/* 3. Instructions */}
+        {instructions.length > 0 && (
+          <section className="calendar-panel__section" aria-label="Instructions">
+            <h3 className="calendar-panel__section-title">Instructions</h3>
+            <div className="calendar-panel__instructions">
+              <ActivityInstructions instructions={instructions} locked={isLocked} />
+            </div>
+          </section>
+        )}
+
+        {/* 4. Metrics / Results */}
+        {resultInputs.length > 0 && !isLocked && (
+          <section className="calendar-panel__section" aria-label="Metrics">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="calendar-panel__section-title">Log Metrics</h3>
+              {hasDirtyMetrics && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!online || savingMetrics}
+                  loading={savingMetrics}
+                  onClick={() => void handleSaveMetrics()}
+                >
+                  Save
+                </Button>
+              )}
+            </div>
+            <div className="space-y-3">
+              {resultInputs.map((metric) => {
+                const key = metricKey(metric)
+                const value =
+                  dirtyMetrics[key] !== undefined
+                    ? dirtyMetrics[key]!
+                    : metric.recorded
+                return (
+                  <MetricInput
+                    key={key}
+                    metric={metric}
+                    value={value}
+                    disabled={!online || savingMetrics}
+                    onChange={(nextVal) =>
+                      setDirtyMetrics((prev) => ({ ...prev, [key]: nextVal }))
+                    }
+                  />
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* 5. Group Members & Check-in Trigger */}
         {(groupPeople.length > 0 || groupId) && (
-          <div className="calendar-panel__group-section">
+          <section className="calendar-panel__section" aria-label="Group">
             <button
               type="button"
               aria-expanded={groupOpen}
@@ -478,14 +603,12 @@ function PanelBody({
             >
               <div className="flex min-w-0 items-center gap-2.5">
                 {groupPeople.length > 0 ? (
-                  <AvatarStack people={groupPeople} max={3} />
+                  <AvatarStack people={groupPeople} max={4} />
                 ) : (
                   <Users size={16} className="text-muted" aria-hidden />
                 )}
                 <span className="truncate text-xs font-medium text-muted">
-                  {groupCount > 0
-                    ? `${groupCount} in this group`
-                    : 'View group'}
+                  {groupCount > 0 ? `${groupCount} in this group` : 'View group'}
                 </span>
               </div>
               <ChevronRight
@@ -527,48 +650,42 @@ function PanelBody({
                 )}
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {/* 5. Community Tabs: Activity | Comments | Media */}
-        <div className="calendar-panel__tabs" role="tablist" aria-label="Activity community">
-          {(
-            [
-              { id: 'activity', label: 'Activity' },
-              {
-                id: 'comments',
-                label:
-                  commentRows.length > 0
-                    ? `Comments (${commentRows.length})`
-                    : 'Comments',
-              },
-              {
-                id: 'media',
-                label:
-                  allViewerMedia.length > 0
-                    ? `Media (${allViewerMedia.length})`
-                    : 'Media',
-              },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'calendar-panel__tab',
-                activeTab === tab.id && 'calendar-panel__tab--active',
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {/* 6. Shared Media Strip (when media exists) */}
+        {allViewerMedia.length > 0 && (
+          <section className="calendar-panel__section" aria-label="Shared media">
+            <h3 className="calendar-panel__section-title">Media</h3>
+            <div className="grid grid-cols-4 gap-1.5">
+              {allViewerMedia.slice(0, 8).map((m, index) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setViewerIndex(index)}
+                  className="aspect-square overflow-hidden rounded-lg border border-border/70 bg-surface-raised"
+                >
+                  {m.thumbnailUrl ? (
+                    <img
+                      src={m.thumbnailUrl}
+                      alt={m.alt ?? 'Activity media'}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-muted">
+                      <ImageIcon size={16} />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         <ErrorMessage
           error={
+            createSession.error ||
+            saveResults.error ||
             addReaction.error ||
             removeReaction.error ||
             addComment.error ||
@@ -577,218 +694,155 @@ function PanelBody({
           }
         />
 
-        {/* Tab Body */}
-        <div className="calendar-panel__feed">
-          {activeTab === 'activity' && (
-            <>
-              {!groupId ? (
-                <p className="py-4 text-center text-xs text-muted">
-                  No group linked to this activity yet.
-                </p>
-              ) : completionsQuery.isPending ? (
-                <Loading />
-              ) : checkInRows.length === 0 ? (
-                <div className="py-4 text-center">
-                  <p className="text-xs text-muted">
-                    No check-ins yet for this session.
-                  </p>
-                  {isDone && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-2"
-                      onClick={() => setCheckInOpen(true)}
-                      disabled={!online}
-                    >
-                      Share Check-in
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <ul className="space-y-3.5">
-                  {checkInRows.map((share) => {
-                    const isMe = share.user.id === viewerId
-                    const liked = share.reactions.some(
-                      (r) => r.emoji === '❤️' && r.reactedByMe,
-                    )
-                    const likeCount =
-                      share.reactions.find((r) => r.emoji === '❤️')?.count ?? 0
-                    return (
-                      <li key={share.id} className="calendar-panel__feed-item">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex min-w-0 items-start gap-2.5">
-                            <Avatar
-                              src={share.user.avatarUrl}
-                              name={share.user.displayName}
-                              size="sm"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-xs leading-snug text-foreground">
-                                <strong className="font-semibold">
-                                  {isMe ? 'You' : share.user.displayName}
-                                </strong>{' '}
-                                <span className="text-muted">
-                                  {share.media
-                                    ? 'added a photo'
-                                    : 'completed this'}
-                                </span>
-                              </p>
-                              <p className="mt-0.5 text-[11px] text-muted">
-                                {formatRelativeTime(share.completedAt)}
-                              </p>
-                              {share.note && (
-                                <p className="mt-1 text-xs text-foreground/90">
-                                  {share.note}
-                                </p>
-                              )}
-                              {share.media?.thumbnailUrl && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const idx = allViewerMedia.findIndex(
-                                      (m) => m.id === share.media!.id,
-                                    )
-                                    setViewerIndex(idx >= 0 ? idx : 0)
-                                  }}
-                                  className="mt-2 overflow-hidden rounded-lg border border-border/70"
-                                >
-                                  <img
-                                    src={share.media.thumbnailUrl}
-                                    alt="Shared check-in photo"
-                                    className="h-24 w-36 object-cover"
-                                  />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            aria-pressed={liked}
-                            aria-label={`Like ${share.user.displayName}'s check-in`}
-                            disabled={!online}
-                            onClick={() => toggleHeart(share)}
-                            className={cn(
-                              'inline-flex shrink-0 items-center gap-1 rounded-full p-1 text-xs text-muted transition-colors hover:text-foreground',
-                              liked && 'text-accent',
-                            )}
-                          >
-                            <Heart
-                              size={15}
-                              fill={liked ? 'currentColor' : 'none'}
-                            />
-                            {likeCount > 0 && <span>{likeCount}</span>}
-                          </button>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </>
-          )}
+        {/* 7. Group Check-ins & Comments */}
+        <section className="calendar-panel__section" aria-label="Group check-ins and comments">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="calendar-panel__section-title">Group Activity</h3>
+            {groupId && (
+              <button
+                type="button"
+                onClick={() => setCheckInOpen(true)}
+                disabled={!online}
+                className="text-xs font-semibold text-accent hover:underline"
+              >
+                + Check in
+              </button>
+            )}
+          </div>
 
-          {activeTab === 'comments' && (
-            <>
-              {!primaryShare ? (
-                <p className="py-4 text-center text-xs text-muted">
-                  Post a check-in or message below to start commenting.
-                </p>
-              ) : commentsQuery.isPending ? (
-                <Loading />
-              ) : commentRows.length === 0 ? (
-                <p className="py-4 text-center text-xs text-muted">
-                  No comments yet. Say something to the group.
-                </p>
-              ) : (
-                <ul className="space-y-2.5">
-                  {commentRows.map((c) => (
-                    <li
-                      key={c.id}
-                      className="flex items-start justify-between gap-2 rounded-lg bg-surface-raised/60 px-2.5 py-2 text-xs"
-                    >
-                      <div className="flex min-w-0 items-start gap-2">
+          {!groupId ? (
+            <p className="text-xs text-muted">
+              No group linked to this activity yet.
+            </p>
+          ) : completionsQuery.isPending ? (
+            <Loading />
+          ) : checkInRows.length === 0 ? (
+            <p className="text-xs text-muted">
+              No check-ins yet. Complete or post a note below.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {checkInRows.map((share) => {
+                const isMe = share.user.id === viewerId
+                const liked = share.reactions.some(
+                  (r) => r.emoji === '❤️' && r.reactedByMe,
+                )
+                const likeCount =
+                  share.reactions.find((r) => r.emoji === '❤️')?.count ?? 0
+                return (
+                  <li key={share.id} className="calendar-panel__feed-item">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-start gap-2.5">
                         <Avatar
-                          src={c.author.avatarUrl}
-                          name={c.author.displayName}
+                          src={share.user.avatarUrl}
+                          name={share.user.displayName}
                           size="sm"
                         />
                         <div className="min-w-0">
-                          <p className="font-medium text-foreground">
-                            {c.author.displayName}{' '}
-                            <span className="font-normal text-muted">
-                              · {formatRelativeTime(c.createdAt)}
+                          <p className="text-xs leading-snug text-foreground">
+                            <strong className="font-semibold">
+                              {isMe ? 'You' : share.user.displayName}
+                            </strong>{' '}
+                            <span className="text-muted">
+                              {share.media ? 'added a photo' : 'completed this'}
                             </span>
                           </p>
-                          <p className="mt-0.5 break-words text-foreground/90">
-                            {c.body}
+                          <p className="mt-0.5 text-[11px] text-muted">
+                            {formatRelativeTime(share.completedAt)}
                           </p>
+                          {share.note && (
+                            <p className="mt-1 text-xs text-foreground/90">
+                              {share.note}
+                            </p>
+                          )}
+                          {share.media?.thumbnailUrl && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const idx = allViewerMedia.findIndex(
+                                  (m) => m.id === share.media!.id,
+                                )
+                                setViewerIndex(idx >= 0 ? idx : 0)
+                              }}
+                              className="mt-2 overflow-hidden rounded-lg border border-border/70"
+                            >
+                              <img
+                                src={share.media.thumbnailUrl}
+                                alt="Shared check-in photo"
+                                className="h-20 w-28 object-cover"
+                              />
+                            </button>
+                          )}
                         </div>
                       </div>
-                      {c.canDelete && (
-                        <button
-                          type="button"
-                          aria-label="Delete comment"
-                          disabled={!online || deleteComment.isPending}
-                          onClick={() => deleteComment.mutate(c.id)}
-                          className="shrink-0 p-1 text-muted hover:text-danger"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
+                      <button
+                        type="button"
+                        aria-pressed={liked}
+                        aria-label={`Like ${share.user.displayName}'s check-in`}
+                        disabled={!online}
+                        onClick={() => toggleHeart(share)}
+                        className={cn(
+                          'inline-flex shrink-0 items-center gap-1 rounded-full p-1 text-xs text-muted transition-colors hover:text-foreground',
+                          liked && 'text-accent',
+                        )}
+                      >
+                        <Heart
+                          size={14}
+                          fill={liked ? 'currentColor' : 'none'}
+                        />
+                        {likeCount > 0 && <span>{likeCount}</span>}
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
           )}
 
-          {activeTab === 'media' && (
-            <>
-              {allViewerMedia.length === 0 ? (
-                <div className="py-4 text-center">
-                  <p className="text-xs text-muted">No media shared yet.</p>
-                  {groupId && (
-                    <Button
+          {commentRows.length > 0 && (
+            <ul className="mt-3 space-y-2 border-t border-border/60 pt-3">
+              {commentRows.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-start justify-between gap-2 rounded-lg bg-surface-raised/60 px-2.5 py-2 text-xs"
+                >
+                  <div className="flex min-w-0 items-start gap-2">
+                    <Avatar
+                      src={c.author.avatarUrl}
+                      name={c.author.displayName}
                       size="sm"
-                      variant="outline"
-                      className="mt-2"
-                      disabled={!online || uploading}
-                      onClick={() => fileRef.current?.click()}
-                    >
-                      Upload photo
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {allViewerMedia.map((m, index) => (
+                    />
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">
+                        {c.author.displayName}{' '}
+                        <span className="font-normal text-muted">
+                          · {formatRelativeTime(c.createdAt)}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 break-words text-foreground/90">
+                        {c.body}
+                      </p>
+                    </div>
+                  </div>
+                  {c.canDelete && (
                     <button
-                      key={m.id}
                       type="button"
-                      onClick={() => setViewerIndex(index)}
-                      className="aspect-square overflow-hidden rounded-lg border border-border/70 bg-surface-raised"
+                      aria-label="Delete comment"
+                      disabled={!online || deleteComment.isPending}
+                      onClick={() => deleteComment.mutate(c.id)}
+                      className="shrink-0 p-1 text-muted hover:text-danger"
                     >
-                      {m.thumbnailUrl ? (
-                        <img
-                          src={m.thumbnailUrl}
-                          alt={m.alt ?? 'Activity media'}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-muted">
-                          <ImageIcon size={18} />
-                        </div>
-                      )}
+                      <Trash2 size={13} />
                     </button>
-                  ))}
-                </div>
-              )}
-            </>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
-        </div>
+        </section>
       </div>
 
-      {/* 6. Bottom Composer */}
+      {/* 8. Bottom Composer */}
       <form
         onSubmit={(e) => void handleSendMessage(e)}
         className="calendar-panel__composer"
@@ -867,7 +921,6 @@ export function SelectedActivityPanel(props: SelectedActivityPanelProps) {
 
   return (
     <>
-      {/* Desktop right-side panel */}
       <aside
         className="calendar-panel hidden lg:flex"
         aria-label="Selected activity details"
@@ -880,14 +933,13 @@ export function SelectedActivityPanel(props: SelectedActivityPanelProps) {
               Select an activity
             </p>
             <p className="mt-1 text-xs text-muted">
-              Click any activity on the timeline to complete it, reschedule, or
+              Click any activity on the timeline to complete it, log metrics, or
               participate with your group.
             </p>
           </div>
         )}
       </aside>
 
-      {/* Mobile bottom sheet */}
       {itemId && (
         <div
           className="calendar-sheet-backdrop lg:hidden"
