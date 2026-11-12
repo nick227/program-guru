@@ -70,7 +70,7 @@ type Sort = S['DiscoverSort']
 
 const SCROLL_KEY_PREFIX = 'browse-scroll:'
 const GRID_CLASS =
-  'grid grid-cols-1 gap-x-5 gap-y-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-[1720px]:grid-cols-5'
+  'grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-[2100px]:grid-cols-5'
 
 type SectionLayout = 'grid' | 'portrait-row' | 'large-cards' | 'feature'
 type SectionSource = 'recent-activity' | 'starting-soon' | 'programs' | 'activities'
@@ -434,6 +434,50 @@ function ParticipationAvatars({
   )
 }
 
+function CreatorAvatar({
+  creator,
+  creatorName,
+  creatorProfileUrl,
+}: {
+  creator: S['UserSummary'] | null
+  creatorName: string | null
+  creatorProfileUrl: string | null
+}) {
+  if (!creator) {
+    return (
+      <span
+        aria-hidden
+        className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/60 bg-surface-raised"
+      >
+        <span className="h-2.5 w-2.5 rounded-full bg-accent" />
+      </span>
+    )
+  }
+
+  const avatar = (
+    <Avatar
+      src={creator.avatarUrl}
+      name={creatorName ?? undefined}
+      size="md"
+      className="h-9 w-9 transition-opacity hover:opacity-85"
+    />
+  )
+
+  if (creatorProfileUrl) {
+    return (
+      <Link
+        to={creatorProfileUrl}
+        aria-label={creatorName ?? 'Creator profile'}
+        className="mt-0.5 shrink-0"
+      >
+        {avatar}
+      </Link>
+    )
+  }
+
+  return <span className="mt-0.5 shrink-0">{avatar}</span>
+}
+
 function BrowseFeedTile({
   item,
   actionLabel,
@@ -473,8 +517,8 @@ function BrowseFeedTile({
     titleSize === 'xl'
       ? 'line-clamp-2 font-display text-xl font-semibold leading-snug tracking-[-0.02em] text-foreground transition-colors hover:text-accent sm:text-2xl'
       : titleSize === 'lg'
-        ? 'line-clamp-2 font-display text-base font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-lg'
-        : 'line-clamp-2 font-display text-[15px] font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-base'
+        ? 'line-clamp-2 font-display text-lg font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-xl'
+        : 'line-clamp-2 font-display text-base font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-[17px]'
 
   const mediaNode = (
     <button
@@ -501,28 +545,12 @@ function BrowseFeedTile({
   )
 
   const metaNode = (
-    <div className={cn('flex items-start gap-3', titleSize !== 'xl' && 'mt-3')}>
-      {creatorProfileUrl ? (
-        <Link
-          to={creatorProfileUrl}
-          aria-label={creatorName ?? 'Creator profile'}
-          className="mt-0.5 shrink-0"
-        >
-          <Avatar
-            src={item.creator?.avatarUrl}
-            name={creatorName ?? undefined}
-            size="md"
-            className="h-9 w-9 transition-opacity hover:opacity-85"
-          />
-        </Link>
-      ) : (
-        <Avatar
-          src={item.creator?.avatarUrl}
-          name={creatorName ?? 'Program Guru'}
-          size="md"
-          className="mt-0.5 h-9 w-9 shrink-0"
-        />
-      )}
+    <div className={cn('flex items-start gap-3', titleSize !== 'xl' && 'mt-3.5')}>
+      <CreatorAvatar
+        creator={item.creator}
+        creatorName={creatorName}
+        creatorProfileUrl={creatorProfileUrl}
+      />
 
       <div className="min-w-0 flex-1">
         <button
@@ -1311,13 +1339,13 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   ]
 
   return (
-    <Page className="page--wide pb-20">
+    <Page className="max-w-none px-4 pb-20 sm:px-6 lg:px-8">
       <div className="mx-auto w-full pt-4 md:pt-6">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
-          {/* Left: Fixed 248px sticky sidebar on desktop, slide-over drawer on mobile */}
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-7">
+          {/* Left: Compact 216px sticky sidebar on desktop, slide-over drawer on mobile */}
           <aside
             aria-label="Filters"
-            className="w-full shrink-0 md:sticky md:top-20 md:w-[248px]"
+            className="w-full shrink-0 md:sticky md:top-20 md:w-[216px]"
           >
             <div
               id="browse-filter-groups"
@@ -1857,7 +1885,23 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                               )}
                             </div>
 
-                            {renderSectionLayout(sectionItems, section.layout)}
+                            {section.source === 'programs' &&
+                            recentActivityItems.length === 0 &&
+                            startingSoonItems.length === 0 &&
+                            sectionItems.length >= 4 ? (
+                              <div className="space-y-10">
+                                {renderSectionLayout(
+                                  sectionItems.slice(0, 2),
+                                  'large-cards',
+                                )}
+                                {renderSectionLayout(
+                                  sectionItems.slice(2),
+                                  'grid',
+                                )}
+                              </div>
+                            ) : (
+                              renderSectionLayout(sectionItems, section.layout)
+                            )}
 
                             {section.source === 'programs' &&
                               programs.hasNextPage && (
