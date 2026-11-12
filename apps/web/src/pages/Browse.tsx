@@ -71,7 +71,7 @@ type Sort = S['DiscoverSort']
 
 const SCROLL_KEY_PREFIX = 'browse-scroll:'
 const GRID_CLASS =
-  'grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-[2100px]:grid-cols-5'
+  'grid grid-cols-1 gap-x-7 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
 
 type SectionLayout = 'grid' | 'portrait-row' | 'large-cards' | 'feature' | 'action-row'
 type SectionSource =
@@ -113,6 +113,7 @@ interface BrowseFeedItem {
   scheduleLine: string | null
   hero: Hero
   featuredGroup?: S['PublicGroupSummary'] | null
+  participantCount?: number | null
   onSelect: () => void
 }
 
@@ -324,12 +325,12 @@ function FilterGroup({
   }, [defaultOpen])
 
   return (
-    <div className="border-b border-border/50 py-3 first:pt-0 last:border-b-0">
+    <div className="border-b border-border/35 py-3.5 first:pt-0 last:border-b-0">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-2 py-1 text-left text-xs font-semibold uppercase tracking-wider text-muted transition-colors hover:text-foreground"
+        className="flex w-full items-center justify-between gap-2 py-1 text-left text-[11px] font-semibold uppercase tracking-wider text-muted/85 transition-colors hover:text-foreground"
       >
         <span>{title}</span>
         <ChevronDown
@@ -455,7 +456,7 @@ function CreatorAvatar({
     return (
       <span
         aria-hidden
-        className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/60 bg-surface-raised"
+        className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-surface-raised"
       >
         <span className="h-2.5 w-2.5 rounded-full bg-accent" />
       </span>
@@ -467,7 +468,7 @@ function CreatorAvatar({
       src={creator.avatarUrl}
       name={creatorName ?? undefined}
       size="md"
-      className="h-9 w-9 transition-opacity hover:opacity-85"
+      className="h-10 w-10 transition-opacity hover:opacity-85"
     />
   )
 
@@ -531,10 +532,10 @@ function BrowseFeedTile({
 
   const titleClass =
     titleSize === 'xl'
-      ? 'line-clamp-2 font-display text-xl font-semibold leading-snug tracking-[-0.02em] text-foreground transition-colors hover:text-accent sm:text-2xl'
+      ? 'line-clamp-2 font-display text-2xl font-semibold leading-snug tracking-[-0.02em] text-foreground transition-colors hover:text-accent'
       : titleSize === 'lg'
         ? 'line-clamp-2 font-display text-lg font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-xl'
-        : 'line-clamp-2 font-display text-base font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-[17px]'
+        : 'line-clamp-2 font-display text-[17px] font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-lg'
 
   const mediaNode = (
     <button
@@ -560,8 +561,10 @@ function BrowseFeedTile({
     </button>
   )
 
+  const participantCount = item.participantCount ?? 0
+
   const metaNode = (
-    <div className={cn('flex items-start gap-3', titleSize !== 'xl' && 'mt-3.5')}>
+    <div className={cn('flex items-start gap-3.5', titleSize !== 'xl' && 'mt-4')}>
       <CreatorAvatar
         creator={item.creator}
         creatorName={creatorName}
@@ -582,33 +585,40 @@ function BrowseFeedTile({
             {creatorProfileUrl ? (
               <Link
                 to={creatorProfileUrl}
-                className="inline-block max-w-full truncate text-[13px] font-medium text-muted transition-colors hover:text-foreground"
+                className="inline-block max-w-full truncate text-sm font-medium text-foreground/75 transition-colors hover:text-foreground"
               >
                 {creatorName}
               </Link>
             ) : (
-              <p className="truncate text-[13px] font-medium text-muted">
+              <p className="truncate text-sm font-medium text-foreground/75">
                 {creatorName}
               </p>
             )}
           </div>
         )}
 
-        {item.scheduleLine && (
-          <p className="mt-0.5 truncate text-[13px] text-muted/80">
-            {item.scheduleLine}
+        {(item.scheduleLine || (!g && participantCount > 0)) && (
+          <p className="mt-0.5 truncate text-sm text-muted">
+            {[
+              item.scheduleLine,
+              !g && participantCount > 0
+                ? `${participantCount} ${participantCount === 1 ? 'participant' : 'participants'}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
         )}
 
         {actionable && item.kind === 'activities' && !isPicker && (
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-3.5 flex items-center gap-2.5">
             {signedIn && onDoNow ? (
               isAdded ? (
                 <Link
                   to="/"
-                  className="inline-flex items-center gap-1 rounded-md bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/25"
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent transition-colors hover:bg-accent/25"
                 >
-                  <Check size={12} aria-hidden />
+                  <Check size={15} aria-hidden />
                   <span>On today · Open</span>
                 </Link>
               ) : (
@@ -617,7 +627,7 @@ function BrowseFeedTile({
                   disabled={isAdding}
                   aria-label={`Do ${item.title} now`}
                   onClick={() => onDoNow(item)}
-                  className="rounded-md bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/25 disabled:opacity-50"
+                  className="inline-flex min-h-10 items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90 disabled:opacity-50"
                 >
                   {isAdding ? 'Adding…' : 'Do now'}
                 </button>
@@ -625,7 +635,7 @@ function BrowseFeedTile({
             ) : (
               <Link
                 to={`/activities/${item.id}?returnTo=${encodeURIComponent(currentUrl)}`}
-                className="rounded-md bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/25"
+                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90"
               >
                 Do now
               </Link>
@@ -634,10 +644,10 @@ function BrowseFeedTile({
         )}
 
         {g && groupName && (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <div className="mt-2.5 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               <ParticipationAvatars avatars={g.memberAvatars} />
-              <p className="min-w-0 truncate text-xs text-muted">
+              <p className="min-w-0 truncate text-[13px] text-muted">
                 {groupName} · {g.memberCount}{' '}
                 {g.memberCount === 1 ? 'member' : 'members'}
                 {recentCheckIns > 0
@@ -654,7 +664,7 @@ function BrowseFeedTile({
                   disabled={joiningGroupId === g.id}
                   aria-label={`Join ${groupName}`}
                   onClick={() => onQuickJoin(g.id)}
-                  className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15 disabled:opacity-50"
+                  className="shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold text-accent transition-colors hover:bg-accent/15 disabled:opacity-50"
                 >
                   {joiningGroupId === g.id ? 'Joining…' : 'Join'}
                 </button>
@@ -662,7 +672,7 @@ function BrowseFeedTile({
                 <Link
                   to={buildGroupUrl(g.id, { returnTo: currentUrl })}
                   aria-label={`Join ${groupName}`}
-                  className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15"
+                  className="shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold text-accent transition-colors hover:bg-accent/15"
                 >
                   Join
                 </Link>
@@ -1059,6 +1069,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const mapProgramItem = (
     program: S['ProgramSummary'],
     featuredGroup: S['PublicGroupSummary'] | null,
+    participantCount?: number | null,
   ): BrowseFeedItem => {
     const scheduleParts = [
       program.sessionMinutes ? `${program.sessionMinutes} min` : null,
@@ -1075,6 +1086,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       scheduleLine: scheduleParts.length > 0 ? scheduleParts.join(' · ') : null,
       hero: programHero(program, categorySlugOf),
       featuredGroup,
+      participantCount: participantCount ?? null,
       onSelect: () => {
         if (mode.onPickProgram) {
           mode.onPickProgram(program)
@@ -1088,7 +1100,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     }
   }
 
-  const mapActivityItem = (activity: S['ActivitySummary']): BrowseFeedItem => {
+  const mapActivityItem = (
+    activity: S['ActivitySummary'],
+    featuredGroup: S['PublicGroupSummary'] | null = null,
+    participantCount?: number | null,
+  ): BrowseFeedItem => {
     const scheduleParts = [
       formatDurationMinutes(activity.durationMinutes),
       formatFrequency(activity.frequency) || null,
@@ -1104,6 +1120,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       isPlatform: activity.isPlatform,
       scheduleLine: scheduleParts.length > 0 ? scheduleParts.join(' · ') : null,
       hero: activityHero(activity, categorySlugOf),
+      featuredGroup,
+      participantCount: participantCount ?? null,
       onSelect: () => {
         if (mode.onPickActivity && mode.kind === 'activities') {
           mode.onPickActivity(activity)
@@ -1120,27 +1138,52 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const programItems: BrowseFeedItem[] = (programs.data?.pages ?? [])
     .flatMap((page) =>
       page.data.flatMap((d) =>
-        d.program ? [{ program: d.program, featuredGroup: d.featuredGroup ?? null }] : [],
+        d.program
+          ? [
+              {
+                program: d.program,
+                featuredGroup: d.featuredGroup ?? null,
+                participantCount: d.participantCount ?? null,
+              },
+            ]
+          : [],
       ),
     )
     .filter(({ program }) => keep(program))
-    .map(({ program, featuredGroup }) => mapProgramItem(program, featuredGroup))
+    .map(({ program, featuredGroup, participantCount }) =>
+      mapProgramItem(program, featuredGroup, participantCount),
+    )
 
   const activityItems: BrowseFeedItem[] = (activities.data?.pages ?? [])
     .flatMap((page) =>
-      page.data.flatMap((d) => (d.activity ? [d.activity] : [])),
+      page.data.flatMap((d) =>
+        d.activity
+          ? [
+              {
+                activity: d.activity,
+                featuredGroup: d.featuredGroup ?? null,
+                participantCount: d.participantCount ?? null,
+              },
+            ]
+          : [],
+      ),
     )
-    .filter((a) => (mode.kind === 'activities' ? keep(a) : true))
-    .map(mapActivityItem)
+    .filter(({ activity }) => (mode.kind === 'activities' ? keep(activity) : true))
+    .map(({ activity, featuredGroup, participantCount }) =>
+      mapActivityItem(activity, featuredGroup, participantCount),
+    )
 
   const happeningNowItems: BrowseFeedItem[] = [...activityItems]
     .sort((a, b) => {
       const aQuick = a.durationMinutes != null && a.durationMinutes <= 20 ? 0 : 1
       const bQuick = b.durationMinutes != null && b.durationMinutes <= 20 ? 0 : 1
       if (aQuick !== bQuick) return aQuick - bQuick
+      const aParticipants = a.participantCount ?? 0
+      const bParticipants = b.participantCount ?? 0
+      if (aParticipants !== bParticipants) return bParticipants - aParticipants
       return (a.durationMinutes ?? 999) - (b.durationMinutes ?? 999)
     })
-    .slice(0, 6)
+    .slice(0, 4)
 
   const recentActivityItems: BrowseFeedItem[] = programItems
     .filter(
@@ -1154,11 +1197,21 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const startingSoonItems: BrowseFeedItem[] = (startingSoonPrograms.data?.pages ?? [])
     .flatMap((page) =>
       page.data.flatMap((d) =>
-        d.program ? [{ program: d.program, featuredGroup: d.featuredGroup ?? null }] : [],
+        d.program
+          ? [
+              {
+                program: d.program,
+                featuredGroup: d.featuredGroup ?? null,
+                participantCount: d.participantCount ?? null,
+              },
+            ]
+          : [],
       ),
     )
     .slice(0, 4)
-    .map(({ program, featuredGroup }) => mapProgramItem(program, featuredGroup))
+    .map(({ program, featuredGroup, participantCount }) =>
+      mapProgramItem(program, featuredGroup, participantCount),
+    )
 
   const items = mode.kind === 'programs' ? programItems : activityItems
 
@@ -1331,16 +1384,20 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   ) => {
     const isRow = layout === 'portrait-row' || layout === 'action-row'
     const listClass = isRow
-      ? 'browse-sidebar-scroll flex gap-5 overflow-x-auto pb-3 snap-x snap-mandatory'
+      ? 'browse-sidebar-scroll flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory'
       : layout === 'large-cards'
-        ? 'grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2'
+        ? 'grid grid-cols-1 gap-x-7 gap-y-10 md:grid-cols-2'
         : layout === 'feature'
           ? 'block'
           : GRID_CLASS
 
     const aspect = layout === 'portrait-row' ? 'portrait' : 'video'
     const titleSize =
-      layout === 'feature' ? 'xl' : layout === 'large-cards' ? 'lg' : 'base'
+      layout === 'feature'
+        ? 'xl'
+        : layout === 'large-cards' || layout === 'action-row'
+          ? 'lg'
+          : 'base'
     const visibleItems = layout === 'feature' ? tileItems.slice(0, 1) : tileItems
 
     return (
@@ -1350,9 +1407,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             key={`${item.kind}:${item.id}`}
             className={
               layout === 'portrait-row'
-                ? 'w-44 shrink-0 snap-start sm:w-48'
+                ? 'w-48 shrink-0 snap-start sm:w-52'
                 : layout === 'action-row'
-                  ? 'w-64 shrink-0 snap-start sm:w-72'
+                  ? 'w-[290px] shrink-0 snap-start sm:w-[320px] lg:w-[340px]'
                   : undefined
             }
             onPointerEnter={() => {
@@ -1404,21 +1461,21 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       title: 'Happening Now',
       source: 'happening-now',
       layout: 'action-row',
-      limit: 6,
+      limit: 4,
       onViewAll: () => switchKind('activities'),
     },
     {
       id: 'recent-activity',
       title: 'Recent Activity',
       source: 'recent-activity',
-      layout: 'feature',
-      limit: 1,
+      layout: 'grid',
+      limit: 4,
     },
     {
       id: 'starting-soon',
       title: 'Starting Soon',
       source: 'starting-soon',
-      layout: 'large-cards',
+      layout: 'grid',
       limit: 4,
       onViewAll: () => setScope('STARTING_SOON'),
     },
@@ -1439,9 +1496,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   ]
 
   return (
-    <Page className="max-w-none px-4 pb-20 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full pt-4 md:pt-6">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-7">
+    <Page className="max-w-none px-5 pb-24 sm:px-8 lg:px-12">
+      <div className="mx-auto w-full pt-5 md:pt-8">
+        <div className="flex flex-col gap-8 md:flex-row md:items-start md:gap-10 lg:gap-12">
           {/* Left: Compact 216px sticky sidebar on desktop, slide-over drawer on mobile */}
           <aside
             aria-label="Filters"
@@ -1462,7 +1519,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                 className="fixed inset-0 bg-black/50 backdrop-blur-[1px] md:hidden"
               />
 
-              <div className="browse-sidebar-scroll relative z-10 flex h-full w-[min(20rem,86vw)] flex-col overflow-y-auto border-r border-border bg-surface p-5 shadow-md md:h-auto md:max-h-[calc(100vh-6.5rem)] md:w-auto md:border-r md:border-border/50 md:bg-transparent md:p-0 md:pr-4 md:shadow-none">
+              <div className="browse-sidebar-scroll relative z-10 flex h-full w-[min(20rem,86vw)] flex-col overflow-y-auto border-r border-border bg-surface p-5 shadow-md md:h-auto md:max-h-[calc(100vh-6.5rem)] md:w-auto md:border-r md:border-border/35 md:bg-transparent md:p-0 md:pr-6 md:shadow-none">
                 <div className="mb-4 flex items-center justify-between border-b border-border/60 pb-3 md:hidden">
                   <span className="font-display text-base font-semibold text-foreground">
                     Filters
@@ -1944,7 +2001,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       ))}
                     </div>
                   ) : showDirectorySections ? (
-                    <div className="space-y-12">
+                    <div className="space-y-14 lg:space-y-16">
                       {communitySections.map((section) => {
                         const raw = sectionItemsBySource[section.source]
                         const sectionItems = section.limit
@@ -1952,25 +2009,19 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                           : raw
                         if (sectionItems.length === 0) return null
 
-                        const isHighlighted =
-                          section.layout === 'feature' ||
-                          section.layout === 'large-cards'
-
                         return (
                           <section
                             key={section.id}
                             aria-labelledby={`section-${section.id}`}
                             className={cn(
-                              isHighlighted &&
-                                'rounded-2xl border border-border/40 bg-surface/35 p-5',
                               section.source === 'activities' &&
-                                'border-t border-border/40 pt-10',
+                                'border-t border-border/35 pt-12',
                             )}
                           >
-                            <div className="mb-4 flex items-baseline justify-between gap-2">
+                            <div className="mb-6 flex items-baseline justify-between gap-3">
                               <h2
                                 id={`section-${section.id}`}
-                                className="font-display text-lg font-semibold tracking-tight text-foreground"
+                                className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
                               >
                                 {section.title}
                               </h2>
@@ -1978,34 +2029,18 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                                 <button
                                   type="button"
                                   onClick={section.onViewAll}
-                                  className="text-xs font-medium text-accent hover:underline"
+                                  className="text-sm font-medium text-accent hover:underline"
                                 >
                                   View all
                                 </button>
                               )}
                             </div>
 
-                            {section.source === 'programs' &&
-                            recentActivityItems.length === 0 &&
-                            startingSoonItems.length === 0 &&
-                            sectionItems.length >= 4 ? (
-                              <div className="space-y-10">
-                                {renderSectionLayout(
-                                  sectionItems.slice(0, 2),
-                                  'large-cards',
-                                )}
-                                {renderSectionLayout(
-                                  sectionItems.slice(2),
-                                  'grid',
-                                )}
-                              </div>
-                            ) : (
-                              renderSectionLayout(sectionItems, section.layout)
-                            )}
+                            {renderSectionLayout(sectionItems, section.layout)}
 
                             {section.source === 'programs' &&
                               programs.hasNextPage && (
-                                <div className="mt-10 flex justify-center border-t border-border/50 pt-6">
+                                <div className="mt-12 flex justify-center border-t border-border/40 pt-8">
                                   <Button
                                     variant="outline"
                                     loading={programs.isFetchingNextPage}
