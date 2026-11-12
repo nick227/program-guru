@@ -92,7 +92,7 @@ export function OccurrencePage() {
   const o = occurrence.data
   const origin = safeReturn(
     params.get('returnTo'),
-    o ? calendarUrl(o.item.localDate) : '/',
+    o ? calendarUrl(o.item.localDate) : '/calendar',
   )
   const occurrenceNav = buildOccurrenceBreadcrumbs({
     title: o?.item.title ?? 'Activity',

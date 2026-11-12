@@ -940,14 +940,14 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
   await expect(page.getByText(/Joined on Nov 7 \(2026-11-07\)/)).toBeVisible()
   await page.getByRole('link', { name: 'Open Calendar' }).click()
   await expect(
-    page.getByRole('heading', { name: 'Calendar', exact: true }),
+    page.getByRole('button', { name: /Pages menu, current page Calendar/ }),
   ).toBeVisible()
   await expect(
-    page.getByRole('link', { name: /Morning Squats/ }).first(),
+    page.getByRole('button', { name: /Morning Squats/ }).first(),
   ).toBeVisible()
   // NOT_PARTICIPATING item shows "Not participating" and never "Missed"
   await expect(
-    page.getByRole('link', { name: /Pre-Join Warmup.*Not participating/ }).first(),
+    page.getByRole('button', { name: /Pre-Join Warmup.*Not participating/ }).first(),
   ).toBeVisible()
   await expect(page.getByText('Missed')).toHaveCount(0)
 
@@ -956,12 +956,12 @@ test('Inbox pagination, filters, error retry, and contextual navigation to Progr
   await page.getByRole('button', { name: 'Group Info' }).click()
   await page.getByRole('button', { name: 'Leave group' }).click()
   await expect(
-    page.getByRole('heading', { name: 'Calendar', exact: true }),
+    page.getByRole('button', { name: /Pages menu, current page Calendar/ }),
   ).toBeVisible()
   // Personal items stay on their date (mobile month view shows only the selected day).
-  await page.goto('/?view=day&day=2026-11-07')
+  await page.goto('/calendar?view=day&day=2026-11-07')
   await expect(
-    page.getByRole('link', { name: /Morning Squats/ }).first(),
+    page.getByRole('button', { name: /Morning Squats/ }).first(),
   ).toBeVisible()
   await page.goto(`/groups/${inviteGroupId}`)
   await expect(

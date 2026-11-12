@@ -4644,6 +4644,18 @@ export interface components {
             liked: boolean;
             likes: number;
         };
+        NotificationEntry: {
+            /** Format: uuid */
+            id: string;
+            type: components["schemas"]["NotificationType"];
+            title: string;
+            actor: components["schemas"]["UserSummary"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            readAt: string | null;
+            deepLink: string;
+        };
         Notification: {
             /** Format: uuid */
             id: string;
@@ -4655,6 +4667,17 @@ export interface components {
             /** Format: date-time */
             readAt: string | null;
             deepLink: string;
+            entityKind?: string;
+            /** Format: uuid */
+            entityId?: string;
+            groupOccurrenceKey?: string | null;
+            groupKey?: string;
+            ids?: string[];
+            count?: number;
+            unreadCount?: number;
+            actors?: components["schemas"]["UserSummary"][];
+            actorCount?: number;
+            items?: components["schemas"]["NotificationEntry"][];
         };
         UnreadCount: {
             count: number;
@@ -10021,6 +10044,7 @@ export interface operations {
                 /** @description Opaque cursor returned by the previous page. */
                 cursor?: components["parameters"]["Cursor"];
                 limit?: components["parameters"]["Limit"];
+                filter?: "all" | "unread" | "direct" | "groups" | "reminder" | "group" | "participation" | "achievement" | "program";
             };
             header?: never;
             path?: never;

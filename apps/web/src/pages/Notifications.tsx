@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   useCurrentUser,
   useMarkNotificationsRead,
@@ -9,43 +8,78 @@ import {
 import { Page, Stage, Stack, Panel, Row } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { Back, linkButton } from '@/components/shared/Navigation'
+import { Back } from '@/components/shared/Navigation'
 import { UnreadDot } from '@/components/shared/UnreadDot'
 import { NotificationRow } from '@/components/account/NotificationRow'
 import { UpcomingRemindersPanel } from '@/components/account/UpcomingRemindersPanel'
 import {
   getNotificationMeta,
+  notificationUnreadCount,
   type NotificationCategory,
+  type NotificationType,
 } from '@/lib/notifications'
+import { useNotificationActions } from '@/lib/useNotificationActions'
 import { useDocumentTitle } from '@/lib/title'
 
 const FILTERS: { id: NotificationCategory; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'unread', label: 'Unread' },
+  { id: 'direct', label: 'Direct' },
+  { id: 'groups', label: 'Groups' },
   { id: 'reminder', label: 'Reminders' },
-  { id: 'group', label: 'Groups' },
   { id: 'participation', label: 'Participation' },
   { id: 'achievement', label: 'Achievements' },
   { id: 'program', label: 'Updates & Social' },
 ]
 
+const DIRECT_TYPES = new Set<NotificationType>([
+  'FOLLOW_REQUEST',
+  'FOLLOW_ACCEPTED',
+  'GROUP_INVITE',
+  'COMPLETION_COMMENT',
+  'GROUP_MEDIA_COMMENT',
+  'COMPLETION_REACTION',
+  'PROGRAM_ACCESS',
+  'CONTRIBUTION_APPROVED',
+  'PAYMENT_ISSUE',
+])
+
+const GROUPS_TYPES = new Set<NotificationType>([
+  'GROUP_INVITE',
+  'MEMBER_JOINED',
+  'COMPLETION_SHARED',
+  'COMPLETION_REACTION',
+  'COMPLETION_COMMENT',
+  'GROUP_MEDIA_SHARED',
+  'GROUP_MEDIA_COMMENT',
+])
+
 export function NotificationsPage() {
   useDocumentTitle('Notifications')
   const me = useCurrentUser()
-  const list = useNotifications()
+  const [filter, setFilter] = useState<NotificationCategory>('all')
+  const list = useNotifications({ filter })
   const unread = useUnreadNotificationCount()
   const mark = useMarkNotificationsRead()
-  const [filter, setFilter] = useState<NotificationCategory>('all')
 
   const timezone = me.data?.data.preferences.timezone ?? 'UTC'
   const rows = list.data?.pages.flatMap((p) => p.data) ?? []
   const unreadTotal =
-    unread.data?.count ?? rows.filter((n) => !n.readAt).length
-  const hasUnread = unreadTotal > 0 || rows.some((n) => !n.readAt)
+    unread.data?.count ??
+    rows.reduce((sum, n) => sum + notificationUnreadCount(n), 0)
+  const hasUnread =
+    unreadTotal > 0 || rows.some((n) => notificationUnreadCount(n) > 0)
+
+  const getInlineAction = useNotificationActions({
+    rows,
+    onMarkRead: (ids) => mark.mutate({ ids }),
+  })
 
   const filteredRows = rows.filter((n) => {
     if (filter === 'all') return true
-    if (filter === 'unread') return !n.readAt
+    if (filter === 'unread') return notificationUnreadCount(n) > 0
+    if (filter === 'direct') return DIRECT_TYPES.has(n.type)
+    if (filter === 'groups') return GROUPS_TYPES.has(n.type)
     return getNotificationMeta(n.type).category === filter
   })
 
@@ -53,7 +87,7 @@ export function NotificationsPage() {
     <Page className="page--content">
       <Stage>
         <Row className="justify-between">
-          <Back to="/">Calendar</Back>
+          <Back to="/calendar">Calendar</Back>
         </Row>
 
         <Row className="justify-between">
@@ -118,11 +152,12 @@ export function NotificationsPage() {
           <Stack className="gap-2">
             {filteredRows.map((n) => (
               <NotificationRow
-                key={n.id}
+                key={n.groupKey ?? n.id}
                 notification={n}
                 timezone={timezone}
                 marking={mark.isPending}
-                onMarkRead={(id) => mark.mutate({ ids: [id] })}
+                inlineAction={getInlineAction(n)}
+                onMarkRead={(ids) => mark.mutate({ ids })}
               />
             ))}
           </Stack>

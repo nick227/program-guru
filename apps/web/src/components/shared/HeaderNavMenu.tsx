@@ -5,6 +5,7 @@ import {
   Calendar,
   Check,
   ChevronDown,
+  Home,
   List,
   Menu,
   Plus,
@@ -30,7 +31,8 @@ export function HeaderNavMenu() {
   const activeKey = resolveSubHeaderNav(location.pathname)
 
   const items: NavEntry[] = [
-    { key: 'calendar', label: 'Calendar', to: '/', icon: Calendar },
+    { key: 'home', label: 'Home', to: '/', icon: Home },
+    { key: 'calendar', label: 'Calendar', to: '/calendar', icon: Calendar },
     { key: 'community', label: 'Community', to: '/browse', icon: List },
     { key: 'programs', label: 'Programs', to: '/library', icon: BookOpen },
     {

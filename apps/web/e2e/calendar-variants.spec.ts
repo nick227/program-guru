@@ -14,7 +14,7 @@ for (const count of [0, 1, 3, 6, 10]) {
     }))
     await page.route('**/calendar/items?*', route => route.fulfill({ json: { data: rows } }))
     await login(page, 'author@test.local', 'password')
-    await page.goto('/?view=month&day=2026-11-09')
+    await page.goto('/calendar?view=month&day=2026-11-09')
     if (info.project.name === 'desktop') {
       await page.setViewportSize({ width: 1800, height: 1100 })
       const grid = page.locator('.calendar-month-grid')
@@ -58,7 +58,7 @@ for (const count of [0, 1, 3, 6, 10]) {
 test('failed quick completion stays pending and preserves its retry key', async ({ page }) => {
   const { requests } = await mockApi(page, { calendarItem: true, calendarDate: '2026-11-09', finishFailure: true })
   await login(page, 'participant@test.local', 'password')
-  await page.goto('/?view=day&day=2026-11-09')
+  await page.goto('/calendar?view=day&day=2026-11-09')
   const complete = page.getByRole('button', { name: 'Mark Squats complete' })
   await complete.click()
   await expect(page.getByText('Could not confirm completion')).toBeVisible()

@@ -2,11 +2,12 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/shared/Breadcrumbs'
 
-export type SubHeaderNavKey = 'calendar' | 'community' | 'programs' | 'add-program'
+export type SubHeaderNavKey = 'home' | 'calendar' | 'community' | 'programs' | 'add-program'
 
 /** Resolve which navigation item corresponds to the current route. */
 export function resolveSubHeaderNav(pathname: string): SubHeaderNavKey | undefined {
-  if (pathname === '/') return 'calendar'
+  if (pathname === '/') return 'home'
+  if (pathname === '/calendar' || pathname.startsWith('/calendar/')) return 'calendar'
   if (
     pathname === '/browse' ||
     pathname.startsWith('/browse/') ||

@@ -1,5 +1,6 @@
 import { GroupInviteLink } from '@/components/social/GroupInviteLink'
 import { GroupStage } from '@/components/group-stage/GroupStage'
+import { TransitionSurface } from '@/features/home/components/TransitionSurface'
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -73,6 +74,7 @@ interface InvitationViewProps {
     enrollment?: S['AcceptGroupInvitationInput']['enrollment'],
   ) => Promise<S['GroupDetail']>
   onDecline?: () => Promise<unknown>
+  onJoined?: (group: S['GroupDetail']) => void
 }
 
 function InvitationDecisionPanel({
@@ -88,6 +90,7 @@ function InvitationDecisionPanel({
   error,
   onAccept,
   onDecline,
+  onJoined,
 }: InvitationViewProps) {
   const me = useCurrentUser()
   const online = useOnline()
@@ -363,7 +366,11 @@ function InvitationDecisionPanel({
                         : undefined,
                     )
                     toast.success(successMessage)
-                    navigate(buildGroupUrl(group.id), { replace: true })
+                    if (onJoined) {
+                      onJoined(group)
+                    } else {
+                      navigate(buildGroupUrl(group.id), { replace: true })
+                    }
                   } catch {
                     /* shown via ErrorMessage */
                   }
@@ -452,10 +459,33 @@ export function GroupInvitationJoinPage() {
 export function GroupPage() {
   const { id = '', invitationId } = useParams()
   const [params] = useSearchParams()
-  const navigate = useNavigate()
-  const online = useOnline()
   const rawReturnTo = params.get('returnTo')
   const explicitReturnTo = rawReturnTo ? safeReturn(rawReturnTo, '/notifications') : null
+
+  return (
+    <GroupStageExperience
+      groupId={id}
+      invitationId={invitationId}
+      explicitReturnTo={explicitReturnTo}
+    />
+  )
+}
+
+export function GroupStageExperience({
+  groupId: id,
+  invitationId,
+  explicitReturnTo = null,
+  embedded = false,
+  onBack,
+}: {
+  groupId: string
+  invitationId?: string
+  explicitReturnTo?: string | null
+  embedded?: boolean
+  onBack?: () => void
+}) {
+  const navigate = useNavigate()
+  const online = useOnline()
 
   const me = useCurrentUser()
   const signedIn = !!me.data
@@ -503,9 +533,9 @@ export function GroupPage() {
     (!signedIn || (!group.isPending && !receivedInvites.isPending))
   const publicPreview = usePublicGroupPreview(id, shouldLoadPublicPreview)
 
-  useDocumentTitle(
-    g?.name ?? publicPreview.data?.groupName ?? 'Group',
-  )
+  const fallbackTitle =
+    g?.name ?? publicPreview.data?.groupName ?? 'Group'
+  useDocumentTitle(embedded ? 'Home' : fallbackTitle)
 
   const groupNav = buildGroupBreadcrumbs({
     groupName: g?.name || g?.programTitle || publicPreview.data?.groupName || publicPreview.data?.program.title,
@@ -623,7 +653,7 @@ export function GroupPage() {
                     toast.success(
                       'Left group. Your personal calendar and results are kept.',
                     )
-                    navigate('/', { replace: true })
+                    navigate('/calendar', { replace: true })
                   } catch {
                     /* shown below */
                   }
@@ -945,31 +975,39 @@ export function GroupPage() {
         viewerId={me.data?.data.id}
         online={online}
         returnTo={explicitReturnTo}
+        embedded={embedded}
+        onBack={onBack}
         detailsContent={detailsContent}
       />
     )
   }
 
-  return (
-    <Page className="page--wide">
-      <Stage className="mx-auto mt-6 w-full max-w-4xl">
+  const fallbackBody = (
+    <Stage className={embedded ? 'mx-auto w-full max-w-4xl px-6 py-6' : 'mx-auto mt-6 w-full max-w-4xl'}>
 
         {waitingForInitialData ? (
-          <Loading />
+          embedded ? (
+            <TransitionSurface ready={false}>{null}</TransitionSurface>
+          ) : (
+            <Loading />
+          )
         ) : !g && matchedInvitation ? (
           <Stack className="gap-4">
             <h1>Group Invitation</h1>
             <InvitationDecisionPanel
               preview={matchedInvitation.preview}
               returnToPath={
-                invitationId
-                  ? `${buildGroupUrl(id)}/invitations/${invitationId}`
-                  : buildGroupUrl(id)
+                embedded
+                  ? '/'
+                  : invitationId
+                    ? `${buildGroupUrl(id)}/invitations/${invitationId}`
+                    : buildGroupUrl(id)
               }
               canDecline={matchedInvitation.kind !== 'LINK'}
               accepting={acceptMyInvite.isPending}
               declining={declineMyInvite.isPending}
               error={acceptMyInvite.error || declineMyInvite.error}
+              onJoined={embedded ? () => void group.refetch() : undefined}
               onAccept={async (enrollment) => {
                 const accepted = await acceptMyInvite.mutateAsync(
                   enrollment
@@ -989,10 +1027,14 @@ export function GroupPage() {
             <h1>{publicPreview.data.groupName || publicPreview.data.program.title}</h1>
             <InvitationDecisionPanel
               preview={{ ...publicPreview.data, canAccept: publicPreview.data.canJoin }}
-              returnToPath={buildGroupUrl(
-                id,
-                explicitReturnTo ? { returnTo: explicitReturnTo } : undefined,
-              )}
+              returnToPath={
+                embedded
+                  ? '/'
+                  : buildGroupUrl(
+                      id,
+                      explicitReturnTo ? { returnTo: explicitReturnTo } : undefined,
+                    )
+              }
               canDecline={false}
               accepting={joinPublic.isPending}
               declining={false}
@@ -1005,6 +1047,7 @@ export function GroupPage() {
                   : 'This group is unavailable or no longer open for new participants.'
               }
               error={joinPublic.error}
+              onJoined={embedded ? () => void group.refetch() : undefined}
               onAccept={async (enrollment) => {
                 const joined = await joinPublic.mutateAsync(enrollment)
                 await group.refetch()
@@ -1022,16 +1065,24 @@ export function GroupPage() {
               </p>
               <ErrorMessage error={group.error || receivedInvites.error || publicPreview.error} />
               <Row>
-                <Link to="/browse" className={linkButton}>
-                  Browse Community
-                </Link>
-                {signedIn ? (
-                  <Link to="/notifications" className={linkButton}>
-                    Open Inbox
+                {onBack ? (
+                  <Button variant="outline" onClick={onBack}>
+                    Back
+                  </Button>
+                ) : (
+                  <Link to="/browse" className={linkButton}>
+                    Browse Community
                   </Link>
+                )}
+                {signedIn ? (
+                  !embedded && (
+                    <Link to="/notifications" className={linkButton}>
+                      Open Inbox
+                    </Link>
+                  )
                 ) : (
                   <Link
-                    to={`/login?returnTo=${encodeURIComponent(buildGroupUrl(id))}`}
+                    to={`/login?returnTo=${encodeURIComponent(embedded ? '/' : buildGroupUrl(id))}`}
                     className={linkButton}
                   >
                     Sign in
@@ -1041,7 +1092,12 @@ export function GroupPage() {
             </Stack>
           </Panel>
         ) : null}
-      </Stage>
-    </Page>
+    </Stage>
   )
+
+  if (embedded) {
+    return fallbackBody
+  }
+
+  return <Page className="page--wide">{fallbackBody}</Page>
 }

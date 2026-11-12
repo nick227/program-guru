@@ -61,9 +61,11 @@ Consolidated persistence: `packages/db/prisma/schema.prisma`. `entityKind`/`enti
 
 ## 6. Notifications and reminders
 
-Notification **indicator overlays user widget** in Calendar header. Open list shows newest event with short label/actor/time and deep-link action. Mark read on open or deliberate action. Own actions do not notify self. Keep it minimal: activity reminders, follow requests, group invites and joins, completion reactions, group media and its comments, contribution approval, program access and updates, achievements, payment issues. No dense notifications pane in daily Activity view; row-specific unread badge suffices.
+Notification **indicator overlays user widget** in Calendar header with an unread count badge, 30-second background polling, window-focus refresh, and immediate invalidation after mutations. The header Bell dropdown stays compact: latest 6 grouped entries with `All`, `Direct`, and `Groups` quick filters, inline Accept/Decline for follow requests and group invitations (when pending and authorized), and links to `/notifications` and `/settings`. `/notifications` is the full Notification Center with server-side filters, cursor pagination, real avatar stacks, and expandable grouped entries.
 
-**In-app reminders (default on):** a timed Calendar Item creates one `ACTIVITY_REMINDER` when due. On days with planned items, a `DAILY_SUMMARY` appears at the user's reminder time.
+**Grouping:** Related reactions (`COMPLETION_REACTION`), comments (`COMPLETION_COMMENT`, `GROUP_MEDIA_COMMENT`), and group participation events (`COMPLETION_SHARED`, `GROUP_MEDIA_SHARED`, `MEMBER_JOINED`) are grouped server-side before pagination by recipient, event family, target entity, and a bounded time window (6 hours). Each grouped entry preserves all underlying notification `ids`, accurate `unreadCount`, distinct `actors` (for avatar stacks), and underlying `items` for expansion. Marking a grouped entry read marks all of its underlying `ids` read.
+
+**In-app reminders (default on):** a timed Calendar Item creates one `ACTIVITY_REMINDER` when due. On days with planned items, a `DAILY_SUMMARY` appears at the user's reminder time. Own actions never notify self, and muted groups / blocked users are suppressed. Keep payloads minimal: no exact private scores, savings balances, health metrics, personal notes or raw video preview in email or notification payloads.
 
 **Daily email (optional, default off):** opt in from Settings or the one-time prompt on first Program adoption. Sent once at the user's chosen local time (default 08:00) in their timezone, only on days with planned items, listing that day's Activities with a link to the Calendar. Every email has a one-click unsubscribe. No other reminder email and no web push in P1. Transactional email (verification, reset, invites) is separate from this preference.
 
@@ -108,8 +110,12 @@ interface PublicMediaDto { publicationId:string; media:MediaThumbDto; creator:Us
 interface MediaCommentDto { id:string; author:UserSummaryDto; body:string;
   createdAt:string; editedAt:string|null; }
 interface AddCommentDto { body:string; idempotencyKey:string; }
-interface NotificationDto { id:string; type:string; title:string; actor:UserSummaryDto|null;
+interface NotificationEntryDto { id:string; type:string; title:string; actor:UserSummaryDto|null;
   createdAt:string; readAt:string|null; deepLink:string; }
+interface NotificationDto extends NotificationEntryDto {
+  entityKind?:string; entityId?:string; groupOccurrenceKey?:string|null;
+  groupKey?:string; ids?:string[]; count?:number; unreadCount?:number;
+  actors?:UserSummaryDto[]; actorCount?:number; items?:NotificationEntryDto[]; }
 interface ReportContentDto { target:{type:'PROGRAM'|'ACTIVITY'|'MEDIA'|'COMMENT'|'USER';id:string};
   reason:'HARASSMENT'|'PRIVACY'|'COPYRIGHT'|'MISLEADING'|'UNSAFE'|'OTHER'; details?:string; }
 ```

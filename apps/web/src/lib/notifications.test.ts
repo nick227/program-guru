@@ -10,6 +10,11 @@ import {
   isValidTimezone,
   localNowTime,
   NOTIFICATION_META,
+  notificationActors,
+  notificationGroupCount,
+  notificationIds,
+  notificationTargetId,
+  notificationUnreadCount,
   resolveNotificationLink,
   selectUpcomingReminders,
   type CalendarItem,
@@ -239,6 +244,48 @@ describe('selectUpcomingReminders', () => {
       },
     )
     expect(reminders.map((r) => r.id)).toEqual(['item-post-join'])
+  })
+})
+
+describe('grouped notification helpers', () => {
+  it('resolves grouped ids, unreadCount, actors, and target entity ids with singleton fallbacks', () => {
+    const singleton = {
+      id: 'n1',
+      type: 'GROUP_INVITE' as const,
+      title: 'Maya invited you',
+      actor: {
+        id: 'u1',
+        handle: 'maya',
+        displayName: 'Maya',
+        avatarUrl: null,
+      },
+      createdAt: '2026-11-10T10:00:00Z',
+      readAt: null,
+      deepLink: '/groups/g1/invitations/inv-123',
+    }
+    expect(notificationIds(singleton)).toEqual(['n1'])
+    expect(notificationUnreadCount(singleton)).toBe(1)
+    expect(notificationGroupCount(singleton)).toBe(1)
+    expect(notificationActors(singleton)).toHaveLength(1)
+    expect(notificationTargetId(singleton)).toBe('inv-123')
+
+    const grouped = {
+      ...singleton,
+      type: 'COMPLETION_REACTION' as const,
+      entityId: 'share-1',
+      ids: ['n3', 'n2', 'n1'],
+      count: 3,
+      unreadCount: 2,
+      actors: [
+        singleton.actor,
+        { id: 'u2', handle: 'alex', displayName: 'Alex', avatarUrl: null },
+      ],
+    }
+    expect(notificationIds(grouped)).toEqual(['n3', 'n2', 'n1'])
+    expect(notificationUnreadCount(grouped)).toBe(2)
+    expect(notificationGroupCount(grouped)).toBe(3)
+    expect(notificationActors(grouped)).toHaveLength(2)
+    expect(notificationTargetId(grouped)).toBe('share-1')
   })
 })
 

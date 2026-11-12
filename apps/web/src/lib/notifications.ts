@@ -12,11 +12,45 @@ export type UserPreferences = S['UserPreferences']
 export type NotificationCategory =
   | 'all'
   | 'unread'
+  | 'direct'
+  | 'groups'
   | 'reminder'
   | 'group'
   | 'participation'
   | 'achievement'
   | 'program'
+
+export type NotificationActorSummary = S['UserSummary']
+
+export function notificationIds(n: NotificationItem): string[] {
+  return n.ids && n.ids.length > 0 ? n.ids : [n.id]
+}
+
+export function notificationUnreadCount(n: NotificationItem): number {
+  if (typeof n.unreadCount === 'number') return n.unreadCount
+  return n.readAt ? 0 : 1
+}
+
+export function notificationGroupCount(n: NotificationItem): number {
+  if (typeof n.count === 'number' && n.count > 0) return n.count
+  return n.ids?.length || 1
+}
+
+export function notificationActors(
+  n: NotificationItem,
+): NotificationActorSummary[] {
+  if (n.actors && n.actors.length > 0) return n.actors
+  return n.actor ? [n.actor] : []
+}
+
+export function notificationTargetId(n: NotificationItem): string | null {
+  if (n.entityId) return n.entityId
+  if (n.type === 'GROUP_INVITE') {
+    const match = n.deepLink.match(/\/invitations\/([^/?#]+)/)
+    return match?.[1] ?? null
+  }
+  return null
+}
 
 export interface NotificationMeta {
   category: Exclude<NotificationCategory, 'all' | 'unread'>

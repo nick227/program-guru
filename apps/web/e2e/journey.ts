@@ -5,7 +5,7 @@ export async function login(page: Page, email: string, password: string) {
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(
-    page.getByRole('button', { name: /Pages menu, current page Calendar/ }),
+    page.getByRole('button', { name: /Pages menu, current page (Home|Calendar)/ }),
   ).toBeVisible()
 }
 export async function journey(
@@ -70,7 +70,7 @@ export async function journey(
   await page.getByRole('button', { name: 'Start Program', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Program Added', exact: true })).toBeDisabled()
   // Day view lists every item (month cells cap at four; live accounts accumulate runs).
-  await page.goto(`/?view=day&day=${today}`)
+  await page.goto(`/calendar?view=day&day=${today}`)
   // Scope to this run's Program title — live DB accumulates prior enrollments.
   // Tile links are named "<Activity>, <Program>, <status> — open activity".
   const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -85,12 +85,12 @@ export async function journey(
   await page.getByRole('button', { name: 'Mark as Complete', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
   // Completion stays on the Occurrence; the Calendar shows it, and Undo lives on the Occurrence.
-  await page.goto(`/?view=day&day=${today}`)
+  await page.goto(`/calendar?view=day&day=${today}`)
   await expect(tile('Completed')).toBeVisible()
   await tile('Completed').click()
   await page.getByRole('button', { name: 'Undo completion', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'To do' })).toBeVisible()
-  await page.goto(`/?view=day&day=${today}`)
+  await page.goto(`/calendar?view=day&day=${today}`)
   await expect(tile('Pending')).toBeVisible()
   await page.reload()
   await expect(tile('Pending')).toBeVisible()

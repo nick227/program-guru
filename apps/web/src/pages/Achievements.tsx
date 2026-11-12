@@ -29,7 +29,7 @@ export function AchievementsPage() {
     <Page className="page--content">
       <Stage>
         <Row className="justify-between">
-          <Back to="/">Calendar</Back>
+          <Back to="/calendar">Calendar</Back>
           {handle && (
             <Link to={buildProfileUrl(handle)} className={linkButton}>
               View Profile

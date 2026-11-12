@@ -36,7 +36,8 @@ function renderHeaderNav(location: string) {
 
 describe('SubHeader & HeaderNavMenu', () => {
   it('resolves active navigation keys from routes', () => {
-    expect(resolveSubHeaderNav('/')).toBe('calendar')
+    expect(resolveSubHeaderNav('/')).toBe('home')
+    expect(resolveSubHeaderNav('/calendar')).toBe('calendar')
     expect(resolveSubHeaderNav('/browse')).toBe('community')
     expect(resolveSubHeaderNav('/library')).toBe('programs')
     expect(resolveSubHeaderNav('/programs/new')).toBe('add-program')
@@ -45,7 +46,8 @@ describe('SubHeader & HeaderNavMenu', () => {
   })
 
   it.each([
-    { route: '/', activeLabel: 'Calendar' },
+    { route: '/', activeLabel: 'Home' },
+    { route: '/calendar', activeLabel: 'Calendar' },
     { route: '/browse', activeLabel: 'Community' },
     { route: '/library', activeLabel: 'Programs' },
   ])(

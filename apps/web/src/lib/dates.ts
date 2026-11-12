@@ -59,7 +59,7 @@ export function dateLabel(
   }).format(new Date(`${date}T12:00:00Z`))
 }
 export function calendarUrl(day: string, _week?: string) {
-  return `/?view=day&day=${day}`
+  return `/calendar?view=day&day=${day}`
 }
 export function safeReturn(value: string | null, fallback = '/') {
   return value?.startsWith('/') &&

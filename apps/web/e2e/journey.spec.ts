@@ -174,9 +174,9 @@ test('auth server failure stays an error instead of redirecting to login', async
   page,
 }) => {
   await mockApi(page, { meFailure: true })
-  await page.goto('/')
+  await page.goto('/calendar')
   await expect(page.getByRole('alert')).toContainText('Temporarily unavailable')
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(/\/calendar$/)
 })
 test('offline edits are kept locally and are not sent', async ({
   page,
@@ -265,7 +265,7 @@ test('autosave serializes edits typed while a previous save is in flight', async
 test('calendar day selection works from the keyboard', async ({ page }) => {
   await mockApi(page)
   await login(page, 'participant@test.local', 'password')
-  await page.goto('/?view=month&day=2026-11-09')
+  await page.goto('/calendar?view=month&day=2026-11-09')
   const tuesday = page
     .locator('.calendar-month-picker:visible, .calendar-month-grid:visible')
     .getByRole('button', { name: 'Tue 10', exact: true })
@@ -352,7 +352,7 @@ test('calendar highlights today and lets a participant quick-finish an Activity'
     groupItem: true,
   })
   await login(page, 'participant@test.local', 'password')
-  await page.goto(`/?view=month&day=${date}`)
+  await page.goto(`/calendar?view=month&day=${date}`)
 
   const isMobile = await page.evaluate(() => innerWidth < 640)
   const itemRegion = isMobile
@@ -406,7 +406,7 @@ test('calendar highlights today and lets a participant quick-finish an Activity'
 test('calendar and header span the viewport with aligned gutters', async ({ page }) => {
   await mockApi(page)
   await login(page, 'participant@test.local', 'password')
-  await page.goto('/?view=month')
+  await page.goto('/calendar?view=month')
 
   for (const width of [1280, 1920]) {
     await page.setViewportSize({ width, height: 1080 })
@@ -457,7 +457,7 @@ test('mobile calendar exposes selected-day items, inline quick-completion, and n
   })
   await login(page, 'participant@test.local', 'password')
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(`/?view=month&day=${date}`)
+  await page.goto(`/calendar?view=month&day=${date}`)
 
   const agenda = page.locator('.calendar-selected-day--mobile-only')
   await expect(agenda).toBeVisible()

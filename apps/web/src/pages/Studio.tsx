@@ -31,7 +31,7 @@ export function StudioPage() {
   return (
     <Page>
       <Stage className="max-w-7xl">
-        <Back to="/">Calendar</Back>
+        <Back to="/calendar">Calendar</Back>
         <Stack>
           <h1>Creator Studio</h1>
           <p className="text-muted">

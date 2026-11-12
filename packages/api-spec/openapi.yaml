@@ -6188,6 +6188,21 @@ paths:
       parameters:
       - $ref: '#/components/parameters/Cursor'
       - $ref: '#/components/parameters/Limit'
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - unread
+          - direct
+          - groups
+          - reminder
+          - group
+          - participation
+          - achievement
+          - program
       responses:
         '200':
           description: Success
@@ -12147,6 +12162,38 @@ components:
           type: boolean
         likes:
           type: integer
+    NotificationEntry:
+      type: object
+      required:
+      - id
+      - type
+      - title
+      - actor
+      - createdAt
+      - readAt
+      - deepLink
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        title:
+          type: string
+        actor:
+          anyOf:
+          - $ref: '#/components/schemas/UserSummary'
+          - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        deepLink:
+          type: string
     Notification:
       type: object
       required:
@@ -12179,6 +12226,36 @@ components:
           format: date-time
         deepLink:
           type: string
+        entityKind:
+          type: string
+        entityId:
+          type: string
+          format: uuid
+        groupOccurrenceKey:
+          type:
+          - string
+          - 'null'
+        groupKey:
+          type: string
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        count:
+          type: integer
+        unreadCount:
+          type: integer
+        actors:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        actorCount:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationEntry'
     UnreadCount:
       type: object
       required:

@@ -29,7 +29,7 @@ export function UnsubscribePage() {
   return (
     <Page>
       <Stage className="max-w-2xl">
-        <Back to="/">Calendar</Back>
+        <Back to="/calendar">Calendar</Back>
         <h1>Email Preferences</h1>
         <Panel>
           <Stack>
@@ -55,7 +55,7 @@ export function UnsubscribePage() {
                   re-enable them anytime in your Settings.
                 </p>
                 <Row>
-                  <Link to="/" className={linkButton}>
+                  <Link to="/calendar" className={linkButton}>
                     Return to Calendar
                   </Link>
                   <Link to="/settings#reminders" className={linkButton}>

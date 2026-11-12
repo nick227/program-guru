@@ -39,6 +39,8 @@ export function GroupStage({
   viewerId,
   online,
   returnTo,
+  embedded = false,
+  onBack,
   detailsContent,
 }: {
   group: S['GroupDetail']
@@ -49,6 +51,8 @@ export function GroupStage({
   viewerId?: string
   online: boolean
   returnTo?: string | null
+  embedded?: boolean
+  onBack?: () => void
   detailsContent: ReactNode
 }) {
   const version = useProgramVersion(g.programVersionId, true)
@@ -146,11 +150,19 @@ export function GroupStage({
     }
   }, [drawer])
 
+  const Container = embedded ? 'section' : 'main'
+
   return (
-    <main
-      id="main"
-      tabIndex={-1}
-      className="relative flex min-h-[calc(100dvh-4rem)] w-full flex-col overflow-hidden bg-[#060913] text-white"
+    <Container
+      id={embedded ? undefined : 'main'}
+      aria-label={embedded ? g.name || g.programTitle : undefined}
+      tabIndex={embedded ? undefined : -1}
+      className={cn(
+        'relative flex w-full flex-col overflow-hidden bg-[#060913] text-white',
+        embedded
+          ? 'min-h-[min(78dvh,760px)] flex-1'
+          : 'min-h-[calc(100dvh-4rem)]',
+      )}
     >
       {/* Layer 3: Pluggable visual theme canvas */}
       <div className="absolute inset-0">
@@ -174,13 +186,24 @@ export function GroupStage({
       {/* Layer 1: Minimal Stage Top HUD */}
       <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-black/45 px-3.5 py-2 backdrop-blur-md">
-          <Link
-            to={backHref}
-            aria-label="Back"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/75 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            <ArrowLeft size={16} aria-hidden />
-          </Link>
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <ArrowLeft size={16} aria-hidden />
+            </button>
+          ) : (
+            <Link
+              to={backHref}
+              aria-label="Back"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <ArrowLeft size={16} aria-hidden />
+            </Link>
+          )}
           <div className="min-w-0">
             <h1 className="truncate font-display text-base font-bold text-white sm:text-lg">
               {g.name || g.programTitle}
@@ -373,6 +396,6 @@ export function GroupStage({
           if (viewerId) triggerBurst(viewerId, '✨')
         }}
       />
-    </main>
+    </Container>
   )
 }

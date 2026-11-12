@@ -15,8 +15,18 @@ import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { UnreadDot } from '@/components/shared/UnreadDot'
 import { NotificationRow } from '@/components/account/NotificationRow'
 import { linkButton } from '@/components/shared/Navigation'
+import { notificationUnreadCount } from '@/lib/notifications'
+import { useNotificationActions } from '@/lib/useNotificationActions'
 import { toggleTheme } from '@/lib/theme'
 import { buildProfileUrl } from '@/lib/urls'
+
+type BellFilter = 'all' | 'direct' | 'groups'
+
+const BELL_FILTERS: { id: BellFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'direct', label: 'Direct' },
+  { id: 'groups', label: 'Groups' },
+]
 
 export function AccountMenu() {
   const me = useCurrentUser()
@@ -24,17 +34,28 @@ export function AccountMenu() {
   const logout = useLogout()
   const navigate = useNavigate()
   const [panelOpen, setPanelOpen] = useState(false)
+  const [bellFilter, setBellFilter] = useState<BellFilter>('all')
   const detailsRef = useRef<HTMLDetailsElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const recent = useNotifications({ limit: 8, enabled: panelOpen })
+  const recent = useNotifications({
+    limit: 6,
+    enabled: panelOpen,
+    filter: bellFilter,
+  })
   const mark = useMarkNotificationsRead()
 
   const profile = me.data!.data.profile
   const timezone = me.data!.data.preferences.timezone
   const count = unread.data?.count ?? 0
   const rows = recent.data?.pages.flatMap((p) => p.data) ?? []
-  const hasUnread = count > 0 || rows.some((n) => !n.readAt)
+  const hasUnread =
+    count > 0 || rows.some((n) => notificationUnreadCount(n) > 0)
+  const getInlineAction = useNotificationActions({
+    rows,
+    enabled: panelOpen,
+    onMarkRead: (ids) => mark.mutate({ ids }),
+  })
 
   useEffect(() => {
     if (!panelOpen) return
@@ -145,6 +166,31 @@ export function AccountMenu() {
                   </Button>
                 </Row>
               </Row>
+              <Row
+                role="tablist"
+                aria-label="Quick notification filters"
+                className="mt-2 gap-1.5"
+              >
+                {BELL_FILTERS.map((tab) => {
+                  const active = bellFilter === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setBellFilter(tab.id)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        active
+                          ? 'border-accent bg-accent text-white'
+                          : 'bg-surface text-muted hover:bg-surface-muted hover:text-text'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </Row>
             </div>
             <Stack className="gap-3 overflow-y-auto px-4 py-3">
 
@@ -157,18 +203,23 @@ export function AccountMenu() {
                 <Loading />
               ) : rows.length === 0 ? (
                 <Panel className="py-6 text-center">
-                  <p className="text-sm text-muted">You are caught up.</p>
+                  <p className="text-sm text-muted">
+                    {bellFilter === 'all'
+                      ? 'You are caught up.'
+                      : `No ${bellFilter} notifications.`}
+                  </p>
                 </Panel>
               ) : (
                 <Stack className="gap-2">
                   {rows.slice(0, 6).map((n) => (
                     <NotificationRow
-                      key={n.id}
+                      key={n.groupKey ?? n.id}
                       notification={n}
                       timezone={timezone}
                       compact
                       marking={mark.isPending}
-                      onMarkRead={(id) => mark.mutate({ ids: [id] })}
+                      inlineAction={getInlineAction(n)}
+                      onMarkRead={(ids) => mark.mutate({ ids })}
                       onNavigate={() => setPanelOpen(false)}
                     />
                   ))}

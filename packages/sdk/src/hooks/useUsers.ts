@@ -122,9 +122,10 @@ export function useUpdateMyProfile() {
   )
 }
 
-export function useMyFollowRequests() {
+export function useMyFollowRequests(options?: { enabled?: boolean }) {
   return useInfiniteQuery({
     queryKey: useViewerKey(keys.followRequests),
+    enabled: options?.enabled ?? true,
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) =>
       apiData(

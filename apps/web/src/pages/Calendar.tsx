@@ -88,7 +88,7 @@ export function CalendarPage() {
   const updateItem = useUpdateCalendarItem()
   const [pendingTimes, setPendingTimes] = useState<Record<string, string | null>>({})
   const completionKeys = useRef(new Map<string, string>())
-  const origin = `/?${new URLSearchParams({
+  const origin = `/calendar?${new URLSearchParams({
     view,
     day: selected,
   }).toString()}`

@@ -38,7 +38,7 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
   await page.getByLabel('Password', { exact: true }).fill('password')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('button', { name: 'All hours', exact: true })).toBeVisible()
-  await page.goto('/?view=day&day=2026-11-09')
+  await page.goto('/calendar?view=day&day=2026-11-09')
 
   const table = page.getByRole('table', { name: 'Day schedule' })
   await expect(table).toBeVisible()
@@ -114,7 +114,7 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 
   // Return to Nov 9 and click tile to open Occurrence page
-  await page.goto('/?view=day&day=2026-11-09')
+  await page.goto('/calendar?view=day&day=2026-11-09')
   await table.getByRole('link', { name: /Evening walk/ }).click()
   await expect(page).toHaveURL(/\/occurrences\/late/)
   expect(requests.length).toBeGreaterThanOrEqual(0)
@@ -200,7 +200,7 @@ test('grouped workout renders one expandable tile while separate programs stay i
   await page.getByLabel('Email', { exact: true }).fill('author@test.local')
   await page.getByLabel('Password', { exact: true }).fill('password')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.goto('/?view=day&day=2026-11-10')
+  await page.goto('/calendar?view=day&day=2026-11-10')
 
   const groupTile = page.locator('[data-workout-group="enroll-fitness"]')
   await expect(groupTile).toHaveCount(1)
