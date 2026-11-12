@@ -647,10 +647,10 @@ function BrowseFeedTile({
               isAdded ? (
                 <Link
                   to="/"
-                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/15 px-5 py-2.5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent/25"
+                  className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-border/70 bg-surface-raised px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
                 >
-                  <Check size={16} aria-hidden />
-                  <span>On today · Open</span>
+                  <Check size={15} aria-hidden />
+                  <span>Scheduled · Open</span>
                 </Link>
               ) : (
                 <button
@@ -658,15 +658,15 @@ function BrowseFeedTile({
                   disabled={isAdding}
                   aria-label={`Do ${item.title} now`}
                   onClick={() => onDoNow(item)}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90 disabled:opacity-50"
+                  className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-border/70 bg-surface-raised px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
                 >
-                  {isAdding ? 'Adding…' : 'Do Now'}
+                  {isAdding ? 'Starting…' : 'Do Now'}
                 </button>
               )
             ) : (
               <Link
                 to={`/activities/${item.id}?returnTo=${encodeURIComponent(currentUrl)}`}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90"
+                className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-border/70 bg-surface-raised px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
               >
                 Do Now
               </Link>
@@ -877,7 +877,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     if (addingActivityId) return
     setAddingActivityId(item.id)
     try {
-      await addCalendarItem.mutateAsync({
+      const result = await addCalendarItem.mutateAsync({
         activityId: item.id,
         revisionId: item.revisionId ?? undefined,
         localDate: today(
@@ -887,9 +887,10 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         idempotencyKey: crypto.randomUUID(),
       })
       setAddedActivityIds((prev) => new Set(prev).add(item.id))
-      toast.success(`Added "${item.title}" to today`)
+      saveBrowseScroll(currentUrl)
+      navigate(`/occurrences/${result.item.id}?returnTo=${encodeURIComponent(currentUrl)}`)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not add activity')
+      toast.error(err instanceof Error ? err.message : 'Could not start activity')
     } finally {
       setAddingActivityId(null)
     }
@@ -1318,12 +1319,45 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       return (b.featuredGroup?.memberCount ?? 0) - (a.featuredGroup?.memberCount ?? 0)
     })
 
-  const quickActivityItems: BrowseFeedItem[] = [...activityItems].sort((a, b) => {
+  const sortedQuickActivities: BrowseFeedItem[] = [...activityItems].sort((a, b) => {
     const aQuick = a.durationMinutes != null && a.durationMinutes <= 20 ? 0 : 1
     const bQuick = b.durationMinutes != null && b.durationMinutes <= 20 ? 0 : 1
     if (aQuick !== bQuick) return aQuick - bQuick
     return (a.durationMinutes ?? 999) - (b.durationMinutes ?? 999)
   })
+
+  const quickActivityItems: BrowseFeedItem[] = (() => {
+    const picked: BrowseFeedItem[] = []
+    const pickedIds = new Set<string>()
+    const seenVisuals = new Set<string>()
+    const seenCategories = new Set<string>()
+
+    // Pass 1: unique image + unique category first to avoid near-identical cards
+    for (const item of sortedQuickActivities) {
+      const visualKey = item.hero.src ? `img:${item.hero.src}` : `cat:${item.hero.category}`
+      if (!seenVisuals.has(visualKey) && !seenCategories.has(item.hero.category)) {
+        picked.push(item)
+        pickedIds.add(item.id)
+        seenVisuals.add(visualKey)
+        seenCategories.add(item.hero.category)
+      }
+    }
+    // Pass 2: unique image (even if category repeats)
+    for (const item of sortedQuickActivities) {
+      if (pickedIds.has(item.id)) continue
+      const visualKey = item.hero.src ? `img:${item.hero.src}` : `cat:${item.hero.category}`
+      if (!seenVisuals.has(visualKey)) {
+        picked.push(item)
+        pickedIds.add(item.id)
+        seenVisuals.add(visualKey)
+      }
+    }
+    // Pass 3: remaining activities if fewer than 4 unique visuals exist
+    for (const item of sortedQuickActivities) {
+      if (!pickedIds.has(item.id)) picked.push(item)
+    }
+    return picked
+  })()
 
   const happeningNowItems: BrowseFeedItem[] = [
     ...liveSessionItems,
