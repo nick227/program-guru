@@ -71,7 +71,7 @@ type Sort = S['DiscoverSort']
 
 const SCROLL_KEY_PREFIX = 'browse-scroll:'
 const GRID_CLASS =
-  'grid grid-cols-1 gap-x-7 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+  'grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
 
 type SectionLayout = 'grid' | 'portrait-row' | 'large-cards' | 'feature' | 'action-row'
 type SectionSource =
@@ -330,7 +330,7 @@ function FilterGroup({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-2 py-1 text-left text-[11px] font-semibold uppercase tracking-wider text-muted/85 transition-colors hover:text-foreground"
+        className="flex w-full items-center justify-between gap-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wider text-muted transition-colors hover:text-foreground"
       >
         <span>{title}</span>
         <ChevronDown
@@ -392,7 +392,7 @@ function FilterOptionList<T extends string>({
               if (!option.disabled) onChange(option.value)
             }}
             className={cn(
-              'flex min-h-10 w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors duration-fast md:min-h-0',
+              'flex min-h-10 w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-[15px] transition-colors duration-fast',
               option.disabled
                 ? 'cursor-not-allowed text-muted/55'
                 : active
@@ -436,7 +436,7 @@ function ParticipationAvatars({
           name={u.displayName}
           src={u.avatarUrl}
           size="sm"
-          className="h-5 w-5 text-[9px] ring-2 ring-background"
+          className="h-6 w-6 text-[10px] ring-2 ring-background"
         />
       ))}
     </span>
@@ -454,11 +454,12 @@ function CreatorAvatar({
 }) {
   if (!creator) {
     return (
-      <span
-        aria-hidden
-        className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-surface-raised"
-      >
-        <span className="h-2.5 w-2.5 rounded-full bg-accent" />
+      <span className="mt-0.5 shrink-0" aria-hidden>
+        <Avatar
+          name={creatorName ?? 'Program.Guru'}
+          size="md"
+          className="h-10 w-10"
+        />
       </span>
     )
   }
@@ -534,8 +535,8 @@ function BrowseFeedTile({
     titleSize === 'xl'
       ? 'line-clamp-2 font-display text-2xl font-semibold leading-snug tracking-[-0.02em] text-foreground transition-colors hover:text-accent'
       : titleSize === 'lg'
-        ? 'line-clamp-2 font-display text-lg font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-xl'
-        : 'line-clamp-2 font-display text-[17px] font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-lg'
+        ? 'line-clamp-2 font-display text-xl font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-[21px]'
+        : 'line-clamp-2 font-display text-lg font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-[19px]'
 
   const mediaNode = (
     <button
@@ -581,16 +582,16 @@ function BrowseFeedTile({
         </button>
 
         {creatorName && (
-          <div className="mt-1">
+          <div className="mt-1.5">
             {creatorProfileUrl ? (
               <Link
                 to={creatorProfileUrl}
-                className="inline-block max-w-full truncate text-sm font-medium text-foreground/75 transition-colors hover:text-foreground"
+                className="inline-block max-w-full truncate text-[15px] font-medium text-foreground/85 transition-colors hover:text-foreground"
               >
                 {creatorName}
               </Link>
             ) : (
-              <p className="truncate text-sm font-medium text-foreground/75">
+              <p className="truncate text-[15px] font-medium text-foreground/85">
                 {creatorName}
               </p>
             )}
@@ -598,7 +599,7 @@ function BrowseFeedTile({
         )}
 
         {(item.scheduleLine || (!g && participantCount > 0)) && (
-          <p className="mt-0.5 truncate text-sm text-muted">
+          <p className="mt-1 truncate text-sm text-muted">
             {[
               item.scheduleLine,
               !g && participantCount > 0
@@ -611,14 +612,14 @@ function BrowseFeedTile({
         )}
 
         {actionable && item.kind === 'activities' && !isPicker && (
-          <div className="mt-3.5 flex items-center gap-2.5">
+          <div className="mt-4">
             {signedIn && onDoNow ? (
               isAdded ? (
                 <Link
                   to="/"
-                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent transition-colors hover:bg-accent/25"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/15 px-5 py-2.5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent/25"
                 >
-                  <Check size={15} aria-hidden />
+                  <Check size={16} aria-hidden />
                   <span>On today · Open</span>
                 </Link>
               ) : (
@@ -627,7 +628,7 @@ function BrowseFeedTile({
                   disabled={isAdding}
                   aria-label={`Do ${item.title} now`}
                   onClick={() => onDoNow(item)}
-                  className="inline-flex min-h-10 items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90 disabled:opacity-50"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90 disabled:opacity-50"
                 >
                   {isAdding ? 'Adding…' : 'Do now'}
                 </button>
@@ -635,7 +636,7 @@ function BrowseFeedTile({
             ) : (
               <Link
                 to={`/activities/${item.id}?returnTo=${encodeURIComponent(currentUrl)}`}
-                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90"
               >
                 Do now
               </Link>
@@ -644,10 +645,10 @@ function BrowseFeedTile({
         )}
 
         {g && groupName && (
-          <div className="mt-2.5 flex items-center justify-between gap-2">
+          <div className="mt-3 flex items-center justify-between gap-2">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <ParticipationAvatars avatars={g.memberAvatars} />
-              <p className="min-w-0 truncate text-[13px] text-muted">
+              <p className="min-w-0 truncate text-sm text-muted">
                 {groupName} · {g.memberCount}{' '}
                 {g.memberCount === 1 ? 'member' : 'members'}
                 {recentCheckIns > 0
@@ -1185,6 +1186,13 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     })
     .slice(0, 4)
 
+  const happeningNowIds = new Set(happeningNowItems.map((item) => item.id))
+  const uniqueBottomActivities = activityItems.filter(
+    (item) => !happeningNowIds.has(item.id),
+  )
+  const bottomActivityItems =
+    uniqueBottomActivities.length >= 4 ? uniqueBottomActivities : activityItems
+
   const recentActivityItems: BrowseFeedItem[] = programItems
     .filter(
       (item) =>
@@ -1384,9 +1392,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   ) => {
     const isRow = layout === 'portrait-row' || layout === 'action-row'
     const listClass = isRow
-      ? 'browse-sidebar-scroll flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory'
+      ? 'browse-sidebar-scroll flex gap-7 overflow-x-auto pb-4 snap-x snap-mandatory'
       : layout === 'large-cards'
-        ? 'grid grid-cols-1 gap-x-7 gap-y-10 md:grid-cols-2'
+        ? 'grid grid-cols-1 gap-x-8 gap-y-12 md:grid-cols-2'
         : layout === 'feature'
           ? 'block'
           : GRID_CLASS
@@ -1452,7 +1460,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     'recent-activity': recentActivityItems,
     'starting-soon': startingSoonPrograms.isPending ? [] : startingSoonItems,
     programs: programItems,
-    activities: activities.isPending ? [] : activityItems,
+    activities: activities.isPending ? [] : bottomActivityItems,
   }
 
   const communitySections: CommunitySectionConfig[] = [
@@ -1497,7 +1505,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
 
   return (
     <Page className="max-w-none px-5 pb-24 sm:px-8 lg:px-12">
-      <div className="mx-auto w-full pt-5 md:pt-8">
+      <div className="mx-auto w-full">
         <div className="flex flex-col gap-8 md:flex-row md:items-start md:gap-10 lg:gap-12">
           {/* Left: Compact 216px sticky sidebar on desktop, slide-over drawer on mobile */}
           <aside
@@ -1994,7 +2002,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       ))}
                     </div>
                   ) : showDirectorySections ? (
-                    <div className="space-y-14 lg:space-y-16">
+                    <div className="space-y-16">
                       {communitySections.map((section) => {
                         const raw = sectionItemsBySource[section.source]
                         const sectionItems = section.limit
@@ -2008,7 +2016,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                             aria-labelledby={`section-${section.id}`}
                             className={cn(
                               section.source === 'activities' &&
-                                'border-t border-border/35 pt-12',
+                                'border-t border-border/35 pt-14',
                             )}
                           >
                             <div className="mb-6 flex items-baseline justify-between gap-3">
