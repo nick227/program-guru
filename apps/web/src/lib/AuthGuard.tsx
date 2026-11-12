@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useOnline } from './useOnline'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { ApiError, useCurrentUser } from '@project/sdk'
@@ -9,8 +10,16 @@ export function AuthGuard() {
   const location = useLocation()
   // Service-worker navigations can report navigator.onLine=true while API fetches fail.
   // Treat a transport failure as recoverable connectivity loss, not a signed-out session.
-  const connectionUnavailable = !online ||
-    (me.error instanceof TypeError && /failed to fetch|networkerror|load failed/i.test(me.error.message))
+  const networkFetchFailed = me.error instanceof TypeError &&
+    /failed to fetch|networkerror|load failed/i.test(me.error.message)
+  const connectionUnavailable = !online || networkFetchFailed
+  // An installed PWA may receive no online event when its service worker serves
+  // a navigation. Retry the failed auth fetch until connectivity is restored.
+  useEffect(() => {
+    if (me.data || !networkFetchFailed) return
+    const retry = window.setInterval(() => { void me.refetch() }, 3_000)
+    return () => window.clearInterval(retry)
+  }, [me.data, networkFetchFailed, me.refetch])
   if (!me.data && connectionUnavailable)
     return (
       <Page>
