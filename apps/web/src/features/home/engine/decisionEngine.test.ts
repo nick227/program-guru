@@ -9,6 +9,7 @@ function makeBaseSignals(overrides: Partial<HomeSignals> = {}): HomeSignals {
     isSignedIn: false,
     todayItems: [],
     activeEnrollments: [],
+    knownProgramIds: [],
     liveSessions: [],
     popularPrograms: [
       {
@@ -107,6 +108,67 @@ function makeBaseSignals(overrides: Partial<HomeSignals> = {}): HomeSignals {
     ...overrides,
   }
 }
+
+describe('Home program eligibility', () => {
+  it('never offers the owned Pump it up Program as new after finishing today', () => {
+    const base = makeBaseSignals()
+    const popular = base.popularPrograms[0]!
+    const pump = {
+      ...popular,
+      program: {
+        ...popular.program!,
+        id: 'pump-it-up',
+        title: 'Pump it up',
+        viewerAccess: 'OWNER',
+      },
+    } as typeof popular
+    const signals = makeBaseSignals({
+      isSignedIn: true,
+      knownProgramIds: ['pump-it-up'],
+      newPrograms: [pump],
+      popularPrograms: [pump, popular],
+    })
+    expect(rankHomeSignals(signals).card?.id).toBe('prog-1')
+    expect(resolveTurn('program_result', { excludedIds: [] }, signals).card?.id).toBe('prog-1')
+    expect(buildPresentationItems('popular', signals).some((card) => card.id === 'pump-it-up')).toBe(false)
+  })
+
+  it('excludes prior member Programs regardless of active, paused, or completed run state', () => {
+    const base = makeBaseSignals()
+    const prior = {
+      ...base.popularPrograms[0]!,
+      program: { ...base.popularPrograms[0]!.program!, id: 'previous-program' },
+    } as (typeof base.popularPrograms)[number]
+    for (const status of ['Active', 'Paused', 'Completed']) {
+      const signals = makeBaseSignals({
+        isSignedIn: true,
+        knownProgramIds: ['previous-program'],
+        popularPrograms: [prior, ...base.popularPrograms],
+      })
+      expect(resolveTurn('program_result', { excludedIds: [] }, signals).card?.id, status).toBe('prog-1')
+      expect(buildPresentationItems('for_you', signals).some((card) => card.id === 'previous-program')).toBe(false)
+    }
+  })
+
+  it('does not offer Programs before the signed-in library is ready', () => {
+    const signals = makeBaseSignals({
+      isSignedIn: true,
+      knownProgramIds: null,
+    })
+    expect(rankHomeSignals(signals).card?.kind).toBe('activity')
+    expect(resolveTurn('program_result', { excludedIds: [] }, signals).card).toBeUndefined()
+  })
+
+  it('does not silently ignore an explicit Program category or duration constraint', () => {
+    const signals = makeBaseSignals()
+    expect(resolveTurn('program_result', {
+      excludedIds: [], categoryId: 'unknown-category',
+    }, signals).card).toBeUndefined()
+    expect(resolveTurn('program_result', {
+      excludedIds: [], maxMinutes: 5,
+    }, signals).card).toBeUndefined()
+  })
+})
 
 describe('rankHomeSignals', () => {
   it('prioritizes today scheduled activity for signed-in users', () => {

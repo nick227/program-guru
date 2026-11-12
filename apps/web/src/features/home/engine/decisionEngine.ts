@@ -12,6 +12,7 @@ import {
   mapSessionToCard,
 } from './cardMappers'
 import { rankHomeSignals } from './rankHomeSignals'
+import { canSuggestNewProgram } from './programEligibility'
 import {
   phraseActivityTurn,
   phraseCreatorTurn,
@@ -84,7 +85,8 @@ function pickProgram(state: DiscoveryState, signals: HomeSignals) {
         if (
           !entry.program ||
           excluded.has(entry.program.id) ||
-          seen.has(entry.program.id)
+          seen.has(entry.program.id) ||
+          !canSuggestNewProgram(entry.program, signals)
         ) {
           return false
         }
@@ -94,6 +96,7 @@ function pickProgram(state: DiscoveryState, signals: HomeSignals) {
     )
 
   const filtered = candidates.filter(({ program }) => {
+    const fitsCategory = !state.categoryId || program.type.categoryId === state.categoryId
     const fitsLevel =
       !state.level ||
       state.level === 'ALL_LEVELS' ||
@@ -104,10 +107,10 @@ function pickProgram(state: DiscoveryState, signals: HomeSignals) {
       state.maxMinutes >= 999 ||
       !program.sessionMinutes ||
       program.sessionMinutes <= state.maxMinutes
-    return fitsLevel && fitsTime
+    return fitsCategory && fitsLevel && fitsTime
   })
 
-  return filtered[0] ?? candidates[0] ?? null
+  return filtered[0] ?? null
 }
 
 function resolveIntentMenu(signals: HomeSignals): AssistantTurn {
@@ -540,7 +543,8 @@ function resolveTogetherResult(
   const excluded = new Set(state.excludedIds)
   const sessionItem = signals.liveSessions.find((item) => {
     const id = item.featuredGroup?.id ?? item.program?.id
-    return id && !excluded.has(id)
+    return id && !excluded.has(id) &&
+      (Boolean(item.featuredGroup) || Boolean(item.program && canSuggestNewProgram(item.program, signals)))
   })
   const card = sessionItem ? mapSessionToCard(sessionItem) : null
 
