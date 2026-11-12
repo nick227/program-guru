@@ -1,4 +1,5 @@
 import type { AssistantCard, HomeSignals, PresentationMode } from './types'
+import { canSuggestNewProgram } from './programEligibility'
 import {
   mapActivityToCard,
   mapCalendarItemToCard,
@@ -35,11 +36,13 @@ export function buildPresentationItems(
 
   if (mode === 'happening_now') {
     for (const item of signals.liveSessions) {
-      push(mapSessionToCard(item))
+      if (item.featuredGroup || (item.program && canSuggestNewProgram(item.program, signals))) {
+        push(mapSessionToCard(item))
+      }
     }
     if (out.length < 3) {
       for (const item of signals.popularPrograms) {
-        if (item.featuredGroup && item.program) {
+        if (item.featuredGroup && item.program && canSuggestNewProgram(item.program, signals)) {
           push(
             mapProgramToCard(
               item.program,
@@ -55,7 +58,7 @@ export function buildPresentationItems(
 
   if (mode === 'popular') {
     for (const item of signals.popularPrograms) {
-      if (item.program) {
+      if (item.program && canSuggestNewProgram(item.program, signals)) {
         push(
           mapProgramToCard(
             item.program,
@@ -80,7 +83,7 @@ export function buildPresentationItems(
 
   if (mode === 'following') {
     for (const item of signals.newPrograms) {
-      if (item.program) {
+      if (item.program && canSuggestNewProgram(item.program, signals)) {
         push(
           mapProgramToCard(
             item.program,
@@ -110,7 +113,7 @@ export function buildPresentationItems(
     push(mapSessionToCard(item))
   }
   for (const item of signals.popularPrograms) {
-    if (item.program) {
+    if (item.program && canSuggestNewProgram(item.program, signals)) {
       push(
         mapProgramToCard(
           item.program,
