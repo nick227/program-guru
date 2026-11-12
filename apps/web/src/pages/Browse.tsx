@@ -6,6 +6,7 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import {
+  useAddCalendarItem,
   useCategories,
   useCurrentUser,
   useDiscoverActivities,
@@ -59,7 +60,7 @@ import {
   type BrowseDuration,
   type BrowseKind,
 } from '@/lib/browse'
-import { dateLabel, formatRelativeTime, safeReturn } from '@/lib/dates'
+import { dateLabel, formatRelativeTime, safeReturn, today } from '@/lib/dates'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { activityHero, programHero, toHeroCategory, type Hero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
@@ -489,6 +490,9 @@ function BrowseFeedTile({
   joiningGroupId,
   onQuickJoin,
   onJoinSession,
+  isAdded = false,
+  isAdding = false,
+  onDoNow,
   isActionRow = false,
   aspect = 'video',
   titleSize = 'base',
@@ -502,6 +506,9 @@ function BrowseFeedTile({
   joiningGroupId: string | null
   onQuickJoin: (groupId: string) => void
   onJoinSession?: (session: S['LiveSessionSummary']) => void
+  isAdded?: boolean
+  isAdding?: boolean
+  onDoNow?: (item: BrowseFeedItem) => void
   isActionRow?: boolean
   aspect?: 'video' | 'portrait'
   titleSize?: 'base' | 'lg' | 'xl'
@@ -629,6 +636,39 @@ function BrowseFeedTile({
                 className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90"
               >
                 Join Session
+              </Link>
+            )}
+          </div>
+        )}
+
+        {isActionRow && !live && !g && item.kind === 'activities' && (
+          <div className="mt-4">
+            {signedIn && onDoNow ? (
+              isAdded ? (
+                <Link
+                  to="/"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/15 px-5 py-2.5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent/25"
+                >
+                  <Check size={16} aria-hidden />
+                  <span>On today · Open</span>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isAdding}
+                  aria-label={`Do ${item.title} now`}
+                  onClick={() => onDoNow(item)}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90 disabled:opacity-50"
+                >
+                  {isAdding ? 'Adding…' : 'Do Now'}
+                </button>
+              )
+            ) : (
+              <Link
+                to={`/activities/${item.id}?returnTo=${encodeURIComponent(currentUrl)}`}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90"
+              >
+                Do Now
               </Link>
             )}
           </div>
@@ -827,8 +867,33 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const me = useCurrentUser()
   const myGroups = useMyGroups(!!me.data && !mode.isPicker && mode.kind === 'programs')
   const joinGroup = useJoinPublicGroupById()
+  const addCalendarItem = useAddCalendarItem()
   const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(() => new Set())
   const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null)
+  const [addedActivityIds, setAddedActivityIds] = useState<Set<string>>(() => new Set())
+  const [addingActivityId, setAddingActivityId] = useState<string | null>(null)
+
+  const handleDoNow = async (item: BrowseFeedItem) => {
+    if (addingActivityId) return
+    setAddingActivityId(item.id)
+    try {
+      await addCalendarItem.mutateAsync({
+        activityId: item.id,
+        revisionId: item.revisionId ?? undefined,
+        localDate: today(
+          me.data?.data.preferences.timezone ??
+            Intl.DateTimeFormat().resolvedOptions().timeZone,
+        ),
+        idempotencyKey: crypto.randomUUID(),
+      })
+      setAddedActivityIds((prev) => new Set(prev).add(item.id))
+      toast.success(`Added "${item.title}" to today`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not add activity')
+    } finally {
+      setAddingActivityId(null)
+    }
+  }
 
   const handleQuickJoin = async (groupId: string) => {
     if (joiningGroupId) return
@@ -1253,10 +1318,27 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       return (b.featuredGroup?.memberCount ?? 0) - (a.featuredGroup?.memberCount ?? 0)
     })
 
+  const quickActivityItems: BrowseFeedItem[] = [...activityItems].sort((a, b) => {
+    const aQuick = a.durationMinutes != null && a.durationMinutes <= 20 ? 0 : 1
+    const bQuick = b.durationMinutes != null && b.durationMinutes <= 20 ? 0 : 1
+    if (aQuick !== bQuick) return aQuick - bQuick
+    return (a.durationMinutes ?? 999) - (b.durationMinutes ?? 999)
+  })
+
   const happeningNowItems: BrowseFeedItem[] = [
     ...liveSessionItems,
     ...openGroupSessionItems,
+    ...quickActivityItems,
   ].slice(0, 4)
+
+  const happeningNowActivityIds = new Set(
+    happeningNowItems.filter((item) => item.kind === 'activities').map((item) => item.id),
+  )
+  const uniqueBottomActivities = activityItems.filter(
+    (item) => !happeningNowActivityIds.has(item.id),
+  )
+  const bottomActivityItems =
+    uniqueBottomActivities.length >= 4 ? uniqueBottomActivities : activityItems
 
   const recentActivityItems: BrowseFeedItem[] = programItems
     .filter(
@@ -1495,6 +1577,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             <BrowseFeedTile
               item={item}
               isActionRow={layout === 'action-row'}
+              isAdded={addedActivityIds.has(item.id)}
+              isAdding={addingActivityId === item.id}
+              onDoNow={(act) => void handleDoNow(act)}
               aspect={aspect}
               titleSize={titleSize}
               actionLabel={
@@ -1521,11 +1606,12 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   }
 
   const sectionItemsBySource: Record<SectionSource, BrowseFeedItem[]> = {
-    'happening-now': liveSessions.isPending ? [] : happeningNowItems,
+    'happening-now':
+      liveSessions.isPending && activities.isPending ? [] : happeningNowItems,
     'recent-activity': recentActivityItems,
     'starting-soon': startingSoonPrograms.isPending ? [] : startingSoonItems,
     programs: programItems,
-    activities: activities.isPending ? [] : activityItems,
+    activities: activities.isPending ? [] : bottomActivityItems,
   }
 
   const communitySections: CommunitySectionConfig[] = [
