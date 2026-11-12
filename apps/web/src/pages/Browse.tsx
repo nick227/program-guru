@@ -1534,17 +1534,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   </button>
                 </div>
 
-                {!mode.isPicker && (
-                  <div className="mb-4 hidden md:block">
-                    <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
-                      Explore
-                    </h2>
-                    <p className="mt-0.5 text-xs text-muted">
-                      Programs, activities, and groups.
-                    </p>
-                  </div>
-                )}
-
                 <div className="flex-1">
                   {/* Content type switcher (Programs / Activities) */}
                   {!mode.isPicker && (
@@ -1763,13 +1752,17 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             </div>
           </aside>
 
-          {/* Right: Main header, prominent search, active chips, and borderless tiles */}
+          {/* Right: Prominent search, active chips, and borderless tiles */}
           <section aria-label={`${nounPlural} feed`} className="min-w-0 flex-1">
-            <header className="mb-4">
-              <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                {title}
-              </h1>
-            </header>
+            {mode.isPicker ? (
+              <header className="mb-4">
+                <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                  {title}
+                </h1>
+              </header>
+            ) : (
+              <h1 className="sr-only">{title}</h1>
+            )}
 
             {/* Prominent search + sort row */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
