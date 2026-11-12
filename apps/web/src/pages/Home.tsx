@@ -192,6 +192,7 @@ export function HomePage() {
   )
 
   const loading =
+    me.isPending ||
     (popularPrograms.isPending &&
       activities.isPending &&
       (!isSignedIn || calendar.isPending)) ||
