@@ -6,6 +6,7 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import {
+  useAddCalendarItem,
   useCategories,
   useCurrentUser,
   useDiscoverActivities,
@@ -22,6 +23,7 @@ import {
 import {
   Calendar,
   CalendarClock,
+  CalendarPlus,
   Check,
   ChevronDown,
   Clock,
@@ -61,7 +63,7 @@ import {
   type BrowseDuration,
   type BrowseKind,
 } from '@/lib/browse'
-import { dateLabel, safeReturn } from '@/lib/dates'
+import { dateLabel, safeReturn, today } from '@/lib/dates'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { activityHero, programHero, toHeroCategory, type Hero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
@@ -72,6 +74,8 @@ type S = components['schemas']
 type Sort = S['DiscoverSort']
 
 const SCROLL_KEY_PREFIX = 'browse-scroll:'
+const GRID_CLASS =
+  'grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
 
 interface BrowserMode {
   kind: BrowseKind
@@ -87,8 +91,11 @@ interface BrowserMode {
 
 interface BrowseFeedItem {
   id: string
+  kind: BrowseKind
+  revisionId?: string | null
   title: string
   description: string | null
+  creatorLabel: string | null
   categoryLabel: string | null
   focusLabel: string | null
   levelLabel: string | null
@@ -413,7 +420,7 @@ function GroupAvatars({
   if (list.length === 0) {
     return (
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted">
-        <Users size={13} aria-hidden />
+        <Users size={12} aria-hidden />
       </span>
     )
   }
@@ -441,6 +448,9 @@ function BrowseFeedCard({
   joinedIds,
   joiningGroupId,
   onQuickJoin,
+  addedActivityIds,
+  addingActivityId,
+  onAddActivityToToday,
 }: {
   item: BrowseFeedItem
   actionLabel: string
@@ -450,6 +460,9 @@ function BrowseFeedCard({
   joinedIds: Set<string>
   joiningGroupId: string | null
   onQuickJoin: (groupId: string) => void
+  addedActivityIds?: Set<string>
+  addingActivityId?: string | null
+  onAddActivityToToday?: (item: BrowseFeedItem) => void
 }) {
   const g = !isPicker && item.featuredGroup?.visibility === 'PUBLIC' ? item.featuredGroup : null
   const groupName = g ? (g.name?.trim() || `${item.title} group`) : null
@@ -458,16 +471,19 @@ function BrowseFeedCard({
   const recentCheckIns = g?.recentCheckInCount ?? 0
   const groupSchedule = g?.startLocalDate ? `Starts ${dateLabel(g.startLocalDate)}` : null
   const tone = `var(--cat-${item.hero.category}, var(--color-accent))`
+  const isActivity = item.kind === 'activities'
+  const isActivityAdded = !!addedActivityIds?.has(item.id)
+  const isAddingActivity = addingActivityId === item.id
 
   return (
-    <article className="flex h-full flex-col justify-between rounded-xl border border-border/80 bg-surface p-3.5 transition-colors hover:border-border">
+    <article className="flex h-full flex-col justify-between rounded-xl border border-border/80 bg-surface p-3 transition-colors hover:border-border">
       <button
         type="button"
         aria-label={`${actionLabel}: ${item.title}`}
         onClick={item.onSelect}
-        className="group flex w-full flex-col gap-3.5 text-left sm:flex-row sm:items-start"
+        className="group flex w-full flex-col gap-2.5 text-left"
       >
-        <div className="browse-thumb relative aspect-video w-full shrink-0 overflow-hidden rounded-lg border border-border/50 bg-surface-muted sm:w-40 xl:w-44">
+        <div className="browse-thumb relative aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-surface-muted">
           <EntityHero
             hero={item.hero}
             size="card"
@@ -477,9 +493,9 @@ function BrowseFeedCard({
           />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           {(item.categoryLabel || item.focusLabel || item.levelLabel) && (
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1">
               {item.categoryLabel && (
                 <span
                   style={
@@ -489,27 +505,27 @@ function BrowseFeedCard({
                       borderColor: `hsl(${tone} / 0.3)`,
                     } as CSSProperties
                   }
-                  className="inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium leading-tight"
+                  className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight border"
                 >
                   {item.categoryLabel}
                 </span>
               )}
               {item.focusLabel && (
-                <span className="inline-flex items-center rounded-md border border-border/60 bg-surface-muted/70 px-2 py-0.5 text-[11px] font-medium leading-tight text-foreground/85">
+                <span className="inline-flex items-center rounded border border-border/60 bg-surface-muted/70 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-foreground/85">
                   {item.focusLabel}
                 </span>
               )}
               {item.levelLabel && (
-                <span className="ml-auto inline-flex items-center rounded-md border border-border/70 px-2 py-0.5 text-[11px] font-medium leading-tight text-muted">
+                <span className="ml-auto inline-flex items-center rounded border border-border/70 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-muted">
                   {item.levelLabel}
                 </span>
               )}
             </div>
           )}
 
-          <h2 className="line-clamp-2 font-display text-base font-semibold leading-snug tracking-[-0.01em] text-foreground transition-colors group-hover:text-accent">
+          <h3 className="line-clamp-2 font-display text-sm font-semibold leading-snug tracking-[-0.01em] text-foreground transition-colors group-hover:text-accent">
             {item.title}
-          </h2>
+          </h3>
 
           {item.description && (
             <p className="line-clamp-2 text-xs leading-relaxed text-muted">
@@ -517,23 +533,29 @@ function BrowseFeedCard({
             </p>
           )}
 
+          {item.creatorLabel && (
+            <p className="truncate text-[11px] text-muted/85">
+              {item.creatorLabel}
+            </p>
+          )}
+
           {(item.sessionLabel || item.frequencyLabel || item.lengthLabel) && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-xs text-muted">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pt-0.5 text-[11px] text-muted">
               {item.sessionLabel && (
                 <span className="inline-flex items-center gap-1">
-                  <Clock size={12} aria-hidden className="shrink-0 opacity-80" />
+                  <Clock size={11} aria-hidden className="shrink-0 opacity-80" />
                   <span>{item.sessionLabel}</span>
                 </span>
               )}
               {item.frequencyLabel && (
                 <span className="inline-flex items-center gap-1">
-                  <Repeat size={12} aria-hidden className="shrink-0 opacity-80" />
+                  <Repeat size={11} aria-hidden className="shrink-0 opacity-80" />
                   <span>{item.frequencyLabel}</span>
                 </span>
               )}
               {item.lengthLabel && (
                 <span className="inline-flex items-center gap-1">
-                  <Calendar size={12} aria-hidden className="shrink-0 opacity-80" />
+                  <Calendar size={11} aria-hidden className="shrink-0 opacity-80" />
                   <span>{item.lengthLabel}</span>
                 </span>
               )}
@@ -542,12 +564,12 @@ function BrowseFeedCard({
         </div>
       </button>
 
-      {g && groupName && (
-        <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+      {g && groupName ? (
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <GroupAvatars avatars={g.memberAvatars} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-foreground">
+              <p className="truncate text-xs font-medium text-foreground">
                 {groupName}
               </p>
               <p className="truncate text-[11px] text-muted">
@@ -593,6 +615,46 @@ function BrowseFeedCard({
             </Link>
           )}
         </div>
+      ) : (
+        isActivity &&
+        !isPicker && (
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+            <span className="truncate text-[11px] text-muted">
+              Standalone Activity
+            </span>
+            {signedIn && onAddActivityToToday ? (
+              <Button
+                type="button"
+                size="sm"
+                variant={isActivityAdded ? 'outline' : 'default'}
+                loading={isAddingActivity}
+                disabled={isAddingActivity || isActivityAdded}
+                aria-label={`Add ${item.title} to today`}
+                onClick={() => onAddActivityToToday(item)}
+                className="shrink-0 gap-1"
+              >
+                {isActivityAdded ? (
+                  <>
+                    <Check size={12} aria-hidden />
+                    <span>Added</span>
+                  </>
+                ) : (
+                  <>
+                    <CalendarPlus size={12} aria-hidden />
+                    <span>Add today</span>
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Link
+                to={`/activities/${item.id}?returnTo=${encodeURIComponent(currentUrl)}`}
+                className="btn btn--outline btn--sm shrink-0"
+              >
+                Open
+              </Link>
+            )}
+          </div>
+        )
       )}
     </article>
   )
@@ -612,15 +674,15 @@ function MyGroupCard({
     : null
 
   return (
-    <article className="flex flex-col justify-between gap-3 rounded-xl border border-border/80 bg-surface p-4 transition-colors hover:border-border">
-      <div className="flex items-start justify-between gap-3">
+    <article className="flex flex-col justify-between gap-3 rounded-xl border border-border/80 bg-surface p-3.5 transition-colors hover:border-border">
+      <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium text-muted">
+          <p className="truncate text-[11px] font-medium text-muted">
             {group.programTitle}
           </p>
-          <h2 className="mt-0.5 truncate font-display text-base font-semibold text-foreground">
+          <h3 className="mt-0.5 truncate font-display text-sm font-semibold text-foreground">
             {groupName}
-          </h2>
+          </h3>
         </div>
         <Link
           to={buildGroupUrl(group.id, { returnTo: currentUrl })}
@@ -631,9 +693,9 @@ function MyGroupCard({
         </Link>
       </div>
 
-      <div className="flex items-center gap-2.5 border-t border-border/60 pt-3">
+      <div className="flex items-center gap-2 border-t border-border/60 pt-2.5">
         <GroupAvatars avatars={group.memberAvatars} />
-        <p className="min-w-0 flex-1 truncate text-xs text-muted">
+        <p className="min-w-0 flex-1 truncate text-[11px] text-muted">
           {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
           {recentCheckIns > 0
             ? ` · ${recentCheckIns} recent ${recentCheckIns === 1 ? 'check-in' : 'check-ins'}`
@@ -647,6 +709,7 @@ function MyGroupCard({
 
 function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const location = useLocation()
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const currentUrl = `${location.pathname}${location.search}`
   const categorySlugOf = useCategorySlugOf()
@@ -701,8 +764,12 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const me = useCurrentUser()
   const myGroups = useMyGroups(!!me.data && !mode.isPicker && mode.kind === 'programs')
   const joinGroup = useJoinPublicGroupById()
+  const addCalendarItem = useAddCalendarItem()
   const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(() => new Set())
   const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null)
+  const [addedActivityIds, setAddedActivityIds] = useState<Set<string>>(() => new Set())
+  const [addingActivityId, setAddingActivityId] = useState<string | null>(null)
+
   const handleQuickJoin = async (groupId: string) => {
     if (joiningGroupId) return
     setJoiningGroupId(groupId)
@@ -714,6 +781,28 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       toast.error(err instanceof Error ? err.message : 'Could not join group')
     } finally {
       setJoiningGroupId(null)
+    }
+  }
+
+  const handleAddActivityToToday = async (item: BrowseFeedItem) => {
+    if (addingActivityId) return
+    setAddingActivityId(item.id)
+    try {
+      await addCalendarItem.mutateAsync({
+        activityId: item.id,
+        revisionId: item.revisionId ?? undefined,
+        localDate: today(
+          me.data?.data.preferences.timezone ??
+            Intl.DateTimeFormat().resolvedOptions().timeZone,
+        ),
+        idempotencyKey: crypto.randomUUID(),
+      })
+      setAddedActivityIds((prev) => new Set(prev).add(item.id))
+      toast.success(`Added "${item.title}" to today`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not add activity')
+    } finally {
+      setAddingActivityId(null)
     }
   }
 
@@ -855,6 +944,22 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     setParam(BROWSE_PARAM.tags, nextTags.join(','))
   }
 
+  const filtered =
+    !!categoryId ||
+    (!mode.lockedProgramTypeId && !!programTypeId) ||
+    !!focusId ||
+    !!level ||
+    !!maxSessionMinutes ||
+    selectedTags.length > 0 ||
+    !!duration ||
+    scope !== 'ALL' ||
+    !!search ||
+    sort !== 'POPULAR' ||
+    creator !== 'ALL'
+
+  const showDirectorySections =
+    !mode.isPicker && mode.kind === 'programs' && !filtered
+
   const programs = useDiscoverPrograms({
     q: search,
     categoryId: categoryId || undefined,
@@ -868,13 +973,22 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     timing: timing !== 'ALL' ? timing : undefined,
     enabled: mode.kind === 'programs' && !isMyGroups,
   })
+
+  const startingSoonPrograms = useDiscoverPrograms({
+    timing: 'STARTING_SOON',
+    sort: 'POPULAR',
+    limit: 5,
+    enabled: showDirectorySections,
+  })
+
   const activities = useDiscoverActivities({
     q: search,
     categoryId: categoryId || undefined,
     focusId: focusId || undefined,
     sort,
-    enabled: mode.kind === 'activities',
+    enabled: mode.kind === 'activities' || showDirectorySections,
   })
+
   const results = isMyGroups
     ? myGroups
     : mode.kind === 'programs'
@@ -922,54 +1036,108 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     (creator === 'ALL' || (creator === 'PLATFORM') === item.isPlatform) &&
     matchesBrowseDuration(duration, mode.kind, item)
 
-  const items: BrowseFeedItem[] =
-    mode.kind === 'programs'
-      ? (programs.data?.pages ?? [])
-          .flatMap((page) =>
-            page.data.flatMap((d) =>
-              d.program ? [{ program: d.program, featuredGroup: d.featuredGroup ?? null }] : [],
-            ),
+  const mapProgramItem = (
+    program: S['ProgramSummary'],
+    featuredGroup: S['PublicGroupSummary'] | null,
+  ): BrowseFeedItem => ({
+    id: program.id,
+    kind: 'programs',
+    title: program.title,
+    description: program.description?.trim() || null,
+    creatorLabel: program.creator?.displayName
+      ? `by ${program.creator.displayName}`
+      : null,
+    categoryLabel: categoryLabelOf(program.type.categoryId),
+    focusLabel: program.focus?.label ?? null,
+    levelLabel: formatProgramLevel(program.level),
+    sessionLabel: program.sessionMinutes
+      ? `${program.sessionMinutes} min`
+      : null,
+    frequencyLabel: program.frequencyLabel || null,
+    lengthLabel: formatProgramDuration(program.durationDays),
+    hero: programHero(program, categorySlugOf),
+    featuredGroup,
+    onSelect: () => {
+      if (mode.onPickProgram) {
+        mode.onPickProgram(program)
+      } else {
+        saveBrowseScroll(currentUrl)
+        navigate(
+          `/programs/${program.id}?returnTo=${encodeURIComponent(currentUrl)}`,
+        )
+      }
+    },
+  })
+
+  const mapActivityItem = (activity: S['ActivitySummary']): BrowseFeedItem => {
+    const firstFocus =
+      activity.focusIds
+        .map(focusLabelOf)
+        .find((label): label is string => !!label) ?? null
+    return {
+      id: activity.id,
+      kind: 'activities',
+      revisionId: activity.revisionId,
+      title: activity.title,
+      description: activity.summary?.trim() || null,
+      creatorLabel: activity.creator?.displayName
+        ? `by ${activity.creator.displayName}`
+        : null,
+      categoryLabel: categoryLabelOf(activity.categoryId),
+      focusLabel: firstFocus,
+      levelLabel: null,
+      sessionLabel: formatDurationMinutes(activity.durationMinutes),
+      frequencyLabel: formatFrequency(activity.frequency) || null,
+      lengthLabel: null,
+      hero: activityHero(activity, categorySlugOf),
+      onSelect: () => {
+        if (mode.onPickActivity && mode.kind === 'activities') {
+          mode.onPickActivity(activity)
+        } else {
+          saveBrowseScroll(currentUrl)
+          navigate(
+            `/activities/${activity.id}?returnTo=${encodeURIComponent(currentUrl)}`,
           )
-          .filter(({ program }) => keep(program))
-          .map(({ program, featuredGroup }) => ({
-            id: program.id,
-            title: program.title,
-            description: program.description?.trim() || null,
-            categoryLabel: categoryLabelOf(program.type.categoryId),
-            focusLabel: program.focus?.label ?? null,
-            levelLabel: formatProgramLevel(program.level),
-            sessionLabel: program.sessionMinutes
-              ? `${program.sessionMinutes} min`
-              : null,
-            frequencyLabel: program.frequencyLabel || null,
-            lengthLabel: formatProgramDuration(program.durationDays),
-            hero: programHero(program, categorySlugOf),
-            featuredGroup,
-            onSelect: () => mode.onPickProgram?.(program),
-          }))
-      : (activities.data?.pages ?? [])
-          .flatMap((page) =>
-            page.data.flatMap((d) => (d.activity ? [d.activity] : [])),
-          )
-          .filter(keep)
-          .map((activity) => {
-            const firstFocus = activity.focusIds
-              .map(focusLabelOf)
-              .find((label): label is string => !!label) ?? null
-            return {
-              id: activity.id,
-              title: activity.title,
-              description: activity.summary?.trim() || null,
-              categoryLabel: categoryLabelOf(activity.categoryId),
-              focusLabel: firstFocus,
-              levelLabel: null,
-              sessionLabel: formatDurationMinutes(activity.durationMinutes),
-              frequencyLabel: formatFrequency(activity.frequency) || null,
-              lengthLabel: null,
-              hero: activityHero(activity, categorySlugOf),
-              onSelect: () => mode.onPickActivity?.(activity),
-            }
-          })
+        }
+      },
+    }
+  }
+
+  const programItems: BrowseFeedItem[] = (programs.data?.pages ?? [])
+    .flatMap((page) =>
+      page.data.flatMap((d) =>
+        d.program ? [{ program: d.program, featuredGroup: d.featuredGroup ?? null }] : [],
+      ),
+    )
+    .filter(({ program }) => keep(program))
+    .map(({ program, featuredGroup }) => mapProgramItem(program, featuredGroup))
+
+  const activityItems: BrowseFeedItem[] = (activities.data?.pages ?? [])
+    .flatMap((page) =>
+      page.data.flatMap((d) => (d.activity ? [d.activity] : [])),
+    )
+    .filter((a) => (mode.kind === 'activities' ? keep(a) : true))
+    .map(mapActivityItem)
+
+  const recentActivityItems: BrowseFeedItem[] = programItems
+    .filter(
+      (item) =>
+        item.featuredGroup?.visibility === 'PUBLIC' &&
+        ((item.featuredGroup.recentCheckInCount ?? 0) > 0 ||
+          !!item.featuredGroup.latestCheckIn),
+    )
+    .slice(0, 5)
+
+  const startingSoonItems: BrowseFeedItem[] = (startingSoonPrograms.data?.pages ?? [])
+    .flatMap((page) =>
+      page.data.flatMap((d) =>
+        d.program ? [{ program: d.program, featuredGroup: d.featuredGroup ?? null }] : [],
+      ),
+    )
+    .slice(0, 5)
+    .map(({ program, featuredGroup }) => mapProgramItem(program, featuredGroup))
+
+  const items = mode.kind === 'programs' ? programItems : activityItems
 
   const myGroupItems = (myGroups.data?.pages ?? [])
     .flatMap((page) => page.data)
@@ -998,19 +1166,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       : 'Activity Library'
     : 'Community'
   useDocumentTitle(title)
-
-  const filtered =
-    !!categoryId ||
-    (!mode.lockedProgramTypeId && !!programTypeId) ||
-    !!focusId ||
-    !!level ||
-    !!maxSessionMinutes ||
-    selectedTags.length > 0 ||
-    !!duration ||
-    scope !== 'ALL' ||
-    !!search ||
-    sort !== 'POPULAR' ||
-    creator !== 'ALL'
 
   const activeSidebarFilterCount = [
     categoryId,
@@ -1147,10 +1302,46 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const displayedCount = isMyGroups ? myGroupItems.length : items.length
   const myGroupsCount = me.data && !myGroups.isPending ? myGroupItems.length : null
 
+  const renderCardGrid = (cardItems: BrowseFeedItem[]) => (
+    <ul className={GRID_CLASS}>
+      {cardItems.map((item) => (
+        <li
+          key={`${item.kind}:${item.id}`}
+          onPointerEnter={() => {
+            if (item.kind === 'programs') prefetchProgram(item.id)
+          }}
+          onFocus={() => {
+            if (item.kind === 'programs') prefetchProgram(item.id)
+          }}
+        >
+          <BrowseFeedCard
+            item={item}
+            actionLabel={
+              mode.isPicker
+                ? mode.actionLabel
+                : item.kind === 'programs'
+                  ? 'View Program'
+                  : 'View Activity'
+            }
+            isPicker={mode.isPicker}
+            currentUrl={currentUrl}
+            signedIn={!!me.data}
+            joinedIds={joinedGroupIds}
+            joiningGroupId={joiningGroupId}
+            onQuickJoin={(groupId) => void handleQuickJoin(groupId)}
+            addedActivityIds={addedActivityIds}
+            addingActivityId={addingActivityId}
+            onAddActivityToToday={(act) => void handleAddActivityToToday(act)}
+          />
+        </li>
+      ))}
+    </ul>
+  )
+
   return (
     <Page className="page--wide pb-20">
       <div className="mx-auto w-full pt-4 md:pt-6">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8 lg:gap-10">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-7">
           {/* Left: Fixed 248px sticky sidebar on desktop, slide-over drawer on mobile */}
           <aside
             aria-label="Filters"
@@ -1192,7 +1383,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       Explore
                     </h2>
                     <p className="mt-0.5 text-xs text-muted">
-                      Find programs and activities to join.
+                      Programs, activities, and groups.
                     </p>
                   </div>
                 )}
@@ -1415,7 +1606,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             </div>
           </aside>
 
-          {/* Right: Main header, prominent search, active chips, and 2-col card grid */}
+          {/* Right: Main header, prominent search, active chips, and sections / grid */}
           <section aria-label={`${nounPlural} feed`} className="min-w-0 flex-1">
             <header className="mb-5">
               <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
@@ -1428,7 +1619,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     : 'Choose an Activity to add.'
                   : isMyGroups
                     ? 'Groups you belong to.'
-                    : 'Browse and join programs with others.'}
+                    : 'Programs, Activities, and open Groups from the community.'}
               </p>
             </header>
 
@@ -1575,23 +1766,23 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     />
                     {myGroups.isPending ? (
                       <div
-                        className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+                        className={GRID_CLASS}
                         role="status"
                         aria-label="Loading groups"
                       >
-                        {Array.from({ length: 4 }, (_, index) => (
+                        {Array.from({ length: 5 }, (_, index) => (
                           <div
                             key={index}
-                            className="rounded-xl border border-border/60 bg-surface p-4"
+                            className="rounded-xl border border-border/60 bg-surface p-3.5"
                           >
-                            <Skeleton className="h-3 w-28" />
+                            <Skeleton className="h-3 w-24" />
                             <Skeleton className="mt-2 h-5 w-2/3" />
                             <Skeleton className="mt-4 h-6 w-1/2" />
                           </div>
                         ))}
                       </div>
                     ) : myGroupItems.length > 0 ? (
-                      <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      <ul className={GRID_CLASS}>
                         {myGroupItems.map((group) => (
                           <li key={group.id}>
                             <MyGroupCard group={group} currentUrl={currentUrl} />
@@ -1647,46 +1838,134 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
 
                   {results.isPending ? (
                     <div
-                      className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+                      className={GRID_CLASS}
                       role="status"
                       aria-label={`Loading ${nounPlural}`}
                     >
-                      {Array.from({ length: 6 }, (_, index) => (
+                      {Array.from({ length: 10 }, (_, index) => (
                         <div
                           key={index}
-                          className="flex flex-col gap-3.5 rounded-xl border border-border/60 bg-surface p-3.5 sm:flex-row"
+                          className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-surface p-3"
                         >
-                          <Skeleton className="aspect-video w-full shrink-0 rounded-lg sm:w-40 xl:w-44" />
-                          <div className="flex min-w-0 flex-1 flex-col gap-2">
-                            <Skeleton className="h-4 w-28" />
-                            <Skeleton className="h-5 w-3/4" />
-                            <Skeleton className="h-3.5 w-full" />
-                            <Skeleton className="h-3.5 w-1/2" />
-                          </div>
+                          <Skeleton className="aspect-video w-full rounded-lg" />
+                          <Skeleton className="h-3.5 w-24" />
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-3 w-full" />
                         </div>
                       ))}
                     </div>
+                  ) : showDirectorySections ? (
+                    <div className="space-y-8">
+                      {/* 1. Recent Activity (hidden if empty) */}
+                      {recentActivityItems.length > 0 && (
+                        <section aria-labelledby="section-recent-activity">
+                          <div className="mb-3 flex items-baseline justify-between gap-2">
+                            <h2
+                              id="section-recent-activity"
+                              className="font-display text-base font-semibold tracking-tight text-foreground"
+                            >
+                              Recent Activity
+                            </h2>
+                          </div>
+                          {renderCardGrid(recentActivityItems)}
+                        </section>
+                      )}
+
+                      {/* 2. Starting Soon (hidden if empty) */}
+                      {!startingSoonPrograms.isPending &&
+                        startingSoonItems.length > 0 && (
+                          <section aria-labelledby="section-starting-soon">
+                            <div className="mb-3 flex items-baseline justify-between gap-2">
+                              <h2
+                                id="section-starting-soon"
+                                className="font-display text-base font-semibold tracking-tight text-foreground"
+                              >
+                                Starting Soon
+                              </h2>
+                              <button
+                                type="button"
+                                onClick={() => setScope('STARTING_SOON')}
+                                className="text-xs font-medium text-accent hover:underline"
+                              >
+                                View all
+                              </button>
+                            </div>
+                            {renderCardGrid(startingSoonItems)}
+                          </section>
+                        )}
+
+                      {/* 3. Programs */}
+                      <section aria-labelledby="section-programs">
+                        <div className="mb-3 flex items-baseline justify-between gap-2">
+                          <h2
+                            id="section-programs"
+                            className="font-display text-base font-semibold tracking-tight text-foreground"
+                          >
+                            Programs
+                          </h2>
+                        </div>
+                        {programItems.length > 0 ? (
+                          <>
+                            {renderCardGrid(programItems)}
+                            {programs.hasNextPage && (
+                              <div className="mt-5 flex justify-center border-t border-border/60 pt-5">
+                                <Button
+                                  variant="outline"
+                                  loading={programs.isFetchingNextPage}
+                                  onClick={() => void programs.fetchNextPage()}
+                                >
+                                  Load more
+                                </Button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          !programs.error && (
+                            <EmptyState
+                              level={3}
+                              title="No Programs available yet"
+                            />
+                          )
+                        )}
+                      </section>
+
+                      {/* 4. Activities (hidden if empty) */}
+                      {!activities.isPending && activityItems.length > 0 && (
+                        <section aria-labelledby="section-activities">
+                          <div className="mb-3 flex items-baseline justify-between gap-2">
+                            <h2
+                              id="section-activities"
+                              className="font-display text-base font-semibold tracking-tight text-foreground"
+                            >
+                              Activities
+                            </h2>
+                            <button
+                              type="button"
+                              onClick={() => switchKind('activities')}
+                              className="text-xs font-medium text-accent hover:underline"
+                            >
+                              View all
+                            </button>
+                          </div>
+                          {renderCardGrid(activityItems.slice(0, 5))}
+                        </section>
+                      )}
+                    </div>
                   ) : items.length > 0 ? (
-                    <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                      {items.map((item) => (
-                        <li
-                          key={item.id}
-                          onPointerEnter={() => prefetchProgram(item.id)}
-                          onFocus={() => prefetchProgram(item.id)}
-                        >
-                          <BrowseFeedCard
-                            item={item}
-                            actionLabel={mode.actionLabel}
-                            isPicker={mode.isPicker}
-                            currentUrl={currentUrl}
-                            signedIn={!!me.data}
-                            joinedIds={joinedGroupIds}
-                            joiningGroupId={joiningGroupId}
-                            onQuickJoin={(groupId) => void handleQuickJoin(groupId)}
-                          />
-                        </li>
-                      ))}
-                    </ul>
+                    <>
+                      {renderCardGrid(items)}
+                      {results.hasNextPage && (
+                        <div className="mt-6 flex justify-center border-t border-border/60 pt-6">
+                          <Button
+                            variant="outline"
+                            loading={results.isFetchingNextPage}
+                            onClick={() => void results.fetchNextPage()}
+                          >
+                            Load more
+                          </Button>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     !results.error && (
                       <div className="pt-4">
@@ -1720,18 +1999,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                         />
                       </div>
                     )
-                  )}
-
-                  {items.length > 0 && results.hasNextPage && (
-                    <div className="mt-6 flex justify-center border-t border-border/60 pt-6">
-                      <Button
-                        variant="outline"
-                        loading={results.isFetchingNextPage}
-                        onClick={() => void results.fetchNextPage()}
-                      >
-                        Load more
-                      </Button>
-                    </div>
                   )}
                 </>
               )}
