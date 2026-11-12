@@ -43,6 +43,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
+import { ActivityPreviewDrawer } from '@/components/activity/ActivityPreviewDrawer'
 import { formatProgramDuration } from '@/components/program-authoring/programFields'
 import { formatFrequency } from '@/components/program-authoring/ScheduleControls'
 import { useAddExistingActivity } from '@/components/program-authoring/useAddExistingActivity'
@@ -864,6 +865,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
 
   const [query, setQuery] = useState(search)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [showAllPrograms, setShowAllPrograms] = useState(false)
+  const [previewActivityId, setPreviewActivityId] = useState<string | null>(null)
   const me = useCurrentUser()
   const myGroups = useMyGroups(!!me.data && !mode.isPicker && mode.kind === 'programs')
   const joinGroup = useJoinPublicGroupById()
@@ -1221,13 +1224,10 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       featuredGroup,
       participantCount: participantCount ?? null,
       onSelect: () => {
-        if (mode.onPickActivity && mode.kind === 'activities') {
+        if (mode.isPicker && mode.onPickActivity && mode.kind === 'activities') {
           mode.onPickActivity(activity)
         } else {
-          saveBrowseScroll(currentUrl)
-          navigate(
-            `/activities/${activity.id}?returnTo=${encodeURIComponent(currentUrl)}`,
-          )
+          setPreviewActivityId(activity.id)
         }
       },
     }
@@ -1661,6 +1661,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       title: 'Programs',
       source: 'programs',
       layout: 'grid',
+      limit: showAllPrograms ? undefined : 8,
+      onViewAll:
+        !showAllPrograms && programItems.length > 8
+          ? () => setShowAllPrograms(true)
+          : undefined,
     },
     {
       id: 'activities',
@@ -2281,6 +2286,12 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
           </section>
         </div>
       </div>
+
+      <ActivityPreviewDrawer
+        activityId={previewActivityId}
+        currentUrl={currentUrl}
+        onClose={() => setPreviewActivityId(null)}
+      />
     </Page>
   )
 }
