@@ -453,17 +453,7 @@ function CreatorAvatar({
   creatorName: string | null
   creatorProfileUrl: string | null
 }) {
-  if (!creator) {
-    return (
-      <span className="mt-0.5 shrink-0" aria-hidden>
-        <Avatar
-          name={creatorName ?? 'Program.Guru'}
-          size="md"
-          className="h-10 w-10"
-        />
-      </span>
-    )
-  }
+  if (!creator) return null
 
   const avatar = (
     <Avatar
@@ -499,6 +489,7 @@ function BrowseFeedTile({
   joiningGroupId,
   onQuickJoin,
   onJoinSession,
+  isActionRow = false,
   aspect = 'video',
   titleSize = 'base',
 }: {
@@ -511,6 +502,7 @@ function BrowseFeedTile({
   joiningGroupId: string | null
   onQuickJoin: (groupId: string) => void
   onJoinSession?: (session: S['LiveSessionSummary']) => void
+  isActionRow?: boolean
   aspect?: 'video' | 'portrait'
   titleSize?: 'base' | 'lg' | 'xl'
 }) {
@@ -643,7 +635,7 @@ function BrowseFeedTile({
         )}
 
         {g && groupName && (
-          <div className="mt-3 flex items-center justify-between gap-2">
+          <div className={cn('mt-3', isActionRow ? 'space-y-3' : 'flex items-center justify-between gap-2')}>
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <ParticipationAvatars avatars={g.memberAvatars} />
               <p className="min-w-0 truncate text-sm text-muted">
@@ -656,7 +648,48 @@ function BrowseFeedTile({
               </p>
             </div>
 
-            {canQuickJoin &&
+            {isActionRow ? (
+              signedIn && onJoinSession ? (
+                <button
+                  type="button"
+                  disabled={joiningGroupId === g.id}
+                  aria-label={`Open session for ${item.title}`}
+                  onClick={() =>
+                    onJoinSession({
+                      groupId: g.id,
+                      groupName: g.name,
+                      programId: g.programId,
+                      programTitle: g.programTitle,
+                      activityTitle: item.title,
+                      durationMinutes: item.durationMinutes ?? null,
+                      thumbnailUrl: null,
+                      categoryId: '',
+                      activeCount: 1,
+                      participants: g.memberAvatars ?? [],
+                      startedAt: new Date().toISOString(),
+                      lastActiveAt: new Date().toISOString(),
+                      viewerIsMember: isMember,
+                      joinPolicy: g.joinPolicy,
+                    })
+                  }
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90 disabled:opacity-50"
+                >
+                  {joiningGroupId === g.id
+                    ? 'Opening stage…'
+                    : isMember
+                      ? 'Open Stage'
+                      : 'Join Session'}
+                </button>
+              ) : (
+                <Link
+                  to={buildGroupUrl(g.id, { returnTo: currentUrl })}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90"
+                >
+                  Join Session
+                </Link>
+              )
+            ) : (
+              canQuickJoin &&
               (signedIn ? (
                 <button
                   type="button"
@@ -675,7 +708,8 @@ function BrowseFeedTile({
                 >
                   Join
                 </Link>
-              ))}
+              ))
+            )}
           </div>
         )}
       </div>
@@ -1171,7 +1205,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       mapActivityItem(activity, featuredGroup, participantCount),
     )
 
-  const happeningNowItems: BrowseFeedItem[] = (liveSessions.data ?? [])
+  const liveSessionItems: BrowseFeedItem[] = (liveSessions.data ?? [])
     .slice(0, 4)
     .map((session) => {
       const scheduleParts = [
@@ -1203,6 +1237,26 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         },
       }
     })
+
+  const liveGroupIds = new Set(liveSessionItems.map((item) => item.id))
+  const openGroupSessionItems: BrowseFeedItem[] = programItems
+    .filter(
+      (item) =>
+        item.featuredGroup?.visibility === 'PUBLIC' &&
+        item.featuredGroup.joinPolicy === 'OPEN' &&
+        !liveGroupIds.has(item.featuredGroup.id),
+    )
+    .sort((a, b) => {
+      const aCheckIns = a.featuredGroup?.recentCheckInCount ?? 0
+      const bCheckIns = b.featuredGroup?.recentCheckInCount ?? 0
+      if (bCheckIns !== aCheckIns) return bCheckIns - aCheckIns
+      return (b.featuredGroup?.memberCount ?? 0) - (a.featuredGroup?.memberCount ?? 0)
+    })
+
+  const happeningNowItems: BrowseFeedItem[] = [
+    ...liveSessionItems,
+    ...openGroupSessionItems,
+  ].slice(0, 4)
 
   const recentActivityItems: BrowseFeedItem[] = programItems
     .filter(
@@ -1440,6 +1494,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
           >
             <BrowseFeedTile
               item={item}
+              isActionRow={layout === 'action-row'}
               aspect={aspect}
               titleSize={titleSize}
               actionLabel={
@@ -1480,21 +1535,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       source: 'happening-now',
       layout: 'action-row',
       limit: 4,
-    },
-    {
-      id: 'recent-activity',
-      title: 'Recent Activity',
-      source: 'recent-activity',
-      layout: 'grid',
-      limit: 4,
-    },
-    {
-      id: 'starting-soon',
-      title: 'Starting Soon',
-      source: 'starting-soon',
-      layout: 'grid',
-      limit: 4,
-      onViewAll: () => setScope('STARTING_SOON'),
     },
     {
       id: 'programs',
