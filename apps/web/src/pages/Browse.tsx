@@ -6,6 +6,7 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import {
+  useAddCalendarItem,
   useCategories,
   useCurrentUser,
   useDiscoverActivities,
@@ -58,7 +59,7 @@ import {
   type BrowseDuration,
   type BrowseKind,
 } from '@/lib/browse'
-import { dateLabel, safeReturn } from '@/lib/dates'
+import { dateLabel, safeReturn, today } from '@/lib/dates'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { activityHero, programHero, toHeroCategory, type Hero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
@@ -72,8 +73,13 @@ const SCROLL_KEY_PREFIX = 'browse-scroll:'
 const GRID_CLASS =
   'grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-[2100px]:grid-cols-5'
 
-type SectionLayout = 'grid' | 'portrait-row' | 'large-cards' | 'feature'
-type SectionSource = 'recent-activity' | 'starting-soon' | 'programs' | 'activities'
+type SectionLayout = 'grid' | 'portrait-row' | 'large-cards' | 'feature' | 'action-row'
+type SectionSource =
+  | 'happening-now'
+  | 'recent-activity'
+  | 'starting-soon'
+  | 'programs'
+  | 'activities'
 
 interface CommunitySectionConfig {
   id: string
@@ -99,6 +105,8 @@ interface BrowserMode {
 interface BrowseFeedItem {
   id: string
   kind: BrowseKind
+  revisionId?: string | null
+  durationMinutes?: number | null
   title: string
   creator: S['UserSummary'] | null
   isPlatform: boolean
@@ -489,6 +497,10 @@ function BrowseFeedTile({
   onQuickJoin,
   aspect = 'video',
   titleSize = 'base',
+  actionable = false,
+  isAdded = false,
+  isAdding = false,
+  onDoNow,
 }: {
   item: BrowseFeedItem
   actionLabel: string
@@ -500,6 +512,10 @@ function BrowseFeedTile({
   onQuickJoin: (groupId: string) => void
   aspect?: 'video' | 'portrait'
   titleSize?: 'base' | 'lg' | 'xl'
+  actionable?: boolean
+  isAdded?: boolean
+  isAdding?: boolean
+  onDoNow?: (item: BrowseFeedItem) => void
 }) {
   const g = !isPicker && item.featuredGroup?.visibility === 'PUBLIC' ? item.featuredGroup : null
   const groupName = g ? (g.name?.trim() || `${item.title} group`) : null
@@ -582,6 +598,39 @@ function BrowseFeedTile({
           <p className="mt-0.5 truncate text-[13px] text-muted/80">
             {item.scheduleLine}
           </p>
+        )}
+
+        {actionable && item.kind === 'activities' && !isPicker && (
+          <div className="mt-2 flex items-center gap-2">
+            {signedIn && onDoNow ? (
+              isAdded ? (
+                <Link
+                  to="/"
+                  className="inline-flex items-center gap-1 rounded-md bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/25"
+                >
+                  <Check size={12} aria-hidden />
+                  <span>On today · Open</span>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isAdding}
+                  aria-label={`Do ${item.title} now`}
+                  onClick={() => onDoNow(item)}
+                  className="rounded-md bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/25 disabled:opacity-50"
+                >
+                  {isAdding ? 'Adding…' : 'Do now'}
+                </button>
+              )
+            ) : (
+              <Link
+                to={`/activities/${item.id}?returnTo=${encodeURIComponent(currentUrl)}`}
+                className="rounded-md bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/25"
+              >
+                Do now
+              </Link>
+            )}
+          </div>
         )}
 
         {g && groupName && (
@@ -735,8 +784,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const me = useCurrentUser()
   const myGroups = useMyGroups(!!me.data && !mode.isPicker && mode.kind === 'programs')
   const joinGroup = useJoinPublicGroupById()
+  const addCalendarItem = useAddCalendarItem()
   const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(() => new Set())
   const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null)
+  const [addedActivityIds, setAddedActivityIds] = useState<Set<string>>(() => new Set())
+  const [addingActivityId, setAddingActivityId] = useState<string | null>(null)
 
   const handleQuickJoin = async (groupId: string) => {
     if (joiningGroupId) return
@@ -749,6 +801,28 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       toast.error(err instanceof Error ? err.message : 'Could not join group')
     } finally {
       setJoiningGroupId(null)
+    }
+  }
+
+  const handleDoNow = async (item: BrowseFeedItem) => {
+    if (addingActivityId) return
+    setAddingActivityId(item.id)
+    try {
+      await addCalendarItem.mutateAsync({
+        activityId: item.id,
+        revisionId: item.revisionId ?? undefined,
+        localDate: today(
+          me.data?.data.preferences.timezone ??
+            Intl.DateTimeFormat().resolvedOptions().timeZone,
+        ),
+        idempotencyKey: crypto.randomUUID(),
+      })
+      setAddedActivityIds((prev) => new Set(prev).add(item.id))
+      toast.success(`Added "${item.title}" to today`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not add activity')
+    } finally {
+      setAddingActivityId(null)
     }
   }
 
@@ -1023,6 +1097,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     return {
       id: activity.id,
       kind: 'activities',
+      revisionId: activity.revisionId,
+      durationMinutes: activity.durationMinutes,
       title: activity.title,
       creator: activity.creator ?? null,
       isPlatform: activity.isPlatform,
@@ -1056,6 +1132,15 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     )
     .filter((a) => (mode.kind === 'activities' ? keep(a) : true))
     .map(mapActivityItem)
+
+  const happeningNowItems: BrowseFeedItem[] = [...activityItems]
+    .sort((a, b) => {
+      const aQuick = a.durationMinutes != null && a.durationMinutes <= 20 ? 0 : 1
+      const bQuick = b.durationMinutes != null && b.durationMinutes <= 20 ? 0 : 1
+      if (aQuick !== bQuick) return aQuick - bQuick
+      return (a.durationMinutes ?? 999) - (b.durationMinutes ?? 999)
+    })
+    .slice(0, 6)
 
   const recentActivityItems: BrowseFeedItem[] = programItems
     .filter(
@@ -1244,14 +1329,14 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     tileItems: BrowseFeedItem[],
     layout: SectionLayout = 'grid',
   ) => {
-    const listClass =
-      layout === 'portrait-row'
-        ? 'browse-sidebar-scroll flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory'
-        : layout === 'large-cards'
-          ? 'grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2'
-          : layout === 'feature'
-            ? 'block'
-            : GRID_CLASS
+    const isRow = layout === 'portrait-row' || layout === 'action-row'
+    const listClass = isRow
+      ? 'browse-sidebar-scroll flex gap-5 overflow-x-auto pb-3 snap-x snap-mandatory'
+      : layout === 'large-cards'
+        ? 'grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2'
+        : layout === 'feature'
+          ? 'block'
+          : GRID_CLASS
 
     const aspect = layout === 'portrait-row' ? 'portrait' : 'video'
     const titleSize =
@@ -1266,7 +1351,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             className={
               layout === 'portrait-row'
                 ? 'w-44 shrink-0 snap-start sm:w-48'
-                : undefined
+                : layout === 'action-row'
+                  ? 'w-64 shrink-0 snap-start sm:w-72'
+                  : undefined
             }
             onPointerEnter={() => {
               if (item.kind === 'programs') prefetchProgram(item.id)
@@ -1279,6 +1366,10 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
               item={item}
               aspect={aspect}
               titleSize={titleSize}
+              actionable={layout === 'action-row'}
+              isAdded={addedActivityIds.has(item.id)}
+              isAdding={addingActivityId === item.id}
+              onDoNow={(act) => void handleDoNow(act)}
               actionLabel={
                 mode.isPicker
                   ? mode.actionLabel
@@ -1300,6 +1391,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   }
 
   const sectionItemsBySource: Record<SectionSource, BrowseFeedItem[]> = {
+    'happening-now': activities.isPending ? [] : happeningNowItems,
     'recent-activity': recentActivityItems,
     'starting-soon': startingSoonPrograms.isPending ? [] : startingSoonItems,
     programs: programItems,
@@ -1307,6 +1399,14 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   }
 
   const communitySections: CommunitySectionConfig[] = [
+    {
+      id: 'happening-now',
+      title: 'Happening Now',
+      source: 'happening-now',
+      layout: 'action-row',
+      limit: 6,
+      onViewAll: () => switchKind('activities'),
+    },
     {
       id: 'recent-activity',
       title: 'Recent Activity',
