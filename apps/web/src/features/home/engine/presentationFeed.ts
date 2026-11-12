@@ -110,7 +110,9 @@ export function buildPresentationItems(
     }
   }
   for (const item of signals.liveSessions) {
-    push(mapSessionToCard(item))
+    if (item.featuredGroup || (item.program && canSuggestNewProgram(item.program, signals))) {
+      push(mapSessionToCard(item))
+    }
   }
   for (const item of signals.popularPrograms) {
     if (item.program && canSuggestNewProgram(item.program, signals)) {
