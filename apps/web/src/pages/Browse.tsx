@@ -10,6 +10,7 @@ import {
   useCategories,
   useCurrentUser,
   useDiscoverActivities,
+  useDiscoverCreators,
   useDiscoverPrograms,
   useFocuses,
   useJoinPublicGroupById,
@@ -44,6 +45,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { ActivityPreviewDrawer } from '@/components/activity/ActivityPreviewDrawer'
+import { CreatorPreviewDrawer } from '@/components/social/CreatorPreviewDrawer'
 import { formatProgramDuration } from '@/components/program-authoring/programFields'
 import { formatFrequency } from '@/components/program-authoring/ScheduleControls'
 import { useAddExistingActivity } from '@/components/program-authoring/useAddExistingActivity'
@@ -75,12 +77,13 @@ const SCROLL_KEY_PREFIX = 'browse-scroll:'
 const GRID_CLASS =
   'grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
 
-type SectionLayout = 'grid' | 'portrait-row' | 'large-cards' | 'feature' | 'action-row'
+type SectionLayout = 'grid' | 'portrait-row' | 'large-cards' | 'feature' | 'action-row' | 'creator-row'
 type SectionSource =
   | 'happening-now'
   | 'recent-activity'
   | 'starting-soon'
   | 'programs'
+  | 'creators'
   | 'activities'
 
 interface CommunitySectionConfig {
@@ -450,10 +453,12 @@ function CreatorAvatar({
   creator,
   creatorName,
   creatorProfileUrl,
+  onSelectCreator,
 }: {
   creator: S['UserSummary'] | null
   creatorName: string | null
   creatorProfileUrl: string | null
+  onSelectCreator?: (handle: string) => void
 }) {
   if (!creator) return null
 
@@ -465,6 +470,19 @@ function CreatorAvatar({
       className="h-10 w-10 transition-opacity hover:opacity-85"
     />
   )
+
+  if (onSelectCreator && creator.handle) {
+    return (
+      <button
+        type="button"
+        onClick={() => onSelectCreator(creator.handle)}
+        aria-label={creatorName ?? 'Preview creator'}
+        className="mt-0.5 shrink-0"
+      >
+        {avatar}
+      </button>
+    )
+  }
 
   if (creatorProfileUrl) {
     return (
@@ -481,6 +499,35 @@ function CreatorAvatar({
   return <span className="mt-0.5 shrink-0">{avatar}</span>
 }
 
+function CreatorRowCard({
+  creator,
+  onSelect,
+}: {
+  creator: S['UserSummary']
+  onSelect: (handle: string) => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(creator.handle)}
+      className="group flex w-44 shrink-0 snap-start flex-col items-center rounded-xl p-4 text-center transition-colors hover:bg-surface-muted/40 sm:w-48"
+    >
+      <Avatar
+        src={creator.avatarUrl}
+        name={creator.displayName || creator.handle}
+        size="lg"
+        className="h-16 w-16 transition-transform duration-200 group-hover:scale-105"
+      />
+      <p className="mt-3 w-full truncate font-display text-base font-semibold text-foreground transition-colors group-hover:text-accent">
+        {creator.displayName || `@${creator.handle}`}
+      </p>
+      <p className="mt-0.5 w-full truncate text-sm text-muted">
+        @{creator.handle}
+      </p>
+    </button>
+  )
+}
+
 function BrowseFeedTile({
   item,
   actionLabel,
@@ -491,6 +538,7 @@ function BrowseFeedTile({
   joiningGroupId,
   onQuickJoin,
   onJoinSession,
+  onSelectCreator,
   isAdded = false,
   isAdding = false,
   onDoNow,
@@ -507,6 +555,7 @@ function BrowseFeedTile({
   joiningGroupId: string | null
   onQuickJoin: (groupId: string) => void
   onJoinSession?: (session: S['LiveSessionSummary']) => void
+  onSelectCreator?: (handle: string) => void
   isAdded?: boolean
   isAdding?: boolean
   onDoNow?: (item: BrowseFeedItem) => void
@@ -566,6 +615,7 @@ function BrowseFeedTile({
         creator={item.creator}
         creatorName={creatorName}
         creatorProfileUrl={creatorProfileUrl}
+        onSelectCreator={onSelectCreator}
       />
 
       <div className="min-w-0 flex-1">
@@ -579,7 +629,15 @@ function BrowseFeedTile({
 
         {creatorName && (
           <div className="mt-1.5">
-            {creatorProfileUrl ? (
+            {onSelectCreator && item.creator?.handle ? (
+              <button
+                type="button"
+                onClick={() => onSelectCreator(item.creator!.handle)}
+                className="inline-block max-w-full truncate text-left text-[15px] font-medium text-foreground/85 transition-colors hover:text-accent"
+              >
+                {creatorName}
+              </button>
+            ) : creatorProfileUrl ? (
               <Link
                 to={creatorProfileUrl}
                 className="inline-block max-w-full truncate text-[15px] font-medium text-foreground/85 transition-colors hover:text-foreground"
@@ -867,6 +925,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [showAllPrograms, setShowAllPrograms] = useState(false)
   const [previewActivityId, setPreviewActivityId] = useState<string | null>(null)
+  const [previewCreatorHandle, setPreviewCreatorHandle] = useState<string | null>(null)
   const me = useCurrentUser()
   const myGroups = useMyGroups(!!me.data && !mode.isPicker && mode.kind === 'programs')
   const joinGroup = useJoinPublicGroupById()
@@ -1119,6 +1178,10 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   })
 
   const liveSessions = useLiveSessions(showDirectorySections)
+  const creatorsQuery = useDiscoverCreators({
+    q: search,
+    enabled: showDirectorySections || (!!search && !mode.isPicker),
+  })
 
   const results = isMyGroups
     ? myGroups
@@ -1632,6 +1695,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
               joiningGroupId={joiningGroupId}
               onQuickJoin={(groupId) => void handleQuickJoin(groupId)}
               onJoinSession={(session) => void handleJoinSession(session)}
+              onSelectCreator={
+                mode.isPicker ? undefined : (handle) => setPreviewCreatorHandle(handle)
+              }
             />
           </li>
         ))}
@@ -1639,12 +1705,17 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     )
   }
 
+  const creatorItems: S['UserSummary'][] = (creatorsQuery.data?.pages ?? []).flatMap(
+    (page) => page.data.flatMap((d) => (d.creator ? [d.creator] : [])),
+  )
+
   const sectionItemsBySource: Record<SectionSource, BrowseFeedItem[]> = {
     'happening-now':
       liveSessions.isPending && activities.isPending ? [] : happeningNowItems,
     'recent-activity': recentActivityItems,
     'starting-soon': startingSoonPrograms.isPending ? [] : startingSoonItems,
     programs: programItems,
+    creators: [],
     activities: activities.isPending ? [] : bottomActivityItems,
   }
 
@@ -1666,6 +1737,13 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         !showAllPrograms && programItems.length > 8
           ? () => setShowAllPrograms(true)
           : undefined,
+    },
+    {
+      id: 'creators',
+      title: 'Creators',
+      source: 'creators',
+      layout: 'creator-row',
+      limit: 10,
     },
     {
       id: 'activities',
@@ -2178,6 +2256,39 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   ) : showDirectorySections ? (
                     <div className="space-y-16">
                       {communitySections.map((section) => {
+                        if (section.source === 'creators') {
+                          const visibleCreators = section.limit
+                            ? creatorItems.slice(0, section.limit)
+                            : creatorItems
+                          if (visibleCreators.length === 0) return null
+                          return (
+                            <section
+                              key={section.id}
+                              aria-labelledby={`section-${section.id}`}
+                              className="border-t border-border/35 pt-14"
+                            >
+                              <div className="mb-6 flex items-baseline justify-between gap-3">
+                                <h2
+                                  id={`section-${section.id}`}
+                                  className="font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
+                                >
+                                  {section.title}
+                                </h2>
+                              </div>
+                              <ul className="browse-sidebar-scroll flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory">
+                                {visibleCreators.map((c) => (
+                                  <li key={c.id}>
+                                    <CreatorRowCard
+                                      creator={c}
+                                      onSelect={(h) => setPreviewCreatorHandle(h)}
+                                    />
+                                  </li>
+                                ))}
+                              </ul>
+                            </section>
+                          )
+                        }
+
                         const raw = sectionItemsBySource[section.source]
                         const sectionItems = section.limit
                           ? raw.slice(0, section.limit)
@@ -2231,9 +2342,29 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                         )
                       })}
                     </div>
-                  ) : items.length > 0 ? (
-                    <>
-                      {renderSectionLayout(items, 'grid')}
+                  ) : items.length > 0 || (!!search && !mode.isPicker && creatorItems.length > 0) ? (
+                    <div className="space-y-12">
+                      {!!search && !mode.isPicker && creatorItems.length > 0 && (
+                        <section aria-labelledby="section-search-creators">
+                          <h2
+                            id="section-search-creators"
+                            className="mb-4 font-display text-lg font-semibold tracking-tight text-foreground"
+                          >
+                            Creators
+                          </h2>
+                          <ul className="browse-sidebar-scroll flex gap-6 overflow-x-auto pb-3 snap-x snap-mandatory">
+                            {creatorItems.slice(0, 8).map((c) => (
+                              <li key={c.id}>
+                                <CreatorRowCard
+                                  creator={c}
+                                  onSelect={(h) => setPreviewCreatorHandle(h)}
+                                />
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
+                      {items.length > 0 && renderSectionLayout(items, 'grid')}
                       {results.hasNextPage && (
                         <div className="mt-10 flex justify-center border-t border-border/50 pt-6">
                           <Button
@@ -2245,7 +2376,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                           </Button>
                         </div>
                       )}
-                    </>
+                    </div>
                   ) : (
                     !results.error && (
                       <div className="pt-4">
@@ -2291,6 +2422,13 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         activityId={previewActivityId}
         currentUrl={currentUrl}
         onClose={() => setPreviewActivityId(null)}
+      />
+
+      <CreatorPreviewDrawer
+        handle={previewCreatorHandle}
+        currentUrl={currentUrl}
+        onClose={() => setPreviewCreatorHandle(null)}
+        onSelectActivity={(id) => setPreviewActivityId(id)}
       />
     </Page>
   )

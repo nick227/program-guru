@@ -59,6 +59,21 @@ export function useDiscoverActivities(
   })
 }
 
+/** Public creators with at least one discoverable Program. */
+export function useDiscoverCreators(
+  filters: Pick<DiscoverFilters, 'q'> & { enabled?: boolean } = {},
+) {
+  const { enabled = true, ...query } = filters
+  return useInfiniteQuery({
+    queryKey: useViewerKey(['discover', 'list', { kind: 'CREATOR', ...query }]),
+    enabled,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam, signal }) =>
+      discoverPage('CREATOR', query, 12, pageParam, signal),
+    getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
+  })
+}
+
 /**
  * Deterministic top-N: take tiers in order (most specific filters first),
  * keep first occurrences, skip excluded ids, stop at `limit`.
