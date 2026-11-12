@@ -24,6 +24,7 @@ import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { CalendarSurface } from '@/components/calendar/CalendarSurface'
 import type { SurfaceItem } from '@/components/calendar/CalendarSurface'
 import { DatePickerPopover } from '@/components/calendar/DatePickerPopover'
+import { SelectedActivityPanel } from '@/components/calendar/SelectedActivityPanel'
 import { resolveActivityCategory } from '@/lib/activityCategory'
 import {
   addDays,
@@ -35,7 +36,7 @@ import {
   today,
 } from '@/lib/dates'
 import { markDailyEmailPromptSeen } from '@/lib/notifications'
-import { formatTargetTime, isValidTargetTime } from '@/lib/targetTime'
+import { isValidTargetTime } from '@/lib/targetTime'
 import { useOnline } from '@/lib/useOnline'
 import { cn } from '@/lib/utils'
 import { useDocumentTitle } from '@/lib/title'
@@ -70,7 +71,8 @@ export function CalendarPage() {
     me.data!.data.preferences.notifications?.dailyReminderTime ?? '08:00'
   const [reminderTime, setReminderTime] = useState(defaultReminderTime)
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [showAllHours, setShowAllHours] = useState(false)
+  const [showAllHours, setShowAllHours] = useState(true)
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
   const datePickerRef = useRef<HTMLDivElement>(null)
   const current = today(timezone)
@@ -193,6 +195,15 @@ export function CalendarPage() {
     }
   }
 
+  const undoCompleteItem = async (itemId: string) => {
+    try {
+      await undo.mutateAsync(itemId)
+      toast.success('Completion undone')
+    } catch {
+      // Mutation error remains visible.
+    }
+  }
+
   const changeItemTime = async (itemId: string, localTime: string | null) => {
     const item = rawItems.find((row) => row.id === itemId)
     if (!item) return
@@ -259,6 +270,37 @@ export function CalendarPage() {
     return { total, completed, totalMinutes, nextItem }
   }, [view, filteredItems, selected, current, timezone])
 
+  const dayItems = useMemo(
+    () =>
+      filteredItems.filter(
+        (it) => it.day === selected && it.status !== 'CANCELLED',
+      ),
+    [filteredItems, selected],
+  )
+
+  const selectedCalendarItem = useMemo(
+    () => dayItems.find((it) => it.id === selectedItemId) ?? null,
+    [dayItems, selectedItemId],
+  )
+
+  useEffect(() => {
+    if (view !== 'day') {
+      setSelectedItemId(null)
+      return
+    }
+    const isDesktop =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(min-width: 1024px)').matches
+    if (selectedItemId && dayItems.some((it) => it.id === selectedItemId)) {
+      return
+    }
+    if (isDesktop && dayItems.length > 0) {
+      setSelectedItemId(dayContext?.nextItem?.id ?? dayItems[0]!.id)
+    } else if (selectedItemId && !dayItems.some((it) => it.id === selectedItemId)) {
+      setSelectedItemId(null)
+    }
+  }, [view, selected, dayItems, selectedItemId, dayContext?.nextItem?.id])
+
   const days =
     view === 'month'
       ? monthGrid(selected).map((id) => ({
@@ -290,11 +332,6 @@ export function CalendarPage() {
           day: 'numeric',
           year: 'numeric',
         })
-
-  const progressPct =
-    dayContext && dayContext.total > 0
-      ? Math.round((dayContext.completed / dayContext.total) * 100)
-      : 0
 
   return (
     <Page className="page--wide">
@@ -437,46 +474,6 @@ export function CalendarPage() {
       </div>
 
       <Stack className="gap-5 mt-4">
-        {dayContext && (
-          <div className="calendar-context" aria-label="Daily summary">
-            <div className="calendar-context__summary">
-              <div className="calendar-context__progress-track" aria-hidden>
-                <div
-                  className="calendar-context__progress-fill"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-              <span className="calendar-context__counts">
-                {dayContext.completed === dayContext.total
-                  ? `All ${dayContext.total} completed`
-                  : `${dayContext.completed} of ${dayContext.total} completed`}
-              </span>
-              {dayContext.totalMinutes > 0 && (
-                <span className="calendar-context__meta">
-                  · {dayContext.totalMinutes} min planned
-                </span>
-              )}
-            </div>
-
-            {dayContext.nextItem && (
-              <Link
-                to={dayContext.nextItem.href ?? `/occurrences/${dayContext.nextItem.id}`}
-                className="calendar-context__next"
-              >
-                <span className="calendar-context__next-label">Next</span>
-                <span className="calendar-context__next-title">
-                  {dayContext.nextItem.title}
-                </span>
-                {formatTargetTime(dayContext.nextItem.localTime) && (
-                  <span className="calendar-context__next-time">
-                    · {formatTargetTime(dayContext.nextItem.localTime)}
-                  </span>
-                )}
-              </Link>
-            )}
-          </div>
-        )}
-
         {params.get('promptReminder') === '1' && (
           <Panel aria-label="Daily reminder prompt" className="panel--accent">
             <Stack className="gap-3">
@@ -562,6 +559,56 @@ export function CalendarPage() {
 
         {calendar.isPending ? (
           <Loading />
+        ) : view === 'day' ? (
+          <div className="calendar-day-layout">
+            <div className="calendar-day-layout__timeline">
+              <CalendarSurface
+                days={days}
+                selected={selected}
+                onSelect={(day) => updateCalendarParams('day', day)}
+                items={filteredItems}
+                view={view}
+                timezone={timezone}
+                showAllHours={showAllHours}
+                onToggleAllHours={() => setShowAllHours((v) => !v)}
+                nextItemId={dayContext?.nextItem?.id ?? null}
+                selectedItemId={selectedItemId}
+                onSelectItem={(itemId) => setSelectedItemId(itemId)}
+                onItemScheduled={(itemId) => setSelectedItemId(itemId)}
+                onComplete={(itemId) => void completeItem(itemId)}
+                onChangeTime={(itemId, localTime) =>
+                  void changeItemTime(itemId, localTime)
+                }
+                completing={quickComplete.isPending || !online}
+              />
+              {filteredItems.length === 0 && categoryFilter !== 'all' && (
+                <Panel className="mt-4 text-center">
+                  <Stack className="items-center py-4">
+                    <p className="text-sm text-muted">
+                      No activities match the active filter.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCategoryFilter('all')}
+                    >
+                      Clear filter
+                    </Button>
+                  </Stack>
+                </Panel>
+              )}
+            </div>
+
+            <SelectedActivityPanel
+              itemId={selectedItemId}
+              calendarItem={selectedCalendarItem}
+              onClose={() => setSelectedItemId(null)}
+              onComplete={completeItem}
+              onUndoComplete={undoCompleteItem}
+              onChangeTime={changeItemTime}
+              completing={quickComplete.isPending}
+              undoing={undo.isPending}
+            />
+          </div>
         ) : (
           <>
             <CalendarSurface
@@ -580,7 +627,7 @@ export function CalendarPage() {
               }
               completing={quickComplete.isPending || !online}
             />
-            {calendar.data?.length === 0 ? (
+            {calendar.data?.length === 0 && (
               <Panel className="text-center">
                 <Stack className="items-center py-6">
                   <h2>Nothing scheduled here</h2>
@@ -598,23 +645,6 @@ export function CalendarPage() {
                   </Link>
                 </Stack>
               </Panel>
-            ) : (
-              view === 'day' &&
-              filteredItems.length === 0 && (
-                <Panel className="text-center">
-                  <Stack className="items-center py-6">
-                    <p className="text-sm text-muted">
-                      No activities match the active filter.
-                    </p>
-                    <Button
-                      variant="outline"
-                      onClick={() => setCategoryFilter('all')}
-                    >
-                      Clear filter
-                    </Button>
-                  </Stack>
-                </Panel>
-              )
             )}
           </>
         )}

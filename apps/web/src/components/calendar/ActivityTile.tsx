@@ -49,6 +49,7 @@ export type ActivityTileProps = {
   density?: ActivityTileDensity
   className?: string
   isNext?: boolean
+  selected?: boolean
   showTimeInMonth?: boolean
   onSelect?: () => void
   onComplete?: (itemId: string) => void
@@ -65,6 +66,7 @@ export function ActivityTile({
   density = 'card',
   className,
   isNext = false,
+  selected = false,
   showTimeInMonth = false,
   onSelect,
   onComplete,
@@ -315,6 +317,84 @@ export function ActivityTile({
       )}
     </>
   )
+
+  if (density === 'day') {
+    const dayBadgeContent = (
+      <>
+        <span className="calendar-badge__icon" aria-hidden>
+          <CategoryIcon category={category} size={15} />
+        </span>
+        <span
+          className={cn(
+            'calendar-badge__title',
+            isDone && 'calendar-badge__title--done',
+          )}
+        >
+          {item.title}
+        </span>
+        {isGroup && (item.avatarUrls?.length ?? 0) > 0 && (
+          <AvatarStack
+            people={(item.avatarUrls ?? []).map((url, index) => ({
+              id: `${item.id}-${index}`,
+              name: 'Group participant',
+              avatarUrl: url,
+            }))}
+            max={3}
+            className="calendar-badge__avatars"
+          />
+        )}
+        {(item.unreadCount ?? 0) > 0 && (
+          <UnreadDot count={item.unreadCount ?? 0} />
+        )}
+      </>
+    )
+
+    return (
+      <article
+        data-category={category}
+        data-item-id={item.id}
+        draggable={draggable && canAdjustTime}
+        onDragStart={
+          draggable && canAdjustTime
+            ? (event) => onDragStart?.(event, item)
+            : undefined
+        }
+        onDragEnd={draggable && canAdjustTime ? onDragEnd : undefined}
+        className={cn(
+          'calendar-tile calendar-tile--day calendar-badge',
+          isDone && 'calendar-tile--complete',
+          selected && 'calendar-badge--selected',
+          isDragging && 'calendar-tile--dragging',
+          className,
+        )}
+      >
+        {onSelect ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onSelect()
+            }}
+            aria-pressed={selected}
+            aria-label={`${item.title}, ${statusLabel}`}
+            className="calendar-badge__trigger"
+          >
+            {dayBadgeContent}
+          </button>
+        ) : item.href ? (
+          <Link
+            to={item.href}
+            aria-label={`${item.title}, ${statusLabel} — open activity`}
+            className="calendar-badge__trigger"
+          >
+            {dayBadgeContent}
+          </Link>
+        ) : (
+          <div className="calendar-badge__trigger">{dayBadgeContent}</div>
+        )}
+      </article>
+    )
+  }
 
   return (
     <article

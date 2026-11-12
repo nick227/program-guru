@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { Plus } from 'lucide-react'
 import { ActivityTile, type ActivityTileDensity } from '@/components/calendar/ActivityTile'
+import { InlineActivityPicker } from '@/components/calendar/InlineActivityPicker'
 import { WorkoutGroupTile } from '@/components/calendar/WorkoutGroupTile'
 import { groupCalendarEntries, type CalendarRenderEntry, type SurfaceItem } from '@/lib/calendarGrouping'
 import { formatHourLabel, formatTargetTime, isValidTargetTime } from '@/lib/targetTime'
@@ -51,6 +53,9 @@ function DayHourlyTable({
   showAllHours = false,
   onToggleAllHours,
   nextItemId,
+  selectedItemId,
+  onSelectItem,
+  onItemScheduled,
   onComplete,
   onChangeTime,
   completing,
@@ -61,14 +66,22 @@ function DayHourlyTable({
   showAllHours?: boolean
   onToggleAllHours?: () => void
   nextItemId?: string | null
+  selectedItemId?: string | null
+  onSelectItem?: (itemId: string) => void
+  onItemScheduled?: (itemId: string) => void
   onComplete?: (itemId: string) => void
   onChangeTime?: (itemId: string, localTime: string | null) => void
   completing?: boolean
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropSlot, setDropSlot] = useState<string | null>(null)
+  const [addingSlot, setAddingSlot] = useState<string | null>(null)
   const [now, setNow] = useState(() => getCurrentTimeInZone(timezone))
   const draggingIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    setAddingSlot(null)
+  }, [day.id])
 
   useEffect(() => {
     setNow(getCurrentTimeInZone(timezone))
@@ -174,6 +187,8 @@ function DayHourlyTable({
         group={entry}
         density="day"
         nextItemId={nextItemId}
+        selectedItemId={selectedItemId}
+        onSelectItem={onSelectItem}
         onComplete={onComplete}
         onChangeTime={onChangeTime}
         draggable={Boolean(onChangeTime)}
@@ -188,6 +203,8 @@ function DayHourlyTable({
         item={entry.item}
         density="day"
         isNext={nextItemId === entry.item.id}
+        selected={selectedItemId === entry.item.id}
+        onSelect={onSelectItem ? () => onSelectItem(entry.item.id) : undefined}
         onComplete={onComplete}
         onChangeTime={onChangeTime}
         draggable={Boolean(onChangeTime)}
@@ -209,25 +226,43 @@ function DayHourlyTable({
               onDragOver={(event) => handleDragOver(event, 'anytime')}
               onDragLeave={(event) => handleDragLeave(event, 'anytime')}
               onDrop={(event) => handleDrop(event, 'anytime', null)}
+              onClick={() => {
+                if (!draggingId) setAddingSlot('anytime')
+              }}
               className={cn(
-                'calendar-day-table__row calendar-day-table__row--anytime',
+                'calendar-day-table__row calendar-day-table__row--anytime calendar-day-table__row--interactive',
                 untimedEntries.length > 0 && 'calendar-day-table__row--populated',
                 dropSlot === 'anytime' && 'calendar-day-table__row--drop',
+                addingSlot === 'anytime' && 'calendar-day-table__row--adding',
               )}
             >
               <th scope="row" className="calendar-day-table__time">
                 Any time
               </th>
               <td className="calendar-day-table__items">
-                {untimedEntries.length > 0 ? (
-                  <div className="calendar-day-table__list">
-                    {untimedEntries.map(renderDayEntry)}
-                  </div>
-                ) : (
-                  <span className="calendar-day-table__empty-hint">
-                    {draggingId ? 'Drop here for any time' : 'No untimed activities'}
-                  </span>
-                )}
+                <div className="calendar-day-table__list">
+                  {untimedEntries.map(renderDayEntry)}
+                  {addingSlot === 'anytime' ? (
+                    <InlineActivityPicker
+                      day={day.id}
+                      localTime={null}
+                      onScheduled={(itemId) => onItemScheduled?.(itemId)}
+                      onClose={() => setAddingSlot(null)}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setAddingSlot('anytime')
+                      }}
+                      className="calendar-day-table__add-trigger"
+                    >
+                      <Plus size={14} aria-hidden />
+                      <span>Add activity</span>
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           )}
@@ -266,11 +301,15 @@ function DayHourlyTable({
                   onDragOver={(event) => handleDragOver(event, hourKey)}
                   onDragLeave={(event) => handleDragLeave(event, hourKey)}
                   onDrop={(event) => handleDrop(event, hourKey, slotTime)}
+                  onClick={() => {
+                    if (!draggingId) setAddingSlot(hourKey)
+                  }}
                   className={cn(
-                    'calendar-day-table__row',
+                    'calendar-day-table__row calendar-day-table__row--interactive',
                     hourEntries.length > 0 && 'calendar-day-table__row--populated',
                     isNowHour && 'calendar-day-table__row--now',
                     dropSlot === hourKey && 'calendar-day-table__row--drop',
+                    addingSlot === hourKey && 'calendar-day-table__row--adding',
                   )}
                 >
                   <th scope="row" className="calendar-day-table__time">
@@ -293,11 +332,17 @@ function DayHourlyTable({
                         aria-hidden
                       />
                     )}
-                    {hourEntries.length > 0 && (
-                      <div className="calendar-day-table__list">
-                        {hourEntries.map(renderDayEntry)}
-                      </div>
-                    )}
+                    <div className="calendar-day-table__list">
+                      {hourEntries.map(renderDayEntry)}
+                      {addingSlot === hourKey && (
+                        <InlineActivityPicker
+                          day={day.id}
+                          localTime={slotTime}
+                          onScheduled={(itemId) => onItemScheduled?.(itemId)}
+                          onClose={() => setAddingSlot(null)}
+                        />
+                      )}
+                    </div>
                   </td>
                 </tr>
               </React.Fragment>
@@ -450,6 +495,9 @@ export function CalendarSurface({
   showAllHours = false,
   onToggleAllHours,
   nextItemId,
+  selectedItemId,
+  onSelectItem,
+  onItemScheduled,
   onComplete,
   onChangeTime,
   completing = false,
@@ -463,6 +511,9 @@ export function CalendarSurface({
   showAllHours?: boolean
   onToggleAllHours?: () => void
   nextItemId?: string | null
+  selectedItemId?: string | null
+  onSelectItem?: (itemId: string) => void
+  onItemScheduled?: (itemId: string) => void
   onComplete?: (itemId: string) => void
   onChangeTime?: (itemId: string, localTime: string | null) => void
   completing?: boolean
@@ -597,6 +648,9 @@ export function CalendarSurface({
               showAllHours={showAllHours}
               onToggleAllHours={onToggleAllHours}
               nextItemId={nextItemId}
+              selectedItemId={selectedItemId}
+              onSelectItem={onSelectItem}
+              onItemScheduled={onItemScheduled}
               onComplete={onComplete}
               onChangeTime={onChangeTime}
               completing={completing}
@@ -620,6 +674,9 @@ export function CalendarSurface({
         showAllHours={showAllHours}
         onToggleAllHours={onToggleAllHours}
         nextItemId={nextItemId}
+        selectedItemId={selectedItemId}
+        onSelectItem={onSelectItem}
+        onItemScheduled={onItemScheduled}
         onComplete={onComplete}
         onChangeTime={onChangeTime}
         completing={completing}

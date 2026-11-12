@@ -12,6 +12,8 @@ export function WorkoutGroupTile({
   group,
   density = 'card',
   nextItemId,
+  selectedItemId = null,
+  onSelectItem,
   onComplete,
   onChangeTime,
   draggable = false,
@@ -23,6 +25,8 @@ export function WorkoutGroupTile({
   group: GroupEntry
   density?: ActivityTileDensity
   nextItemId?: string | null
+  selectedItemId?: string | null
+  onSelectItem?: (itemId: string) => void
   onComplete?: (itemId: string) => void
   onChangeTime?: (itemId: string, localTime: string | null) => void
   draggable?: boolean
@@ -101,6 +105,63 @@ export function WorkoutGroupTile({
                 item={item}
                 density="month"
                 onComplete={onComplete}
+                completing={completing}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (density === 'day') {
+    return (
+      <div
+        data-workout-group={group.enrollmentId}
+        data-category={category}
+        className="flex flex-col gap-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          onClick={() => setExpanded((v) => !v)}
+          className={cn(
+            'calendar-tile calendar-tile--day calendar-badge calendar-badge--group',
+            allDone && 'calendar-tile--complete',
+          )}
+        >
+          <span className="calendar-badge__trigger">
+            <span className="calendar-badge__icon" aria-hidden>
+              <Dumbbell size={15} />
+            </span>
+            <span className={cn('calendar-badge__title', allDone && 'calendar-badge__title--done')}>
+              {group.programTitle}
+            </span>
+            <span className="ml-auto flex items-center gap-1 text-[11px] font-medium text-muted">
+              <span>{group.doneCount}/{total}</span>
+              {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            </span>
+          </span>
+        </button>
+
+        {expanded && (
+          <div id={panelId} className="flex flex-wrap gap-2 pl-2">
+            {group.items.map((item) => (
+              <ActivityTile
+                key={item.id}
+                item={item}
+                density="day"
+                isNext={nextItemId === item.id}
+                selected={selectedItemId === item.id}
+                onSelect={onSelectItem ? () => onSelectItem(item.id) : undefined}
+                onComplete={onComplete}
+                onChangeTime={onChangeTime}
+                draggable={draggable}
+                isDragging={draggingId === item.id}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
                 completing={completing}
               />
             ))}
