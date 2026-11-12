@@ -60,7 +60,12 @@ export function startPwa() {
   let lastCheck = 0
   const resume = () => {
     if (document.visibilityState !== 'visible' || !navigator.onLine) return
-    // Query.isStale includes observer-specific stale times (e.g. the session).
+    // A resumed tab may miss the stale timer (e.g. after backgrounding or
+    // a browser clock jump). Check the session timestamp explicitly.
+    const session = queryClient.getQueryState(['me'])
+    if (session?.dataUpdatedAt && Date.now() - session.dataUpdatedAt >= 60_000) {
+      void queryClient.refetchQueries({ queryKey: ['me'], exact: true, type: 'active' })
+    }
     void queryClient.refetchQueries({ type: 'active', stale: true })
     if (registration && Date.now() - lastCheck > 60_000) {
       lastCheck = Date.now()
