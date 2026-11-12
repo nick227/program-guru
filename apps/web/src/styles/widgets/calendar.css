@@ -1724,7 +1724,6 @@
   border-radius: var(--radius-panel);
   background: hsl(var(--color-surface));
   box-shadow: var(--shadow-md);
-  min-height: calc(100vh - 11rem);
   max-height: calc(100vh - 2rem);
 }
 

@@ -110,28 +110,11 @@ function DayHourlyTable({
 
   const visibleHours = (() => {
     if (showAllHours) return HOURS
-    const anchors: number[] = []
+    const activeSet = new Set<number>()
     for (const hourKey of byHour.keys()) {
-      anchors.push(Number(hourKey))
+      activeSet.add(Number(hourKey))
     }
-    if (isViewingToday) {
-      anchors.push(now.hour)
-    }
-    if (anchors.length === 0) {
-      return HOURS.slice(7, 20)
-    }
-    const minAnchor = Math.min(...anchors)
-    const maxAnchor = Math.max(...anchors)
-    let start = Math.max(0, minAnchor - 1)
-    let end = Math.min(23, maxAnchor + 2)
-    // Ensure at least a 6-hour focused window so the timeline feels usable.
-    while (end - start < 5 && (start > 0 || end < 23)) {
-      if (start > 0) start--
-      if (end - start < 5 && end < 23) end++
-    }
-    const range: number[] = []
-    for (let h = start; h <= end; h++) range.push(h)
-    return range
+    return [...activeSet].sort((a, b) => a - b)
   })()
 
   const showAnyTimeRow = true
@@ -370,25 +353,22 @@ function DayHourlyTable({
             )
           })}
 
-          {!showAllHours &&
-            visibleHours.length > 0 &&
-            (visibleHours[0]! > 0 || visibleHours[visibleHours.length - 1]! < 23) &&
-            onToggleAllHours && (
-              <tr className="calendar-day-table__row calendar-day-table__row--gap">
-                <th scope="row" className="calendar-day-table__time" aria-hidden>
-                  ···
-                </th>
-                <td className="calendar-day-table__gap-cell">
-                  <button
-                    type="button"
-                    onClick={onToggleAllHours}
-                    className="calendar-day-table__gap-btn"
-                  >
-                    Show all 24 hours
-                  </button>
-                </td>
-              </tr>
-            )}
+          {!showAllHours && onToggleAllHours && (
+            <tr className="calendar-day-table__row calendar-day-table__row--gap">
+              <th scope="row" className="calendar-day-table__time" aria-hidden>
+                ···
+              </th>
+              <td className="calendar-day-table__gap-cell">
+                <button
+                  type="button"
+                  onClick={onToggleAllHours}
+                  className="calendar-day-table__gap-btn"
+                >
+                  Show all 24 hours
+                </button>
+              </td>
+            </tr>
+          )}
 
           {showAllHours && (
             <tr className="calendar-day-table__row calendar-day-table__row--end" aria-hidden="true">
