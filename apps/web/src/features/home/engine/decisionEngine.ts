@@ -543,7 +543,8 @@ function resolveTogetherResult(
   const excluded = new Set(state.excludedIds)
   const sessionItem = signals.liveSessions.find((item) => {
     const id = item.featuredGroup?.id ?? item.program?.id
-    return id && !excluded.has(id)
+    return id && !excluded.has(id) &&
+      (Boolean(item.featuredGroup) || Boolean(item.program && canSuggestNewProgram(item.program, signals)))
   })
   const card = sessionItem ? mapSessionToCard(sessionItem) : null
 
