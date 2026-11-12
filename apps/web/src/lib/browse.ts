@@ -23,6 +23,7 @@ export const BROWSE_PARAM = {
   session: 'session',
   tags: 'tags',
   facet: 'facet',
+  view: 'view',
 } as const
 
 export interface BrowseUrlOptions {
@@ -123,6 +124,19 @@ export function resolveBrowseTiming(
   if (kind !== 'programs' || isPicker) return 'ALL'
   const raw = params.get(BROWSE_PARAM.timing) ?? ''
   return raw === 'STARTING_SOON' ? 'STARTING_SOON' : 'ALL'
+}
+
+export type BrowseDiscoveryScope = 'ALL' | 'STARTING_SOON' | 'MY_GROUPS'
+
+/** Resolve whether the user selected the My Groups view (Program discovery only). */
+export function resolveBrowseScope(
+  params: URLSearchParams,
+  kind: BrowseKind,
+  isPicker = false,
+): BrowseDiscoveryScope {
+  if (kind !== 'programs' || isPicker) return 'ALL'
+  if (params.get(BROWSE_PARAM.view) === 'my-groups') return 'MY_GROUPS'
+  return resolveBrowseTiming(params, kind, isPicker)
 }
 
 /** Match a Program or Activity against the selected duration bucket. */

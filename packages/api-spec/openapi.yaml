@@ -8734,6 +8734,10 @@ components:
           format: uuid
         title:
           type: string
+        description:
+          type:
+          - string
+          - 'null'
         type:
           $ref: '#/components/schemas/ProgramType'
         focus:

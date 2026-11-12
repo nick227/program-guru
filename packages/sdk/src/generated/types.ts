@@ -3414,6 +3414,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             title: string;
+            description?: string | null;
             type: components["schemas"]["ProgramType"];
             focus: components["schemas"]["Focus"] | null;
             level: components["schemas"]["ProgramLevel"];

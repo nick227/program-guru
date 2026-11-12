@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   Link,
   useLocation,
@@ -12,6 +12,7 @@ import {
   useDiscoverPrograms,
   useFocuses,
   useJoinPublicGroupById,
+  useMyGroups,
   useProgramPrefetch,
   useProgramTypes,
   useProgramWorkspace,
@@ -19,7 +20,13 @@ import {
   type components,
 } from '@project/sdk'
 import {
+  Calendar,
+  CalendarClock,
+  Check,
   ChevronDown,
+  Clock,
+  LayoutGrid,
+  Repeat,
   RotateCcw,
   Search,
   SlidersHorizontal,
@@ -28,12 +35,14 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page } from '@/components/ui/Layout'
+import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { EmptyState, ErrorMessage } from '@/components/ui/Feedback'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { formatProgramDuration } from '@/components/program-authoring/programFields'
 import { formatFrequency } from '@/components/program-authoring/ScheduleControls'
@@ -45,16 +54,16 @@ import {
   matchesBrowseDuration,
   resolveBrowseDuration,
   resolveBrowseFilters,
-  resolveBrowseTiming,
+  resolveBrowseScope,
   toServerDiscoverDuration,
   type BrowseCreator,
+  type BrowseDiscoveryScope,
   type BrowseDuration,
   type BrowseKind,
-  type BrowseTiming,
 } from '@/lib/browse'
 import { dateLabel, safeReturn } from '@/lib/dates'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
-import { activityHero, programHero, type Hero } from '@/lib/hero'
+import { activityHero, programHero, toHeroCategory, type Hero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
 import { buildGroupUrl } from '@/lib/urls'
 import { cn } from '@/lib/utils'
@@ -80,9 +89,12 @@ interface BrowseFeedItem {
   id: string
   title: string
   description: string | null
-  creatorLabel: string | null
-  classification: string | null
-  schedule: string | null
+  categoryLabel: string | null
+  focusLabel: string | null
+  levelLabel: string | null
+  sessionLabel: string | null
+  frequencyLabel: string | null
+  lengthLabel: string | null
   hero: Hero
   featuredGroup?: S['PublicGroupSummary'] | null
   onSelect: () => void
@@ -94,7 +106,7 @@ interface DurationOption {
 }
 
 const PROGRAM_DURATION_OPTIONS: DurationOption[] = [
-  { value: '', label: 'Any duration' },
+  { value: '', label: 'Any length' },
   { value: 'short', label: 'Up to 2 weeks' },
   { value: 'medium', label: '3–4 weeks' },
   { value: 'long', label: '5+ weeks' },
@@ -122,20 +134,6 @@ const SESSION_LENGTH_OPTIONS = [
   { value: '30', label: '30 min or less' },
   { value: '45', label: '45 min or less' },
 ]
-
-function uniqueLabels(values: (string | null | undefined)[]): string[] {
-  const seen = new Set<string>()
-  const result: string[] = []
-  for (const raw of values) {
-    const trimmed = raw?.trim()
-    if (!trimmed) continue
-    const key = trimmed.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    result.push(trimmed)
-  }
-  return result
-}
 
 function saveBrowseScroll(url: string) {
   try {
@@ -297,7 +295,7 @@ function LoadedWorkspaceLibraryBrowser({
 
 function FilterGroup({
   title,
-  defaultOpen = true,
+  defaultOpen = false,
   children,
 }: {
   title: string
@@ -305,8 +303,12 @@ function FilterGroup({
   children: ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen)
+  useEffect(() => {
+    if (defaultOpen) setOpen(true)
+  }, [defaultOpen])
+
   return (
-    <div className="border-b border-border/60 py-3.5 first:pt-0 last:border-b-0">
+    <div className="border-b border-border/50 py-3 first:pt-0 last:border-b-0">
       <button
         type="button"
         aria-expanded={open}
@@ -323,7 +325,7 @@ function FilterGroup({
           )}
         />
       </button>
-      {open && <div className="mt-2.5">{children}</div>}
+      {open && <div className="mt-2">{children}</div>}
     </div>
   )
 }
@@ -334,12 +336,21 @@ function FilterOptionList<T extends string>({
   value,
   onChange,
   scrollable = false,
+  showCheckmark = false,
 }: {
   ariaLabel: string
-  options: { value: T; label: string; disabled?: boolean; hint?: string; title?: string }[]
+  options: {
+    value: T
+    label: string
+    icon?: ReactNode
+    disabled?: boolean
+    hint?: string
+    title?: string
+  }[]
   value: T
   onChange: (next: T) => void
   scrollable?: boolean
+  showCheckmark?: boolean
 }) {
   return (
     <div
@@ -364,19 +375,27 @@ function FilterOptionList<T extends string>({
               if (!option.disabled) onChange(option.value)
             }}
             className={cn(
-              'flex min-h-11 w-full items-center justify-between gap-2 rounded-[var(--radius-control)] px-2.5 py-2 text-left text-sm transition-colors duration-fast md:min-h-0 md:py-1.5',
+              'flex min-h-10 w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors duration-fast md:min-h-0',
               option.disabled
                 ? 'cursor-not-allowed text-muted/55'
                 : active
-                  ? 'bg-accent/12 font-semibold text-accent'
+                  ? 'bg-accent/15 font-medium text-accent'
                   : 'text-muted hover:bg-surface-muted/60 hover:text-foreground',
             )}
           >
-            <span className="truncate">{option.label}</span>
-            {option.hint && (
+            <span className="flex min-w-0 items-center gap-2.5">
+              {option.icon && (
+                <span className="shrink-0 opacity-85">{option.icon}</span>
+              )}
+              <span className="truncate">{option.label}</span>
+            </span>
+            {option.hint ? (
               <span className="shrink-0 text-[11px] font-medium text-muted/70">
                 {option.hint}
               </span>
+            ) : (
+              showCheckmark &&
+              active && <Check size={14} aria-hidden className="shrink-0 text-accent" />
             )}
           </button>
         )
@@ -385,7 +404,35 @@ function FilterOptionList<T extends string>({
   )
 }
 
-function BrowseFeedRow({
+function GroupAvatars({
+  avatars,
+}: {
+  avatars?: S['UserSummary'][]
+}) {
+  const list = (avatars ?? []).slice(0, 3)
+  if (list.length === 0) {
+    return (
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-muted text-muted">
+        <Users size={13} aria-hidden />
+      </span>
+    )
+  }
+  return (
+    <span className="flex shrink-0 -space-x-1.5" aria-hidden>
+      {list.map((u) => (
+        <Avatar
+          key={u.id}
+          name={u.displayName}
+          src={u.avatarUrl}
+          size="sm"
+          className="h-6 w-6 text-[10px] ring-2 ring-surface"
+        />
+      ))}
+    </span>
+  )
+}
+
+function BrowseFeedCard({
   item,
   actionLabel,
   isPicker,
@@ -404,126 +451,197 @@ function BrowseFeedRow({
   joiningGroupId: string | null
   onQuickJoin: (groupId: string) => void
 }) {
-  const g = !isPicker ? item.featuredGroup : null
+  const g = !isPicker && item.featuredGroup?.visibility === 'PUBLIC' ? item.featuredGroup : null
   const groupName = g ? (g.name?.trim() || `${item.title} group`) : null
   const isMember = !!g && (g.viewerIsMember || joinedIds.has(g.id))
   const canQuickJoin = !!g && !isMember && g.joinPolicy === 'OPEN'
   const recentCheckIns = g?.recentCheckInCount ?? 0
   const groupSchedule = g?.startLocalDate ? `Starts ${dateLabel(g.startLocalDate)}` : null
+  const tone = `var(--cat-${item.hero.category}, var(--color-accent))`
 
   return (
-    <div className="py-3 sm:py-4">
+    <article className="flex h-full flex-col justify-between rounded-xl border border-border/80 bg-surface p-3.5 transition-colors hover:border-border">
       <button
         type="button"
         aria-label={`${actionLabel}: ${item.title}`}
         onClick={item.onSelect}
-        className="group flex w-full flex-col items-start gap-3.5 text-left"
+        className="group flex w-full flex-col gap-3.5 text-left sm:flex-row sm:items-start"
       >
-        <div className="browse-thumb relative aspect-hero w-full shrink-0 rounded-[var(--radius-media)] border border-border/50 bg-surface-muted">
+        <div className="browse-thumb relative aspect-video w-full shrink-0 overflow-hidden rounded-lg border border-border/50 bg-surface-muted sm:w-40 xl:w-44">
           <EntityHero
             hero={item.hero}
             size="card"
             interactive={false}
+            showVideoBadge={false}
             className="h-full w-full rounded-none"
           />
         </div>
 
-        <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="line-clamp-2 font-display text-lg font-semibold leading-snug tracking-[-0.01em] text-foreground transition-colors group-hover:text-accent sm:text-xl">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          {(item.categoryLabel || item.focusLabel || item.levelLabel) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {item.categoryLabel && (
+                <span
+                  style={
+                    {
+                      color: `hsl(${tone})`,
+                      backgroundColor: `hsl(${tone} / 0.14)`,
+                      borderColor: `hsl(${tone} / 0.3)`,
+                    } as CSSProperties
+                  }
+                  className="inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium leading-tight"
+                >
+                  {item.categoryLabel}
+                </span>
+              )}
+              {item.focusLabel && (
+                <span className="inline-flex items-center rounded-md border border-border/60 bg-surface-muted/70 px-2 py-0.5 text-[11px] font-medium leading-tight text-foreground/85">
+                  {item.focusLabel}
+                </span>
+              )}
+              {item.levelLabel && (
+                <span className="ml-auto inline-flex items-center rounded-md border border-border/70 px-2 py-0.5 text-[11px] font-medium leading-tight text-muted">
+                  {item.levelLabel}
+                </span>
+              )}
+            </div>
+          )}
+
+          <h2 className="line-clamp-2 font-display text-base font-semibold leading-snug tracking-[-0.01em] text-foreground transition-colors group-hover:text-accent">
             {item.title}
-          </span>
+          </h2>
+
           {item.description && (
-            <span className="line-clamp-2 text-sm leading-relaxed text-muted">
+            <p className="line-clamp-2 text-xs leading-relaxed text-muted">
               {item.description}
-            </span>
+            </p>
           )}
-          {item.classification && (
-            <span className="truncate text-xs font-medium text-muted">
-              {item.classification}
-            </span>
+
+          {(item.sessionLabel || item.frequencyLabel || item.lengthLabel) && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-xs text-muted">
+              {item.sessionLabel && (
+                <span className="inline-flex items-center gap-1">
+                  <Clock size={12} aria-hidden className="shrink-0 opacity-80" />
+                  <span>{item.sessionLabel}</span>
+                </span>
+              )}
+              {item.frequencyLabel && (
+                <span className="inline-flex items-center gap-1">
+                  <Repeat size={12} aria-hidden className="shrink-0 opacity-80" />
+                  <span>{item.frequencyLabel}</span>
+                </span>
+              )}
+              {item.lengthLabel && (
+                <span className="inline-flex items-center gap-1">
+                  <Calendar size={12} aria-hidden className="shrink-0 opacity-80" />
+                  <span>{item.lengthLabel}</span>
+                </span>
+              )}
+            </div>
           )}
-          {(item.schedule || item.creatorLabel) && (
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-0.5 text-xs text-muted sm:text-sm">
-              {item.schedule && <span>{item.schedule}</span>}
-              {item.schedule && item.creatorLabel && <span aria-hidden>·</span>}
-              {item.creatorLabel && <span>{item.creatorLabel}</span>}
-            </span>
-          )}
-        </span>
+        </div>
       </button>
 
       {g && groupName && (
-        <div className="mt-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface/70 px-3.5 py-2.5">
-            <div className="flex min-w-0 flex-1 items-center gap-2.5">
-              <Users size={15} aria-hidden className="shrink-0 text-accent" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {groupName}
-                </p>
-                <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
-                  <span>
-                    {g.memberCount} {g.memberCount === 1 ? 'member' : 'members'}
-                  </span>
-                  {recentCheckIns > 0 && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span>
-                        {recentCheckIns} recent {recentCheckIns === 1 ? 'check-in' : 'check-ins'}
-                      </span>
-                    </>
-                  )}
-                  {groupSchedule && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span>{groupSchedule}</span>
-                    </>
-                  )}
-                  {g.joinPolicy === 'INVITE_ONLY' && !isMember && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span>Invite only</span>
-                    </>
-                  )}
-                </p>
-              </div>
+        <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <GroupAvatars avatars={g.memberAvatars} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-foreground">
+                {groupName}
+              </p>
+              <p className="truncate text-[11px] text-muted">
+                {g.memberCount} {g.memberCount === 1 ? 'member' : 'members'}
+                {recentCheckIns > 0
+                  ? ` · ${recentCheckIns} recent ${recentCheckIns === 1 ? 'check-in' : 'check-ins'}`
+                  : ''}
+                {groupSchedule ? ` · ${groupSchedule}` : ''}
+                {g.joinPolicy === 'INVITE_ONLY' && !isMember ? ' · Invite only' : ''}
+              </p>
             </div>
-            {isMember ? (
-              <Link
-                to={buildGroupUrl(g.id, { returnTo: currentUrl })}
-                aria-label={`Open Group ${groupName}`}
-                className="btn btn--outline btn--sm shrink-0"
-              >
-                Open Group
-              </Link>
-            ) : canQuickJoin && signedIn ? (
-              <Button
-                type="button"
-                size="sm"
-                loading={joiningGroupId === g.id}
-                disabled={joiningGroupId === g.id}
-                aria-label={`Join ${groupName}`}
-                onClick={() => onQuickJoin(g.id)}
-                className="shrink-0"
-              >
-                Join
-              </Button>
-            ) : (
-              <Link
-                to={buildGroupUrl(g.id, { returnTo: currentUrl })}
-                aria-label={`${canQuickJoin ? 'Join' : 'View'} ${groupName}`}
-                className={cn(
-                  'btn btn--sm shrink-0',
-                  canQuickJoin ? 'btn--primary' : 'btn--outline',
-                )}
-              >
-                {canQuickJoin ? 'Join' : 'View'}
-              </Link>
-            )}
           </div>
+          {isMember ? (
+            <Link
+              to={buildGroupUrl(g.id, { returnTo: currentUrl })}
+              aria-label={`Open Group ${groupName}`}
+              className="btn btn--outline btn--sm shrink-0"
+            >
+              Open
+            </Link>
+          ) : canQuickJoin && signedIn ? (
+            <Button
+              type="button"
+              size="sm"
+              loading={joiningGroupId === g.id}
+              disabled={joiningGroupId === g.id}
+              aria-label={`Join ${groupName}`}
+              onClick={() => onQuickJoin(g.id)}
+              className="shrink-0"
+            >
+              Join
+            </Button>
+          ) : (
+            <Link
+              to={buildGroupUrl(g.id, { returnTo: currentUrl })}
+              aria-label={`${canQuickJoin ? 'Join' : 'View'} ${groupName}`}
+              className={cn(
+                'btn btn--sm shrink-0',
+                canQuickJoin ? 'btn--primary' : 'btn--outline',
+              )}
+            >
+              {canQuickJoin ? 'Join' : 'View'}
+            </Link>
+          )}
         </div>
       )}
-    </div>
+    </article>
+  )
+}
+
+function MyGroupCard({
+  group,
+  currentUrl,
+}: {
+  group: S['GroupSummary']
+  currentUrl: string
+}) {
+  const groupName = group.name?.trim() || `${group.programTitle} group`
+  const recentCheckIns = group.recentCheckInCount ?? 0
+  const groupSchedule = group.startLocalDate
+    ? `Starts ${dateLabel(group.startLocalDate)}`
+    : null
+
+  return (
+    <article className="flex flex-col justify-between gap-3 rounded-xl border border-border/80 bg-surface p-4 transition-colors hover:border-border">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium text-muted">
+            {group.programTitle}
+          </p>
+          <h2 className="mt-0.5 truncate font-display text-base font-semibold text-foreground">
+            {groupName}
+          </h2>
+        </div>
+        <Link
+          to={buildGroupUrl(group.id, { returnTo: currentUrl })}
+          aria-label={`Open Group ${groupName}`}
+          className="btn btn--outline btn--sm shrink-0"
+        >
+          Open
+        </Link>
+      </div>
+
+      <div className="flex items-center gap-2.5 border-t border-border/60 pt-3">
+        <GroupAvatars avatars={group.memberAvatars} />
+        <p className="min-w-0 flex-1 truncate text-xs text-muted">
+          {group.memberCount} {group.memberCount === 1 ? 'member' : 'members'}
+          {recentCheckIns > 0
+            ? ` · ${recentCheckIns} recent ${recentCheckIns === 1 ? 'check-in' : 'check-ins'}`
+            : ''}
+          {groupSchedule ? ` · ${groupSchedule}` : ''}
+        </p>
+      </div>
+    </article>
   )
 }
 
@@ -546,7 +664,10 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     mode.lockedProgramTypeId,
   )
   const duration = resolveBrowseDuration(params, mode.kind)
-  const timing = resolveBrowseTiming(params, mode.kind, mode.isPicker)
+  const scope = resolveBrowseScope(params, mode.kind, mode.isPicker)
+  const timing = scope === 'STARTING_SOON' ? 'STARTING_SOON' : 'ALL'
+  const isMyGroups = scope === 'MY_GROUPS'
+
   const categoryId = filters.category
   const programTypeId = filters.type
   const focusId = filters.focus
@@ -565,6 +686,10 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const visibleTypes = categoryId
     ? (types.data ?? []).filter((t) => t.categoryId === categoryId)
     : (types.data ?? [])
+  const visibleFocuses = categoryId
+    ? (focuses.data ?? []).filter((f) => f.categoryId === categoryId)
+    : (focuses.data ?? [])
+
   const typeLabel = types.data?.find((t) => t.id === programTypeId)?.label
   const categoryLabelOf = (id?: string | null) =>
     id ? (categories.data?.find((c) => c.id === id)?.label ?? null) : null
@@ -574,6 +699,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const [query, setQuery] = useState(search)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const me = useCurrentUser()
+  const myGroups = useMyGroups(!!me.data && !mode.isPicker && mode.kind === 'programs')
   const joinGroup = useJoinPublicGroupById()
   const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(() => new Set())
   const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null)
@@ -632,6 +758,23 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       { replace: true },
     )
 
+  const setScope = (nextScope: BrowseDiscoveryScope) => {
+    setParams(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        next.delete(BROWSE_PARAM.timing)
+        next.delete(BROWSE_PARAM.view)
+        if (nextScope === 'STARTING_SOON') {
+          next.set(BROWSE_PARAM.timing, 'STARTING_SOON')
+        } else if (nextScope === 'MY_GROUPS') {
+          next.set(BROWSE_PARAM.view, 'my-groups')
+        }
+        return next
+      },
+      { replace: true },
+    )
+  }
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (query.trim() !== search) setParam(BROWSE_PARAM.q, query.trim())
@@ -650,6 +793,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
           next.set('kind', 'activities')
           next.delete(BROWSE_PARAM.type)
           next.delete(BROWSE_PARAM.timing)
+          next.delete(BROWSE_PARAM.view)
           next.delete(BROWSE_PARAM.level)
           next.delete(BROWSE_PARAM.session)
           next.delete(BROWSE_PARAM.tags)
@@ -722,7 +866,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     tags: selectedTags.length ? selectedTags : undefined,
     sort,
     timing: timing !== 'ALL' ? timing : undefined,
-    enabled: mode.kind === 'programs',
+    enabled: mode.kind === 'programs' && !isMyGroups,
   })
   const activities = useDiscoverActivities({
     q: search,
@@ -731,7 +875,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     sort,
     enabled: mode.kind === 'activities',
   })
-  const results = mode.kind === 'programs' ? programs : activities
+  const results = isMyGroups
+    ? myGroups
+    : mode.kind === 'programs'
+      ? programs
+      : activities
 
   useEffect(() => {
     if (results.isPending || mode.isPicker) return
@@ -783,75 +931,58 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             ),
           )
           .filter(({ program }) => keep(program))
-          .map(({ program, featuredGroup }) => {
-            const classification = uniqueLabels([
-              categoryLabelOf(program.type.categoryId),
-              program.type.label,
-              program.focus?.label,
-              program.level !== 'ALL_LEVELS' ? formatProgramLevel(program.level) : null,
-            ]).join(' · ')
-            const schedule = [
-              formatProgramDuration(program.durationDays),
-              program.sessionMinutes ? `${program.sessionMinutes} min/session` : null,
-              program.frequencyLabel || null,
-            ]
-              .filter(Boolean)
-              .join(' · ')
-            const creatorLabel = program.creator?.displayName
-              ? `by ${program.creator.displayName}`
-              : program.isPlatform
-                ? 'by Program Guru'
-                : null
-            return {
-              id: program.id,
-              title: program.title,
-              description: null,
-              creatorLabel,
-              classification: classification || null,
-              schedule: schedule || null,
-              hero: programHero(program, categorySlugOf),
-              featuredGroup,
-              onSelect: () => mode.onPickProgram?.(program),
-            }
-          })
+          .map(({ program, featuredGroup }) => ({
+            id: program.id,
+            title: program.title,
+            description: program.description?.trim() || null,
+            categoryLabel: categoryLabelOf(program.type.categoryId),
+            focusLabel: program.focus?.label ?? null,
+            levelLabel: formatProgramLevel(program.level),
+            sessionLabel: program.sessionMinutes
+              ? `${program.sessionMinutes} min`
+              : null,
+            frequencyLabel: program.frequencyLabel || null,
+            lengthLabel: formatProgramDuration(program.durationDays),
+            hero: programHero(program, categorySlugOf),
+            featuredGroup,
+            onSelect: () => mode.onPickProgram?.(program),
+          }))
       : (activities.data?.pages ?? [])
           .flatMap((page) =>
             page.data.flatMap((d) => (d.activity ? [d.activity] : [])),
           )
           .filter(keep)
           .map((activity) => {
-            const focusLabels = activity.focusIds
+            const firstFocus = activity.focusIds
               .map(focusLabelOf)
-              .filter((label): label is string => !!label)
-              .slice(0, 2)
-            const classification = uniqueLabels([
-              categoryLabelOf(activity.categoryId),
-              ...focusLabels,
-            ]).join(' · ')
-            const schedule = [
-              formatDurationMinutes(activity.durationMinutes),
-              formatFrequency(activity.frequency),
-            ]
-              .filter(Boolean)
-              .join(' · ')
-            const creatorLabel = activity.creator?.displayName
-              ? `by ${activity.creator.displayName}`
-              : activity.isPlatform
-                ? 'by Program Guru'
-                : null
+              .find((label): label is string => !!label) ?? null
             return {
               id: activity.id,
               title: activity.title,
               description: activity.summary?.trim() || null,
-              creatorLabel,
-              classification: classification || null,
-              schedule: schedule || null,
+              categoryLabel: categoryLabelOf(activity.categoryId),
+              focusLabel: firstFocus,
+              levelLabel: null,
+              sessionLabel: formatDurationMinutes(activity.durationMinutes),
+              frequencyLabel: formatFrequency(activity.frequency) || null,
+              lengthLabel: null,
               hero: activityHero(activity, categorySlugOf),
               onSelect: () => mode.onPickActivity?.(activity),
             }
           })
 
-  const focusOptions = (focuses.data ?? []).map((f) => ({
+  const myGroupItems = (myGroups.data?.pages ?? [])
+    .flatMap((page) => page.data)
+    .filter((g) => {
+      if (!search) return true
+      const needle = search.toLowerCase()
+      return (
+        (g.name ?? '').toLowerCase().includes(needle) ||
+        g.programTitle.toLowerCase().includes(needle)
+      )
+    })
+
+  const focusOptions = visibleFocuses.map((f) => ({
     value: f.id,
     label: f.label,
   }))
@@ -859,8 +990,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     mode.kind === 'programs'
       ? PROGRAM_DURATION_OPTIONS
       : ACTIVITY_DURATION_OPTIONS
-  const noun = 'result'
-  const nounPlural = 'results'
+  const noun = isMyGroups ? 'group' : 'result'
+  const nounPlural = isMyGroups ? 'groups' : 'results'
   const title = mode.isPicker
     ? mode.kind === 'programs'
       ? `${typeLabel ?? 'Program'} Library`
@@ -876,7 +1007,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     !!maxSessionMinutes ||
     selectedTags.length > 0 ||
     !!duration ||
-    timing !== 'ALL' ||
+    scope !== 'ALL' ||
     !!search ||
     sort !== 'POPULAR' ||
     creator !== 'ALL'
@@ -888,7 +1019,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     level,
     maxSessionMinutes,
     duration,
-    timing !== 'ALL' ? timing : '',
+    scope !== 'ALL' ? scope : '',
     creator !== 'ALL' ? creator : '',
   ].filter(Boolean).length + selectedTags.length
 
@@ -907,6 +1038,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         next.delete(BROWSE_PARAM.tags)
         next.delete(BROWSE_PARAM.duration)
         next.delete(BROWSE_PARAM.timing)
+        next.delete(BROWSE_PARAM.view)
         next.delete(BROWSE_PARAM.facet)
         if (!mode.lockedProgramTypeId) next.delete(BROWSE_PARAM.type)
         return next
@@ -924,6 +1056,19 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         setQuery('')
         setParam(BROWSE_PARAM.q, '')
       },
+    })
+  }
+  if (scope === 'STARTING_SOON') {
+    activeFilterChips.push({
+      key: 'timing',
+      label: 'Starting Soon',
+      onRemove: () => setScope('ALL'),
+    })
+  } else if (scope === 'MY_GROUPS') {
+    activeFilterChips.push({
+      key: 'view',
+      label: 'My Groups',
+      onRemove: () => setScope('ALL'),
     })
   }
   if (categoryId) {
@@ -945,13 +1090,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       key: 'focus',
       label: focusLabelOf(focusId) ?? 'Focus',
       onRemove: () => setParam(BROWSE_PARAM.focus, ''),
-    })
-  }
-  if (timing === 'STARTING_SOON') {
-    activeFilterChips.push({
-      key: 'timing',
-      label: 'Starting Soon',
-      onRemove: () => setParam(BROWSE_PARAM.timing, 'ALL', 'ALL'),
     })
   }
   if (duration) {
@@ -994,89 +1132,46 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   }
 
   const categoryOptions = [
-    { value: '', label: 'All categories' },
-    ...(categories.data ?? []).map((c) => ({ value: c.id, label: c.label })),
+    {
+      value: '',
+      label: 'All categories',
+      icon: <LayoutGrid size={15} aria-hidden />,
+    },
+    ...(categories.data ?? []).map((c) => ({
+      value: c.id,
+      label: c.label,
+      icon: <CategoryIcon category={toHeroCategory(c.slug)} size={15} />,
+    })),
   ]
+
+  const displayedCount = isMyGroups ? myGroupItems.length : items.length
+  const myGroupsCount = me.data && !myGroups.isPending ? myGroupItems.length : null
 
   return (
     <Page className="page--wide pb-20">
-
-      <div className="mx-auto w-full pt-6 md:pt-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8 lg:gap-12">
-          {/* Left: Persistent filter sidebar on desktop/tablet, compact search + collapsible drawer on mobile */}
+      <div className="mx-auto w-full pt-4 md:pt-6">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8 lg:gap-10">
+          {/* Left: Fixed 248px sticky sidebar on desktop, slide-over drawer on mobile */}
           <aside
             aria-label="Filters"
-            className="w-full shrink-0 md:sticky md:top-20 md:w-[236px] lg:w-[272px]"
+            className="w-full shrink-0 md:sticky md:top-20 md:w-[248px]"
           >
-            {/* 1. Search Programs and Activities */}
-            <div className="flex items-center gap-2">
-              <div className="relative min-w-0 flex-1">
-                <Search
-                  aria-hidden
-                  className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted"
-                />
-                <Input
-                  aria-label={`Search ${nounPlural}`}
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      setParam(BROWSE_PARAM.q, query.trim())
-                    }
-                  }}
-                  placeholder="Search programs & activities…"
-                  className="pl-9 pr-10"
-                />
-                {query && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuery('')
-                      setParam(BROWSE_PARAM.q, '')
-                    }}
-                    className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-muted transition-colors hover:text-foreground"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-
-              <Button
-                variant="outline"
-                size="md"
-                aria-expanded={mobileFiltersOpen}
-                aria-controls="browse-filter-groups"
-                onClick={() => setMobileFiltersOpen((open) => !open)}
-                className="shrink-0 gap-1.5 px-3 md:hidden"
-              >
-                <SlidersHorizontal size={16} aria-hidden />
-                <span>Filters</span>
-                {activeSidebarFilterCount > 0 && (
-                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-fg">
-                    {activeSidebarFilterCount}
-                  </span>
-                )}
-              </Button>
-            </div>
-
-            {/* Collapsible filter groups (static in sidebar on md+, slide-over drawer on mobile) */}
             <div
               id="browse-filter-groups"
               className={cn(
                 mobileFiltersOpen
-                  ? 'fixed inset-0 z-40 flex md:static md:inset-auto md:z-auto md:mt-5 md:block'
-                  : 'hidden md:mt-5 md:block',
+                  ? 'fixed inset-0 z-40 flex md:static md:inset-auto md:z-auto md:block'
+                  : 'hidden md:block',
               )}
             >
               <button
                 type="button"
                 aria-label="Close filters"
                 onClick={() => setMobileFiltersOpen(false)}
-                className="fixed inset-0 bg-black/40 backdrop-blur-[1px] md:hidden"
+                className="fixed inset-0 bg-black/50 backdrop-blur-[1px] md:hidden"
               />
 
-              <div className="browse-sidebar-scroll relative z-10 flex h-full w-[min(21rem,88vw)] flex-col overflow-y-auto border-r border-border bg-surface p-5 shadow-md md:h-auto md:max-h-[calc(100vh-10.5rem)] md:w-auto md:border-r-0 md:bg-transparent md:p-0 md:pr-1 md:shadow-none">
+              <div className="browse-sidebar-scroll relative z-10 flex h-full w-[min(20rem,86vw)] flex-col overflow-y-auto border-r border-border bg-surface p-5 shadow-md md:h-auto md:max-h-[calc(100vh-6.5rem)] md:w-auto md:border-r md:border-border/50 md:bg-transparent md:p-0 md:pr-4 md:shadow-none">
                 <div className="mb-4 flex items-center justify-between border-b border-border/60 pb-3 md:hidden">
                   <span className="font-display text-base font-semibold text-foreground">
                     Filters
@@ -1085,16 +1180,27 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     type="button"
                     aria-label="Close filters"
                     onClick={() => setMobileFiltersOpen(false)}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-control)] text-muted hover:bg-surface-muted hover:text-foreground"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
                   >
                     <X size={18} aria-hidden />
                   </button>
                 </div>
 
+                {!mode.isPicker && (
+                  <div className="mb-4 hidden md:block">
+                    <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
+                      Explore
+                    </h2>
+                    <p className="mt-0.5 text-xs text-muted">
+                      Find programs and activities to join.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex-1">
-                  {/* 2. Content type: Programs / Activities */}
+                  {/* Content type switcher (Programs / Activities) */}
                   {!mode.isPicker && (
-                    <FilterGroup title="Content type">
+                    <div className="border-b border-border/50 pb-3.5">
                       <SegmentedControl<BrowseKind>
                         ariaLabel="Content type"
                         size="sm"
@@ -1106,50 +1212,61 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                         value={mode.kind}
                         onChange={switchKind}
                       />
-                    </FilterGroup>
+                    </div>
                   )}
 
-                  {/* 2b. Group timing (Programs discovery only) */}
+                  {/* Simple discovery options: All Programs, Starting Soon, My Groups */}
                   {mode.kind === 'programs' && !mode.isPicker && (
-                    <FilterGroup title="Group timing">
-                      <FilterOptionList<BrowseTiming | 'HAPPENING_NOW'>
+                    <div className="border-b border-border/50 py-3.5">
+                      <FilterOptionList<BrowseDiscoveryScope>
                         ariaLabel="Filter by group timing"
                         options={[
-                          { value: 'ALL', label: 'All Programs' },
-                          { value: 'STARTING_SOON', label: 'Starting Soon' },
                           {
-                            value: 'HAPPENING_NOW',
-                            label: 'Happening Now',
-                            disabled: true,
-                            hint: 'Soon',
-                            title: 'Live group sessions require real-time presence, which is not yet supported.',
+                            value: 'ALL',
+                            label: 'All Programs',
+                            icon: <LayoutGrid size={15} aria-hidden />,
+                          },
+                          {
+                            value: 'STARTING_SOON',
+                            label: 'Starting Soon',
+                            icon: <CalendarClock size={15} aria-hidden />,
+                          },
+                          {
+                            value: 'MY_GROUPS',
+                            label: 'My Groups',
+                            icon: <Users size={15} aria-hidden />,
+                            hint:
+                              myGroupsCount != null
+                                ? String(myGroupsCount)
+                                : undefined,
                           },
                         ]}
-                        value={timing}
-                        onChange={(value) => {
-                          if (value === 'HAPPENING_NOW') return
-                          setParam(BROWSE_PARAM.timing, value, 'ALL')
-                        }}
+                        value={scope}
+                        onChange={setScope}
                       />
-                    </FilterGroup>
+                    </div>
                   )}
 
-                  {/* 3. Category */}
+                  {/* Categories shown immediately */}
                   {!mode.lockedProgramTypeId &&
                     (categories.data?.length ?? 0) > 0 && (
-                      <FilterGroup title="Category">
+                      <FilterGroup title="Category" defaultOpen>
                         <FilterOptionList
                           ariaLabel="Category"
                           options={categoryOptions}
                           value={categoryId}
                           onChange={handleCategoryChange}
+                          showCheckmark
                         />
                       </FilterGroup>
                     )}
 
-                  {/* 4. Program Type */}
+                  {/* Collapsed by default unless active: Program type, Focus, Level, Duration, Tags, Creator */}
                   {mode.kind === 'programs' && !mode.lockedProgramTypeId && (
-                    <FilterGroup title="Program type">
+                    <FilterGroup
+                      title="Program type"
+                      defaultOpen={!!programTypeId}
+                    >
                       <Select
                         aria-label="Program type"
                         value={programTypeId}
@@ -1165,9 +1282,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     </FilterGroup>
                   )}
 
-                  {/* 5. Focus */}
                   {focusOptions.length > 0 && (
-                    <FilterGroup title="Focus">
+                    <FilterGroup title="Focus" defaultOpen={!!focusId}>
                       <FilterOptionList
                         ariaLabel="Filter by focus"
                         options={[
@@ -1181,72 +1297,83 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     </FilterGroup>
                   )}
 
-                  {/* 6. Duration */}
-                  <FilterGroup title="Duration">
-                    <FilterOptionList
-                      ariaLabel="Filter by duration"
-                      options={durationOptions}
-                      value={duration}
-                      onChange={(value) =>
-                        setParam(BROWSE_PARAM.duration, value)
-                      }
-                    />
-                  </FilterGroup>
-
-                  {/* 6b. Level & Session length (Programs) */}
                   {mode.kind === 'programs' && (
-                    <>
-                      <FilterGroup title="Level" defaultOpen={!!level}>
-                        <FilterOptionList
-                          ariaLabel="Filter by level"
-                          options={PROGRAM_LEVEL_OPTIONS}
-                          value={level}
-                          onChange={(value) => setParam(BROWSE_PARAM.level, value)}
-                        />
-                      </FilterGroup>
-
-                      <FilterGroup title="Session length" defaultOpen={!!maxSessionMinutes}>
-                        <FilterOptionList
-                          ariaLabel="Filter by session length"
-                          options={SESSION_LENGTH_OPTIONS}
-                          value={maxSessionMinutes}
-                          onChange={(value) => setParam(BROWSE_PARAM.session, value)}
-                        />
-                      </FilterGroup>
-
-                      {(tagsCatalog.data?.length ?? 0) > 0 && (
-                        <FilterGroup title="Tags" defaultOpen={selectedTags.length > 0}>
-                          <div role="group" aria-label="Filter by tags" className="flex flex-wrap gap-1.5">
-                            {(tagsCatalog.data ?? []).map((tag) => {
-                              const active = selectedTags.includes(tag.slug)
-                              return (
-                                <button
-                                  key={tag.id}
-                                  type="button"
-                                  aria-pressed={active}
-                                  onClick={() => toggleTag(tag.slug)}
-                                  className={cn(
-                                    'min-h-9 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-fast md:min-h-0 md:px-2.5 md:py-1',
-                                    active
-                                      ? 'border-accent bg-accent/15 text-accent'
-                                      : 'border-border/70 text-muted hover:border-border hover:text-foreground',
-                                  )}
-                                >
-                                  {tag.label}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </FilterGroup>
-                      )}
-                    </>
+                    <FilterGroup title="Level" defaultOpen={!!level}>
+                      <FilterOptionList
+                        ariaLabel="Filter by level"
+                        options={PROGRAM_LEVEL_OPTIONS}
+                        value={level}
+                        onChange={(value) => setParam(BROWSE_PARAM.level, value)}
+                      />
+                    </FilterGroup>
                   )}
 
-                  {/* Creator filter (collapsed unless active) */}
                   <FilterGroup
-                    title="Creator"
-                    defaultOpen={creator !== 'ALL'}
+                    title="Duration"
+                    defaultOpen={!!duration || !!maxSessionMinutes}
                   >
+                    <div className="space-y-3">
+                      <FilterOptionList
+                        ariaLabel="Filter by duration"
+                        options={durationOptions}
+                        value={duration}
+                        onChange={(value) =>
+                          setParam(BROWSE_PARAM.duration, value)
+                        }
+                      />
+                      {mode.kind === 'programs' && (
+                        <div className="border-t border-border/40 pt-2.5">
+                          <p className="mb-1.5 px-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+                            Session length
+                          </p>
+                          <FilterOptionList
+                            ariaLabel="Filter by session length"
+                            options={SESSION_LENGTH_OPTIONS}
+                            value={maxSessionMinutes}
+                            onChange={(value) =>
+                              setParam(BROWSE_PARAM.session, value)
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </FilterGroup>
+
+                  {mode.kind === 'programs' &&
+                    (tagsCatalog.data?.length ?? 0) > 0 && (
+                      <FilterGroup
+                        title="Tags"
+                        defaultOpen={selectedTags.length > 0}
+                      >
+                        <div
+                          role="group"
+                          aria-label="Filter by tags"
+                          className="flex flex-wrap gap-1.5"
+                        >
+                          {(tagsCatalog.data ?? []).map((tag) => {
+                            const active = selectedTags.includes(tag.slug)
+                            return (
+                              <button
+                                key={tag.id}
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => toggleTag(tag.slug)}
+                                className={cn(
+                                  'min-h-9 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-fast md:min-h-0 md:px-2.5 md:py-1',
+                                  active
+                                    ? 'border-accent bg-accent/15 text-accent'
+                                    : 'border-border/70 text-muted hover:border-border hover:text-foreground',
+                                )}
+                              >
+                                {tag.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </FilterGroup>
+                    )}
+
+                  <FilterGroup title="Creator" defaultOpen={creator !== 'ALL'}>
                     <FilterOptionList<BrowseCreator>
                       ariaLabel="Filter by creator"
                       options={[
@@ -1262,14 +1389,14 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   </FilterGroup>
                 </div>
 
-                {/* 7. Clear Filters */}
+                {/* Drawer footer */}
                 <div className="sticky bottom-0 mt-4 flex items-center justify-between gap-3 border-t border-border/60 bg-surface pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] md:static md:bg-transparent md:pt-4 md:pb-0">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={reset}
                     disabled={!filtered}
-                    className="min-h-11 gap-1.5 px-2 text-xs text-muted hover:text-foreground md:min-h-0"
+                    className="min-h-10 gap-1.5 px-2 text-xs text-muted hover:text-foreground md:min-h-0"
                   >
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden />
                     Clear filters
@@ -1277,44 +1404,119 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   <Button
                     size="sm"
                     onClick={() => setMobileFiltersOpen(false)}
-                    className="min-h-11 md:hidden"
+                    className="min-h-10 md:hidden"
                   >
                     {results.isPending
                       ? 'Show results'
-                      : `Show ${items.length}`}
+                      : `Show ${displayedCount}`}
                   </Button>
                 </div>
               </div>
             </div>
           </aside>
 
-          {/* Right: Main single-column discovery feed */}
+          {/* Right: Main header, prominent search, active chips, and 2-col card grid */}
           <section aria-label={`${nounPlural} feed`} className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
-              <p role="status" className="text-sm font-medium text-muted">
-                {results.isPending
-                  ? `Loading ${nounPlural}…`
-                  : `${items.length} ${items.length === 1 ? noun : nounPlural}`}
+            <header className="mb-5">
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {title}
+              </h1>
+              <p className="mt-1 text-sm text-muted">
+                {mode.isPicker
+                  ? mode.kind === 'programs'
+                    ? 'Choose a Program to use as a starting point.'
+                    : 'Choose an Activity to add.'
+                  : isMyGroups
+                    ? 'Groups you belong to.'
+                    : 'Browse and join programs with others.'}
               </p>
-              <SegmentedControl<Sort>
-                ariaLabel="Sort by"
-                size="sm"
-                options={[
-                  { value: 'POPULAR', label: 'Popular' },
-                  { value: 'NEW', label: 'Newest' },
-                  { value: 'RELEVANT', label: 'Featured' },
-                ]}
-                value={sort}
-                onChange={(value) =>
-                  setParam(BROWSE_PARAM.sort, value, 'POPULAR')
-                }
-              />
+            </header>
+
+            {/* Prominent search + sort row */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search
+                    aria-hidden
+                    className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted"
+                  />
+                  <Input
+                    aria-label={
+                      mode.kind === 'activities'
+                        ? 'Search Activities'
+                        : 'Search Programs and Activities'
+                    }
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        setParam(BROWSE_PARAM.q, query.trim())
+                      }
+                    }}
+                    placeholder={
+                      isMyGroups
+                        ? 'Search your groups…'
+                        : mode.kind === 'activities'
+                          ? 'Search activities…'
+                          : 'Search programs and activities…'
+                    }
+                    className="pl-9 pr-10"
+                  />
+                  {query && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuery('')
+                        setParam(BROWSE_PARAM.q, '')
+                      }}
+                      className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-muted transition-colors hover:text-foreground"
+                      aria-label="Clear search"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="md"
+                  aria-expanded={mobileFiltersOpen}
+                  aria-controls="browse-filter-groups"
+                  onClick={() => setMobileFiltersOpen((open) => !open)}
+                  className="shrink-0 gap-1.5 px-3 md:hidden"
+                >
+                  <SlidersHorizontal size={16} aria-hidden />
+                  <span>Filters</span>
+                  {activeSidebarFilterCount > 0 && (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-fg">
+                      {activeSidebarFilterCount}
+                    </span>
+                  )}
+                </Button>
+              </div>
+
+              {!isMyGroups && (
+                <SegmentedControl<Sort>
+                  ariaLabel="Sort by"
+                  size="sm"
+                  options={[
+                    { value: 'POPULAR', label: 'Popular' },
+                    { value: 'NEW', label: 'Newest' },
+                    { value: 'RELEVANT', label: 'Featured' },
+                  ]}
+                  value={sort}
+                  onChange={(value) =>
+                    setParam(BROWSE_PARAM.sort, value, 'POPULAR')
+                  }
+                />
+              )}
             </div>
 
-            {activeFilterChips.length > 0 && (
+            {/* Active filter chips + result count */}
+            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3.5">
               <div
                 aria-label="Active filters"
-                className="flex flex-wrap items-center gap-2 border-b border-border/60 py-3"
+                className="flex flex-wrap items-center gap-2"
               >
                 {activeFilterChips.map((chip) => (
                   <button
@@ -1322,114 +1524,216 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     type="button"
                     onClick={chip.onRemove}
                     aria-label={`Remove ${chip.label} filter`}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border/80 bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-accent hover:text-accent sm:min-h-0 sm:py-1"
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-3 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/20 sm:min-h-0"
                   >
                     <span>{chip.label}</span>
-                    <X size={12} aria-hidden className="text-muted" />
+                    <X size={12} aria-hidden />
                   </button>
                 ))}
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="min-h-9 px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:text-foreground sm:min-h-0 sm:px-2"
-                >
-                  Clear all
-                </button>
-              </div>
-            )}
-
-            <div className="mt-2">
-              <ErrorMessage
-                error={results.error}
-                retry={() => void results.refetch()}
-              />
-
-              {results.isPending ? (
-                <div
-                  className="divide-y divide-border/60"
-                  role="status"
-                  aria-label={`Loading ${nounPlural}`}
-                >
-                  {Array.from({ length: 6 }, (_, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-4 py-5 sm:items-center sm:gap-5 sm:py-6"
-                    >
-                      <Skeleton className="aspect-hero w-24 shrink-0 rounded-[var(--radius-media)] sm:w-36 lg:w-40" />
-                      <div className="flex min-w-0 flex-1 flex-col gap-2">
-                        <Skeleton className="h-3 w-28" />
-                        <Skeleton className="h-5 w-2/3" />
-                        <Skeleton className="h-3.5 w-1/2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : items.length > 0 ? (
-                <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {items.map((item) => (
-                    <li
-                      key={item.id}
-                      onPointerEnter={() => prefetchProgram(item.id)}
-                      onFocus={() => prefetchProgram(item.id)}
-                    >
-                      <BrowseFeedRow
-                        item={item}
-                        actionLabel={mode.actionLabel}
-                        isPicker={mode.isPicker}
-                        currentUrl={currentUrl}
-                        signedIn={!!me.data}
-                        joinedIds={joinedGroupIds}
-                        joiningGroupId={joiningGroupId}
-                        onQuickJoin={(groupId) => void handleQuickJoin(groupId)}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                !results.error && (
-                  <div className="pt-6">
-                    <EmptyState
-                      level={3}
-                      title={`No ${nounPlural} match these filters`}
-                      description={
-                        filtered
-                          ? 'Try adjusting your search or clearing a filter.'
-                          : undefined
-                      }
-                      action={
-                        <div className="flex flex-wrap items-center justify-center gap-3">
-                          {filtered && (
-                            <Button variant="outline" size="sm" onClick={reset}>
-                              Reset filters
-                            </Button>
-                          )}
-                          {results.hasNextPage && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              loading={results.isFetchingNextPage}
-                              onClick={() => void results.fetchNextPage()}
-                            >
-                              Load more
-                            </Button>
-                          )}
-                        </div>
-                      }
-                    />
-                  </div>
-                )
-              )}
-
-              {items.length > 0 && results.hasNextPage && (
-                <div className="mt-6 flex justify-center border-t border-border/60 pt-6">
-                  <Button
-                    variant="outline"
-                    loading={results.isFetchingNextPage}
-                    onClick={() => void results.fetchNextPage()}
+                {activeFilterChips.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={reset}
+                    className="min-h-8 px-2 py-1 text-xs font-medium text-muted transition-colors hover:text-foreground sm:min-h-0"
                   >
-                    Load more
-                  </Button>
-                </div>
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              <p role="status" className="ml-auto text-xs font-medium text-muted">
+                {isMyGroups && !me.data
+                  ? 'Sign in required'
+                  : results.isPending
+                    ? `Loading ${nounPlural}…`
+                    : `${displayedCount} ${displayedCount === 1 ? noun : nounPlural}`}
+              </p>
+            </div>
+
+            {/* Feed */}
+            <div className="mt-5">
+              {isMyGroups ? (
+                !me.data ? (
+                  <EmptyState
+                    level={3}
+                    title="Sign in to view your groups"
+                    description="Join a group from any Program to see it here."
+                    action={
+                      <Link
+                        to={`/login?returnTo=${encodeURIComponent(currentUrl)}`}
+                        className="btn btn--primary btn--sm"
+                      >
+                        Sign in
+                      </Link>
+                    }
+                  />
+                ) : (
+                  <>
+                    <ErrorMessage
+                      error={myGroups.error}
+                      retry={() => void myGroups.refetch()}
+                    />
+                    {myGroups.isPending ? (
+                      <div
+                        className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+                        role="status"
+                        aria-label="Loading groups"
+                      >
+                        {Array.from({ length: 4 }, (_, index) => (
+                          <div
+                            key={index}
+                            className="rounded-xl border border-border/60 bg-surface p-4"
+                          >
+                            <Skeleton className="h-3 w-28" />
+                            <Skeleton className="mt-2 h-5 w-2/3" />
+                            <Skeleton className="mt-4 h-6 w-1/2" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : myGroupItems.length > 0 ? (
+                      <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        {myGroupItems.map((group) => (
+                          <li key={group.id}>
+                            <MyGroupCard group={group} currentUrl={currentUrl} />
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      !myGroups.error && (
+                        <EmptyState
+                          level={3}
+                          title={
+                            search
+                              ? 'No groups match your search'
+                              : 'You have not joined any groups yet'
+                          }
+                          description={
+                            search
+                              ? 'Try a different search term.'
+                              : 'Browse All Programs to find an open group to join.'
+                          }
+                          action={
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setScope('ALL')}
+                            >
+                              Browse All Programs
+                            </Button>
+                          }
+                        />
+                      )
+                    )}
+
+                    {myGroupItems.length > 0 && myGroups.hasNextPage && (
+                      <div className="mt-6 flex justify-center border-t border-border/60 pt-6">
+                        <Button
+                          variant="outline"
+                          loading={myGroups.isFetchingNextPage}
+                          onClick={() => void myGroups.fetchNextPage()}
+                        >
+                          Load more
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )
+              ) : (
+                <>
+                  <ErrorMessage
+                    error={results.error}
+                    retry={() => void results.refetch()}
+                  />
+
+                  {results.isPending ? (
+                    <div
+                      className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+                      role="status"
+                      aria-label={`Loading ${nounPlural}`}
+                    >
+                      {Array.from({ length: 6 }, (_, index) => (
+                        <div
+                          key={index}
+                          className="flex flex-col gap-3.5 rounded-xl border border-border/60 bg-surface p-3.5 sm:flex-row"
+                        >
+                          <Skeleton className="aspect-video w-full shrink-0 rounded-lg sm:w-40 xl:w-44" />
+                          <div className="flex min-w-0 flex-1 flex-col gap-2">
+                            <Skeleton className="h-4 w-28" />
+                            <Skeleton className="h-5 w-3/4" />
+                            <Skeleton className="h-3.5 w-full" />
+                            <Skeleton className="h-3.5 w-1/2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : items.length > 0 ? (
+                    <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      {items.map((item) => (
+                        <li
+                          key={item.id}
+                          onPointerEnter={() => prefetchProgram(item.id)}
+                          onFocus={() => prefetchProgram(item.id)}
+                        >
+                          <BrowseFeedCard
+                            item={item}
+                            actionLabel={mode.actionLabel}
+                            isPicker={mode.isPicker}
+                            currentUrl={currentUrl}
+                            signedIn={!!me.data}
+                            joinedIds={joinedGroupIds}
+                            joiningGroupId={joiningGroupId}
+                            onQuickJoin={(groupId) => void handleQuickJoin(groupId)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    !results.error && (
+                      <div className="pt-4">
+                        <EmptyState
+                          level={3}
+                          title={`No ${nounPlural} match these filters`}
+                          description={
+                            filtered
+                              ? 'Try adjusting your search or clearing a filter.'
+                              : undefined
+                          }
+                          action={
+                            <div className="flex flex-wrap items-center justify-center gap-3">
+                              {filtered && (
+                                <Button variant="outline" size="sm" onClick={reset}>
+                                  Reset filters
+                                </Button>
+                              )}
+                              {results.hasNextPage && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  loading={results.isFetchingNextPage}
+                                  onClick={() => void results.fetchNextPage()}
+                                >
+                                  Load more
+                                </Button>
+                              )}
+                            </div>
+                          }
+                        />
+                      </div>
+                    )
+                  )}
+
+                  {items.length > 0 && results.hasNextPage && (
+                    <div className="mt-6 flex justify-center border-t border-border/60 pt-6">
+                      <Button
+                        variant="outline"
+                        loading={results.isFetchingNextPage}
+                        onClick={() => void results.fetchNextPage()}
+                      >
+                        Load more
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </section>

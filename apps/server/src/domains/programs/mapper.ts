@@ -35,6 +35,7 @@ export function toProgramSummary(p: ProgramFull, viewerAccess: ViewerAccess, ver
   return {
     id: p.id,
     title: version?.title ?? p.title,
+    description: version ? (version.description ?? p.description ?? null) : (p.description ?? null),
     type: toProgramType(p.programType),
     focus: p.focus ? { id: p.focus.id, categoryId: p.focus.categoryId, slug: p.focus.slug, label: p.focus.label } : null,
     level: version?.level ?? p.level,
