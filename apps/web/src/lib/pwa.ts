@@ -58,9 +58,16 @@ export function startPwa() {
   })
 
   let lastCheck = 0
+  let lastSessionCheck = Date.now()
   const resume = () => {
     if (document.visibilityState !== 'visible' || !navigator.onLine) return
-    // Query.isStale includes observer-specific stale times (e.g. the session).
+    const now = Date.now()
+    // Revalidate the active session at most once per minute on resume.
+    // A restored connection or clock change may not mark a failed query stale.
+    if (now - lastSessionCheck >= 60_000 || now < lastSessionCheck) {
+      lastSessionCheck = now
+      void queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'none' })
+    }
     void queryClient.refetchQueries({ type: 'active', stale: true })
     if (registration && Date.now() - lastCheck > 60_000) {
       lastCheck = Date.now()
