@@ -62,7 +62,7 @@ import { dateLabel, safeReturn } from '@/lib/dates'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { activityHero, programHero, toHeroCategory, type Hero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
-import { buildGroupUrl } from '@/lib/urls'
+import { buildGroupUrl, buildProfileUrl } from '@/lib/urls'
 import { cn } from '@/lib/utils'
 
 type S = components['schemas']
@@ -70,7 +70,9 @@ type Sort = S['DiscoverSort']
 
 const SCROLL_KEY_PREFIX = 'browse-scroll:'
 const GRID_CLASS =
-  'grid grid-cols-1 gap-x-4 gap-y-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+  'grid grid-cols-1 gap-x-5 gap-y-9 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 min-[1720px]:grid-cols-5'
+const FEATURED_GRID_CLASS =
+  'grid grid-cols-1 gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
 
 interface BrowserMode {
   kind: BrowseKind
@@ -88,8 +90,8 @@ interface BrowseFeedItem {
   id: string
   kind: BrowseKind
   title: string
-  description: string | null
   creator: S['UserSummary'] | null
+  isPlatform: boolean
   scheduleLine: string | null
   hero: Hero
   featuredGroup?: S['PublicGroupSummary'] | null
@@ -448,15 +450,20 @@ function BrowseFeedTile({
   const recentCheckIns = g?.recentCheckInCount ?? 0
   const groupSchedule = g?.startLocalDate ? `Starts ${dateLabel(g.startLocalDate)}` : null
 
+  const creatorName = item.creator?.displayName || (item.isPlatform ? 'Program.Guru' : null)
+  const creatorProfileUrl = item.creator?.handle
+    ? buildProfileUrl(item.creator.handle)
+    : null
+
   return (
     <article className="flex flex-col">
       <button
         type="button"
         aria-label={`${actionLabel}: ${item.title}`}
         onClick={item.onSelect}
-        className="group flex w-full flex-col gap-2.5 text-left"
+        className="group block w-full text-left"
       >
-        <div className="browse-thumb relative aspect-video w-full overflow-hidden rounded-lg bg-surface-muted">
+        <div className="browse-thumb relative aspect-video w-full overflow-hidden rounded-xl bg-surface-muted">
           <EntityHero
             hero={item.hero}
             size="card"
@@ -465,85 +472,103 @@ function BrowseFeedTile({
             className="h-full w-full rounded-none transition-transform duration-200 group-hover:scale-[1.02]"
           />
         </div>
-
-        <div className="flex w-full items-start gap-2.5">
-          {item.creator && (
-            <Avatar
-              src={item.creator.avatarUrl}
-              name={item.creator.displayName}
-              size="sm"
-              className="mt-0.5"
-            />
-          )}
-
-          <div className="min-w-0 flex-1">
-            <h3 className="line-clamp-2 font-display text-sm font-semibold leading-snug tracking-[-0.01em] text-foreground transition-colors group-hover:text-accent">
-              {item.title}
-            </h3>
-
-            {item.description && (
-              <p className="mt-0.5 line-clamp-1 text-xs text-muted">
-                {item.description}
-              </p>
-            )}
-
-            {item.creator?.displayName && (
-              <p className="mt-0.5 truncate text-xs text-muted">
-                {item.creator.displayName}
-              </p>
-            )}
-
-            {item.scheduleLine && (
-              <p className="mt-0.5 truncate text-xs text-muted/85">
-                {item.scheduleLine}
-              </p>
-            )}
-          </div>
-        </div>
       </button>
 
-      {g && groupName && (
-        <div
-          className={cn(
-            'mt-1.5 flex items-center justify-between gap-2',
-            item.creator && 'pl-[2.375rem]',
-          )}
-        >
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            <ParticipationAvatars avatars={g.memberAvatars} />
-            <p className="min-w-0 truncate text-xs text-muted">
-              {groupName} · {g.memberCount}{' '}
-              {g.memberCount === 1 ? 'member' : 'members'}
-              {recentCheckIns > 0
-                ? ` · ${recentCheckIns} recent ${recentCheckIns === 1 ? 'check-in' : 'check-ins'}`
-                : ''}
-              {groupSchedule ? ` · ${groupSchedule}` : ''}
-              {g.joinPolicy === 'INVITE_ONLY' && !isMember ? ' · Invite only' : ''}
-            </p>
-          </div>
+      <div className="mt-3 flex items-start gap-3">
+        {creatorProfileUrl ? (
+          <Link
+            to={creatorProfileUrl}
+            aria-label={creatorName ?? 'Creator profile'}
+            className="mt-0.5 shrink-0"
+          >
+            <Avatar
+              src={item.creator?.avatarUrl}
+              name={creatorName ?? undefined}
+              size="md"
+              className="h-9 w-9 transition-opacity hover:opacity-85"
+            />
+          </Link>
+        ) : (
+          <Avatar
+            src={item.creator?.avatarUrl}
+            name={creatorName ?? 'Program Guru'}
+            size="md"
+            className="mt-0.5 h-9 w-9 shrink-0"
+          />
+        )}
 
-          {canQuickJoin &&
-            (signedIn ? (
-              <button
-                type="button"
-                disabled={joiningGroupId === g.id}
-                aria-label={`Join ${groupName}`}
-                onClick={() => onQuickJoin(g.id)}
-                className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15 disabled:opacity-50"
-              >
-                {joiningGroupId === g.id ? 'Joining…' : 'Join'}
-              </button>
-            ) : (
-              <Link
-                to={buildGroupUrl(g.id, { returnTo: currentUrl })}
-                aria-label={`Join ${groupName}`}
-                className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15"
-              >
-                Join
-              </Link>
-            ))}
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={item.onSelect}
+            className="block w-full text-left"
+          >
+            <h3 className="line-clamp-2 font-display text-[15px] font-semibold leading-snug tracking-[-0.015em] text-foreground transition-colors hover:text-accent sm:text-base">
+              {item.title}
+            </h3>
+          </button>
+
+          {creatorName && (
+            <div className="mt-1">
+              {creatorProfileUrl ? (
+                <Link
+                  to={creatorProfileUrl}
+                  className="inline-block max-w-full truncate text-[13px] font-medium text-muted transition-colors hover:text-foreground"
+                >
+                  {creatorName}
+                </Link>
+              ) : (
+                <p className="truncate text-[13px] font-medium text-muted">
+                  {creatorName}
+                </p>
+              )}
+            </div>
+          )}
+
+          {item.scheduleLine && (
+            <p className="mt-0.5 truncate text-[13px] text-muted/80">
+              {item.scheduleLine}
+            </p>
+          )}
+
+          {g && groupName && (
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <ParticipationAvatars avatars={g.memberAvatars} />
+                <p className="min-w-0 truncate text-xs text-muted">
+                  {groupName} · {g.memberCount}{' '}
+                  {g.memberCount === 1 ? 'member' : 'members'}
+                  {recentCheckIns > 0
+                    ? ` · ${recentCheckIns} recent ${recentCheckIns === 1 ? 'check-in' : 'check-ins'}`
+                    : ''}
+                  {groupSchedule ? ` · ${groupSchedule}` : ''}
+                </p>
+              </div>
+
+              {canQuickJoin &&
+                (signedIn ? (
+                  <button
+                    type="button"
+                    disabled={joiningGroupId === g.id}
+                    aria-label={`Join ${groupName}`}
+                    onClick={() => onQuickJoin(g.id)}
+                    className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15 disabled:opacity-50"
+                  >
+                    {joiningGroupId === g.id ? 'Joining…' : 'Join'}
+                  </button>
+                ) : (
+                  <Link
+                    to={buildGroupUrl(g.id, { returnTo: currentUrl })}
+                    aria-label={`Join ${groupName}`}
+                    className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15"
+                  >
+                    Join
+                  </Link>
+                ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </article>
   )
 }
@@ -567,8 +592,8 @@ function MyGroupTile({
       aria-label={`Open Group ${groupName}`}
       className="group flex flex-col gap-1.5 rounded-lg py-1 transition-colors"
     >
-      <p className="truncate text-xs text-muted">{group.programTitle}</p>
-      <h3 className="truncate font-display text-sm font-semibold text-foreground transition-colors group-hover:text-accent">
+      <p className="truncate text-[13px] text-muted">{group.programTitle}</p>
+      <h3 className="truncate font-display text-[15px] font-semibold text-foreground transition-colors group-hover:text-accent">
         {groupName}
       </h3>
       <div className="flex items-center gap-2">
@@ -830,7 +855,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const startingSoonPrograms = useDiscoverPrograms({
     timing: 'STARTING_SOON',
     sort: 'POPULAR',
-    limit: 5,
+    limit: 4,
     enabled: showDirectorySections,
   })
 
@@ -903,8 +928,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       id: program.id,
       kind: 'programs',
       title: program.title,
-      description: program.description?.trim() || null,
       creator: program.creator ?? null,
+      isPlatform: program.isPlatform,
       scheduleLine: scheduleParts.length > 0 ? scheduleParts.join(' · ') : null,
       hero: programHero(program, categorySlugOf),
       featuredGroup,
@@ -931,8 +956,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
       id: activity.id,
       kind: 'activities',
       title: activity.title,
-      description: activity.summary?.trim() || null,
       creator: activity.creator ?? null,
+      isPlatform: activity.isPlatform,
       scheduleLine: scheduleParts.length > 0 ? scheduleParts.join(' · ') : null,
       hero: activityHero(activity, categorySlugOf),
       onSelect: () => {
@@ -971,7 +996,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         ((item.featuredGroup.recentCheckInCount ?? 0) > 0 ||
           !!item.featuredGroup.latestCheckIn),
     )
-    .slice(0, 5)
+    .slice(0, 4)
 
   const startingSoonItems: BrowseFeedItem[] = (startingSoonPrograms.data?.pages ?? [])
     .flatMap((page) =>
@@ -979,7 +1004,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         d.program ? [{ program: d.program, featuredGroup: d.featuredGroup ?? null }] : [],
       ),
     )
-    .slice(0, 5)
+    .slice(0, 4)
     .map(({ program, featuredGroup }) => mapProgramItem(program, featuredGroup))
 
   const items = mode.kind === 'programs' ? programItems : activityItems
@@ -1147,8 +1172,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const displayedCount = isMyGroups ? myGroupItems.length : items.length
   const myGroupsCount = me.data && !myGroups.isPending ? myGroupItems.length : null
 
-  const renderTileGrid = (tileItems: BrowseFeedItem[]) => (
-    <ul className={GRID_CLASS}>
+  const renderTileGrid = (tileItems: BrowseFeedItem[], className = GRID_CLASS) => (
+    <ul className={className}>
       {tileItems.map((item) => (
         <li
           key={`${item.kind}:${item.id}`}
@@ -1575,7 +1600,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             </div>
 
             {/* Feed */}
-            <div className="mt-6">
+            <div className="mt-7">
               {isMyGroups ? (
                 !me.data ? (
                   <EmptyState
@@ -1603,7 +1628,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                         role="status"
                         aria-label="Loading groups"
                       >
-                        {Array.from({ length: 5 }, (_, index) => (
+                        {Array.from({ length: 4 }, (_, index) => (
                           <div key={index} className="space-y-2">
                             <Skeleton className="h-3 w-24" />
                             <Skeleton className="h-5 w-2/3" />
@@ -1647,7 +1672,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     )}
 
                     {myGroupItems.length > 0 && myGroups.hasNextPage && (
-                      <div className="mt-8 flex justify-center border-t border-border/50 pt-6">
+                      <div className="mt-10 flex justify-center border-t border-border/50 pt-6">
                         <Button
                           variant="outline"
                           loading={myGroups.isFetchingNextPage}
@@ -1672,42 +1697,48 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       role="status"
                       aria-label={`Loading ${nounPlural}`}
                     >
-                      {Array.from({ length: 10 }, (_, index) => (
-                        <div key={index} className="flex flex-col gap-2.5">
-                          <Skeleton className="aspect-video w-full rounded-lg" />
-                          <div className="flex items-start gap-2.5">
-                            <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
-                            <div className="flex-1 space-y-1.5">
+                      {Array.from({ length: 8 }, (_, index) => (
+                        <div key={index} className="flex flex-col gap-3">
+                          <Skeleton className="aspect-video w-full rounded-xl" />
+                          <div className="flex items-start gap-3">
+                            <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                            <div className="flex-1 space-y-2">
                               <Skeleton className="h-4 w-4/5" />
-                              <Skeleton className="h-3 w-1/2" />
+                              <Skeleton className="h-3.5 w-1/2" />
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : showDirectorySections ? (
-                    <div className="space-y-10">
-                      {/* 1. Recent Activity (hidden if empty) */}
+                    <div className="space-y-12">
+                      {/* 1. Recent Activity (modest visual distinction; hidden if empty) */}
                       {recentActivityItems.length > 0 && (
-                        <section aria-labelledby="section-recent-activity">
+                        <section
+                          aria-labelledby="section-recent-activity"
+                          className="rounded-2xl border border-border/40 bg-surface/35 p-5"
+                        >
                           <h2
                             id="section-recent-activity"
-                            className="mb-3.5 font-display text-base font-semibold tracking-tight text-foreground"
+                            className="mb-4 font-display text-lg font-semibold tracking-tight text-foreground"
                           >
                             Recent Activity
                           </h2>
-                          {renderTileGrid(recentActivityItems)}
+                          {renderTileGrid(recentActivityItems, FEATURED_GRID_CLASS)}
                         </section>
                       )}
 
-                      {/* 2. Starting Soon (hidden if empty) */}
+                      {/* 2. Starting Soon (modest visual distinction; hidden if empty) */}
                       {!startingSoonPrograms.isPending &&
                         startingSoonItems.length > 0 && (
-                          <section aria-labelledby="section-starting-soon">
-                            <div className="mb-3.5 flex items-baseline justify-between gap-2">
+                          <section
+                            aria-labelledby="section-starting-soon"
+                            className="rounded-2xl border border-border/40 bg-surface/35 p-5"
+                          >
+                            <div className="mb-4 flex items-baseline justify-between gap-2">
                               <h2
                                 id="section-starting-soon"
-                                className="font-display text-base font-semibold tracking-tight text-foreground"
+                                className="font-display text-lg font-semibold tracking-tight text-foreground"
                               >
                                 Starting Soon
                               </h2>
@@ -1719,15 +1750,15 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                                 View all
                               </button>
                             </div>
-                            {renderTileGrid(startingSoonItems)}
+                            {renderTileGrid(startingSoonItems, FEATURED_GRID_CLASS)}
                           </section>
                         )}
 
-                      {/* 3. Programs */}
+                      {/* 3. Programs (primary catalog grid) */}
                       <section aria-labelledby="section-programs">
                         <h2
                           id="section-programs"
-                          className="mb-3.5 font-display text-base font-semibold tracking-tight text-foreground"
+                          className="mb-4 font-display text-lg font-semibold tracking-tight text-foreground"
                         >
                           Programs
                         </h2>
@@ -1735,7 +1766,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                           <>
                             {renderTileGrid(programItems)}
                             {programs.hasNextPage && (
-                              <div className="mt-8 flex justify-center border-t border-border/50 pt-6">
+                              <div className="mt-10 flex justify-center border-t border-border/50 pt-6">
                                 <Button
                                   variant="outline"
                                   loading={programs.isFetchingNextPage}
@@ -1756,10 +1787,13 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                         )}
                       </section>
 
-                      {/* 4. Activities (hidden if empty) */}
+                      {/* 4. Activities (secondary; hidden if empty) */}
                       {!activities.isPending && activityItems.length > 0 && (
-                        <section aria-labelledby="section-activities">
-                          <div className="mb-3.5 flex items-baseline justify-between gap-2">
+                        <section
+                          aria-labelledby="section-activities"
+                          className="border-t border-border/40 pt-10"
+                        >
+                          <div className="mb-4 flex items-baseline justify-between gap-2">
                             <h2
                               id="section-activities"
                               className="font-display text-base font-semibold tracking-tight text-foreground"
@@ -1774,7 +1808,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                               View all
                             </button>
                           </div>
-                          {renderTileGrid(activityItems.slice(0, 5))}
+                          {renderTileGrid(activityItems.slice(0, 4), FEATURED_GRID_CLASS)}
                         </section>
                       )}
                     </div>
@@ -1782,7 +1816,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     <>
                       {renderTileGrid(items)}
                       {results.hasNextPage && (
-                        <div className="mt-8 flex justify-center border-t border-border/50 pt-6">
+                        <div className="mt-10 flex justify-center border-t border-border/50 pt-6">
                           <Button
                             variant="outline"
                             loading={results.isFetchingNextPage}
