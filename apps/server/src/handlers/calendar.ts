@@ -1,7 +1,6 @@
 import { db } from '@project/db'
 import { requireUser, resolveViewer } from '../lib/auth'
 import { notFound } from '../lib/errors'
-import * as calendar from '../domains/calendar/calendar.service'
 import { achievementInclude, toAchievement } from '../domains/calendar/achievements'
 import { userIdForHandle } from '../domains/users/directory.service'
 
