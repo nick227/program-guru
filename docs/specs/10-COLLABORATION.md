@@ -149,3 +149,106 @@ Check-ins are the core Group collaboration loop (`Complete → Check in → See 
 - Check-ins belong to `(activityId, userId)` and optionally `calendarItemId`, supporting repeat Program runs, standalone Activities, optional check-in note, optional group-scoped media attachment (`View media`), emoji reactions, and check-in discussion (`GET|POST /completion-shares/:id/comments`, `DELETE /completion-comments/:id`).
 - Private Group check-ins, media, and discussion remain visible exclusively to active Group members. Public Group discovery surfaces only Group identity, member count, real recent check-in count, and optional scheduled start, with one-click Join for open Groups (`Open Group` once joined) and no automatic Program run creation.
 - **Full-Screen Participation Stage (`/groups/:id`):** Designed in three layers — (1) minimal full-screen `Stage` showing members and Group identity, (2) `Events` driven by real member joins, check-ins, media shares, and reactions, and (3) interchangeable visual `Animations` themes (`constellation`, `campfire`, `sprout`) configured per Group (`stageTheme`). History and group management stay in clean slide-over panels.
+
+## 9. Standalone Activity gatherings (proposed, not implemented)
+
+**Status:** Proposal for review (2026-11-14). Nothing in this section is built; schema, API and UI are unchanged until it is accepted. Audit of every current group assumption, with file:line references: `docs/gatherings-audit.md`. Participation behaviour follows `docs/shared-participation-experience.md`.
+
+### 9.1 Journey and rules
+
+**Activity → Join an existing gathering, or Create a time → it is on my Calendar → the existing `/occurrences/:id` room.** No separate event creation page, no new room.
+
+1. **Personal scheduling stays independent.** Two people who each schedule chess for Saturday 2 PM are never linked, shown together, or counted together. Only an explicit join, by the participant, connects someone to a gathering.
+2. A **gathering** is one shared occurrence of one Activity: a date, an optional time, a timezone, an optional Place, and its participants. It is not a Program, a recurrence, or an event-management object.
+3. A gathering's Place is **suggested and chosen by participants**, never a host, sponsor, booking or opening hours (02 §4.11, 08 §2a).
+4. Counts, avatars and statuses are real records only (`shared-participation-experience.md` §2). Scheduled ≠ online.
+
+### 9.2 Model: a gathering is a group without a Program (recommended)
+
+| Option | Reuses unchanged | Cost | Verdict |
+|---|---|---|---|
+| **A. `ProgramGroup` with `kind = GATHERING`** (no Program version) | Membership, roles, owner hand-off, all three invitation kinds, join link, OPEN join, blocking filters, completion shares + reactions + comments, GROUP media + occurrence key, check-ins, presence, notifications, Group Stage, `ActivityTogether`, `joinEligibility` | Nullable `programVersionId`; explicit `kind` filters on Program-only queries; about 20 branches in `group.service.ts`; nullable Program fields in five DTOs (audit §4) | **Recommended** |
+| B. New `Gathering` model | Calendar only | `CompletionShare.groupId` is required and GROUP media, reactions, comments, invitations, presence and the Stage are all keyed by group: each would need a parallel gathering variant | Rejected: a parallel participation system |
+
+**Identity.** One gathering = one `ProgramGroup` row (`kind = GATHERING`). Its occurrence key is `gathering:<groupId>`. It cannot collide with Program keys (`<programId>:<activityId>:<day>:<ordinal>`, `materialize.ts:20`, which start with a UUID) or with the check-in fallback `activity:<activityId>` (`group.service.ts:1231`), because the prefixes differ and the group id is unique.
+
+**Schema delta (one additive migration):**
+
+```text
+ProgramGroup  + kind GroupKind @default(PROGRAM)          -- PROGRAM | GATHERING; existing rows stay PROGRAM
+              ~ programVersionId String?                   -- required when kind = PROGRAM (CHECK)
+              + activityId String? (FK Restrict)           -- required when kind = GATHERING (CHECK)
+              + startLocalTime String? VarChar(5)          -- reuses startLocalDate + timezone for date and zone
+              + placeId String? (FK SET NULL)              -- not in the CHECK (MySQL: SET NULL columns cannot be)
+              + capacity Int?                              -- null = no limit
+              + @@index([activityId, kind, status, startLocalDate])
+CalendarItem  + gatheringId String? (FK → ProgramGroup, SET NULL), indexed
+NotificationType + GATHERING_CHANGED
+```
+
+A member's Calendar Item for a gathering: `gatheringId = group.id`, `groupOccurrenceKey = 'gathering:<id>'`, `placeId` = the gathering's Place (09 §2 snapshot), `idempotencyKey = 'gathering:<groupId>:<userId>'` (one item per member per gathering; rejoining restores it), `enrollmentId = null`, `recurrenceId = null`. The occurrence room resolves its group as `item.enrollment?.groupId ?? item.gatheringId`.
+
+### 9.3 Create a time
+
+- From the Activity page: date, optional time, optional Place (default: the Activity's suggested Place), **Open to others** toggle. Off = an ordinary personal Calendar Item (today's behaviour). On = a gathering whose owner is the first member.
+- From an existing personal item ("Open to others" in the room): the same operation with `calendarItemId`; that item becomes the owner's gathering item. A recurrence-generated item is detached from its recurrence first.
+- Only published Activities that others can read (PUBLIC or UNLISTED) can host gatherings; a private Activity cannot.
+- Defaults: `visibility = PRIVATE`, `joinPolicy = INVITE_ONLY` (shared by link or invite). PUBLIC + OPEN is an explicit choice, allowed only for PUBLIC Activities. `mode = SYNC`. With a Place, `capacity` is asked for (open decision 1); without a Place (online/anywhere) it defaults to no limit.
+- Times are stored in the gathering's timezone. Each member's item gets the same UTC instant, shown in that member's timezone. Date-only gatherings keep the date.
+
+### 9.4 Join, leave, remove: one operation each
+
+**Join** (OPEN join, link, handle or email invitation): one transaction, idempotent by required `idempotencyKey`. It creates or reactivates membership, creates or restores the member's Calendar Item at the gathering's date, time and Place, returns `{ group, calendarItemId }`, and the client opens `/occurrences/:calendarItemId`. Join is refused when the viewer is already a member (they get Open), the gathering is CLOSED or past, or capacity is full (count of ACTIVE members). `joinEligibility` gains `full` and `past` → no Join button. There are no Program, entitlement or enrollment steps.
+
+**Leave** (member) or **remove** (owner): membership LEFT/REMOVED, completion shares withdrawn as today (§3). The member's item is detached (`gatheringId` and key cleared) and, by default, cancelled; "Keep it as my own" keeps it as a personal item (open decision 2). Owner leaving hands ownership to the longest-standing member (existing behaviour); the last member leaving closes the gathering.
+
+### 9.5 Changes after joining (never silently claim participation)
+
+- **A member moves, re-times, re-places or cancels their own gathering item:** the client warns "This leaves the gathering". Confirming detaches the item (it becomes personal) and leaves the gathering. Their personal change never alters the gathering or other members.
+- **The owner changes date, time or Place:** the gathering updates; every member's still-linked item moves with it (they made no personal change, because changing detaches), and members get `GATHERING_CHANGED`. Changing capacity below the current member count is refused.
+- **The owner cancels:** status CLOSED. Members' items are cancelled and detached, and members get `GATHERING_CHANGED`. Results, sessions, shares and media already recorded stay with their owners (§3).
+- After the scheduled time, the gathering stops accepting joins. The same media is reviewable as the occurrence memory (`shared-participation-experience.md` §7).
+
+### 9.6 Discovery and sharing
+
+- **Activity page:** "Upcoming gatherings": PUBLIC + OPEN, not full, not past, soonest first, each with date, time, Place and city, and real member count and avatars. Each shows Join or Open via `joinEligibility`. Below them, **Create a time**.
+- **API:** `GET /activities/{activityId}/gatherings?from&locality` (public; viewer-aware `viewerIsMember`). Community's **With others** shortcut uses `/discover?kind=ACTIVITY&hasOpenGathering=true` (Activities with at least one such gathering). City filtering only, never "nearby" (12 §5a).
+- **Share link:** `/gatherings/{groupId}` resolves to that specific occurrence: Activity, date, time, Place, members (as visibility allows), and Join or Open. It never lands on a different date or the bare Activity (`shared-participation-experience.md` §6). Existing join links and invitations work unchanged.
+- **Privacy:** private gatherings show date, time, Place and members only to members and invitees. Public gatherings show the Place name and city; because Places are platform-curated public venues, no private address is ever exposed. Blocked users neither see each other's gatherings nor can join them; members lists and counts follow existing blocking filters (`group.service.ts:114–133`).
+
+### 9.7 API delta
+
+| Operation | Change |
+|---|---|
+| `createGathering` `POST /activities/{activityId}/gatherings` | `{ localDate, localTime?, timezone, placeId?, calendarItemId?, visibility?, joinPolicy?, capacity?, name?, idempotencyKey }` → `{ group, calendarItemId }` |
+| `listActivityGatherings` `GET /activities/{activityId}/gatherings` | Upcoming visible gatherings (above) |
+| `getPublicGroupPreview`, `joinGroup`, `acceptGroupInvitation`, `acceptMyGroupInvitation` | Gathering branch; join returns `calendarItemId`; `idempotencyKey` required for gatherings |
+| `updateGroup` | Owner may set `localDate/localTime/placeId/capacity/status` on gatherings |
+| `updateCalendarItem`, `cancelCalendarItem` | On a gathering item: requires `leaveGathering: true` to proceed (§9.5) |
+| `/discover` | `hasOpenGathering` (ACTIVITY) |
+| DTOs | `GroupSummary`, `GroupDetail`, `PublicGroupSummary`, `PublicGroupPreview`, `LiveSessionSummary`: `programId/programVersionId/programTitle` nullable; add `kind`, `activity`, `startLocalTime`, `place`, `capacity`, `myCalendarItemId`. `CalendarItem` gains `gatheringId` |
+| Program-only operations (`createGroup`, `listProgramGroups`, enrollment with `groupId`) | Explicitly reject or exclude `kind = GATHERING` |
+
+### 9.8 Web delta (reuse only)
+
+Activity page: the "Upcoming gatherings" list plus Create a time (date, time, Place, Open to others), reusing the existing schedule controls and `joinEligibility`. Occurrence room: unchanged layout (03 §6); the Together row (`ActivityTogether`) and shared media appear because the server resolves the gathering; an "Open to others" action and the share link sit in the room's existing action area. Group Stage (`/groups/:id`) remains reachable; it falls back to the Activity title and skips Program-version loading. No new room, page or navigation.
+
+### 9.9 Tests (when implemented)
+
+- Two users scheduling the same Activity at the same time independently share nothing (no collaborators, counts, media or notifications).
+- Create → owner's item linked; join → membership + one item at the gathering's time and Place + room shows both; replaying the same `idempotencyKey` returns the same result; a different payload → 409.
+- Join refused for an existing member (Open shown), a full or past gathering, a blocked user, a CLOSED gathering, or a private Activity.
+- Member moving or cancelling their item leaves the gathering after confirmation; others are unaffected; counts drop.
+- Owner changes time or Place → linked members' items move and `GATHERING_CHANGED` is sent; owner cancels → items cancelled, history kept.
+- Completion shares, reactions, comments and GROUP media work with key `gathering:<id>` and never mix with Program occurrences or `activity:` check-ins.
+- Program flows unchanged: Program groups, enrollments with groups, discover featured groups and live sessions exclude gatherings unless specified.
+- Share link resolves the exact occurrence; private details hidden from non-members; no "nearby" wording.
+
+### 9.10 Open decisions
+
+1. **Capacity:** required for gatherings with a Place, or optional with a default (for example 8)?
+2. **Leaving:** cancel the member's item by default, or keep it as a personal item by default?
+3. **Default visibility:** PRIVATE invite-only (proposed) or PUBLIC + OPEN for PUBLIC Activities?
+4. **Live sessions:** include in-progress public gatherings in "Happening now" in the first release, or later?
+5. **Notification type:** add `GATHERING_CHANGED`, or reuse an existing type with a different title?
+6. **Recurring gatherings** ("chess every Saturday"): out of scope for the first release (proposed); each date is its own gathering.
