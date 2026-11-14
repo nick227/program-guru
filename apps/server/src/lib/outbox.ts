@@ -14,6 +14,7 @@ export type OutboxEventType =
   | 'CompletionCommentAdded'
   | 'GroupInvitationCreated'
   | 'GroupMemberJoined'
+  | 'GatheringChanged'
   | 'GroupMediaShared'
   | 'GroupMediaCommented'
   | 'MediaUploaded'

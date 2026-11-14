@@ -5,6 +5,7 @@ import { badRequest, notFound } from '../../lib/errors'
 import { withIdempotency } from '../../lib/idempotency'
 import { enqueue } from '../../lib/outbox'
 import { afterCursor, offsetArgs, pageArgs, pageOrder, toOffsetPage, toPage, type PageQuery } from '../../lib/paging'
+import { addDays, todayIn, toDbDate } from '../../lib/time'
 import { loadRevisions, activityInclude, toActivitySummary } from '../activities/mapper'
 import { canSeeProgram, discoverableProgramWhere } from '../programs/access'
 import { programInclude, toProgramSummary } from '../programs/mapper'
@@ -28,6 +29,7 @@ type DiscoverQuery = PageQuery & {
   placeId?: string
   locality?: string
   hasPlace?: boolean
+  hasOpenGathering?: boolean
   frequency?: 'DAILY' | 'WEEKDAYS' | 'N_PER_WEEK' | 'FLEXIBLE' | 'CUSTOM' | 'MONTHLY'
   accessMode?: 'OPEN' | 'APPROVAL' | 'PAID'
   level?: ProgramLevel
@@ -139,6 +141,22 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
         ...(query.placeId ? { placeId: query.placeId, place: { isActive: true } } : {}),
         ...(query.locality?.trim() ? { place: { isActive: true, locality: query.locality.trim() } } : {}),
         ...(query.hasPlace && !query.locality?.trim() && !query.placeId ? { place: { isActive: true } } : {}),
+        // "With others": an upcoming public, open gathering exists (10 §9.7). Day granularity here;
+        // the gathering list itself drops ones that already started.
+        ...(query.hasOpenGathering
+          ? {
+              gatherings: {
+                some: {
+                  kind: 'GATHERING' as const,
+                  status: 'ACTIVE' as const,
+                  visibility: 'PUBLIC' as const,
+                  joinPolicy: 'OPEN' as const,
+                  startLocalDate: { gte: toDbDate(addDays(todayIn('UTC'), -1)) },
+                  ...(hidden.length ? { ownerId: { notIn: hidden } } : {}),
+                },
+              },
+            }
+          : {}),
         // Search also matches the suggested Place's name and city (active Places only).
         ...(q
           ? {

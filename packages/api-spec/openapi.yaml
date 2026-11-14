@@ -1789,6 +1789,317 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /activities/{activityId}/gatherings:
+    get:
+      operationId: listActivityGatherings
+      summary: Upcoming gatherings for an Activity
+      tags:
+      - groups
+      description: Public open gatherings and any the viewer belongs to, not past, soonest first (10 §9.7).
+      security: []
+      parameters:
+      - in: path
+        name: activityId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Gathering'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createGathering
+      summary: Create a time for an Activity that others can join
+      tags:
+      - groups
+      description: Private and invite-only unless listPublicly. Links one Calendar Item for the creator, reusing a compatible personal item (10 §9.4).
+      parameters:
+      - in: path
+        name: activityId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGatheringInput'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GatheringJoinResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /gatherings:
+    get:
+      operationId: listGatherings
+      summary: Public gatherings happening now or upcoming
+      tags:
+      - groups
+      description: NOW means a member's Activity session is running or paused. City match only, never proximity.
+      security: []
+      parameters:
+      - in: query
+        name: when
+        schema:
+          type: string
+          enum:
+          - NOW
+          - UPCOMING
+      - in: query
+        name: locality
+        schema:
+          type: string
+          maxLength: 100
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Gathering'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /gatherings/{gatheringId}:
+    get:
+      operationId: getGathering
+      summary: One gathering
+      tags:
+      - groups
+      description: A private gathering is visible to its members and to holders of a valid share-link token.
+      security: []
+      parameters:
+      - in: path
+        name: gatheringId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: invite
+        schema:
+          type: string
+          maxLength: 200
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Gathering'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateGathering
+      summary: Change a gathering's time, Place, capacity or listing, or close it (owner)
+      tags:
+      - groups
+      parameters:
+      - in: path
+        name: gatheringId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGatheringInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Gathering'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /gatherings/{gatheringId}/join:
+    post:
+      operationId: joinGathering
+      summary: Join a gathering and put it on my Calendar
+      tags:
+      - groups
+      description: Repeat-safe. Returns the member's Calendar Item, reusing a compatible personal item (10 §9.5).
+      parameters:
+      - in: path
+        name: gatheringId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinGatheringInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GatheringJoinResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /gatherings/{gatheringId}/leave:
+    post:
+      operationId: leaveGathering
+      summary: Leave a gathering; the Calendar Item stays as a personal occurrence
+      tags:
+      - groups
+      parameters:
+      - in: path
+        name: gatheringId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GatheringLeaveResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /gatherings/{gatheringId}/link:
+    post:
+      operationId: createGatheringLink
+      summary: A share link for this exact occurrence (token shown once)
+      tags:
+      - groups
+      parameters:
+      - in: path
+        name: gatheringId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GatheringLink'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /activities/{activityId}/groups:
     get:
       operationId: listActivityGroups
@@ -5866,6 +6177,11 @@ paths:
         schema:
           type: boolean
       - in: query
+        name: hasOpenGathering
+        description: ACTIVITY results with an upcoming public, open gathering ("With others", 10 §9.7).
+        schema:
+          type: boolean
+      - in: query
         name: accessMode
         schema:
           $ref: '#/components/schemas/AccessMode'
@@ -8008,6 +8324,87 @@ components:
       properties:
         ok:
           type: boolean
+    Gathering:
+      type: object
+      description: One shared, dated occurrence of one Activity (10 §9). Counts come from real records only.
+      required: [id, activity, localDate, localTime, timezone, place, capacity, visibility, joinPolicy, status, owner, memberCount, members, scheduledCount, activeCount, completedCount, isFull, isPast, viewerIsMember, viewerIsOwner, viewerCalendarItemId]
+      properties:
+        id: {type: string, format: uuid}
+        activity: {$ref: '#/components/schemas/ActivitySummary'}
+        localDate: {type: string, format: date}
+        localTime: {type: [string, 'null']}
+        timezone: {type: string}
+        place:
+          anyOf:
+          - $ref: '#/components/schemas/Place'
+          - type: 'null'
+        capacity: {type: [integer, 'null']}
+        visibility: {$ref: '#/components/schemas/GroupVisibility'}
+        joinPolicy: {$ref: '#/components/schemas/GroupJoinPolicy'}
+        status: {type: string, enum: [ACTIVE, CLOSED]}
+        owner: {$ref: '#/components/schemas/UserSummary'}
+        memberCount: {type: integer}
+        members:
+          type: array
+          items: {$ref: '#/components/schemas/UserSummary'}
+        scheduledCount: {type: integer}
+        activeCount: {type: integer, description: Members with a running or paused Activity session; never online presence.}
+        completedCount: {type: integer}
+        isFull: {type: boolean}
+        isPast: {type: boolean}
+        viewerIsMember: {type: boolean}
+        viewerIsOwner: {type: boolean}
+        viewerCalendarItemId: {type: [string, 'null'], format: uuid}
+    CreateGatheringInput:
+      type: object
+      required: [localDate, idempotencyKey]
+      properties:
+        localDate: {type: string, format: date}
+        localTime:
+          type: [string, 'null']
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        placeId: {type: [string, 'null'], format: uuid, description: "Omitted: the Activity's suggested Place; null: none."}
+        calendarItemId: {type: [string, 'null'], format: uuid, description: The creator's own compatible item to turn into this gathering.}
+        listPublicly: {type: boolean, description: Public and open; default private and invite-only.}
+        capacity: {type: [integer, 'null'], minimum: 1}
+        idempotencyKey: {type: string, minLength: 8, maxLength: 120}
+      additionalProperties: false
+    JoinGatheringInput:
+      type: object
+      required: [idempotencyKey]
+      properties:
+        invite: {type: string, maxLength: 200}
+        idempotencyKey: {type: string, minLength: 8, maxLength: 120}
+      additionalProperties: false
+    UpdateGatheringInput:
+      type: object
+      properties:
+        localDate: {type: string, format: date}
+        localTime:
+          type: [string, 'null']
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        placeId: {type: [string, 'null'], format: uuid}
+        capacity: {type: [integer, 'null'], minimum: 1}
+        listPublicly: {type: boolean}
+        close: {type: boolean}
+      additionalProperties: false
+    GatheringJoinResult:
+      type: object
+      required: [gathering, calendarItemId]
+      properties:
+        gathering: {$ref: '#/components/schemas/Gathering'}
+        calendarItemId: {type: string, format: uuid}
+    GatheringLeaveResult:
+      type: object
+      required: [calendarItemId]
+      properties:
+        calendarItemId: {type: [string, 'null'], format: uuid, description: "The member's item, kept as a personal occurrence."}
+    GatheringLink:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url: {type: string}
+        expiresAt: {type: string, format: date-time}
     Place:
       type: object
       description: A real, platform-curated location. Suggested only; never implies a host, hours, booking or endorsement.
@@ -10432,6 +10829,10 @@ components:
           type: array
           items:
             type: string
+        gatheringId:
+          type: [string, 'null']
+          format: uuid
+          description: Set while this item is the member's occurrence of a gathering (10 §9).
         place:
           anyOf:
           - $ref: '#/components/schemas/Place'

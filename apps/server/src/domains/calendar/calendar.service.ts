@@ -11,6 +11,8 @@ import { HORIZON_DAYS, materializeEnrollment } from './materialize'
 import { materializeRecurrence, parseRule, type RecurrenceRule } from './recurrence'
 import { evaluate } from './achievements'
 import { assertActivePlace, toPlace } from '../catalog/catalog.service'
+import { itemGroupId } from '../groups/itemGroup'
+import { departInTx } from '../groups/gathering.service'
 
 type Tx = Prisma.TransactionClient
 const MAX_RANGE_DAYS = 62
@@ -22,6 +24,7 @@ export async function userTimezone(userId: string) {
 const itemInclude = {
   enrollment: { include: { program: { include: { policy: true } }, version: true, group: true } },
   place: true,
+  gathering: { select: { id: true, name: true, activity: { select: { title: true } } } },
 } satisfies Prisma.CalendarItemInclude
 type ItemRow = Prisma.CalendarItemGetPayload<{ include: typeof itemInclude }>
 
@@ -45,7 +48,7 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
     ? await db.notification.groupBy({ by: ['groupOccurrenceKey'], where: { recipientId: userId, readAt: null, groupOccurrenceKey: { in: keys } }, _count: { _all: true } })
     : []
   const unreadByKey = new Map(unread.map((u) => [u.groupOccurrenceKey!, u._count._all]))
-  const groupIds = [...new Set(items.map((i) => i.enrollment?.groupId).filter(Boolean))] as string[]
+  const groupIds = [...new Set(items.map((i) => itemGroupId(i)).filter(Boolean))] as string[]
   const members = groupIds.length
     ? await db.groupMember.findMany({ where: { groupId: { in: groupIds }, status: 'ACTIVE', userId: { not: userId } }, include: { user: { include: { profile: true } } }, take: 50 })
     : []
@@ -83,7 +86,8 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
     const locked = !!program && lockedProgramIds.has(program.id) && !granted.has(program.id)
     const { thumbnailUrl, hasPrivateAttachment } = calendarVisual(rev)
     const date = fromDbDate(i.localDate)
-    const groupMembers = i.enrollment?.groupId ? membersByGroup.get(i.enrollment.groupId) ?? [] : []
+    const groupId = itemGroupId(i)
+    const groupMembers = groupId ? membersByGroup.get(groupId) ?? [] : []
     const avatars = groupMembers
       .slice(0, 4)
       .map((m) => mediaUrl(m.user.profile?.avatarMediaId) ?? '')
@@ -92,8 +96,12 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
     return {
       sessionStatus: session?.status ?? null,
       activeSeconds: session ? session.activeSeconds + (session.status === 'ACTIVE' && session.lastResumedAt ? Math.max(0, Math.floor((Date.now() - session.lastResumedAt.getTime()) / 1000)) : 0) : null,
-      groupName: i.enrollment?.group ? i.enrollment.group.name ?? `${i.enrollment.version.title} group` : null,
-      sharedCompletionCount: i.enrollment?.groupId ? shares.filter((s) => s.groupId === i.enrollment!.groupId && s.occurrenceKey === i.groupOccurrenceKey).length : null,
+      groupName: i.enrollment?.group
+        ? i.enrollment.group.name ?? `${i.enrollment.version.title} group`
+        : i.gathering
+          ? i.gathering.name ?? `${i.gathering.activity?.title ?? 'Activity'} gathering`
+          : null,
+      sharedCompletionCount: groupId ? shares.filter((s) => s.groupId === groupId && s.occurrenceKey === i.groupOccurrenceKey).length : null,
       id: i.id,
       localDate: date,
       localTime: i.localTime,
@@ -113,6 +121,7 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
       participantAvatars: avatars,
       unreadCount: i.groupOccurrenceKey ? unreadByKey.get(i.groupOccurrenceKey) ?? 0 : 0,
       place: i.place ? toPlace(i.place) : null,
+      gatheringId: i.gatheringId,
       updatedAt: i.updatedAt.toISOString(),
     }
   })
@@ -314,6 +323,14 @@ export async function update(
     const item = await ownItem(tx, userId, itemId)
     if (item.updatedAt.toISOString() !== new Date(input.expectedUpdatedAt).toISOString()) throw versionConflict()
     if (input.status && item.status === 'DONE') throw badRequest('Undo the completion first', { status: 'item is done' })
+    // A personal change to a gathering item leaves the gathering; it never keeps claiming participation
+    // at the original time or place. The item stays the member's own (10 §9.6).
+    if (
+      item.gatheringId &&
+      (input.localDate !== undefined || input.localTime !== undefined || input.placeId !== undefined || input.status === 'CANCELLED' || input.status === 'SKIPPED')
+    ) {
+      await departInTx(tx, item.gatheringId, userId)
+    }
 
     if (input.scope === 'THIS_AND_FUTURE' && item.recurrenceId) {
       // Edit = end the old rule here and start a new one with the changes (09 §4.8).
@@ -375,6 +392,7 @@ export async function cancel(userId: string, itemId: string, scope: 'THIS_ONE' |
   await db.$transaction(async (tx) => {
     const item = await ownItem(tx, userId, itemId)
     if (item.status === 'DONE') throw badRequest('Undo the completion first', { status: 'item is done' })
+    if (item.gatheringId) await departInTx(tx, item.gatheringId, userId)
     if (scope === 'THIS_AND_FUTURE' && item.recurrenceId) await splitRecurrence(tx, item.recurrenceId, fromDbDate(item.localDate))
     await tx.calendarItem.update({ where: { id: item.id }, data: { status: 'CANCELLED', isUserAdjusted: true } })
   })
@@ -386,6 +404,7 @@ export async function moveToOpenSlot(userId: string, itemId: string) {
   const tz = await userTimezone(userId)
   await db.$transaction(async (tx) => {
     const item = await ownItem(tx, userId, itemId)
+    if (item.gatheringId) await departInTx(tx, item.gatheringId, userId)
     const date = fromDbDate(item.localDate)
     let target = { date: addDays(date, 1), time: item.localTime }
     if (item.localTime) {

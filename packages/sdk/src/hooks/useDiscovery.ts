@@ -19,6 +19,8 @@ type DiscoverFilters = {
   placeId?: string
   locality?: string
   hasPlace?: boolean
+  /** Activities with an upcoming public, open gathering ("With others"). */
+  hasOpenGathering?: boolean
   /** Activity results: planned-minutes bucket and published default frequency kind. */
   duration?: S['DiscoverDuration']
   frequency?: S['FrequencyKind']
@@ -45,6 +47,7 @@ async function discoverPage(
           placeId: filters.placeId || undefined,
           locality: filters.locality || undefined,
           hasPlace: filters.hasPlace || undefined,
+          hasOpenGathering: filters.hasOpenGathering || undefined,
           duration: filters.duration || undefined,
           frequency: filters.frequency || undefined,
           sort: filters.sort,

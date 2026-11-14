@@ -9,6 +9,7 @@ import { revisionInclude, toInstruction, toToolBinding } from '../activities/map
 import { toUserSummary } from '../users/mapper'
 import { ownItem, toCalendarItems } from './calendar.service'
 import { toSession, valueOf } from './session.service'
+import { itemGroupId } from '../groups/itemGroup'
 
 const MIN_PUBLIC_SAMPLE = 5
 const COMMUNITY_LIMIT = 12
@@ -123,7 +124,7 @@ export async function occurrence(userId: string, itemId: string) {
 
   // ── Collaborators: only when this occurrence belongs to a group (omit when solo).
   let collaborators = null
-  const groupId = item.enrollment?.groupId ?? null
+  const groupId = itemGroupId(item)
   if (groupId && item.groupOccurrenceKey) {
     const members = await db.groupMember.findMany({ where: { groupId, status: 'ACTIVE' }, include: { user: { include: { profile: true } } } })
     const shares = await db.completionShare.findMany({
@@ -133,7 +134,7 @@ export async function occurrence(userId: string, itemId: string) {
         groupId,
         occurrenceKey: item.groupOccurrenceKey,
         revokedAt: null,
-        OR: [{ calendarItemId: item.id }, { calendarItemId: null }, { calendarItem: { enrollment: { status: { not: 'LEFT' } } } }],
+        OR: [{ calendarItemId: item.id }, { calendarItemId: null }, { calendarItem: { enrollment: { status: { not: 'LEFT' } } } }, { calendarItem: { gatheringId: groupId } }],
       },
       include: { reactions: true },
     })
@@ -143,7 +144,8 @@ export async function occurrence(userId: string, itemId: string) {
       where: {
         groupOccurrenceKey: item.groupOccurrenceKey,
         ownerId: { in: members.map((m) => m.userId) },
-        OR: [{ id: item.id }, { enrollment: { groupId, status: { not: 'LEFT' } } }],
+        // Program members through their enrollment; gathering members through their linked item.
+        OR: [{ id: item.id }, { enrollment: { groupId, status: { not: 'LEFT' } } }, { gatheringId: groupId }],
       },
       select: {
         ownerId: true,

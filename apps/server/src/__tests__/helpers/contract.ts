@@ -230,6 +230,18 @@ export class World {
     const s = await this.session()
     return (await this.ok('alice', 'POST', '/media-attachments', { mediaId: m.id, target: { kind: 'RESULT_ENTRY', id: s.entryId }, purpose: 'JOURNAL' })) as { id: string }
   })
+  /** Alice's public, open gathering for Squats (10 §9). */
+  gathering = () => this.once('gathering', async () => {
+    const c = await this.cat()
+    const r = await this.ok('alice', 'POST', `/activities/${c.squats.activity.id}/gatherings`, { localDate: '2027-03-06', localTime: '14:00', listPublicly: true, idempotencyKey: 'world-gathering-1' })
+    return { id: r.gathering.id as string, activityId: c.squats.activity.id as string }
+  })
+  /** Bob, joined to Alice's gathering. */
+  gatheringMember = () => this.once('gatheringMember', async () => {
+    const g = await this.gathering()
+    await this.ok('bob', 'POST', `/gatherings/${g.id}/join`, { idempotencyKey: 'world-gathering-join' })
+    return g
+  })
 }
 
 type Case = {
@@ -269,6 +281,15 @@ export const cases: Record<string, Case> = {
   unblockUser: { as: 'alice', protected: true, request: async (w) => (await w.ok('alice', 'POST', `/blocked-users/${testOtherUserId}`), { method: 'DELETE', url: `/blocked-users/${testOtherUserId}` }) },
   // ── catalog
   listCategories: { as: 'anon', request: async (w) => (await w.cat(), { method: 'GET', url: '/catalog/categories' }) },
+  // ── gatherings (10 §9)
+  listActivityGatherings: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/activities/${(await w.gathering()).activityId}/gatherings` }) },
+  createGathering: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: `/activities/${(await w.cat()).squats.activity.id}/gatherings`, payload: { localDate: '2027-04-01', idempotencyKey: 'contract-create-gathering' } }) },
+  listGatherings: { as: 'anon', request: async (w) => (await w.gathering(), { method: 'GET', url: '/gatherings?when=UPCOMING' }) },
+  getGathering: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/gatherings/${(await w.gathering()).id}` }) },
+  updateGathering: { as: 'alice', protected: true, request: async (w) => ({ method: 'PATCH', url: `/gatherings/${(await w.gathering()).id}`, payload: { localTime: '10:00' } }) },
+  joinGathering: { as: 'bob', protected: true, request: async (w) => ({ method: 'POST', url: `/gatherings/${(await w.gathering()).id}/join`, payload: { idempotencyKey: 'contract-join-gathering' } }) },
+  leaveGathering: { as: 'bob', protected: true, request: async (w) => ({ method: 'POST', url: `/gatherings/${(await w.gatheringMember()).id}/leave` }) },
+  createGatheringLink: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: `/gatherings/${(await w.gathering()).id}/link` }) },
   listPlaces: { as: 'anon', request: async () => (await seedPlace(), { method: 'GET', url: '/catalog/places?locality=Austin' }) },
   getPlace: { as: 'anon', request: async () => ({ method: 'GET', url: `/catalog/places/${(await seedPlace()).slug}` }) },
   createCustomProgramType: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: '/catalog/program-types', payload: { categoryId: (await w.cat()).fitness.id, label: 'Kettlebell Circuit' } }) },

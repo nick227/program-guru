@@ -813,6 +813,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/activities/{activityId}/gatherings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Upcoming gatherings for an Activity
+         * @description Public open gatherings and any the viewer belongs to, not past, soonest first (10 §9.7).
+         */
+        get: operations["listActivityGatherings"];
+        put?: never;
+        /**
+         * Create a time for an Activity that others can join
+         * @description Private and invite-only unless listPublicly. Links one Calendar Item for the creator, reusing a compatible personal item (10 §9.4).
+         */
+        post: operations["createGathering"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gatherings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public gatherings happening now or upcoming
+         * @description NOW means a member's Activity session is running or paused. City match only, never proximity.
+         */
+        get: operations["listGatherings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gatherings/{gatheringId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One gathering
+         * @description A private gathering is visible to its members and to holders of a valid share-link token.
+         */
+        get: operations["getGathering"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change a gathering's time, Place, capacity or listing, or close it (owner) */
+        patch: operations["updateGathering"];
+        trace?: never;
+    };
+    "/gatherings/{gatheringId}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join a gathering and put it on my Calendar
+         * @description Repeat-safe. Returns the member's Calendar Item, reusing a compatible personal item (10 §9.5).
+         */
+        post: operations["joinGathering"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gatherings/{gatheringId}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leave a gathering; the Calendar Item stays as a personal occurrence */
+        post: operations["leaveGathering"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gatherings/{gatheringId}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A share link for this exact occurrence (token shown once) */
+        post: operations["createGatheringLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/activities/{activityId}/groups": {
         parameters: {
             query?: never;
@@ -3189,6 +3308,85 @@ export interface components {
         Ack: {
             ok: boolean;
         };
+        /** @description One shared, dated occurrence of one Activity (10 §9). Counts come from real records only. */
+        Gathering: {
+            /** Format: uuid */
+            id: string;
+            activity: components["schemas"]["ActivitySummary"];
+            /** Format: date */
+            localDate: string;
+            localTime: string | null;
+            timezone: string;
+            place: components["schemas"]["Place"] | null;
+            capacity: number | null;
+            visibility: components["schemas"]["GroupVisibility"];
+            joinPolicy: components["schemas"]["GroupJoinPolicy"];
+            /** @enum {string} */
+            status: "ACTIVE" | "CLOSED";
+            owner: components["schemas"]["UserSummary"];
+            memberCount: number;
+            members: components["schemas"]["UserSummary"][];
+            scheduledCount: number;
+            /** @description Members with a running or paused Activity session; never online presence. */
+            activeCount: number;
+            completedCount: number;
+            isFull: boolean;
+            isPast: boolean;
+            viewerIsMember: boolean;
+            viewerIsOwner: boolean;
+            /** Format: uuid */
+            viewerCalendarItemId: string | null;
+        };
+        CreateGatheringInput: {
+            /** Format: date */
+            localDate: string;
+            localTime?: string | null;
+            /**
+             * Format: uuid
+             * @description Omitted: the Activity's suggested Place; null: none.
+             */
+            placeId?: string | null;
+            /**
+             * Format: uuid
+             * @description The creator's own compatible item to turn into this gathering.
+             */
+            calendarItemId?: string | null;
+            /** @description Public and open; default private and invite-only. */
+            listPublicly?: boolean;
+            capacity?: number | null;
+            idempotencyKey: string;
+        };
+        JoinGatheringInput: {
+            invite?: string;
+            idempotencyKey: string;
+        };
+        UpdateGatheringInput: {
+            /** Format: date */
+            localDate?: string;
+            localTime?: string | null;
+            /** Format: uuid */
+            placeId?: string | null;
+            capacity?: number | null;
+            listPublicly?: boolean;
+            close?: boolean;
+        };
+        GatheringJoinResult: {
+            gathering: components["schemas"]["Gathering"];
+            /** Format: uuid */
+            calendarItemId: string;
+        };
+        GatheringLeaveResult: {
+            /**
+             * Format: uuid
+             * @description The member's item, kept as a personal occurrence.
+             */
+            calendarItemId: string | null;
+        };
+        GatheringLink: {
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
         /** @description A real, platform-curated location. Suggested only; never implies a host, hours, booking or endorsement. */
         Place: {
             /** Format: uuid */
@@ -4010,6 +4208,11 @@ export interface components {
             /** @description Measured session duration at fetch time, never an estimated target duration. */
             activeSeconds?: number | null;
             participantAvatars: string[];
+            /**
+             * Format: uuid
+             * @description Set while this item is the member's occurrence of a gathering (10 §9).
+             */
+            gatheringId?: string | null;
             place: components["schemas"]["Place"] | null;
             unreadCount: number;
             /** Format: date-time */
@@ -6592,6 +6795,249 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listActivityGatherings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Gathering"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createGathering: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGatheringInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GatheringJoinResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listGatherings: {
+        parameters: {
+            query?: {
+                when?: "NOW" | "UPCOMING";
+                locality?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Gathering"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getGathering: {
+        parameters: {
+            query?: {
+                invite?: string;
+            };
+            header?: never;
+            path: {
+                gatheringId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Gathering"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateGathering: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gatheringId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGatheringInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Gathering"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    joinGathering: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gatheringId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinGatheringInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GatheringJoinResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    leaveGathering: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gatheringId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GatheringLeaveResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    createGatheringLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gatheringId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GatheringLink"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["RateLimited"];
         };
     };
     listActivityGroups: {
@@ -9860,6 +10306,8 @@ export interface operations {
                 locality?: string;
                 /** @description ACTIVITY results that suggest an active Place. */
                 hasPlace?: boolean;
+                /** @description ACTIVITY results with an upcoming public, open gathering ("With others", 10 §9.7). */
+                hasOpenGathering?: boolean;
                 accessMode?: components["schemas"]["AccessMode"];
                 level?: components["schemas"]["ProgramLevel"];
                 /** @description PROGRAM results by length in days; ACTIVITY results by planned minutes (SHORT ≤15, MEDIUM 16–30, LONG >30; ONGOING does not apply). */

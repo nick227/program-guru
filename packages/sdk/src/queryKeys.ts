@@ -31,6 +31,7 @@ export const queryKeys = {
         : filter,
     ] as const,
   calendar: ['calendar'] as const,
+  gatherings: ['gatherings'] as const,
   week: (start: string, end: string) =>
     ['calendar', 'list', { start, end }] as const,
   occurrences: ['occurrences'] as const,

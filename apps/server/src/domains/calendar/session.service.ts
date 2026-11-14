@@ -8,6 +8,7 @@ import { canUseActivity, isOwner as isActivityOwner } from '../activities/access
 import { achievementInclude, evaluate, toAchievement } from './achievements'
 import { itemDto } from './calendar.service'
 import { ownerThumb } from '../media/media.service'
+import { itemGroupId } from '../groups/itemGroup'
 
 type Tx = Prisma.TransactionClient
 type Action = 'START' | 'PAUSE' | 'RESUME' | 'FINISH' | 'ABANDON'
@@ -117,17 +118,18 @@ async function onFinished(tx: Tx, userId: string, s: ActivitySession) {
     const item = await tx.calendarItem.update({ where: { id: s.calendarItemId }, data: { status: 'DONE' }, include: { enrollment: true } })
     enrollmentId = item.enrollmentId
     // Group completion share: activity, day, and status only, never metric values (10 §3).
-    if (item.enrollment?.groupId && item.groupOccurrenceKey) {
-      const member = await tx.groupMember.findUnique({ where: { groupId_userId: { groupId: item.enrollment.groupId, userId } } })
+    const groupId = itemGroupId(item)
+    if (groupId && item.groupOccurrenceKey) {
+      const member = await tx.groupMember.findUnique({ where: { groupId_userId: { groupId, userId } } })
       if (member?.status === 'ACTIVE' && member.sharedCompletionEnabled) {
         const share = await tx.completionShare.upsert({
-          where: { groupId_calendarItemId: { groupId: item.enrollment.groupId, calendarItemId: item.id } },
-          create: { groupId: item.enrollment.groupId, occurrenceKey: item.groupOccurrenceKey, calendarItemId: item.id, userId, activityId: item.activityId, programDayIndex: item.programDayIndex, completedAt: new Date() },
+          where: { groupId_calendarItemId: { groupId, calendarItemId: item.id } },
+          create: { groupId, occurrenceKey: item.groupOccurrenceKey, calendarItemId: item.id, userId, activityId: item.activityId, programDayIndex: item.programDayIndex, completedAt: new Date() },
           update: { revokedAt: null, completedAt: new Date() },
         })
         await enqueue(tx, 'CompletionShared', {
           shareId: share.id,
-          groupId: item.enrollment.groupId,
+          groupId,
           occurrenceKey: item.groupOccurrenceKey,
           calendarItemId: item.id,
           userId,

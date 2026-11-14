@@ -30,6 +30,7 @@ import { ReportButton } from '@/components/shared/ReportButton'
 import { type RiverItem } from '@/components/media/RelatedMedia'
 import { ActivityRelatedMedia } from '@/components/activity/ActivityRelatedMedia'
 import { ActivityHero, type ActivityMeta } from '@/components/activity/ActivityHero'
+import { ActivityGatherings } from '@/components/activity/ActivityGatherings'
 import { ActivitySection } from '@/components/activity/ActivitySection'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { ActivityShare } from '@/components/activity/ActivityShare'
@@ -261,6 +262,8 @@ export function ActivityPage() {
               {editing && a.canEdit && (
                 <ActivityDetailsEditor activity={a} onDone={() => setEditing(false)} />
               )}
+
+              <ActivityGatherings activity={a} returnTo={currentUrl} />
 
               <GroupStatus
                 activityId={a.id}

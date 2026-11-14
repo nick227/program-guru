@@ -169,17 +169,44 @@ export const handlers: Record<string, Handler> = {
 
   async GroupMemberJoined(e) {
     const name = await displayName(e.payload.userId)
+    const group = await db.programGroup.findUnique({ where: { id: e.payload.groupId }, include: { activity: { select: { title: true } } } })
+    if (!group) return
+    const gathering = group.kind === 'GATHERING'
     for (const recipientId of await activeGroupMembers(e.payload.groupId, e.payload.userId)) {
+      // A gathering has no group page: link each member to their own occurrence (10 §9.6).
+      const item = gathering ? await db.calendarItem.findFirst({ where: { gatheringId: group.id, ownerId: recipientId }, select: { id: true } }) : null
+      if (gathering && !item) continue
       await notify({
         recipientId,
         actorId: e.payload.userId,
         type: 'MEMBER_JOINED',
-        title: `${name} joined your group`,
-        deepLink: `/groups/${e.payload.groupId}`,
+        title: gathering ? `${name} joined your ${group.activity?.title ?? 'Activity'} gathering` : `${name} joined your group`,
+        deepLink: item ? `/occurrences/${item.id}` : `/groups/${e.payload.groupId}`,
         entityKind: 'GROUP',
         entityId: e.payload.groupId,
         groupId: e.payload.groupId,
         dedupeKey: `${e.id}:${recipientId}`,
+      })
+    }
+  },
+
+  /** Owner moved or closed a gathering: reuses PROGRAM_UPDATE (decision 5), one per affected member item. */
+  async GatheringChanged(e) {
+    const group = await db.programGroup.findUnique({ where: { id: e.payload.groupId }, include: { activity: { select: { title: true } } } })
+    if (!group || group.kind !== 'GATHERING') return
+    const title = group.activity?.title ?? 'Activity'
+    const items = await db.calendarItem.findMany({ where: { id: { in: (e.payload.itemIds as string[]) ?? [] } }, select: { id: true, ownerId: true } })
+    for (const item of items) {
+      await notify({
+        recipientId: item.ownerId,
+        actorId: e.payload.actorId,
+        type: 'PROGRAM_UPDATE',
+        title: e.payload.closed ? `The ${title} gathering was cancelled; it stays on your calendar` : `The ${title} gathering changed time or place`,
+        deepLink: `/occurrences/${item.id}`,
+        entityKind: 'GROUP',
+        entityId: group.id,
+        groupId: group.id,
+        dedupeKey: `${e.id}:${item.ownerId}`,
       })
     }
   },
