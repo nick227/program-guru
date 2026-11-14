@@ -173,6 +173,9 @@ export function HomePage() {
     () => ({
       isSignedIn,
       todayItems: calendar.data ?? [],
+      knownProgramIds: !isSignedIn ? [] : library.isSuccess
+        ? (library.data ?? []).map((entry) => entry.program.id)
+        : null,
       activeEnrollments: (library.data ?? [])
         .filter((entry) => entry.status === 'Active')
         .map((entry) => ({
@@ -206,10 +209,12 @@ export function HomePage() {
   )
 
   const loading =
+    me.isPending ||
     (popularPrograms.isPending &&
       activities.isPending &&
       (!isSignedIn || calendar.isPending)) ||
-    (Boolean(state.categoryId) && categoryActivities.isPending)
+    (Boolean(state.categoryId) && categoryActivities.isPending) ||
+    (isSignedIn && library.isPending)
 
   const turn = useMemo(
     () => resolveTurn(nodeId, state, signals),

@@ -1,5 +1,6 @@
 import { groupAction, sessionActionLabel } from '@/lib/joinEligibility'
 import type { AssistantTurn, HomeSignals } from './types'
+import { canSuggestNewProgram } from './programEligibility'
 import {
   mapActivityToCard,
   mapCalendarItemToCard,
@@ -139,7 +140,7 @@ export function rankHomeSignals(
   // Tier 2: People I follow / New Programs
   if (signals.isSignedIn) {
     const freshProgram = signals.newPrograms.find(
-      (item) => item.program && !excluded.has(item.program.id),
+      (item) => item.program && !excluded.has(item.program.id) && canSuggestNewProgram(item.program, signals),
     )
     if (freshProgram?.program) {
       const voice = phraseProgramTurn(
@@ -198,7 +199,8 @@ export function rankHomeSignals(
   // Tier 3: Happening now (live / starting-soon public sessions)
   const liveSession = signals.liveSessions.find((item) => {
     const id = item.featuredGroup?.id ?? item.program?.id
-    return id && !excluded.has(id)
+    return id && !excluded.has(id) &&
+      (Boolean(item.featuredGroup) || Boolean(item.program && canSuggestNewProgram(item.program, signals)))
   })
   if (liveSession) {
     const card = mapSessionToCard(liveSession)
@@ -255,7 +257,7 @@ export function rankHomeSignals(
 
   // Tier 4 & 5: Popular Programs
   const popular = signals.popularPrograms.find(
-    (item) => item.program && !excluded.has(item.program.id),
+    (item) => item.program && !excluded.has(item.program.id) && canSuggestNewProgram(item.program, signals),
   )
   if (popular?.program) {
     const p = popular.program

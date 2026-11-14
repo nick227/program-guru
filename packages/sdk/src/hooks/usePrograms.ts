@@ -1,4 +1,5 @@
 import { useApiMutation } from './mutation'
+import { useApiQuery } from './query'
 import { useViewerKey } from './viewerKey'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiData, getApiClient } from '../client'
@@ -167,25 +168,21 @@ export function useMyActivities(q = '') {
   })
 }
 export function useProgramTypes() {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.types),
-    queryFn: async ({ signal }) =>
-      apiData(await getApiClient().GET('/catalog/program-types', { signal }))
-        .data,
+    request: (signal) => getApiClient().GET('/catalog/program-types', { signal }),
   })
 }
 export function useCategories() {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.categories),
-    queryFn: async ({ signal }) =>
-      apiData(await getApiClient().GET('/catalog/categories', { signal })).data,
+    request: (signal) => getApiClient().GET('/catalog/categories', { signal }),
   })
 }
 export function useTags() {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.tags),
-    queryFn: async ({ signal }) =>
-      apiData(await getApiClient().GET('/catalog/tags', { signal })).data,
+    request: (signal) => getApiClient().GET('/catalog/tags', { signal }),
   })
 }
 /** Active platform-curated Places (08 §2a), optionally in one city. Never a proximity search. */
@@ -225,29 +222,23 @@ export function useFocuses(filterOrProgramTypeId: string | FocusesFilter = '') {
   })
 }
 export function useProgramPreview(programId: string) {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.preview(programId)),
     enabled: !!programId,
-    queryFn: async ({ signal }) =>
-      apiData(
-        await getApiClient().GET('/programs/{programId}', {
-          signal,
-          params: { path: { programId } },
-        }),
-      ).data,
+    request: (signal) => getApiClient().GET('/programs/{programId}', {
+      signal,
+      params: { path: { programId } },
+    }),
   })
 }
 export function useProgramVersion(versionId: string, enabled = true) {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.version(versionId)),
     enabled: enabled && !!versionId,
-    queryFn: async ({ signal }) =>
-      apiData(
-        await getApiClient().GET('/program-versions/{versionId}', {
-          signal,
-          params: { path: { versionId } },
-        }),
-      ).data,
+    request: (signal) => getApiClient().GET('/program-versions/{versionId}', {
+      signal,
+      params: { path: { versionId } },
+    }),
   })
 }
 export function useResolveSlugQuery(
@@ -276,16 +267,13 @@ export function useResolveSlugQuery(
   })
 }
 export function useProgramWorkspace(programId: string, enabled = true) {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.workspace(programId)),
     enabled: enabled && !!programId,
-    queryFn: async ({ signal }) =>
-      apiData(
-        await getApiClient().GET('/programs/{programId}/workspace', {
-          signal,
-          params: { path: { programId } },
-        }),
-      ).data,
+    request: (signal) => getApiClient().GET('/programs/{programId}/workspace', {
+      signal,
+      params: { path: { programId } },
+    }),
   })
 }
 export function useProgramPlacements(programId: string) {

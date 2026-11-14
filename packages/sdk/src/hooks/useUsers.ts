@@ -3,24 +3,21 @@ import { apiData, getApiClient } from '../client'
 import { queryKeys as keys } from '../queryKeys'
 import type { components } from '../generated/types'
 import { useApiMutation } from './mutation'
+import { useApiQuery } from './query'
 import { useViewerKey } from './viewerKey'
 
 type S = components['schemas']
 
 export function useUserByHandle(handle: string) {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.user(handle)),
     enabled: !!handle,
-    queryFn: async ({ signal }) =>
-      apiData(
-        await getApiClient().GET('/users/{handle}', {
-          signal,
-          params: { path: { handle } },
-        }),
-      ).data,
+    request: (signal) => getApiClient().GET('/users/{handle}', {
+      signal,
+      params: { path: { handle } },
+    }),
   })
 }
-
 export function useUserPrograms(handle: string) {
   return useInfiniteQuery({
     queryKey: useViewerKey(keys.userPrograms(handle)),
@@ -163,13 +160,11 @@ export function useDeclineFollowRequest() {
 }
 
 export function useMyAchievements() {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.myAchievements),
-    queryFn: async ({ signal }) =>
-      apiData(await getApiClient().GET('/achievements/me', { signal })).data,
+    request: (signal) => getApiClient().GET('/achievements/me', { signal }),
   })
 }
-
 export function useUpdateAchievement() {
   return useApiMutation(
     async ({

@@ -1,14 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
 import { apiData, getApiClient } from '../client'
 import { useViewerKey } from './viewerKey'
 import { useApiMutation } from './mutation'
+import { useApiQuery } from './query'
 
 export function useProgramLibrary(enabled = true) {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(['programs', 'personal-library']),
     enabled,
-    queryFn: async ({ signal }) =>
-      apiData(await getApiClient().GET('/me/program-library', { signal })).data,
+    request: (signal) => getApiClient().GET('/me/program-library', { signal }),
     staleTime: 60_000,
   })
 }

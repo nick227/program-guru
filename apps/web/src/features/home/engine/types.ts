@@ -135,6 +135,8 @@ export interface HomeSignals {
   isSignedIn: boolean
   todayItems: S['CalendarItem'][]
   activeEnrollments: EnrollmentSummary[]
+  /** All owned or previously joined Programs; null until the personal library resolves. */
+  knownProgramIds?: string[] | null
   liveSessions: S['DiscoverItem'][]
   popularPrograms: S['DiscoverItem'][]
   newPrograms: S['DiscoverItem'][]

@@ -6,6 +6,7 @@ import {
   getApiClient,
   useActivity,
   useJoinProgram,
+  useProgramLibrary,
   useProgramPreview,
   useUserByHandle,
 } from '@project/sdk'
@@ -85,6 +86,7 @@ function ProgramPreviewBody({
   const queryClient = useQueryClient()
   const query = useProgramPreview(programId)
   const join = useJoinProgram(programId)
+  const library = useProgramLibrary(isSignedIn)
   const [joined, setJoined] = useState(false)
 
   const prog = query.data
@@ -108,8 +110,12 @@ function ProgramPreviewBody({
     )
   }
 
+  const libraryEntry = library.data?.find((entry) => entry.program.id === programId)
+  const alreadyKnown = prog.viewerAccess === 'OWNER' || Boolean(prog.myEnrollmentId) || Boolean(libraryEntry)
   const canJoinInline =
     isSignedIn &&
+    library.isSuccess &&
+    !alreadyKnown &&
     Boolean(prog.latestVersionId) &&
     prog.canJoin &&
     !prog.canPurchase &&
@@ -158,9 +164,9 @@ function ProgramPreviewBody({
           <span>{join.isPending ? 'Joining…' : 'Join Program'}</span>
         </button>
       )}
-      {joined && (
+      {(joined || alreadyKnown) && (
         <span className="inline-flex min-h-10 items-center rounded-full border border-accent/40 bg-accent/15 px-4 py-2 text-xs font-semibold text-accent">
-          Joined
+          {prog.viewerAccess === 'OWNER' ? 'Created by you' : 'In your Programs'}
         </span>
       )}
       <button
