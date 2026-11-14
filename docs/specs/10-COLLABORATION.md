@@ -142,6 +142,8 @@ Endpoints: `GET|POST /groups`, `GET /programs/:programId/groups`, `GET /groups/:
 
 ## 8. Check-In-Centered Collaboration & Animated Group Stage
 
+**Shared Participation Experience:** the participation room requirements (occurrence identity, participant rail, Shared Moments, share link, lifecycle) are in `docs/shared-participation-experience.md` (added 2026-11-14, unchanged from the product document). Participation code must not change without reviewing it.
+
 Check-ins are the core Group collaboration loop (`Complete → Check in → See others → React → Return`), providing shared momentum without real-time meeting rooms, leaderboards, or forced schedules:
 - Completing an Activity saves personal progress; sharing a check-in with one or more active Groups (`POST /check-ins` or via occurrence completion) is explicit and never duplicates Activity completions or Calendar items.
 - Check-ins belong to `(activityId, userId)` and optionally `calendarItemId`, supporting repeat Program runs, standalone Activities, optional check-in note, optional group-scoped media attachment (`View media`), emoji reactions, and check-in discussion (`GET|POST /completion-shares/:id/comments`, `DELETE /completion-comments/:id`).
