@@ -13,9 +13,15 @@ for (const item of Object.values<any>(spec.paths)) for (const op of Object.value
 const check = process.argv.includes('--check')
 const files = readdirSync(dir).filter((f) => f.endsWith('.ts') && !['index.ts', 'pending.ts'].includes(f)).sort()
 const implemented = new Set<string>()
+const duplicate = new Set<string>()
 for (const f of files) {
-  for (const m of readFileSync(resolve(dir, f), 'utf8').matchAll(/^export (?:async )?function (\w+)|^export const (\w+)/gm)) implemented.add((m[1] ?? m[2])!)
+  for (const m of readFileSync(resolve(dir, f), 'utf8').matchAll(/^export (?:async )?function (\w+)|^export const (\w+)/gm)) {
+    const name = (m[1] ?? m[2])!
+    if (implemented.has(name)) duplicate.add(name)
+    implemented.add(name)
+  }
 }
+if (duplicate.size) throw new Error(`Duplicate handlers: ${[...duplicate].join(', ')}`)
 const unknown = [...implemented].filter((n) => !ops.includes(n))
 const pending = ops.filter((o) => !implemented.has(o)).sort()
 
