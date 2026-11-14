@@ -1,4 +1,5 @@
 import { useApiMutation } from './mutation'
+import { useApiQuery } from './query'
 import { useViewerKey } from './viewerKey'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiData, getApiClient } from '../client'
@@ -216,29 +217,23 @@ export function useFocuses(filterOrProgramTypeId: string | FocusesFilter = '') {
   })
 }
 export function useProgramPreview(programId: string) {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.preview(programId)),
     enabled: !!programId,
-    queryFn: async ({ signal }) =>
-      apiData(
-        await getApiClient().GET('/programs/{programId}', {
-          signal,
-          params: { path: { programId } },
-        }),
-      ).data,
+    request: (signal) => getApiClient().GET('/programs/{programId}', {
+      signal,
+      params: { path: { programId } },
+    }),
   })
 }
 export function useProgramVersion(versionId: string, enabled = true) {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.version(versionId)),
     enabled: enabled && !!versionId,
-    queryFn: async ({ signal }) =>
-      apiData(
-        await getApiClient().GET('/program-versions/{versionId}', {
-          signal,
-          params: { path: { versionId } },
-        }),
-      ).data,
+    request: (signal) => getApiClient().GET('/program-versions/{versionId}', {
+      signal,
+      params: { path: { versionId } },
+    }),
   })
 }
 export function useResolveSlugQuery(
@@ -267,16 +262,13 @@ export function useResolveSlugQuery(
   })
 }
 export function useProgramWorkspace(programId: string, enabled = true) {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.workspace(programId)),
     enabled: enabled && !!programId,
-    queryFn: async ({ signal }) =>
-      apiData(
-        await getApiClient().GET('/programs/{programId}/workspace', {
-          signal,
-          params: { path: { programId } },
-        }),
-      ).data,
+    request: (signal) => getApiClient().GET('/programs/{programId}/workspace', {
+      signal,
+      params: { path: { programId } },
+    }),
   })
 }
 export function useProgramPlacements(programId: string) {
