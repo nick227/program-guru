@@ -9856,13 +9856,16 @@ export interface operations {
                 activityId?: string;
                 /** @description ACTIVITY results whose suggested Place is this one. */
                 placeId?: string;
-                /** @description ACTIVITY results whose suggested Place is in this city (case-insensitive). Never a proximity filter. */
+                /** @description ACTIVITY results whose suggested Place is in this city (case-insensitive). Never a proximity filter. Search (q) also matches an Activity's Place name and city. */
                 locality?: string;
                 /** @description ACTIVITY results that suggest an active Place. */
                 hasPlace?: boolean;
                 accessMode?: components["schemas"]["AccessMode"];
                 level?: components["schemas"]["ProgramLevel"];
+                /** @description PROGRAM results by length in days; ACTIVITY results by planned minutes (SHORT ≤15, MEDIUM 16–30, LONG >30; ONGOING does not apply). */
                 duration?: components["schemas"]["DiscoverDuration"];
+                /** @description ACTIVITY results whose published default frequency has this kind (e.g. DAILY for daily habits). */
+                frequency?: components["schemas"]["FrequencyKind"];
                 maxSessionMinutes?: number;
                 /** @description Comma-separated tag slugs (all listed tags must match). */
                 tags?: string;

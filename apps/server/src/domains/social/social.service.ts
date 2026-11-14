@@ -28,6 +28,7 @@ type DiscoverQuery = PageQuery & {
   placeId?: string
   locality?: string
   hasPlace?: boolean
+  frequency?: 'DAILY' | 'WEEKDAYS' | 'N_PER_WEEK' | 'FLEXIBLE' | 'CUSTOM' | 'MONTHLY'
   accessMode?: 'OPEN' | 'APPROVAL' | 'PAID'
   level?: ProgramLevel
   duration?: 'SHORT' | 'MEDIUM' | 'LONG' | 'ONGOING'
@@ -35,6 +36,14 @@ type DiscoverQuery = PageQuery & {
   tags?: string
   sort?: 'RELEVANT' | 'NEW' | 'POPULAR'
   timing?: 'ALL' | 'STARTING_SOON' | 'HAPPENING_NOW'
+}
+
+/** Activity duration buckets, matching the Community filter (SHORT ≤15, MEDIUM 16–30, LONG >30 minutes). */
+function activityDuration(d: DiscoverQuery['duration']) {
+  if (d === 'SHORT') return { lte: 15 }
+  if (d === 'MEDIUM') return { gt: 15, lte: 30 }
+  if (d === 'LONG') return { gt: 30 }
+  return null
 }
 
 export async function discover(viewerId: string | null, query: DiscoverQuery) {
@@ -130,7 +139,30 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
         ...(query.placeId ? { placeId: query.placeId, place: { isActive: true } } : {}),
         ...(query.locality?.trim() ? { place: { isActive: true, locality: query.locality.trim() } } : {}),
         ...(query.hasPlace && !query.locality?.trim() && !query.placeId ? { place: { isActive: true } } : {}),
-        ...(q ? { AND: [{ OR: [{ title: { contains: q } }, { summary: { contains: q } }] }] } : {}),
+        // Search also matches the suggested Place's name and city (active Places only).
+        ...(q
+          ? {
+              AND: [
+                {
+                  OR: [
+                    { title: { contains: q } },
+                    { summary: { contains: q } },
+                    { place: { isActive: true, name: { contains: q } } },
+                    { place: { isActive: true, locality: { contains: q } } },
+                  ],
+                },
+              ],
+            }
+          : {}),
+        // Published snapshot, as shown on the card: planned minutes and default frequency (08 §2).
+        ...(activityDuration(query.duration) || query.frequency
+          ? {
+              latestPublished: {
+                ...(activityDuration(query.duration) ? { durationMinutesSnapshot: activityDuration(query.duration)! } : {}),
+                ...(query.frequency ? { frequencySnapshot: { path: '$.kind', equals: query.frequency } } : {}),
+              },
+            }
+          : {}),
       },
       orderBy:
         query.sort === 'NEW'

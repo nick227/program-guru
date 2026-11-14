@@ -26,6 +26,8 @@ export const BROWSE_PARAM = {
   view: 'view',
   /** City of the suggested Place (Activities only). Never a proximity filter (12 §5a). */
   city: 'city',
+  /** Default frequency kind of Activities, e.g. DAILY for daily habits (12 §5a). */
+  frequency: 'frequency',
 } as const
 
 export interface BrowseUrlOptions {
@@ -229,4 +231,59 @@ export function clearBrowseDraft(key: string) {
   } catch {
     /* ignore storage errors */
   }
+}
+
+/**
+ * "How I want to spend my time" shortcuts (12 §5a). Each one is only a preset of existing Community
+ * filters (kind, duration, frequency, Domain, city, timing), never another classification.
+ */
+export type DiscoveryShortcut = {
+  key: string
+  label: string
+  kind: BrowseKind
+  set: Record<string, string>
+}
+
+export function discoveryShortcuts(input: { domainIdBySlug: Record<string, string>; cities: string[]; hasStartingSoon?: boolean }): DiscoveryShortcut[] {
+  const out: DiscoveryShortcut[] = [
+    { key: 'quick', label: 'Quick · 15 min', kind: 'activities', set: { [BROWSE_PARAM.duration]: 'short' } },
+    { key: 'daily', label: 'Daily habits', kind: 'activities', set: { [BROWSE_PARAM.frequency]: 'DAILY' } },
+  ]
+  const social = input.domainIdBySlug['relationships']
+  if (social) out.push({ key: 'social', label: 'Social', kind: 'activities', set: { [BROWSE_PARAM.category]: social } })
+  const outdoors = input.domainIdBySlug['outdoors-nature']
+  if (outdoors) out.push({ key: 'outdoors', label: 'Outdoors', kind: 'activities', set: { [BROWSE_PARAM.category]: outdoors } })
+  for (const city of input.cities.slice(0, 2)) {
+    out.push({ key: `city:${city}`, label: `In ${city}`, kind: 'activities', set: { [BROWSE_PARAM.city]: city } })
+  }
+  // Shown only when a Program group is actually starting soon.
+  if (input.hasStartingSoon) {
+    out.push({ key: 'starting-soon', label: 'Starting soon', kind: 'programs', set: { [BROWSE_PARAM.timing]: 'STARTING_SOON' } })
+  }
+  return out
+}
+
+const KIND_ONLY_PARAMS: Record<BrowseKind, string[]> = {
+  programs: [BROWSE_PARAM.type, BROWSE_PARAM.timing, BROWSE_PARAM.view, BROWSE_PARAM.level, BROWSE_PARAM.session, BROWSE_PARAM.tags],
+  activities: [BROWSE_PARAM.city, BROWSE_PARAM.frequency],
+}
+
+export function isShortcutActive(params: URLSearchParams, kind: BrowseKind, shortcut: DiscoveryShortcut): boolean {
+  return kind === shortcut.kind && Object.entries(shortcut.set).every(([k, v]) => params.get(k) === v)
+}
+
+/** Toggles a shortcut: applying switches to its kind and drops the other kind's filters; toggling off removes only its own values. */
+export function toggleShortcut(previous: URLSearchParams, kind: BrowseKind, shortcut: DiscoveryShortcut): URLSearchParams {
+  const next = new URLSearchParams(previous)
+  next.delete(BROWSE_PARAM.facet)
+  if (isShortcutActive(previous, kind, shortcut)) {
+    for (const k of Object.keys(shortcut.set)) next.delete(k)
+    return next
+  }
+  const other: BrowseKind = shortcut.kind === 'activities' ? 'programs' : 'activities'
+  for (const k of KIND_ONLY_PARAMS[other]) next.delete(k)
+  if (shortcut.kind === 'activities') next.set('kind', 'activities')
+  else next.delete('kind')
+  for (const [k, v] of Object.entries(shortcut.set)) next.set(k, v)
+  return next
 }

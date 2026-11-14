@@ -54,7 +54,10 @@ import type { Workspace } from '@/components/program-authoring/types'
 import {
   BROWSE_PARAM,
   formatProgramLevel,
+  discoveryShortcuts,
+  isShortcutActive,
   matchesBrowseDuration,
+  toggleShortcut,
   resolveBrowseDuration,
   resolveBrowseFilters,
   resolveBrowseScope,
@@ -71,6 +74,7 @@ import { useDocumentTitle } from '@/lib/title'
 import { buildGroupUrl, buildProfileUrl } from '@/lib/urls'
 import { cn } from '@/lib/utils'
 import { groupAction, sessionActionLabel } from '@/lib/joinEligibility'
+import { interleaveUnique } from '@/lib/activityRange'
 import { PlacePreviewDrawer } from '@/components/activity/PlacePreviewDrawer'
 
 type S = components['schemas']
@@ -995,6 +999,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const creator = filters.creator
   // City browsing applies to Activities, whose Places carry a city (12 §5a).
   const city = mode.kind === 'activities' ? params.get(BROWSE_PARAM.city) ?? '' : ''
+  const frequency = mode.kind === 'activities' && params.get(BROWSE_PARAM.frequency) === 'DAILY' ? 'DAILY' : ''
   const placesCatalog = usePlaces({ enabled: !mode.isPicker })
   const cities = [...new Set((placesCatalog.data ?? []).map((p) => p.locality))].sort()
   const [previewPlaceId, setPreviewPlaceId] = useState<string | null>(null)
@@ -1239,7 +1244,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     !!search ||
     sort !== 'POPULAR' ||
     creator !== 'ALL' ||
-    !!city
+    !!city ||
+    !!frequency
 
   const showDirectorySections =
     !mode.isPicker && mode.kind === 'programs' && !filtered
@@ -1262,7 +1268,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     timing: 'STARTING_SOON',
     sort: 'POPULAR',
     limit: 4,
-    enabled: showDirectorySections,
+    // Also decides whether the "Starting soon" shortcut is offered.
+    enabled: !mode.isPicker,
   })
 
   const activities = useDiscoverActivities({
@@ -1270,6 +1277,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     categoryId: categoryId || undefined,
     focusId: focusId || undefined,
     locality: city || undefined,
+    // Server-side, so a shortcut finds every match, not only loaded pages.
+    duration: mode.kind === 'activities' ? toServerDiscoverDuration(duration) : undefined,
+    frequency: frequency || undefined,
     sort,
     enabled: mode.kind === 'activities' || showDirectorySections,
   })
@@ -1280,6 +1290,13 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     hasPlace: true,
     sort: 'POPULAR',
     enabled: showDirectorySections && cities.length > 0,
+  })
+  // Directory Activities: most-used alongside newest, so new catalog content is visible (12 §5a).
+  const newestActivities = useDiscoverActivities({ sort: 'NEW', enabled: showDirectorySections })
+  const shortcuts = discoveryShortcuts({
+    domainIdBySlug: Object.fromEntries((categories.data ?? []).map((c) => [c.slug, c.id])),
+    cities,
+    hasStartingSoon: (startingSoonPrograms.data?.pages[0]?.data.length ?? 0) > 0,
   })
   const placeGroups = (() => {
     const byPlace = new Map<string, { place: S['Place']; activities: S['ActivitySummary'][] }>()
@@ -1515,11 +1532,15 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const happeningNowActivityIds = new Set(
     happeningNowItems.filter((item) => item.kind === 'activities').map((item) => item.id),
   )
-  const uniqueBottomActivities = activityItems.filter(
+  const newestActivityItems: BrowseFeedItem[] = (newestActivities.data?.pages ?? []).flatMap((page) =>
+    page.data.flatMap((d) => (d.activity ? [mapActivityItem(d.activity, d.featuredGroup ?? null, d.participantCount ?? null)] : [])),
+  )
+  const mixedActivityItems = interleaveUnique(activityItems, newestActivityItems)
+  const uniqueBottomActivities = mixedActivityItems.filter(
     (item) => !happeningNowActivityIds.has(item.id),
   )
   const bottomActivityItems = diversifyByVisual(
-    uniqueBottomActivities.length >= 4 ? uniqueBottomActivities : activityItems,
+    uniqueBottomActivities.length >= 4 ? uniqueBottomActivities : mixedActivityItems,
   )
 
   const recentActivityItems: BrowseFeedItem[] = programItems
@@ -1618,6 +1639,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const activeFilterChips: { key: string; label: string; onRemove: () => void }[] = []
   if (city) {
     activeFilterChips.push({ key: 'city', label: `In ${city}`, onRemove: () => setParam(BROWSE_PARAM.city, '') })
+  }
+  if (frequency) {
+    activeFilterChips.push({ key: 'frequency', label: 'Daily habits', onRemove: () => setParam(BROWSE_PARAM.frequency, '') })
   }
   if (search) {
     activeFilterChips.push({
@@ -2207,6 +2231,32 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                 />
               )}
             </div>
+
+            {/* Ways to spend your time: presets of the filters below, nothing more (12 §5a). */}
+            {!mode.isPicker && !isMyGroups && !mode.lockedProgramTypeId && (
+              <ul aria-label="Shortcuts" className="browse-sidebar-scroll mt-4 flex gap-2 overflow-x-auto pb-1">
+                {shortcuts.map((shortcut) => {
+                  const active = isShortcutActive(params, mode.kind, shortcut)
+                  return (
+                    <li key={shortcut.key} className="shrink-0">
+                      <button
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setParams((previous) => toggleShortcut(previous, mode.kind, shortcut), { replace: true })}
+                        className={cn(
+                          'inline-flex min-h-8 items-center rounded-full border px-3 text-[13px] font-medium transition-colors',
+                          active
+                            ? 'border-foreground bg-foreground text-background'
+                            : 'border-border/70 text-foreground/80 hover:bg-surface-muted hover:text-foreground',
+                        )}
+                      >
+                        {shortcut.label}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
 
             {/* Browse by Domain, then that Domain's Categories (12 §5a). */}
             {!mode.isPicker && !isMyGroups && !mode.lockedProgramTypeId && categoryOptions.length > 1 && (

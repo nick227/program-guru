@@ -5856,7 +5856,7 @@ paths:
           format: uuid
       - in: query
         name: locality
-        description: ACTIVITY results whose suggested Place is in this city (case-insensitive). Never a proximity filter.
+        description: ACTIVITY results whose suggested Place is in this city (case-insensitive). Never a proximity filter. Search (q) also matches an Activity's Place name and city.
         schema:
           type: string
           maxLength: 100
@@ -5875,8 +5875,14 @@ paths:
           $ref: '#/components/schemas/ProgramLevel'
       - in: query
         name: duration
+        description: PROGRAM results by length in days; ACTIVITY results by planned minutes (SHORT ≤15, MEDIUM 16–30, LONG >30; ONGOING does not apply).
         schema:
           $ref: '#/components/schemas/DiscoverDuration'
+      - in: query
+        name: frequency
+        description: ACTIVITY results whose published default frequency has this kind (e.g. DAILY for daily habits).
+        schema:
+          $ref: '#/components/schemas/FrequencyKind'
       - in: query
         name: maxSessionMinutes
         schema:

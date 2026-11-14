@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildBrowseUrl,
+  discoveryShortcuts,
+  isShortcutActive,
+  toggleShortcut,
   matchesBrowseDuration,
   resolveBrowseDuration,
   resolveBrowseFilters,
@@ -115,3 +118,27 @@ describe('browse URL and filter helpers', () => {
   })
 })
 
+
+describe('discovery shortcuts (12 §5a)', () => {
+  const shortcuts = discoveryShortcuts({ domainIdBySlug: { relationships: 'dom-social', 'outdoors-nature': 'dom-out' }, cities: ['Austin'], hasStartingSoon: true })
+  const byKey = (k: string) => shortcuts.find((s) => s.key === k)!
+
+  it('only presets existing filters, and shows city and Domain shortcuts only when that data exists', () => {
+    expect(shortcuts.map((s) => s.label)).toEqual(['Quick · 15 min', 'Daily habits', 'Social', 'Outdoors', 'In Austin', 'Starting soon'])
+    expect(discoveryShortcuts({ domainIdBySlug: {}, cities: [] }).map((s) => s.key)).toEqual(['quick', 'daily'])
+  })
+
+  it('applies a shortcut by switching kind and dropping the other kind’s filters', () => {
+    const next = toggleShortcut(new URLSearchParams('timing=STARTING_SOON&type=t1&q=chess'), 'programs', byKey('daily'))
+    expect(Object.fromEntries(next)).toEqual({ q: 'chess', kind: 'activities', frequency: 'DAILY' })
+    const back = toggleShortcut(new URLSearchParams('kind=activities&city=Austin&frequency=DAILY'), 'activities', byKey('starting-soon'))
+    expect(Object.fromEntries(back)).toEqual({ timing: 'STARTING_SOON' })
+  })
+
+  it('toggles off only its own values and reports active state by kind', () => {
+    const on = new URLSearchParams('kind=activities&city=Austin&duration=short')
+    expect(isShortcutActive(on, 'activities', byKey('city:Austin'))).toBe(true)
+    expect(isShortcutActive(on, 'programs', byKey('city:Austin'))).toBe(false)
+    expect(Object.fromEntries(toggleShortcut(on, 'activities', byKey('city:Austin')))).toEqual({ kind: 'activities', duration: 'short' })
+  })
+})

@@ -19,6 +19,9 @@ type DiscoverFilters = {
   placeId?: string
   locality?: string
   hasPlace?: boolean
+  /** Activity results: planned-minutes bucket and published default frequency kind. */
+  duration?: S['DiscoverDuration']
+  frequency?: S['FrequencyKind']
   sort?: S['DiscoverSort']
 }
 
@@ -42,6 +45,8 @@ async function discoverPage(
           placeId: filters.placeId || undefined,
           locality: filters.locality || undefined,
           hasPlace: filters.hasPlace || undefined,
+          duration: filters.duration || undefined,
+          frequency: filters.frequency || undefined,
           sort: filters.sort,
           cursor,
           limit,

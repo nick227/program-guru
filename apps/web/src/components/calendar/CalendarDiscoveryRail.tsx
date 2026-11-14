@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { useAddCalendarItem, useDiscoverActivities } from '@project/sdk'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { Button } from '@/components/ui/Button'
-import { pickAcrossDomains } from '@/lib/activityRange'
+import { interleaveUnique, pickAcrossDomains } from '@/lib/activityRange'
 import { activityCard } from '@/lib/discoveryCards'
 
 /**
@@ -24,20 +24,18 @@ export function CalendarDiscoveryRail({
   onScheduled?: (itemId: string) => void
 }) {
   const categorySlugOf = useCategorySlugOf()
+  // Most-used alongside newest, so new catalog content is visible without invented popularity.
   const discover = useDiscoverActivities({ sort: 'POPULAR' })
+  const newest = useDiscoverActivities({ sort: 'NEW' })
   const add = useAddCalendarItem()
   const [addingId, setAddingId] = useState<string | null>(null)
 
   const exclude = useMemo(() => new Set(scheduledActivityIds), [scheduledActivityIds])
-  const picks = useMemo(
-    () =>
-      pickAcrossDomains(
-        (discover.data?.pages.flatMap((p) => p.data) ?? []).flatMap((i) => (i.activity ? [i.activity] : [])),
-        5,
-        exclude,
-      ),
-    [discover.data, exclude],
-  )
+  const picks = useMemo(() => {
+    const listOf = (data: typeof discover.data) =>
+      (data?.pages.flatMap((p) => p.data) ?? []).flatMap((i) => (i.activity ? [i.activity] : []))
+    return pickAcrossDomains(interleaveUnique(listOf(discover.data), listOf(newest.data)), 5, exclude)
+  }, [discover.data, newest.data, exclude])
   if (picks.length === 0) return null
 
   const schedule = async (activityId: string, revisionId: string | null, title: string) => {
