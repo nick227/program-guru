@@ -5,7 +5,7 @@ import { expect } from 'vitest'
 import Stripe from 'stripe'
 import { db } from '@project/db'
 import { asAuth, rootAdminId, seedUser, testAdminId, testOtherUserId, testUserId, validateResponse } from './index'
-import { existingCatalog, makeMedia, seedAchievements, seedCatalog } from './fixtures'
+import { existingCatalog, makeMedia, seedAchievements, seedCatalog, seedPlace } from './fixtures'
 import { setBillingGateway, type BillingGateway } from '../../infrastructure/stripe'
 import { unsubscribeToken } from '../../domains/social/notification.service'
 import { drain } from '../../worker/outbox'
@@ -269,6 +269,8 @@ export const cases: Record<string, Case> = {
   unblockUser: { as: 'alice', protected: true, request: async (w) => (await w.ok('alice', 'POST', `/blocked-users/${testOtherUserId}`), { method: 'DELETE', url: `/blocked-users/${testOtherUserId}` }) },
   // ── catalog
   listCategories: { as: 'anon', request: async (w) => (await w.cat(), { method: 'GET', url: '/catalog/categories' }) },
+  listPlaces: { as: 'anon', request: async () => (await seedPlace(), { method: 'GET', url: '/catalog/places?locality=Austin' }) },
+  getPlace: { as: 'anon', request: async () => ({ method: 'GET', url: `/catalog/places/${(await seedPlace()).slug}` }) },
   createCustomProgramType: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: '/catalog/program-types', payload: { categoryId: (await w.cat()).fitness.id, label: 'Kettlebell Circuit' } }) },
   listFocuses: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/catalog/focuses?categoryId=${(await w.cat()).fitness.id}` }) },
   listToolDefinitions: { as: 'anon', request: async (w) => (await w.cat(), { method: 'GET', url: '/catalog/tools' }) },

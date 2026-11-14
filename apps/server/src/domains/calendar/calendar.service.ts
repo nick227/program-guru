@@ -10,6 +10,7 @@ import { mediaUrl } from '../media/urls'
 import { HORIZON_DAYS, materializeEnrollment } from './materialize'
 import { materializeRecurrence, parseRule, type RecurrenceRule } from './recurrence'
 import { evaluate } from './achievements'
+import { assertActivePlace, toPlace } from '../catalog/catalog.service'
 
 type Tx = Prisma.TransactionClient
 const MAX_RANGE_DAYS = 62
@@ -20,6 +21,7 @@ export async function userTimezone(userId: string) {
 
 const itemInclude = {
   enrollment: { include: { program: { include: { policy: true } }, version: true, group: true } },
+  place: true,
 } satisfies Prisma.CalendarItemInclude
 type ItemRow = Prisma.CalendarItemGetPayload<{ include: typeof itemInclude }>
 
@@ -110,6 +112,7 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
       thumbnailUrl: locked && hasPrivateAttachment ? null : thumbnailUrl,
       participantAvatars: avatars,
       unreadCount: i.groupOccurrenceKey ? unreadByKey.get(i.groupOccurrenceKey) ?? 0 : 0,
+      place: i.place ? toPlace(i.place) : null,
       updatedAt: i.updatedAt.toISOString(),
     }
   })
@@ -210,6 +213,7 @@ export async function add(
     recurrence?: RecurrenceRule | null
     untilDate?: string | null
     targetOverrides?: Record<string, unknown> | null
+    placeId?: string | null
     idempotencyKey: string
   },
 ) {
@@ -229,6 +233,7 @@ export async function add(
     run: async () => {
       const pinned = await pinRevision(userId, input.activityId, input.revisionId)
       const effectiveTime = input.localTime === undefined ? pinned.targetTime : input.localTime
+      const placeId = await scheduledPlace(input.activityId, input.placeId)
       const { itemId, recurrenceId, createdCount } = await db.$transaction(async (tx) => {
         if (input.recurrence) {
           const r = await tx.calendarRecurrence.create({
@@ -236,6 +241,7 @@ export async function add(
               ownerId: userId,
               activityId: input.activityId,
               activityRevisionId: pinned.id,
+              placeId,
               rule: input.recurrence as Prisma.InputJsonValue,
               anchorDate: toDbDate(input.localDate),
               localTime: effectiveTime ?? null,
@@ -253,6 +259,7 @@ export async function add(
             ownerId: userId,
             activityId: input.activityId,
             activityRevisionId: pinned.id,
+            placeId,
             idempotencyKey: `add:${userId}:${idempotencyKey}`,
             localDate: toDbDate(input.localDate),
             localTime: effectiveTime ?? null,
@@ -265,6 +272,19 @@ export async function add(
       return { ref: `${itemId}|${recurrenceId ?? ''}`, result: { ...(await result(userId, itemId, recurrenceId)), createdCount } }
     },
   })
+}
+
+/**
+ * Scheduled place for a new item or recurrence (09 §2): omitted copies the Activity's suggested Place,
+ * null means none, and an explicit id must be an active Place.
+ */
+async function scheduledPlace(activityId: string, input: string | null | undefined) {
+  if (input === null) return null
+  if (input !== undefined) {
+    await assertActivePlace(input)
+    return input
+  }
+  return (await db.activity.findUnique({ where: { id: activityId }, select: { placeId: true } }))?.placeId ?? null
 }
 
 async function result(userId: string, itemId: string, recurrenceId: string | null) {
@@ -284,8 +304,9 @@ async function splitRecurrence(tx: Tx, recurrenceId: string, date: LocalDate) {
 export async function update(
   userId: string,
   itemId: string,
-  input: { localDate?: string; localTime?: string | null; status?: CalendarItem['status']; targetOverrides?: Record<string, unknown> | null; scope?: 'THIS_ONE' | 'THIS_AND_FUTURE'; expectedUpdatedAt: string },
+  input: { localDate?: string; localTime?: string | null; status?: CalendarItem['status']; targetOverrides?: Record<string, unknown> | null; placeId?: string | null; scope?: 'THIS_ONE' | 'THIS_AND_FUTURE'; expectedUpdatedAt: string },
 ) {
+  await assertActivePlace(input.placeId)
   if (input.status === 'DONE') throw badRequest('Finish the activity to complete it', { status: 'DONE is set by finishing a session' })
   if (input.status === 'NOT_PARTICIPATING') throw badRequest('Not participating is set by the server', { status: 'is set by the server' })
   const tz = await userTimezone(userId)
@@ -306,6 +327,7 @@ export async function update(
           ownerId: userId,
           activityId: r.activityId,
           activityRevisionId: r.activityRevisionId,
+          placeId: input.placeId === undefined ? r.placeId : input.placeId,
           rule: shiftRule(parseRule(r.rule), shift) as Prisma.InputJsonValue,
           anchorDate: toDbDate(input.localDate ?? from),
           localTime: input.localTime === undefined ? r.localTime : input.localTime,
@@ -332,9 +354,10 @@ export async function update(
         scheduledAtUtc: localTime ? localToUtc(localDate, localTime, tz) : null,
         status,
         targetOverrides: input.targetOverrides === undefined ? undefined : ((input.targetOverrides ?? undefined) as Prisma.InputJsonValue | undefined),
+        placeId: input.placeId,
         ...(moved
           ? { isUserAdjusted: true, movedFromDate: item.movedFromDate ?? item.localDate, reminderSentAt: null }
-          : input.status
+          : input.status || input.placeId !== undefined
             ? { isUserAdjusted: true }
             : {}),
       },
@@ -434,8 +457,9 @@ export async function listRecurrences(userId: string) {
 export async function updateRecurrence(
   userId: string,
   id: string,
-  input: { rule?: RecurrenceRule; localTime?: string | null; untilDate?: string | null; effectiveFromDate: string },
+  input: { rule?: RecurrenceRule; localTime?: string | null; untilDate?: string | null; placeId?: string | null; effectiveFromDate: string },
 ) {
+  await assertActivePlace(input.placeId)
   const tz = await userTimezone(userId)
   const created = await db.$transaction(async (tx) => {
     const r = await tx.calendarRecurrence.findUnique({ where: { id } })
@@ -448,6 +472,7 @@ export async function updateRecurrence(
         ownerId: userId,
         activityId: r.activityId,
         activityRevisionId: r.activityRevisionId,
+        placeId: input.placeId === undefined ? r.placeId : input.placeId,
         rule: (input.rule ?? r.rule) as Prisma.InputJsonValue,
         anchorDate: toDbDate(from),
         localTime: input.localTime === undefined ? r.localTime : input.localTime,

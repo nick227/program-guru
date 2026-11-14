@@ -112,3 +112,23 @@ export function makeMedia(kind: 'png' | 'mp4-with-gps') {
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args])
   return readFileSync(out)
 }
+
+/** One platform-curated Place (08 §2a), as the starter seed writes it. */
+export async function seedPlace(slug = 'barton-springs', overrides: Partial<{ locality: string; isActive: boolean }> = {}) {
+  return db.place.upsert({
+    where: { slug },
+    update: {},
+    create: {
+      slug,
+      name: slug === 'barton-springs' ? 'Barton Springs Pool' : slug,
+      kind: 'pool',
+      addressLine: '2201 William Barton Dr',
+      locality: overrides.locality ?? 'Austin',
+      region: 'TX',
+      countryCode: 'US',
+      sourceUrl: 'https://www.austintexas.gov/services/visit-barton-springs-pool',
+      accessNote: 'Check admission and closures before you go.',
+      isActive: overrides.isActive ?? true,
+    },
+  })
+}

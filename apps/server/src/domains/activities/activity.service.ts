@@ -11,6 +11,7 @@ import { allocateActivitySlug } from '../programs/slug.service'
 import type { Frequency } from '../programs/schedule'
 import { authorFor } from '../admin/authors'
 import { audit } from '../admin/audit'
+import { assertActivePlace } from '../catalog/catalog.service'
 import {
   activityInclude,
   loadRevisions,
@@ -215,10 +216,11 @@ function checkTargetTime(value: string | null | undefined) {
   return trimmed
 }
 
-export async function create(userId: string, input: { title: string; categoryId: string; focusIds?: string[]; summary?: string | null; durationMinutes?: number | null; targetTime?: string | null; frequency?: Frequency | null; owner?: 'SELF' | 'PLATFORM' }) {
+export async function create(userId: string, input: { title: string; categoryId: string; focusIds?: string[]; placeId?: string | null; summary?: string | null; durationMinutes?: number | null; targetTime?: string | null; frequency?: Frequency | null; owner?: 'SELF' | 'PLATFORM' }) {
   const platform = input.owner === 'PLATFORM'
   if (platform && !(await authorFor(userId)).platform) throw forbidden('Only admins create platform activities')
   await assertTaxonomy(userId, input.categoryId, input.focusIds)
+  await assertActivePlace(input.placeId)
   if (input.frequency?.kind === 'N_PER_WEEK' && !input.frequency.n) throw badRequest('Choose how many days a week', { 'frequency.n': 'is required' })
   const title = input.title.trim()
   if (!title) throw badRequest('Name the activity', { title: 'is required' })
@@ -230,6 +232,7 @@ export async function create(userId: string, input: { title: string; categoryId:
       data: {
         creatorId: platform ? null : userId,
         categoryId: input.categoryId,
+        placeId: input.placeId ?? null,
         title,
         summary: input.summary?.trim() || null,
         durationMinutes,
@@ -250,9 +253,10 @@ export async function create(userId: string, input: { title: string; categoryId:
 export async function updateDraft(
   userId: string,
   activityId: string,
-  input: { title?: string; summary?: string | null; durationMinutes?: number | null; targetTime?: string | null; frequency?: Frequency | null; categoryId?: string; focusIds?: string[]; expectedRevision: number },
+  input: { title?: string; summary?: string | null; durationMinutes?: number | null; targetTime?: string | null; frequency?: Frequency | null; categoryId?: string; focusIds?: string[]; placeId?: string | null; expectedRevision: number },
 ) {
   await assertTaxonomy(userId, input.categoryId, input.focusIds)
+  await assertActivePlace(input.placeId)
   if (input.title !== undefined && !input.title.trim()) throw badRequest('Name the activity', { title: 'is required' })
   if (input.frequency?.kind === 'N_PER_WEEK' && !input.frequency.n) throw badRequest('Choose how many days a week', { 'frequency.n': 'is required' })
   await db.$transaction(async (tx) => {
@@ -263,7 +267,7 @@ export async function updateDraft(
     const targetTime = checkTargetTime(input.targetTime)
     const frequency = input.frequency === undefined ? undefined : input.frequency === null ? Prisma.DbNull : (input.frequency as Prisma.InputJsonValue)
     await tx.activityRevision.update({ where: { id: draft.id }, data: { titleSnapshot: title, summarySnapshot: summary, durationMinutesSnapshot: durationMinutes, targetTimeSnapshot: targetTime, frequencySnapshot: frequency } })
-    await tx.activity.update({ where: { id: activityId }, data: { title, summary, durationMinutes, targetTime, frequency, categoryId: input.categoryId } })
+    await tx.activity.update({ where: { id: activityId }, data: { title, summary, durationMinutes, targetTime, frequency, categoryId: input.categoryId, placeId: input.placeId } })
     if (title) {
       await allocateActivitySlug(tx, { activityId, title })
     }
@@ -457,6 +461,7 @@ export async function copy(userId: string, activityId: string, input: { sourceRe
       data: {
         creatorId: userId,
         categoryId: src.categoryId,
+        placeId: src.placeId,
         title,
         summary: rev.summarySnapshot,
         durationMinutes: rev.durationMinutesSnapshot,

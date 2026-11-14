@@ -81,6 +81,36 @@
     text-wrap: pretty;
   }
 
+  /* Scheduled place (09 §2): one quiet line, wraps on phones. */
+  .activity-hero__place {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
+    margin-top: var(--space-2);
+    color: hsl(var(--color-muted));
+    font-size: var(--type-meta);
+  }
+
+  .activity-hero__place-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* Its own line: a max-width here would shrink the flex basis and keep it inline. */
+  .activity-hero__place-note {
+    flex-basis: 100%;
+  }
+
+  .activity-hero__place-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
   .activity-hero__meta {
     grid-area: meta;
     display: flex;

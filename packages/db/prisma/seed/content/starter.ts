@@ -120,3 +120,45 @@ export const STARTER_CATALOG_PROGRAMS: ProgramContent[] = RAW_PROGRAMS.map((p) =
     placements,
   }
 })
+
+type RawPlace = { id: string; name: string; address: string; kind: string; sourceUrl: string }
+type RawLocated = { slug: string; location?: { mode: string; placeId?: string }; editorialNotes?: string }
+
+export type PlaceContent = {
+  slug: string
+  name: string
+  kind: string
+  addressLine: string | null
+  locality: string
+  region: string
+  countryCode: string
+  sourceUrl: string
+  accessNote: string | null
+}
+
+/** "200 E Martin Luther King Jr Blvd, Austin, TX, USA" → street, city, state, country; no guessing. */
+function parseAddress(placeId: string, address: string) {
+  const m = /^(?:(.+?), )?([^,]+), ([A-Z]{2})(?: \d{5})?, USA$/.exec(address.trim())
+  if (!m) throw new Error(`Starter place ${placeId}: unrecognized address "${address}"`)
+  return { addressLine: m[1] ?? null, locality: m[2]!, region: m[3]!, countryCode: 'US' }
+}
+
+const LOCATED = examples.activities as RawLocated[]
+
+/** Place-wide editorial notes become the Place's access note (08 §2a); others stay in the raw file. */
+export const STARTER_PLACES: PlaceContent[] = (examples.places as RawPlace[]).map((p) => {
+  const notes = LOCATED.filter((a) => a.location?.placeId === p.id && a.editorialNotes).map((a) => a.editorialNotes!)
+  return {
+    slug: p.id,
+    name: p.name,
+    kind: p.kind,
+    ...parseAddress(p.id, p.address),
+    sourceUrl: p.sourceUrl,
+    accessNote: notes.length ? notes.join(' ') : null,
+  }
+})
+
+/** Activity slug → suggested Place slug. */
+export const STARTER_ACTIVITY_PLACES: Record<string, string> = Object.fromEntries(
+  LOCATED.filter((a) => a.location?.mode === 'venue' && a.location.placeId).map((a) => [a.slug, a.location!.placeId!]),
+)

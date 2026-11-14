@@ -443,11 +443,35 @@ model ToolDefinition {
   tools ActivityTool[]
 }
 
+// A real, platform-curated location (08-ACTIVITIES §2a). Never a host, event, booking or endorsement.
+model Place {
+  id          String   @id @default(uuid()) @db.Char(36)
+  slug        String   @unique @db.VarChar(120)
+  name        String   @db.VarChar(160)
+  kind        String   @db.VarChar(40)
+  addressLine String?  @db.VarChar(200)
+  locality    String   @db.VarChar(100)
+  region      String   @db.VarChar(100)
+  countryCode String   @db.Char(2)
+  sourceUrl   String   @db.VarChar(500)
+  accessNote  String?  @db.VarChar(500)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  activities    Activity[]
+  calendarItems CalendarItem[]
+  recurrences   CalendarRecurrence[]
+
+  @@index([isActive, locality])
+}
+
 model Activity {
   id                        String         @id @default(uuid()) @db.Char(36)
   slug                      String?        @unique @db.VarChar(120)
   creatorId                 String?        @db.Char(36)
   categoryId                String         @db.Char(36)
+  placeId                   String?        @db.Char(36)
   title                     String         @db.VarChar(140)
   summary                   String?        @db.VarChar(500)
   durationMinutes           Int?
@@ -465,6 +489,7 @@ model Activity {
 
   creator          User?                 @relation(fields: [creatorId], references: [id], onDelete: SetNull)
   category         Category              @relation(fields: [categoryId], references: [id])
+  place            Place?                @relation(fields: [placeId], references: [id], onDelete: SetNull)
   source           Activity?             @relation("ActivitySource", fields: [sourceActivityId], references: [id], onDelete: SetNull)
   copies           Activity[]            @relation("ActivitySource")
   canonical        Activity?             @relation("ActivityCanonical", fields: [canonicalActivityId], references: [id], onDelete: SetNull)
@@ -483,6 +508,7 @@ model Activity {
   @@index([creatorId, status])
   @@index([canonicalActivityId])
   @@index([sourceActivityId])
+  @@index([placeId])
   @@fulltext([title, summary], map: "Activity_title_summary_ft")
 }
 
@@ -1030,6 +1056,7 @@ model CalendarRecurrence {
   ownerId              String           @db.Char(36)
   activityId           String           @db.Char(36)
   activityRevisionId   String           @db.Char(36)
+  placeId              String?          @db.Char(36)
   rule                 Json
   anchorDate           DateTime         @db.Date
   localTime            String?          @db.VarChar(5)
@@ -1043,9 +1070,11 @@ model CalendarRecurrence {
   owner    User             @relation(fields: [ownerId], references: [id])
   activity Activity         @relation(fields: [activityId], references: [id])
   revision ActivityRevision @relation(fields: [activityRevisionId], references: [id])
+  place    Place?           @relation(fields: [placeId], references: [id], onDelete: SetNull)
   items    CalendarItem[]
 
   @@index([ownerId, status])
+  @@index([placeId])
   @@index([status, generatedThroughDate])
   @@index([activityId])
   @@index([activityRevisionId])
@@ -1057,6 +1086,7 @@ model CalendarItem {
   ownerId              String             @db.Char(36)
   activityId           String             @db.Char(36)
   activityRevisionId   String             @db.Char(36)
+  placeId              String?            @db.Char(36)
   enrollmentId         String?            @db.Char(36)
   sourceScheduleItemId String?            @db.Char(36)
   recurrenceId         String?            @db.Char(36)
@@ -1079,6 +1109,7 @@ model CalendarItem {
   owner           User                 @relation(fields: [ownerId], references: [id])
   activity        Activity             @relation(fields: [activityId], references: [id])
   revision        ActivityRevision     @relation(fields: [activityRevisionId], references: [id])
+  place           Place?               @relation(fields: [placeId], references: [id], onDelete: SetNull)
   enrollment      ProgramEnrollment?   @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
   scheduleItem    ProgramScheduleItem? @relation(fields: [sourceScheduleItemId], references: [id], onDelete: SetNull)
   recurrence      CalendarRecurrence?  @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
@@ -1095,6 +1126,7 @@ model CalendarItem {
   @@index([activityId])
   @@index([activityRevisionId])
   @@index([sourceScheduleItemId])
+  @@index([placeId])
 }
 
 model ActivitySession {

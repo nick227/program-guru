@@ -32,6 +32,7 @@ const activity: S['ActivitySummary'] = {
   creator: null,
   categoryId: uid(3),
   focusIds: [uid(4)],
+  place: null,
   thumbnailUrl: null,
   instructionCount: 1,
   mediaCount: 0,
@@ -197,6 +198,7 @@ export async function mockApi(
     thumbnailUrl: options.calendarItem
       ? 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
       : null,
+    place: null,
     participantAvatars: options.groupItem
       ? ['data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=']
       : [],

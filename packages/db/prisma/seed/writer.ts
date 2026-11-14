@@ -8,6 +8,7 @@ import {
   type PlatformMediaSink,
 } from '../platform-media'
 import { assertValidSeedPack, SEEDED_ACTIVITIES, STARTER_PROGRAMS } from './content'
+import { STARTER_ACTIVITY_PLACES, STARTER_PLACES } from './content/starter'
 import { ACHIEVEMENT_DEFINITIONS, METRIC_DEFINITIONS, TOOL_DEFINITIONS } from './definitions'
 import { retireObsoletePlatformSeeds } from './retire'
 import { CATEGORIES, FOCUSES, PROGRAM_TYPES, TAGS } from './taxonomy'
@@ -230,6 +231,18 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
     })
   }
 
+  // 6a. Platform-curated Places (08 §2a): upserted by slug; never deleted, so scheduled items keep theirs.
+  const placeBySlug = new Map<string, string>()
+  for (const place of STARTER_PLACES) {
+    const { slug, ...fields } = place
+    const row = await prisma.place.upsert({
+      where: { slug },
+      create: { id: deterministicUuid(`place:${slug}`), slug, ...fields },
+      update: fields,
+    })
+    placeBySlug.set(slug, row.id)
+  }
+
   // 7. Curated Seeded Activities with rights-cleared MediaAssets, Revisions, Instructions, Metrics, and Tools
   const activityBySlug = new Map<string, { activityId: string; revisionId: string }>()
   for (const act of SEEDED_ACTIVITIES) {
@@ -238,8 +251,11 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
     const revisionId = deterministicUuid(`activity-revision:${act.slug}:1`)
 
     const existingAct = await prisma.activity.findUnique({ where: { slug: act.slug } })
+    const placeSlug = STARTER_ACTIVITY_PLACES[act.slug]
+    const placeId = placeSlug ? placeBySlug.get(placeSlug)! : null
     const actComparable = {
       categoryId,
+      placeId,
       title: act.title,
       summary: act.summary,
       durationMinutes: act.durationMinutes ?? null,
@@ -248,6 +264,7 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
     }
     const actWriteData = {
       categoryId,
+      placeId,
       title: act.title,
       summary: act.summary,
       durationMinutes: act.durationMinutes ?? null,
@@ -590,6 +607,7 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
     tools: TOOL_DEFINITIONS.length,
     achievements: ACHIEVEMENT_DEFINITIONS.length,
     activities: SEEDED_ACTIVITIES.length,
+    places: STARTER_PLACES.length,
     starterPrograms: STARTER_PROGRAMS.length,
     retiredPrograms: retired.retiredPrograms,
     retiredActivities: retired.retiredActivities,

@@ -2,6 +2,7 @@ import { db, type Prisma } from '@project/db'
 import { mediaUrl } from '../media/urls'
 import { parseFrequency } from '../programs/schedule'
 import { toUserSummary } from '../users/mapper'
+import { toPlace } from '../catalog/catalog.service'
 
 export const revisionInclude = {
   instructions: {
@@ -25,6 +26,7 @@ type Attachment = RevisionFull['attachments'][number]
 export const activityInclude = {
   creator: { include: { profile: true } },
   focuses: true,
+  place: true,
 } satisfies Prisma.ActivityInclude
 export type ActivityWithCreator = Prisma.ActivityGetPayload<{ include: typeof activityInclude }>
 
@@ -132,6 +134,8 @@ export function toActivitySummary(a: ActivityWithCreator, rev: RevisionFull | nu
     creator: a.creator?.profile ? toUserSummary(a.creator.profile) : null,
     categoryId: a.categoryId,
     focusIds: a.focuses.map((f) => f.focusId),
+    // Suggested place: Activity-level metadata, not part of the revision snapshot (08 §2a).
+    place: a.place ? toPlace(a.place) : null,
     ...summarizeRevision(rev),
     visibility: a.visibility,
     status: a.status,

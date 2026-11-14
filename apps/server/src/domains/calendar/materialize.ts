@@ -84,6 +84,11 @@ export async function materializeEnrollment(
   const monthly = !finite && parseFrequency(version.frequency).kind === 'MONTHLY'
   const cycle = finite ? version.durationDays! : version.cycleDays ?? 7
   const ordinals = sameDayOrdinals(items)
+  // Each item takes its Activity's suggested Place as its scheduled place (09 §2).
+  const activityIds = [...new Set(items.map((i) => i.activityId))]
+  const places = new Map(
+    activityIds.length ? (await tx.activity.findMany({ where: { id: { in: activityIds } }, select: { id: true, placeId: true } })).map((a) => [a.id, a.placeId]) : [],
+  )
   const rows: Prisma.CalendarItemCreateManyInput[] = []
   const pushItem = (item: Item, localDate: LocalDate, cycleIndex: number, programDayIndex: number) => {
     if (localDate > window.through || (window.from && localDate < window.from)) return
@@ -91,6 +96,7 @@ export async function materializeEnrollment(
       ownerId: e.userId,
       activityId: item.activityId,
       activityRevisionId: item.activityRevisionId,
+      placeId: places.get(item.activityId) ?? null,
       enrollmentId: e.id,
       sourceScheduleItemId: item.id,
       idempotencyKey: `${e.id}:${item.id}:${cycleIndex}`,

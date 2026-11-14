@@ -24,13 +24,13 @@ Factory defaults: pnpm monorepo, Vite + React + Tailwind, Fastify routed from Op
 
 ## Phase Completed
 
-Phase 2 — Server, worker, billing: complete and gated (2026-11-07). **Catalog Expansion epic** specified 2026-11-14 (`01-PRODUCT.md` §11): Catalog → Places → Discovery milestones, not yet implemented. Raw starter data: `packages/db/prisma/seed/starter/`. Milestone 1 (Catalog) done. Phase 3 (frontend) is next. An earlier session started `apps/web` ahead of the Phase 2 gate; see `docs/frontend-foundation.md`.
+Phase 2 — Server, worker, billing: complete and gated (2026-11-07). **Catalog Expansion epic** specified 2026-11-14 (`01-PRODUCT.md` §11): Catalog → Places → Discovery milestones, not yet implemented. Raw starter data: `packages/db/prisma/seed/starter/`. Milestones 1 (Catalog) and 2 (Places) done. Phase 3 (frontend) is next. An earlier session started `apps/web` ahead of the Phase 2 gate; see `docs/frontend-foundation.md`.
 
 ## Modules Built
 
-- [x] Schema: 62 models, migrations `0001_init` and `0002_rate_limit_bucket`, 4 CHECK constraints, 2 FULLTEXT indexes, verified on MySQL 8.4.13
-- [x] OpenAPI: 170 operations across 15 tags; SDK types generated
-- [x] Server (`apps/server`): **170 of 170 operations implemented**
+- [x] Schema: 63 models (`Place` added by `20261114120000_places`), migrations `0001_init` and `0002_rate_limit_bucket`, 4 CHECK constraints, 2 FULLTEXT indexes, verified on MySQL 8.4.13
+- [x] OpenAPI: 172 operations across 15 tags (`listPlaces`, `getPlace` added); SDK types generated
+- [x] Server (`apps/server`): **172 of 172 operations implemented**
 - [x] Worker (`apps/server/src/worker.ts`, a second process from the same build): outbox delivery, ffmpeg media pipeline, email, timed reminders and daily summaries, calendar horizons, ranking statistics, cleanup
 - [x] Billing: Stripe Connect per `docs/adr/0001-billing-stripe-connect.md`, behind `MARKETPLACE_ENABLED` (default off)
 - [x] Seed data (`packages/db/prisma/seed.ts`): 6 Categories, 20 Focuses, 17 ProgramTypes, 11 metrics, 6 tools, 7 achievements, 81 Activities with CC0 platform media, 5 starter Programs

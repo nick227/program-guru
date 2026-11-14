@@ -1142,6 +1142,70 @@ paths:
                       $ref: '#/components/schemas/Tag'
         '400':
           $ref: '#/components/responses/BadRequest'
+  /catalog/places:
+    get:
+      operationId: listPlaces
+      summary: List places
+      tags:
+      - catalog
+      description: Active platform-curated Places (08-ACTIVITIES §2a). A Place is never a host, event or booking.
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/SearchQuery'
+      - in: query
+        name: locality
+        description: City name, matched exactly (case-insensitive).
+        schema:
+          type: string
+          maxLength: 100
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /catalog/places/{placeRef}:
+    get:
+      operationId: getPlace
+      summary: Get a place
+      tags:
+      - catalog
+      description: One active Place by id or slug.
+      security: []
+      parameters:
+      - in: path
+        name: placeRef
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 120
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /activities:
     get:
       operationId: listActivities
@@ -5785,6 +5849,18 @@ paths:
           type: string
           format: uuid
       - in: query
+        name: placeId
+        description: ACTIVITY results whose suggested Place is this one.
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: locality
+        description: ACTIVITY results whose suggested Place is in this city (case-insensitive). Never a proximity filter.
+        schema:
+          type: string
+          maxLength: 100
+      - in: query
         name: accessMode
         schema:
           $ref: '#/components/schemas/AccessMode'
@@ -7921,6 +7997,46 @@ components:
       properties:
         ok:
           type: boolean
+    Place:
+      type: object
+      description: A real, platform-curated location. Suggested only; never implies a host, hours, booking or endorsement.
+      required:
+      - id
+      - slug
+      - name
+      - kind
+      - addressLine
+      - locality
+      - region
+      - countryCode
+      - sourceUrl
+      - accessNote
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+        addressLine:
+          type:
+          - string
+          - 'null'
+        locality:
+          type: string
+        region:
+          type: string
+        countryCode:
+          type: string
+        sourceUrl:
+          type: string
+        accessNote:
+          type:
+          - string
+          - 'null'
     Category:
       type: object
       required:
@@ -8271,6 +8387,7 @@ components:
       - creator
       - categoryId
       - focusIds
+      - place
       - thumbnailUrl
       - instructionCount
       - mediaCount
@@ -8323,6 +8440,10 @@ components:
           items:
             type: string
             format: uuid
+        place:
+          anyOf:
+          - $ref: '#/components/schemas/Place'
+          - type: 'null'
         thumbnailUrl:
           type:
           - string
@@ -8466,6 +8587,7 @@ components:
       - creator
       - categoryId
       - focusIds
+      - place
       - thumbnailUrl
       - instructionCount
       - mediaCount
@@ -8526,6 +8648,10 @@ components:
           items:
             type: string
             format: uuid
+        place:
+          anyOf:
+          - $ref: '#/components/schemas/Place'
+          - type: 'null'
         thumbnailUrl:
           type:
           - string
@@ -8627,6 +8753,11 @@ components:
           - type: 'null'
         owner:
           $ref: '#/components/schemas/ContentOwner'
+        placeId:
+          type:
+          - string
+          - 'null'
+          format: uuid
       additionalProperties: false
     UpdateActivityDraftInput:
       type: object
@@ -8670,6 +8801,11 @@ components:
             format: uuid
         expectedRevision:
           type: integer
+        placeId:
+          type:
+          - string
+          - 'null'
+          format: uuid
       additionalProperties: false
     UpsertInstructionInput:
       type: object
@@ -10214,6 +10350,7 @@ components:
       - thumbnailUrl
       - participantAvatars
       - unreadCount
+      - place
       - updatedAt
       properties:
         id:
@@ -10284,6 +10421,10 @@ components:
           type: array
           items:
             type: string
+        place:
+          anyOf:
+          - $ref: '#/components/schemas/Place'
+          - type: 'null'
         unreadCount:
           type: integer
         updatedAt:
@@ -10360,6 +10501,12 @@ components:
           - object
           - 'null'
           additionalProperties: true
+        placeId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Scheduled Place. Omitted means the Activity's suggested Place; null means none (09 §2).
         idempotencyKey:
           type: string
           minLength: 8
@@ -10402,6 +10549,11 @@ components:
           - object
           - 'null'
           additionalProperties: true
+        placeId:
+          type:
+          - string
+          - 'null'
+          format: uuid
         scope:
           $ref: '#/components/schemas/RecurrenceScope'
         expectedUpdatedAt:
@@ -10425,6 +10577,11 @@ components:
           - string
           - 'null'
           format: date
+        placeId:
+          type:
+          - string
+          - 'null'
+          format: uuid
         effectiveFromDate:
           type: string
           format: date

@@ -161,6 +161,16 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
       '1:write-short-film-script', '2:create-film-shot-list', '3:direct-film-scene', '3:camera-operator-scene',
       '3:record-sound-scene', '3:act-in-scene', '4:edit-short-film',
     ])
+    // Four real Places, each suggested by its Activity; place-wide notes become access notes (08 §2a).
+    const places = await db.place.findMany({ orderBy: { slug: 'asc' }, include: { activities: { select: { slug: true } } } })
+    expect(places.map((p) => [p.slug, p.locality, p.activities.map((a) => a.slug)])).toEqual([
+      ['auditorium-shores', 'Austin', ['photograph-austin-skyline']],
+      ['barton-springs', 'Austin', ['swim-at-barton-springs']],
+      ['blanton-museum', 'Austin', ['sketch-at-blanton']],
+      ['wildflower-center', 'Austin', ['identify-native-plants']],
+    ])
+    expect(places.find((p) => p.slug === 'blanton-museum')?.accessNote).toContain('pencil')
+    expect(places.find((p) => p.slug === 'auditorium-shores')?.addressLine).toBeNull()
     // Seeded Activities are opportunities, not events.
     expect(await db.calendarItem.count()).toBe(0)
     expect(await db.calendarRecurrence.count()).toBe(0)

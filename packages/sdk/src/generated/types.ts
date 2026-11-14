@@ -536,6 +536,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/catalog/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List places
+         * @description Active platform-curated Places (08-ACTIVITIES §2a). A Place is never a host, event or booking.
+         */
+        get: operations["listPlaces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/catalog/places/{placeRef}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a place
+         * @description One active Place by id or slug.
+         */
+        get: operations["getPlace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/activities": {
         parameters: {
             query?: never;
@@ -3149,6 +3189,20 @@ export interface components {
         Ack: {
             ok: boolean;
         };
+        /** @description A real, platform-curated location. Suggested only; never implies a host, hours, booking or endorsement. */
+        Place: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            name: string;
+            kind: string;
+            addressLine: string | null;
+            locality: string;
+            region: string;
+            countryCode: string;
+            sourceUrl: string;
+            accessNote: string | null;
+        };
         Category: {
             /** Format: uuid */
             id: string;
@@ -3286,6 +3340,7 @@ export interface components {
             /** Format: uuid */
             categoryId: string;
             focusIds: string[];
+            place: components["schemas"]["Place"] | null;
             thumbnailUrl: string | null;
             coverMedia?: components["schemas"]["MediaPresentation"] | null;
             instructionCount: number;
@@ -3348,6 +3403,7 @@ export interface components {
             /** Format: uuid */
             categoryId: string;
             focusIds: string[];
+            place: components["schemas"]["Place"] | null;
             thumbnailUrl: string | null;
             coverMedia?: components["schemas"]["MediaPresentation"] | null;
             instructionCount: number;
@@ -3380,6 +3436,8 @@ export interface components {
             targetTime?: string | null;
             frequency?: components["schemas"]["Frequency"] | null;
             owner?: components["schemas"]["ContentOwner"];
+            /** Format: uuid */
+            placeId?: string | null;
         };
         UpdateActivityDraftInput: {
             title?: string;
@@ -3393,6 +3451,8 @@ export interface components {
             categoryId?: string;
             focusIds?: string[];
             expectedRevision: number;
+            /** Format: uuid */
+            placeId?: string | null;
         };
         UpsertInstructionInput: {
             /** Format: uuid */
@@ -3950,6 +4010,7 @@ export interface components {
             /** @description Measured session duration at fetch time, never an estimated target duration. */
             activeSeconds?: number | null;
             participantAvatars: string[];
+            place: components["schemas"]["Place"] | null;
             unreadCount: number;
             /** Format: date-time */
             updatedAt: string;
@@ -3982,6 +4043,11 @@ export interface components {
             targetOverrides?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Format: uuid
+             * @description Scheduled Place. Omitted means the Activity's suggested Place; null means none (09 §2).
+             */
+            placeId?: string | null;
             idempotencyKey: string;
         };
         AddCalendarItemResult: {
@@ -3998,6 +4064,8 @@ export interface components {
             targetOverrides?: {
                 [key: string]: unknown;
             } | null;
+            /** Format: uuid */
+            placeId?: string | null;
             scope?: components["schemas"]["RecurrenceScope"];
             /** Format: date-time */
             expectedUpdatedAt: string;
@@ -4007,6 +4075,8 @@ export interface components {
             localTime?: string | null;
             /** Format: date */
             untilDate?: string | null;
+            /** Format: uuid */
+            placeId?: string | null;
             /** Format: date */
             effectiveFromDate: string;
         };
@@ -6013,6 +6083,60 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+        };
+    };
+    listPlaces: {
+        parameters: {
+            query?: {
+                /** @description Simple text search within this resource. */
+                q?: components["parameters"]["SearchQuery"];
+                /** @description City name, matched exactly (case-insensitive). */
+                locality?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Place"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    getPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                placeRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Place"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
         };
     };
     listActivities: {
@@ -9730,6 +9854,10 @@ export interface operations {
                 programTypeId?: string;
                 focusId?: string;
                 activityId?: string;
+                /** @description ACTIVITY results whose suggested Place is this one. */
+                placeId?: string;
+                /** @description ACTIVITY results whose suggested Place is in this city (case-insensitive). Never a proximity filter. */
+                locality?: string;
                 accessMode?: components["schemas"]["AccessMode"];
                 level?: components["schemas"]["ProgramLevel"];
                 duration?: components["schemas"]["DiscoverDuration"];

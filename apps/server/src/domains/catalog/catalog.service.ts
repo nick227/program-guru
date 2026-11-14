@@ -162,3 +162,51 @@ export async function listTags() {
     group: t.group ?? null,
   }))
 }
+
+// ── Places (08-ACTIVITIES §2a) ──────────────────────────────────────────────
+
+type PlaceRow = Prisma.PlaceGetPayload<object>
+
+/** The one Place DTO, shared by catalog, Activity and Calendar responses. */
+export function toPlace(p: PlaceRow) {
+  return {
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    kind: p.kind,
+    addressLine: p.addressLine,
+    locality: p.locality,
+    region: p.region,
+    countryCode: p.countryCode,
+    sourceUrl: p.sourceUrl,
+    accessNote: p.accessNote,
+  }
+}
+
+export async function listPlaces(filter: { q?: string; locality?: string }) {
+  const q = filter.q?.trim()
+  const locality = filter.locality?.trim()
+  const rows = await db.place.findMany({
+    where: {
+      isActive: true,
+      // MySQL's default collation compares case-insensitively.
+      ...(locality ? { locality } : {}),
+      ...(q ? { OR: [{ name: { contains: q } }, { locality: { contains: q } }] } : {}),
+    },
+    orderBy: [{ locality: 'asc' }, { name: 'asc' }],
+  })
+  return rows.map(toPlace)
+}
+
+export async function getPlace(ref: string) {
+  const row = await db.place.findFirst({ where: { isActive: true, OR: [{ id: ref }, { slug: ref }] } })
+  if (!row) throw notFound('Place')
+  return toPlace(row)
+}
+
+/** Validates an optional placeId input: undefined/null pass through; anything else must be an active Place. */
+export async function assertActivePlace(placeId: string | null | undefined) {
+  if (!placeId) return
+  const place = await db.place.findUnique({ where: { id: placeId } })
+  if (!place || !place.isActive) throw badRequest('Choose an available place', { placeId: 'not found' })
+}

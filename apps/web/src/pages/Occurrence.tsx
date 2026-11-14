@@ -48,6 +48,7 @@ import { buildOccurrenceBreadcrumbs } from '@/lib/breadcrumbs'
 import { MetricInput } from '@/components/activity/MetricInput'
 import { ActivityTogether } from '@/components/activity/ActivityTogether'
 import { ActivityHero, type ActivityMeta } from '@/components/activity/ActivityHero'
+import { ScheduledPlace } from '@/components/activity/ScheduledPlace'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { ActivitySection } from '@/components/activity/ActivitySection'
 import { ActivityShare } from '@/components/activity/ActivityShare'
@@ -601,6 +602,7 @@ function OccurrenceHero({
       returnTo={currentUrl}
       meta={meta}
       extraMeta={showTimer && session ? <SessionElapsed session={session} /> : null}
+      footnote={<ScheduledPlace item={o.item} />}
       actions={
         <>
           {!!error && (

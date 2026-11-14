@@ -47,6 +47,7 @@ export async function materializeRecurrence(tx: Prisma.TransactionClient, r: Cal
         activityId: r.activityId,
         activityRevisionId: r.activityRevisionId,
         recurrenceId: r.id,
+        placeId: r.placeId,
         idempotencyKey: `${r.id}:${d}`,
         localDate: toDbDate(d),
         localTime: r.localTime,

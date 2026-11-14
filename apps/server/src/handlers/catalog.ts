@@ -35,3 +35,11 @@ export async function listToolDefinitions() {
 export async function listTags() {
   return { data: await catalog.listTags() }
 }
+
+export async function listPlaces(request: any) {
+  return { data: await catalog.listPlaces({ q: request.query.q, locality: request.query.locality }) }
+}
+
+export async function getPlace(request: any) {
+  return { data: await catalog.getPlace(request.params.placeRef) }
+}
