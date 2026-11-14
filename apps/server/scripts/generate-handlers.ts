@@ -92,6 +92,22 @@ const domains = {
       updateMyGroupMembership: ["groups.updateMyMembership", "userId", "params.groupId", "body"],
     },
   },
+  users: {
+    services: { profiles: 'profile.service', follows: 'follow.service' },
+    bindings: {
+      followUser: ["follows.follow", "userId", "params.userId"],
+      unfollowUser: ["follows.unfollow", "userId", "params.userId"],
+      updateMyPreferences: ["profiles.updatePreferences", "userId", "body"],
+      updateMyProfile: ["profiles.updateProfile", "userId", "body"],
+    },
+  },
+  catalog: {
+    services: { catalog: 'catalog.service' },
+    bindings: {
+      createCustomFocus: ["catalog.createCustomFocus", "userId", "body"],
+      createCustomProgramType: ["catalog.createCustomProgramType", "userId", "body"],
+    },
+  },
 } as const
 
 const root = resolve(__dirname, '../../..')
