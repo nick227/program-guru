@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useOnline } from './useOnline'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { ApiError, useCurrentUser } from '@project/sdk'
@@ -7,9 +8,17 @@ export function AuthGuard() {
   const me = useCurrentUser()
   const online = useOnline()
   const location = useLocation()
+  const connectionFailed = !me.data && !!me.error && !(me.error instanceof ApiError)
+  // Some SW-controlled browsers report online=true while fetch fails, and never emit an
+  // online event on reconnect. Retry only while this protected route lacks account data.
+  useEffect(() => {
+    if (!connectionFailed) return
+    const retry = window.setInterval(() => { void me.refetch() }, 2000)
+    return () => window.clearInterval(retry)
+  }, [connectionFailed, me.refetch])
   // A service-worker-controlled offline page may still report navigator.onLine=true.
   // Network failures (not HTTP ApiErrors) must show the reconnect fallback too.
-  if (!me.data && (!online || (me.isError && !(me.error instanceof ApiError))))
+  if (!me.data && (!online || connectionFailed))
     return (
       <Page>
         <h1>Connect to load your account</h1>
