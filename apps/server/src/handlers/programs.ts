@@ -1,4 +1,5 @@
 import { requireUser, resolveViewer } from '../lib/auth'
+import { authenticatedHandler } from '../lib/operation-handler'
 import * as authoring from '../domains/programs/authoring.service'
 import * as browse from '../domains/programs/browse.service'
 import * as enrollment from '../domains/programs/enrollment.service'
@@ -22,16 +23,12 @@ export async function resolveSlug(request: any) {
 export async function listMyPrograms(request: any) {
   return authoring.listMine(uid(request), request.query)
 }
-export async function createProgram(request: any) {
-  return { data: await authoring.create(uid(request), request.body) }
-}
+export const createProgram = authenticatedHandler('createProgram', ({ userId, body }) => authoring.create(userId, body))
 export async function getProgramPreview(request: any) {
   const viewer = await resolveViewer(request)
   return { data: await browse.preview(viewer?.id ?? null, request.params.programId) }
 }
-export async function getProgramWorkspace(request: any) {
-  return { data: await authoring.workspace(uid(request), request.params.programId) }
-}
+export const getProgramWorkspace = authenticatedHandler('getProgramWorkspace', ({ userId, params }) => authoring.workspace(userId, params.programId))
 export async function updateProgramDraft(request: any) {
   return { data: await authoring.updateDraft(uid(request), request.params.programId, request.body) }
 }
@@ -67,21 +64,15 @@ export async function deleteProgramPlacement(request: any) {
 export async function regenerateProgramSchedule(request: any) {
   return { data: await authoring.regenerateSchedule(uid(request), request.params.programId, request.body) }
 }
-export async function getProgramPublishCheck(request: any) {
-  return { data: await authoring.publishCheck(uid(request), request.params.programId) }
-}
+export const getProgramPublishCheck = authenticatedHandler('getProgramPublishCheck', ({ userId, params }) => authoring.publishCheck(userId, params.programId))
 export async function publishProgram(request: any) {
   return { data: await authoring.publish(uid(request), request.params.programId, request.body) }
 }
-export async function archiveProgram(request: any) {
-  return { data: await authoring.archive(uid(request), request.params.programId) }
-}
+export const archiveProgram = authenticatedHandler('archiveProgram', ({ userId, params }) => authoring.archive(userId, params.programId))
 export async function deleteProgram(request: any) {
   return { data: await programDeletion.deleteProgram(uid(request), request.params.programId) }
 }
-export async function copyProgram(request: any) {
-  return { data: await authoring.copy(uid(request), request.params.programId) }
-}
+export const copyProgram = authenticatedHandler('copyProgram', ({ userId, params }) => authoring.copy(userId, params.programId))
 export async function setProgramPrices(request: any) {
   return { data: await authoring.setPrices(uid(request), request.params.programId, request.body) }
 }
