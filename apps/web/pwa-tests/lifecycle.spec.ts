@@ -48,7 +48,17 @@ test('production installability, auth/deep links, offline shell, cache isolation
   expect(urls.some(url => /api\/|token=|signed-media|uploads\//.test(url))).toBe(false)
 
   await context.setOffline(true)
-  await page.goto(`/programs/${programId}/workspace?step=details`)
+  const offlineResponse = await page.goto(`/programs/${programId}/workspace?step=details`)
+  console.log('offline navigation', {
+    url: page.url(),
+    status: offlineResponse?.status(),
+    state: await page.evaluate(async () => ({
+      online: navigator.onLine,
+      controlled: !!navigator.serviceWorker.controller,
+      caches: await caches.keys(),
+      body: document.body.innerText.slice(0, 1200),
+    })),
+  })
   await expect(page.getByRole('heading', { name: 'Connect to load your account' })).toBeVisible()
   await context.setOffline(false)
   console.log('reconnect', await page.evaluate(() => ({ online: navigator.onLine, visibility: document.visibilityState })))
