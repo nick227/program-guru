@@ -1,4 +1,5 @@
 import { requireUser } from '../lib/auth'
+import * as billing from '../domains/billing/billing.service'
 import { processEvent, verify } from '../domains/billing/webhooks.service'
 
 const uid = (request: any) => requireUser(request).id
