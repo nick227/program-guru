@@ -11,6 +11,8 @@ type FetchResult<T> = {
 
 /** One place for the common GET + {data} response unwrapping pattern.
  * Query keys, authorization-sensitive keys and stale times remain caller-owned.
+ * Use only for single-resource queries; infinite queries keep their own pagination.
+ * The caller controls `enabled` to avoid requests before required IDs are known.
  */
 export function useApiQuery<T>({
   queryKey,

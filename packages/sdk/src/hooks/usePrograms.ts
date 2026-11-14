@@ -168,25 +168,21 @@ export function useMyActivities(q = '') {
   })
 }
 export function useProgramTypes() {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.types),
-    queryFn: async ({ signal }) =>
-      apiData(await getApiClient().GET('/catalog/program-types', { signal }))
-        .data,
+    request: (signal) => getApiClient().GET('/catalog/program-types', { signal }),
   })
 }
 export function useCategories() {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.categories),
-    queryFn: async ({ signal }) =>
-      apiData(await getApiClient().GET('/catalog/categories', { signal })).data,
+    request: (signal) => getApiClient().GET('/catalog/categories', { signal }),
   })
 }
 export function useTags() {
-  return useQuery({
+  return useApiQuery({
     queryKey: useViewerKey(keys.tags),
-    queryFn: async ({ signal }) =>
-      apiData(await getApiClient().GET('/catalog/tags', { signal })).data,
+    request: (signal) => getApiClient().GET('/catalog/tags', { signal }),
   })
 }
 export type FocusesFilter = {
