@@ -30,3 +30,22 @@ export function pickAcrossDomains<T extends { id: string; categoryId: string }>(
   }
   return out
 }
+
+/**
+ * Alternates already-ordered lists (e.g. `/discover` POPULAR and NEW), keeping the first occurrence of
+ * each id. New catalog content then appears beside established Activities without any invented score.
+ */
+export function interleaveUnique<T extends { id: string }>(...lists: T[][]): T[] {
+  const seen = new Set<string>()
+  const out: T[] = []
+  const longest = Math.max(0, ...lists.map((l) => l.length))
+  for (let i = 0; i < longest; i++) {
+    for (const list of lists) {
+      const item = list[i]
+      if (!item || seen.has(item.id)) continue
+      seen.add(item.id)
+      out.push(item)
+    }
+  }
+  return out
+}

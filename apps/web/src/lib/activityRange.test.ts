@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickAcrossDomains } from './activityRange'
+import { interleaveUnique, pickAcrossDomains } from './activityRange'
 
 const a = (id: string, categoryId: string) => ({ id, categoryId })
 
@@ -19,5 +19,21 @@ describe('pickAcrossDomains', () => {
   it('skips excluded and duplicate items and returns fewer when data is short', () => {
     expect(pickAcrossDomains([a('x', 'fit'), a('x', 'fit'), a('y', 'music')], 5, new Set(['y'])).map((x) => x.id)).toEqual(['x'])
     expect(pickAcrossDomains([], 5)).toEqual([])
+  })
+})
+
+describe('interleaveUnique', () => {
+  it('alternates lists and keeps the first occurrence of each id', () => {
+    const popular = [a('p1', 'fit'), a('shared', 'fit'), a('p2', 'fit')]
+    const fresh = [a('n1', 'art'), a('shared', 'fit'), a('n2', 'music')]
+    expect(interleaveUnique(popular, fresh).map((x) => x.id)).toEqual(['p1', 'n1', 'shared', 'p2', 'n2'])
+  })
+
+  it('lets new catalog content into a five-card mix that popularity alone would fill', () => {
+    const popular = Array.from({ length: 20 }, (_, i) => a(`old${i}`, ['fit', 'well', 'learn'][i % 3]!))
+    const fresh = [a('film', 'art'), a('guitar', 'music'), a('garden', 'home')]
+    const picked = pickAcrossDomains(interleaveUnique(popular, fresh), 5).map((x) => x.id)
+    expect(picked).toEqual(expect.arrayContaining(['film', 'guitar']))
+    expect(picked).toHaveLength(5)
   })
 })

@@ -42,9 +42,11 @@ export function activityCard(
   activity: S['ActivitySummary'],
   categorySlugOf: CategorySlugOf,
 ): DiscoveryCardModel {
-  const metrics = activity.metricLabels.filter(
-    (label) => !label.toLowerCase().startsWith('duration'),
-  )
+  // "Completed" is the generic completion metric's label; on a card it reads as the viewer's status.
+  const metrics = activity.metricLabels.filter((label) => {
+    const l = label.toLowerCase()
+    return !l.startsWith('duration') && l !== 'completed'
+  })
   return {
     id: activity.id,
     title: activity.title,
