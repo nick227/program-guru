@@ -108,6 +108,28 @@ const domains = {
       createCustomProgramType: ["catalog.createCustomProgramType", "userId", "body"],
     },
   },
+  media: {
+    services: { media: 'media.service' },
+    bindings: {
+      completeMediaUpload: ["media.completeUpload", "userId", "params.uploadId"],
+      createMediaAttachment: ["media.attach", "userId", "body"],
+      createMediaPublication: ["media.publish", "userId", "body"],
+      createMediaUpload: ["media.createUpload", "userId", "body"],
+      getMedia: ["media.get", "userId", "params.mediaId"],
+      moderateMediaPublication: ["media.moderate", "userId", "params.publicationId", "body"],
+      updateMedia: ["media.update", "userId", "params.mediaId", "body"],
+    },
+  },
+  billing: {
+    services: { billing: 'billing.service' },
+    bindings: {
+      createBillingPortalLink: ["billing.portalLink", "userId"],
+      createProgramCheckout: ["billing.createCheckout", "userId", "params.programId", "body"],
+      getCreatorEarnings: ["billing.earnings", "userId"],
+      getPayoutAccount: ["billing.getPayoutAccount", "userId"],
+      startPayoutOnboarding: ["billing.startOnboarding", "userId"],
+    },
+  },
 } as const
 
 const root = resolve(__dirname, '../../..')
