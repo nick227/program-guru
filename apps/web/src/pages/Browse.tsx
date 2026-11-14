@@ -17,6 +17,7 @@ import {
   useLiveSessions,
   useMyGroups,
   usePlaces,
+  usePublicGatherings,
   useProgramPrefetch,
   useProgramTypes,
   useProgramWorkspace,
@@ -1000,6 +1001,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   // City browsing applies to Activities, whose Places carry a city (12 §5a).
   const city = mode.kind === 'activities' ? params.get(BROWSE_PARAM.city) ?? '' : ''
   const frequency = mode.kind === 'activities' && params.get(BROWSE_PARAM.frequency) === 'DAILY' ? 'DAILY' : ''
+  const withOthers = mode.kind === 'activities' && params.get(BROWSE_PARAM.with) === 'others'
   const placesCatalog = usePlaces({ enabled: !mode.isPicker })
   const cities = [...new Set((placesCatalog.data ?? []).map((p) => p.locality))].sort()
   const [previewPlaceId, setPreviewPlaceId] = useState<string | null>(null)
@@ -1245,7 +1247,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     sort !== 'POPULAR' ||
     creator !== 'ALL' ||
     !!city ||
-    !!frequency
+    !!frequency ||
+    withOthers
 
   const showDirectorySections =
     !mode.isPicker && mode.kind === 'programs' && !filtered
@@ -1280,6 +1283,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     // Server-side, so a shortcut finds every match, not only loaded pages.
     duration: mode.kind === 'activities' ? toServerDiscoverDuration(duration) : undefined,
     frequency: frequency || undefined,
+    hasOpenGathering: withOthers || undefined,
     sort,
     enabled: mode.kind === 'activities' || showDirectorySections,
   })
@@ -1291,12 +1295,16 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     sort: 'POPULAR',
     enabled: showDirectorySections && cities.length > 0,
   })
+  // Gatherings (10 §9.7): upcoming ones decide the "With others" shortcut; active ones lead Happening Now.
+  const upcomingGatherings = usePublicGatherings({ when: 'UPCOMING', enabled: !mode.isPicker })
+  const activeGatherings = usePublicGatherings({ when: 'NOW', enabled: showDirectorySections })
   // Directory Activities: most-used alongside newest, so new catalog content is visible (12 §5a).
   const newestActivities = useDiscoverActivities({ sort: 'NEW', enabled: showDirectorySections })
   const shortcuts = discoveryShortcuts({
     domainIdBySlug: Object.fromEntries((categories.data ?? []).map((c) => [c.slug, c.id])),
     cities,
     hasStartingSoon: (startingSoonPrograms.data?.pages[0]?.data.length ?? 0) > 0,
+    hasOpenGatherings: (upcomingGatherings.data?.length ?? 0) > 0,
   })
   const placeGroups = (() => {
     const byPlace = new Map<string, { place: S['Place']; activities: S['ActivitySummary'][] }>()
@@ -1639,6 +1647,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const activeFilterChips: { key: string; label: string; onRemove: () => void }[] = []
   if (city) {
     activeFilterChips.push({ key: 'city', label: `In ${city}`, onRemove: () => setParam(BROWSE_PARAM.city, '') })
+  }
+  if (withOthers) {
+    activeFilterChips.push({ key: 'with', label: 'With others', onRemove: () => setParam(BROWSE_PARAM.with, '') })
   }
   if (frequency) {
     activeFilterChips.push({ key: 'frequency', label: 'Daily habits', onRemove: () => setParam(BROWSE_PARAM.frequency, '') })
@@ -2498,6 +2509,34 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                     )
                   ) : showDirectorySections ? (
                     <div className="space-y-16">
+                      {(activeGatherings.data?.length ?? 0) > 0 && (
+                        <section aria-labelledby="section-gatherings-now">
+                          <h2 id="section-gatherings-now" className="mb-4 font-display text-[22px] font-semibold tracking-[-0.02em] text-foreground sm:text-2xl">
+                            Happening now with others
+                          </h2>
+                          <ul className="grid gap-3 sm:grid-cols-2">
+                            {activeGatherings.data!.slice(0, 4).map((g) => (
+                              <li key={g.id}>
+                                <Link
+                                  to={`/gatherings/${g.id}`}
+                                  className="flex items-center gap-3 rounded-xl border border-border/60 p-3 transition-colors hover:bg-surface-muted"
+                                >
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block truncate font-semibold text-foreground">{g.activity.title}</span>
+                                    <span className="block truncate text-sm text-muted">
+                                      {g.activeCount} active · {g.memberCount} joined
+                                      {g.place ? ` · ${g.place.name}, ${g.place.locality}` : ''}
+                                    </span>
+                                  </span>
+                                  <span className="text-sm font-semibold text-accent">
+                                    {groupAction(g) === 'open' ? 'Open' : 'Join'}
+                                  </span>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
                       {communitySections.map((section) => {
                         if (section.source === 'creators') {
                           const visibleCreators = section.limit

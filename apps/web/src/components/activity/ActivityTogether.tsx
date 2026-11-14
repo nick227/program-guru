@@ -33,6 +33,7 @@ export function ActivityTogether({
   sharedMediaCount,
   sharedCommentCount,
   disabled,
+  gathering = false,
 }: {
   collaborators: S['CollaboratorSummary']
   viewerId?: string
@@ -43,6 +44,8 @@ export function ActivityTogether({
   sharedMediaCount: number
   sharedCommentCount: number
   disabled: boolean
+  /** A standalone gathering: invited through its share link, not the Program group invite (10 §9). */
+  gathering?: boolean
 }) {
   const addReaction = useAddCompletionReaction()
   const removeReaction = useRemoveCompletionReaction()
@@ -113,6 +116,7 @@ export function ActivityTogether({
           occurrenceId={calendarItemId}
           canCheckIn={canCheckIn && !!activityId}
           checkInLabel="Share Check-in"
+          hideGroupLink={gathering}
           progressSummary={`${c.finishedCount} of ${c.totalCount} finished`}
           disabled={disabled}
         />
@@ -259,7 +263,7 @@ export function ActivityTogether({
           )}
         </div>
 
-        <aside className="activity-together__invite">
+        {!gathering && <aside className="activity-together__invite">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15 text-accent">
             <Users size={18} aria-hidden />
           </span>
@@ -270,7 +274,7 @@ export function ActivityTogether({
             </p>
           </div>
           <GroupInviteLink groupId={c.groupId} variant="default" size="sm" />
-        </aside>
+        </aside>}
       </div>
 
       <p className="text-xs text-muted">

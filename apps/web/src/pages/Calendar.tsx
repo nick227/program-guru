@@ -209,6 +209,9 @@ export function CalendarPage() {
     const item = rawItems.find((row) => row.id === itemId)
     if (!item) return
     if ((item.localTime ?? null) === localTime) return
+    // A personal change leaves the gathering (10 §9.6).
+    const raw = calendar.data?.find((row) => row.id === itemId)
+    if (raw?.gatheringId && !window.confirm('Changing the time leaves this gathering. Continue?')) return
     setPendingTimes((prev) => ({ ...prev, [itemId]: localTime }))
     try {
       await updateItem.mutateAsync({

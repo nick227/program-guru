@@ -17,11 +17,14 @@ export function ScheduledPlace({ item }: { item: Item }) {
   const place = item.place
   if (!place) return null
 
-  const save = (placeId: string | null) =>
+  const save = (placeId: string | null) => {
+    // A personal change leaves the gathering (10 §9.6).
+    if (item.gatheringId && !window.confirm('Changing the place leaves this gathering. Continue?')) return
     update.mutate(
       { itemId: item.id, placeId, expectedUpdatedAt: item.updatedAt },
       { onSuccess: () => setEditing(false) },
     )
+  }
 
   return (
     <div className="activity-hero__place">

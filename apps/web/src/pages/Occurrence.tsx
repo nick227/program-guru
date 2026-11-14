@@ -49,6 +49,7 @@ import { MetricInput } from '@/components/activity/MetricInput'
 import { ActivityTogether } from '@/components/activity/ActivityTogether'
 import { ActivityHero, type ActivityMeta } from '@/components/activity/ActivityHero'
 import { ScheduledPlace } from '@/components/activity/ScheduledPlace'
+import { OccurrenceGathering } from '@/components/activity/OccurrenceGathering'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { ActivitySection } from '@/components/activity/ActivitySection'
 import { ActivityShare } from '@/components/activity/ActivityShare'
@@ -401,6 +402,7 @@ function OccurrenceContent({
               activityId={o.item.activityId}
               activityTitle={o.item.title}
               calendarItemId={o.item.id}
+              gathering={!!o.item.gatheringId}
               canCheckIn={phase === 'completed'}
               sharedMediaCount={o.sharedMedia.length}
               sharedCommentCount={o.sharedMedia.reduce((n, m) => n + m.commentCount, 0)}
@@ -602,7 +604,12 @@ function OccurrenceHero({
       returnTo={currentUrl}
       meta={meta}
       extraMeta={showTimer && session ? <SessionElapsed session={session} /> : null}
-      footnote={<ScheduledPlace item={o.item} />}
+      footnote={
+        <>
+          <ScheduledPlace item={o.item} />
+          {!o.item.locked && <OccurrenceGathering item={o.item} activity={activity} />}
+        </>
+      }
       actions={
         <>
           {!!error && (

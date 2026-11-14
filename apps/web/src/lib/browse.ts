@@ -28,6 +28,8 @@ export const BROWSE_PARAM = {
   city: 'city',
   /** Default frequency kind of Activities, e.g. DAILY for daily habits (12 §5a). */
   frequency: 'frequency',
+  /** `others`: Activities with an upcoming public, open gathering (10 §9.7). */
+  with: 'with',
 } as const
 
 export interface BrowseUrlOptions {
@@ -244,11 +246,13 @@ export type DiscoveryShortcut = {
   set: Record<string, string>
 }
 
-export function discoveryShortcuts(input: { domainIdBySlug: Record<string, string>; cities: string[]; hasStartingSoon?: boolean }): DiscoveryShortcut[] {
+export function discoveryShortcuts(input: { domainIdBySlug: Record<string, string>; cities: string[]; hasStartingSoon?: boolean; hasOpenGatherings?: boolean }): DiscoveryShortcut[] {
   const out: DiscoveryShortcut[] = [
     { key: 'quick', label: 'Quick · 15 min', kind: 'activities', set: { [BROWSE_PARAM.duration]: 'short' } },
     { key: 'daily', label: 'Daily habits', kind: 'activities', set: { [BROWSE_PARAM.frequency]: 'DAILY' } },
   ]
+  // Shown only when a real public gathering is coming up.
+  if (input.hasOpenGatherings) out.push({ key: 'with-others', label: 'With others', kind: 'activities', set: { [BROWSE_PARAM.with]: 'others' } })
   const social = input.domainIdBySlug['relationships']
   if (social) out.push({ key: 'social', label: 'Social', kind: 'activities', set: { [BROWSE_PARAM.category]: social } })
   const outdoors = input.domainIdBySlug['outdoors-nature']
@@ -265,7 +269,7 @@ export function discoveryShortcuts(input: { domainIdBySlug: Record<string, strin
 
 const KIND_ONLY_PARAMS: Record<BrowseKind, string[]> = {
   programs: [BROWSE_PARAM.type, BROWSE_PARAM.timing, BROWSE_PARAM.view, BROWSE_PARAM.level, BROWSE_PARAM.session, BROWSE_PARAM.tags],
-  activities: [BROWSE_PARAM.city, BROWSE_PARAM.frequency],
+  activities: [BROWSE_PARAM.city, BROWSE_PARAM.frequency, BROWSE_PARAM.with],
 }
 
 export function isShortcutActive(params: URLSearchParams, kind: BrowseKind, shortcut: DiscoveryShortcut): boolean {

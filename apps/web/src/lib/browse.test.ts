@@ -126,6 +126,7 @@ describe('discovery shortcuts (12 §5a)', () => {
   it('only presets existing filters, and shows city and Domain shortcuts only when that data exists', () => {
     expect(shortcuts.map((s) => s.label)).toEqual(['Quick · 15 min', 'Daily habits', 'Social', 'Outdoors', 'In Austin', 'Starting soon'])
     expect(discoveryShortcuts({ domainIdBySlug: {}, cities: [] }).map((s) => s.key)).toEqual(['quick', 'daily'])
+    expect(discoveryShortcuts({ domainIdBySlug: {}, cities: [], hasOpenGatherings: true }).map((s) => s.key)).toEqual(['quick', 'daily', 'with-others'])
   })
 
   it('applies a shortcut by switching kind and dropping the other kind’s filters', () => {

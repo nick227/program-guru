@@ -32,6 +32,7 @@ import { NotificationsPage } from '@/pages/Notifications'
 import { SettingsPage } from '@/pages/Settings'
 import { AchievementsPage } from '@/pages/Achievements'
 import { GroupInvitationJoinPage, GroupPage } from '@/pages/Group'
+import { GatheringPage } from '@/pages/Gathering'
 import { UnsubscribePage } from '@/pages/Unsubscribe'
 import { StudioPage } from '@/pages/Studio'
 import { AdminApp } from '@/admin/registry'
@@ -183,6 +184,7 @@ const router = createBrowserRouter([
       { path: '/programs/:id', element: <ProgramPage /> },
       { path: '/activities/:id', element: <ActivityPage /> },
       { path: '/groups/:id', element: <GroupPage /> },
+      { path: '/gatherings/:id', element: <GatheringPage /> },
       { path: '/join/:token', element: <GroupInvitationJoinPage /> },
       { path: '/unsubscribe', element: <UnsubscribePage /> },
       { path: '/email/unsubscribe', element: <UnsubscribePage /> },

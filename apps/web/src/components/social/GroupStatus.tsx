@@ -120,6 +120,8 @@ export interface GroupStatusProps {
   variant?: 'card' | 'inline'
   /** Custom label for the Check In trigger button. */
   checkInLabel?: string
+  /** Gatherings have no group page (10 §9.3): members act from the occurrence itself. */
+  hideGroupLink?: boolean
   className?: string
 }
 
@@ -143,6 +145,7 @@ export function GroupStatus({
   variant = 'card',
   checkInLabel = 'Check In',
   className,
+  hideGroupLink = false,
 }: GroupStatusProps) {
   const me = useCurrentUser()
   const signedIn = !!me.data
@@ -310,7 +313,7 @@ export function GroupStatus({
           <span>{checkInLabel}</span>
         </Button>
       )}
-      {selected.viewerIsMember ? (
+      {selected.viewerIsMember && hideGroupLink ? null : selected.viewerIsMember ? (
         <Link
           to={groupHref}
           className="btn btn--outline btn--sm shrink-0 text-xs"

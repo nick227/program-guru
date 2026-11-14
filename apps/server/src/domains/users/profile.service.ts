@@ -9,7 +9,7 @@ const RESERVED_HANDLES = new Set([
   'settings', 'signup', 'support', 'system', 'staff', 'official', 'u', 'users', 'www',
   // Top-level web routes (apps/web/src/App.tsx): a profile with one of these handles would be unreachable.
   'verify-email', 'forgot-password', 'reset-password', 'discover', 'library', 'activities', 'occurrences',
-  'add-activity', 'media', 'achievements', 'groups', 'studio', 'join', 'unsubscribe', 'email',
+  'add-activity', 'media', 'achievements', 'groups', 'gatherings', 'studio', 'join', 'unsubscribe', 'email',
 ])
 
 export function normalizeHandle(handle: string) {
