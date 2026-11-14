@@ -107,6 +107,7 @@ export async function listLivePublicSessions(
       status: 'ACTIVE',
       visibility: 'PUBLIC',
       joinPolicy: 'OPEN',
+      kind: 'PROGRAM',
       owner: { status: 'ACTIVE', ...(blocked.length ? { id: { notIn: blocked } } : {}) },
       version: { program: discoverableProgramWhere },
     },
@@ -160,10 +161,11 @@ export async function listLivePublicSessions(
       .map(([, entry]) => entry)
       .sort((a, b) => a.joinedAt - b.joinedAt)
 
-    if (entries.length === 0) return []
+    if (entries.length === 0 || !g.version) return []
+    const version = g.version
 
-    const firstActivity = g.version.items[0]?.activity ?? null
-    const program = g.version.program
+    const firstActivity = version.items[0]?.activity ?? null
+    const program = version.program
     const customActivityTitle = entries.find((e) => e.activityTitle)?.activityTitle ?? null
     const activityTitle = customActivityTitle || firstActivity?.title || program.title
 
@@ -204,7 +206,7 @@ export async function listLivePublicSessions(
         activityTitle,
         durationMinutes:
           firstActivity?.durationMinutes ??
-          g.version.sessionMinutes ??
+          version.sessionMinutes ??
           program.sessionMinutes ??
           null,
         thumbnailUrl,

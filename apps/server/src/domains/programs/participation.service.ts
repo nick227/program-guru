@@ -77,12 +77,12 @@ export async function participationSummary(viewerId: string | null, programId: s
 /** Fellow active members, with a live run in that group, of the viewer's active groups per Program. */
 async function groupFriends(viewerId: string, programIds: string[]) {
   const mine = await db.groupMember.findMany({
-    where: { userId: viewerId, status: 'ACTIVE', group: { status: 'ACTIVE', version: { programId: { in: programIds } } } },
+    where: { userId: viewerId, status: 'ACTIVE', group: { status: 'ACTIVE', kind: 'PROGRAM', version: { programId: { in: programIds } } } },
     select: { groupId: true, group: { select: { version: { select: { programId: true } } } } },
   })
   const result = new Map<string, ProgramParticipation['friends']>()
   if (!mine.length) return result
-  const groupProgram = new Map(mine.map((m) => [m.groupId, m.group.version.programId]))
+  const groupProgram = new Map(mine.flatMap((m) => (m.group.version ? [[m.groupId, m.group.version.programId] as const] : [])))
   const [members, follows, blocks] = await Promise.all([
     db.groupMember.findMany({
       where: {

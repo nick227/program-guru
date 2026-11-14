@@ -139,8 +139,10 @@ export const handlers: Record<string, Handler> = {
   },
 
   async GroupInvitationCreated(e) {
-    const group = await db.programGroup.findUnique({ where: { id: e.payload.groupId }, include: { version: true } })
-    if (!group) return
+    const found = await db.programGroup.findUnique({ where: { id: e.payload.groupId }, include: { version: true } })
+    // Handle and email invitations exist for Program groups only; gatherings share links (10 §9.7).
+    if (!found?.version) return
+    const group = { ...found, version: found.version }
     const inviter = await displayName(e.payload.inviterId)
     if (e.payload.invitedUserId) {
       await notify({

@@ -772,7 +772,8 @@ export async function canSeePublication(viewerId: string | null, reference: { id
   if (p.program && !(await canReadProgramMedia(viewerId, p.program.id))) return false
   if (p.audience === 'GROUP') {
     if (!viewerId || !p.group || p.group.status !== 'ACTIVE') return false
-    if (!(await canReadProgramMedia(viewerId, p.group.version.programId))) return false
+    // Program groups also require Program access; a gathering's media needs membership only (10 §9.3).
+    if (p.group.version && !(await canReadProgramMedia(viewerId, p.group.version.programId))) return false
     const member = await db.groupMember.findUnique({ where: { groupId_userId: { groupId: p.group.id, userId: viewerId } } })
     return p.status === 'APPROVED' && member?.status === 'ACTIVE'
   }

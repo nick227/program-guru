@@ -1,6 +1,6 @@
 // Program Groups (10-COLLABORATION.md). Members keep independent calendars and private results;
 // the group overlays consented completion, reactions, and explicitly shared media.
-import { db, type Prisma, type ProgramGroup } from '@project/db'
+import { db, type GroupKind, type Prisma, type ProgramGroup } from '@project/db'
 import { newToken, sha256 } from '../../lib/auth'
 import { AppError, badRequest, conflict, forbidden, notFound } from '../../lib/errors'
 import { withIdempotency } from '../../lib/idempotency'
@@ -23,23 +23,42 @@ export const REACTIONS = ['👏', '🔥', '💪', '❤️', '🎉', '👍'] // a
 
 const appBase = () => (process.env.PUBLIC_APP_URL ?? 'http://localhost:5173').replace(/\/$/, '')
 
+/** Membership for operations shared by both kinds (completions, reactions, media, comments, check-ins). */
 async function activeMember(userId: string, groupId: string) {
   const m = await db.groupMember.findUnique({ where: { groupId_userId: { groupId, userId } }, include: { group: true } })
   if (!m || m.status !== 'ACTIVE') throw notFound('Group')
   return m
 }
 
-async function ownedGroup(userId: string, groupId: string) {
+// ── Program groups only (10 §9.3) ───────────────────────────────────────────
+// Every /groups operation that reads a Program or version acts on PROGRAM groups only. A gathering
+// reaching one is "not found" there; gatherings have their own operations (gathering.service.ts).
+
+export type WithVersion<T extends { version: unknown }> = T & { version: NonNullable<T['version']> }
+
+export function programGroup<T extends { kind: GroupKind; version: unknown }>(g: T | null | undefined, what = 'Group'): WithVersion<T> {
+  if (!g || g.kind !== 'PROGRAM' || !g.version) throw notFound(what)
+  return g as WithVersion<T>
+}
+
+async function programMember(userId: string, groupId: string) {
   const m = await activeMember(userId, groupId)
+  if (m.group.kind !== 'PROGRAM') throw notFound('Group')
+  return m
+}
+
+async function ownedGroup(userId: string, groupId: string) {
+  const m = await programMember(userId, groupId)
   if (m.role !== 'OWNER') throw forbidden('Only the group owner can do that')
   return m.group
 }
 
 async function toSummary(
-  g: ProgramGroup & { version: { title: string; programId: string } },
+  group: ProgramGroup & { version: { title: string; programId: string } | null },
   userId: string,
   agg?: GroupAggregates,
 ) {
+  const g = programGroup(group)
   const [memberCount, me, fallbackAgg] = await Promise.all([
     db.groupMember.count({ where: { groupId: g.id, status: 'ACTIVE' } }),
     db.groupMember.findUnique({ where: { groupId_userId: { groupId: g.id, userId } } }),
@@ -161,10 +180,11 @@ async function loadGroupAggregates(
 }
 
 function toPublicGroupSummary(
-  g: ProgramGroup & { version: { title: string; programId: string }; _count: { members: number }; members?: { userId: string }[] },
+  group: ProgramGroup & { version: { title: string; programId: string } | null; _count: { members: number }; members?: { userId: string }[] },
   now = new Date(),
   agg?: GroupAggregates,
 ) {
+  const g = programGroup(group)
   const viewerIsMember = (g.members?.length ?? 0) > 0
   return {
     id: g.id,
@@ -212,13 +232,14 @@ export async function startingSoonProgramIds(viewerId: string | null, now = new 
       visibility: 'PUBLIC',
       mode: 'SYNC',
       startLocalDate: { gte: minDate, lte: maxDate },
+      kind: 'PROGRAM',
       owner: { status: 'ACTIVE', ...(blocked.length ? { id: { notIn: blocked } } : {}) },
       version: { program: discoverableProgramWhere },
     },
     select: { mode: true, startLocalDate: true, timezone: true, version: { select: { programId: true } } },
   })
   const ids = new Set<string>()
-  for (const g of groups) if (isStartingSoonGroup(g, now)) ids.add(g.version.programId)
+  for (const g of groups) if (g.version && isStartingSoonGroup(g, now)) ids.add(g.version.programId)
   return [...ids]
 }
 
@@ -237,6 +258,7 @@ export async function featuredGroupsForPrograms(
       status: 'ACTIVE',
       visibility: 'PUBLIC',
       owner: { status: 'ACTIVE', ...(blocked.length ? { id: { notIn: blocked } } : {}) },
+      kind: 'PROGRAM',
       version: { programId: { in: programIds }, program: discoverableProgramWhere },
     },
     include: {
@@ -291,6 +313,7 @@ export async function listByProgram(
   const rows = await db.programGroup.findMany({
     where: {
       status: 'ACTIVE',
+      kind: 'PROGRAM',
       visibility: 'PUBLIC',
       owner: { status: 'ACTIVE', ...(blocked.length ? { id: { notIn: blocked } } : {}) },
       version: { programId },
@@ -351,6 +374,7 @@ export async function listByActivity(
   const rows = await db.programGroup.findMany({
     where: {
       status: 'ACTIVE',
+      kind: 'PROGRAM',
       version: {
         ...(query.programId ? { programId: query.programId } : {}),
         items: { some: { activityId } },
@@ -384,7 +408,7 @@ export async function listByActivity(
 }
 
 async function toDetail(groupId: string, userId: string) {
-  const g = await db.programGroup.findUniqueOrThrow({ where: { id: groupId }, include: { version: true } })
+  const g = programGroup(await db.programGroup.findUnique({ where: { id: groupId }, include: { version: true } }))
   const [members, mine, checkInMap] = await Promise.all([
     db.groupMember.findMany({ where: { groupId, status: 'ACTIVE' }, include: { user: { include: { profile: true } } }, orderBy: { createdAt: 'asc' } }),
     db.programEnrollment.findFirst({ where: { userId, groupId, status: { in: ['ACTIVE', 'PAUSED'] } }, orderBy: { createdAt: 'desc' } }),
@@ -470,7 +494,7 @@ async function depart(tx: Prisma.TransactionClient, groupId: string, userId: str
 export async function listMine(userId: string, query: PageQuery) {
   const { limit, take } = pageArgs(query)
   const rows = await db.programGroup.findMany({
-    where: { status: 'ACTIVE', members: { some: { userId, status: 'ACTIVE' } }, ...afterCursor(query.cursor) },
+    where: { status: 'ACTIVE', kind: 'PROGRAM', members: { some: { userId, status: 'ACTIVE' } }, ...afterCursor(query.cursor) },
     orderBy: pageOrder,
     take,
     include: { version: true },
@@ -531,7 +555,7 @@ export async function create(
 }
 
 export async function get(userId: string, groupId: string) {
-  await activeMember(userId, groupId)
+  await programMember(userId, groupId)
   return toDetail(groupId, userId)
 }
 
@@ -558,10 +582,10 @@ export async function update(
     throw badRequest('Private groups must be invite-only', { joinPolicy: 'cannot be OPEN for a PRIVATE group' })
   }
   if (nextVisibility === 'PUBLIC') {
-    const withProgram = await db.programGroup.findUniqueOrThrow({
+    const withProgram = programGroup(await db.programGroup.findUnique({
       where: { id: groupId },
       include: { version: { include: { program: true } } },
-    })
+    }))
     const program = withProgram.version.program
     if (program.visibility !== 'PUBLIC' || program.status !== 'PUBLISHED' || program.moderatedAt || program.deletedAt) {
       throw badRequest('Public groups are only allowed on public published programs', { visibility: 'requires a public published program' })
@@ -587,7 +611,7 @@ export async function update(
 }
 
 export async function updateMyMembership(userId: string, groupId: string, input: { sharedCompletion?: boolean; leave?: boolean }) {
-  const m = await activeMember(userId, groupId)
+  const m = await programMember(userId, groupId)
   await db.$transaction(async (tx) => {
     if (input.sharedCompletion !== undefined) {
       await tx.groupMember.update({ where: { groupId_userId: { groupId, userId } }, data: { sharedCompletionEnabled: input.sharedCompletion } })
@@ -631,15 +655,15 @@ const toInvitation = (i: Prisma.GroupInvitationGetPayload<{ include: { invitedUs
 const pendingNow = () => ({ status: 'PENDING' as const, expiresAt: { gt: new Date() } })
 
 export async function listInvitations(userId: string, groupId: string) {
-  await activeMember(userId, groupId)
+  await programMember(userId, groupId)
   const rows = await db.groupInvitation.findMany({ where: { groupId, status: 'PENDING' }, orderBy: { createdAt: 'desc' }, include: { invitedUser: { include: { profile: true } } } })
   return rows.map((r) => toInvitation(r))
 }
 
 export async function invite(userId: string, groupId: string, input: { kind: 'USER' | 'EMAIL' | 'LINK'; handle?: string; email?: string; rotate?: boolean }) {
-  const m = await activeMember(userId, groupId)
+  const m = await programMember(userId, groupId)
   if (m.group.status !== 'ACTIVE') throw badRequest('This group is closed')
-  const group = await db.programGroup.findUniqueOrThrow({ where: { id: groupId }, include: invitationInclude.group.include })
+  const group = programGroup(await db.programGroup.findUnique({ where: { id: groupId }, include: invitationInclude.group.include }))
   if (!openForJoins(group)) throw badRequest('This program is not open for new participants')
   if (input.rotate && input.kind !== 'LINK') throw badRequest('Only link invitations can be rotated')
   const token = newToken()
@@ -685,7 +709,7 @@ export async function invite(userId: string, groupId: string, input: { kind: 'US
 }
 
 export async function revokeInvitation(userId: string, groupId: string, invitationId: string) {
-  const m = await activeMember(userId, groupId)
+  const m = await programMember(userId, groupId)
   const inv = await db.groupInvitation.findUnique({ where: { id: invitationId } })
   if (!inv || inv.groupId !== groupId) throw notFound('Invitation')
   if (inv.createdById !== userId && m.role !== 'OWNER') throw forbidden()
@@ -697,8 +721,14 @@ const invitationInclude = {
   group: { include: { version: { include: { program: { include: { policy: true } } } } } },
   createdBy: { include: { profile: true } },
 } satisfies Prisma.GroupInvitationInclude
-type InvitationRow = Prisma.GroupInvitationGetPayload<{ include: typeof invitationInclude }>
-type GroupWithProgram = InvitationRow['group']
+type RawInvitationRow = Prisma.GroupInvitationGetPayload<{ include: typeof invitationInclude }>
+type GroupWithProgram = WithVersion<RawInvitationRow['group']>
+type InvitationRow = Omit<RawInvitationRow, 'group'> & { group: GroupWithProgram }
+
+/** Invitations handled here belong to Program groups; a gathering's link is used through gathering.service. */
+function programInvitation(inv: RawInvitationRow): InvitationRow {
+  return { ...inv, group: programGroup(inv.group, 'Invitation') }
+}
 
 /** New joins need an active group on a published, unmoderated Program and version (10 §3). */
 function openForJoins(g: GroupWithProgram) {
@@ -706,7 +736,7 @@ function openForJoins(g: GroupWithProgram) {
   return g.status === 'ACTIVE' && program.status === 'PUBLISHED' && !program.moderatedAt && !!g.version.publishedAt
 }
 
-function usable(inv: InvitationRow | null): inv is InvitationRow {
+function usable(inv: RawInvitationRow | null): inv is RawInvitationRow {
   if (!inv || inv.status !== 'PENDING' || inv.expiresAt < new Date()) return false
   return inv.kind !== 'LINK' || inv.group.joinLinkEnabled
 }
@@ -714,13 +744,15 @@ function usable(inv: InvitationRow | null): inv is InvitationRow {
 async function invitationByToken(token: string) {
   const inv = await db.groupInvitation.findUnique({ where: { tokenHash: sha256(token) }, include: invitationInclude })
   if (!usable(inv) || inv.group.status !== 'ACTIVE') throw notFound('Invitation')
-  return inv
+  return programInvitation(inv)
 }
 
 /** An invitation addressed to the viewer (USER, or EMAIL to their verified address), by id. */
 async function invitationForMe(userId: string, invitationId: string) {
-  const inv = await db.groupInvitation.findUnique({ where: { id: invitationId }, include: invitationInclude })
-  if (!usable(inv) || inv.kind === 'LINK' || !(await addressedTo(userId, inv, true))) throw notFound('Invitation')
+  const raw = await db.groupInvitation.findUnique({ where: { id: invitationId }, include: invitationInclude })
+  if (!usable(raw) || raw.kind === 'LINK') throw notFound('Invitation')
+  const inv = programInvitation(raw)
+  if (!(await addressedTo(userId, inv, true))) throw notFound('Invitation')
   return inv
 }
 
@@ -814,7 +846,7 @@ export async function listReceived(userId: string, query: PageQuery) {
   const rows = await db.groupInvitation.findMany({
     where: {
       ...pendingNow(),
-      group: { status: 'ACTIVE' },
+      group: { status: 'ACTIVE', kind: 'PROGRAM' },
       OR: [{ kind: 'USER', invitedUserId: userId }, ...(user.emailVerifiedAt ? [{ kind: 'EMAIL' as const, invitedEmailHash: sha256(normalizeEmail(user.email)) }] : [])],
       ...afterCursor(query.cursor),
     },
@@ -824,7 +856,7 @@ export async function listReceived(userId: string, query: PageQuery) {
   })
   const page = toPage(rows, limit, (r) => r)
   return {
-    data: await Promise.all(page.data.map(async (r) => ({ id: r.id, kind: r.kind, expiresAt: r.expiresAt.toISOString(), groupId: r.groupId, preview: await toPreview(userId, r) }))),
+    data: await Promise.all(page.data.map(async (r) => ({ id: r.id, kind: r.kind, expiresAt: r.expiresAt.toISOString(), groupId: r.groupId, preview: await toPreview(userId, programInvitation(r)) }))),
     meta: page.meta,
   }
 }
@@ -872,7 +904,7 @@ async function executeGroupJoin(
   }
   // Newcomers start on the version available now; the group's creation version may be older.
   const joinable = shouldCreateEnrollment
-    ? await joinableVersion(userId, program.id, program.latestPublishedVersionId ?? group.programVersionId, { invited: !!opts.inv })
+    ? await joinableVersion(userId, program.id, program.latestPublishedVersionId ?? group.version.id, { invited: !!opts.inv })
     : null
 
   await db.$transaction(
@@ -920,7 +952,8 @@ async function acceptInvitation(userId: string, inv: InvitationRow, input: Accep
 }
 
 async function loadPublicGroup(viewerId: string | null, groupId: string) {
-  const group = await db.programGroup.findUnique({ where: { id: groupId }, include: invitationInclude.group.include })
+  const raw = await db.programGroup.findUnique({ where: { id: groupId }, include: invitationInclude.group.include })
+  const group = raw?.kind === 'PROGRAM' && raw.version ? programGroup(raw) : null
   if (
     !group ||
     group.visibility !== 'PUBLIC' ||

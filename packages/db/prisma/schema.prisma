@@ -112,17 +112,17 @@ model User {
   completionComments  CompletionComment[]
 
   mediaAssets          MediaAsset[]
-  mediaPublications    MediaPublication[] @relation("PublicationPublisher")
-  publicationsReviewed MediaPublication[] @relation("PublicationReviewer")
+  mediaPublications    MediaPublication[]      @relation("PublicationPublisher")
+  publicationsReviewed MediaPublication[]      @relation("PublicationReviewer")
   mediaReactions       MediaReaction[]
   mediaComments        MediaComment[]
-  notifications        Notification[]     @relation("NotificationRecipient")
-  notificationsCaused  Notification[]     @relation("NotificationActor")
+  notifications        Notification[]          @relation("NotificationRecipient")
+  notificationsCaused  Notification[]          @relation("NotificationActor")
   reminderDispatches   ReminderDispatch[]
   reportsFiled         ContentReport[]
   moderationActions    ModerationAction[]
   idempotencyKeys      IdempotencyKey[]
-  programSlugAliases   ProgramSlugAlias[]   @relation("UserProgramAliases")
+  programSlugAliases   ProgramSlugAlias[]      @relation("UserProgramAliases")
   attachmentIntents    MediaAttachmentIntent[]
 
   @@index([status])
@@ -462,6 +462,7 @@ model Place {
   activities    Activity[]
   calendarItems CalendarItem[]
   recurrences   CalendarRecurrence[]
+  gatherings    ProgramGroup[]
 
   @@index([isActive, locality])
 }
@@ -503,6 +504,7 @@ model Activity {
   completionShares CompletionShare[]
   publications     MediaPublication[]
   aliases          ActivitySlugAlias[]   @relation("ActivityAliases")
+  gatherings       ProgramGroup[]
 
   @@index([categoryId, status, visibility])
   @@index([creatorId, status])
@@ -513,17 +515,17 @@ model Activity {
 }
 
 model ActivityRevision {
-  id              String    @id @default(uuid()) @db.Char(36)
-  activityId      String    @db.Char(36)
-  revisionNumber  Int
-  titleSnapshot     String    @db.VarChar(140)
-  summarySnapshot   String?   @db.VarChar(500)
+  id                      String    @id @default(uuid()) @db.Char(36)
+  activityId              String    @db.Char(36)
+  revisionNumber          Int
+  titleSnapshot           String    @db.VarChar(140)
+  summarySnapshot         String?   @db.VarChar(500)
   durationMinutesSnapshot Int?
   targetTimeSnapshot      String?   @db.VarChar(5)
-  frequencySnapshot Json?
-  publishedAt       DateTime?
-  editorId        String?   @db.Char(36)
-  createdAt       DateTime  @default(now())
+  frequencySnapshot       Json?
+  publishedAt             DateTime?
+  editorId                String?   @db.Char(36)
+  createdAt               DateTime  @default(now())
 
   activity         Activity              @relation("ActivityRevisions", fields: [activityId], references: [id])
   latestOfActivity Activity?             @relation("ActivityLatestRevision")
@@ -654,27 +656,27 @@ enum ApprovalRequestStatus {
 }
 
 model Program {
-  id                       String        @id @default(uuid()) @db.Char(36)
-  slug                     String?       @db.VarChar(120)
-  creatorId                String?       @db.Char(36)
-  title                    String        @db.VarChar(140)
-  description              String?       @db.Text
-  categoryId               String        @db.Char(36)
-  programTypeId            String        @db.Char(36)
-  focusId                  String?       @db.Char(36)
-  level                    ProgramLevel  @default(ALL_LEVELS)
+  id                       String              @id @default(uuid()) @db.Char(36)
+  slug                     String?             @db.VarChar(120)
+  creatorId                String?             @db.Char(36)
+  title                    String              @db.VarChar(140)
+  description              String?             @db.Text
+  categoryId               String              @db.Char(36)
+  programTypeId            String              @db.Char(36)
+  focusId                  String?             @db.Char(36)
+  level                    ProgramLevel        @default(ALL_LEVELS)
   sessionMinutes           Int?
   sessionPresentation      SessionPresentation @default(SEPARATE)
-  coverMediaId             String?       @db.Char(36)
-  visibility               Visibility    @default(PRIVATE)
-  status                   ProgramStatus @default(DRAFT)
-  latestPublishedVersionId String?       @unique @db.Char(36)
-  draftRevision            Int           @default(0)
+  coverMediaId             String?             @db.Char(36)
+  visibility               Visibility          @default(PRIVATE)
+  status                   ProgramStatus       @default(DRAFT)
+  latestPublishedVersionId String?             @unique @db.Char(36)
+  draftRevision            Int                 @default(0)
   moderatedAt              DateTime?
   // Owner-deleted but kept for other participants' records (07 §6); hidden from owner and discovery
   deletedAt                DateTime?
-  createdAt                DateTime      @default(now())
-  updatedAt                DateTime      @updatedAt
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
 
   creator          User?                    @relation(fields: [creatorId], references: [id], onDelete: SetNull)
   category         Category                 @relation(fields: [categoryId], references: [id])
@@ -738,25 +740,25 @@ model ActivitySlugAlias {
 
 // publishedAt null = the single editable draft of a Program. Immutable once published.
 model ProgramVersion {
-  id              String                 @id @default(uuid()) @db.Char(36)
-  programId       String                 @db.Char(36)
-  versionNumber   Int
-  title           String                 @db.VarChar(140)
-  description     String?                @db.Text
-  programTypeId   String                 @db.Char(36)
-  focusId         String?                @db.Char(36)
-  level           ProgramLevel           @default(ALL_LEVELS)
-  sessionMinutes  Int?
-  sessionPresentation SessionPresentation @default(SEPARATE)
-  durationDays    Int?
-  cycleDays       Int?
-  frequency       Json
-  generationMode  ScheduleGenerationMode @default(ALL_EACH_DAY)
-  programDayCount Int                    @default(0)
-  placementCount  Int                    @default(0)
-  publishedAt     DateTime?
-  createdById     String?                @db.Char(36)
-  createdAt       DateTime               @default(now())
+  id                  String                 @id @default(uuid()) @db.Char(36)
+  programId           String                 @db.Char(36)
+  versionNumber       Int
+  title               String                 @db.VarChar(140)
+  description         String?                @db.Text
+  programTypeId       String                 @db.Char(36)
+  focusId             String?                @db.Char(36)
+  level               ProgramLevel           @default(ALL_LEVELS)
+  sessionMinutes      Int?
+  sessionPresentation SessionPresentation    @default(SEPARATE)
+  durationDays        Int?
+  cycleDays           Int?
+  frequency           Json
+  generationMode      ScheduleGenerationMode @default(ALL_EACH_DAY)
+  programDayCount     Int                    @default(0)
+  placementCount      Int                    @default(0)
+  publishedAt         DateTime?
+  createdById         String?                @db.Char(36)
+  createdAt           DateTime               @default(now())
 
   program            Program               @relation("ProgramVersions", fields: [programId], references: [id])
   latestOfProgram    Program?              @relation("ProgramLatestVersion")
@@ -1087,6 +1089,8 @@ model CalendarItem {
   activityId           String             @db.Char(36)
   activityRevisionId   String             @db.Char(36)
   placeId              String?            @db.Char(36)
+  // Set while this item is a member's occurrence of a gathering (10 §9)
+  gatheringId          String?            @db.Char(36)
   enrollmentId         String?            @db.Char(36)
   sourceScheduleItemId String?            @db.Char(36)
   recurrenceId         String?            @db.Char(36)
@@ -1106,13 +1110,14 @@ model CalendarItem {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
-  owner           User                 @relation(fields: [ownerId], references: [id])
-  activity        Activity             @relation(fields: [activityId], references: [id])
-  revision        ActivityRevision     @relation(fields: [activityRevisionId], references: [id])
-  place           Place?               @relation(fields: [placeId], references: [id], onDelete: SetNull)
-  enrollment      ProgramEnrollment?   @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
-  scheduleItem    ProgramScheduleItem? @relation(fields: [sourceScheduleItemId], references: [id], onDelete: SetNull)
-  recurrence      CalendarRecurrence?  @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+  owner            User                 @relation(fields: [ownerId], references: [id])
+  activity         Activity             @relation(fields: [activityId], references: [id])
+  revision         ActivityRevision     @relation(fields: [activityRevisionId], references: [id])
+  place            Place?               @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  enrollment       ProgramEnrollment?   @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  scheduleItem     ProgramScheduleItem? @relation(fields: [sourceScheduleItemId], references: [id], onDelete: SetNull)
+  recurrence       CalendarRecurrence?  @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+  gathering        ProgramGroup?        @relation("GatheringItems", fields: [gatheringId], references: [id], onDelete: SetNull)
   sessions         ActivitySession[]
   completionShares CompletionShare[]
   achievements     UserAchievement[]
@@ -1127,6 +1132,7 @@ model CalendarItem {
   @@index([activityRevisionId])
   @@index([sourceScheduleItemId])
   @@index([placeId])
+  @@index([gatheringId])
 }
 
 model ActivitySession {
@@ -1229,6 +1235,12 @@ model UserAchievement {
 
 // ─── Collaboration (10-COLLABORATION) ────────────────────────────────────────
 
+/// PROGRAM: a group following a Program version. GATHERING: one shared occurrence of a standalone Activity (10 §9).
+enum GroupKind {
+  PROGRAM
+  GATHERING
+}
+
 enum GroupMode {
   SYNC
   ASYNC
@@ -1276,7 +1288,10 @@ enum InviteStatus {
 
 model ProgramGroup {
   id                       String          @id @default(uuid()) @db.Char(36)
-  programVersionId         String          @db.Char(36)
+  kind                     GroupKind       @default(PROGRAM)
+  // Required for PROGRAM, null for GATHERING (CHECK in 20261114180000_gatherings)
+  programVersionId         String?         @db.Char(36)
+  activityId               String?         @db.Char(36)
   ownerId                  String          @db.Char(36)
   name                     String?         @db.VarChar(100)
   mode                     GroupMode       @default(SYNC)
@@ -1286,22 +1301,30 @@ model ProgramGroup {
   memberLinkSharingEnabled Boolean         @default(false)
   startLocalDate           DateTime?       @db.Date
   timezone                 String?         @db.VarChar(64)
+  startLocalTime           String?         @db.VarChar(5)
+  placeId                  String?         @db.Char(36)
+  capacity                 Int?
   stageTheme               String          @default("constellation") @db.VarChar(40)
   status                   GroupStatus     @default(ACTIVE)
   createdAt                DateTime        @default(now())
   updatedAt                DateTime        @updatedAt
 
-  version      ProgramVersion      @relation(fields: [programVersionId], references: [id])
-  owner        User                @relation(fields: [ownerId], references: [id])
-  members      GroupMember[]
-  invitations  GroupInvitation[]
-  enrollments  ProgramEnrollment[]
-  completions  CompletionShare[]
-  publications MediaPublication[]
+  version        ProgramVersion?     @relation(fields: [programVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  activity       Activity?           @relation(fields: [activityId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  place          Place?              @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  owner          User                @relation(fields: [ownerId], references: [id])
+  gatheringItems CalendarItem[]      @relation("GatheringItems")
+  members        GroupMember[]
+  invitations    GroupInvitation[]
+  enrollments    ProgramEnrollment[]
+  completions    CompletionShare[]
+  publications   MediaPublication[]
 
   @@index([programVersionId, status])
   @@index([visibility, status, startLocalDate])
   @@index([ownerId])
+  @@index([activityId, kind, status, startLocalDate])
+  @@index([placeId])
 }
 
 model GroupMember {
@@ -1586,12 +1609,12 @@ model MediaPublication {
   reviewNote        String?           @db.VarChar(500)
   createdAt         DateTime          @default(now())
 
-  media       MediaAsset        @relation(fields: [mediaId], references: [id])
-  publishedBy User              @relation("PublicationPublisher", fields: [publishedById], references: [id])
-  reviewedBy  User?             @relation("PublicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  group       ProgramGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  activity    Activity?         @relation(fields: [activityId], references: [id], onDelete: SetNull)
-  program     Program?          @relation(fields: [programId], references: [id], onDelete: SetNull)
+  media            MediaAsset        @relation(fields: [mediaId], references: [id])
+  publishedBy      User              @relation("PublicationPublisher", fields: [publishedById], references: [id])
+  reviewedBy       User?             @relation("PublicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  group            ProgramGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  activity         Activity?         @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  program          Program?          @relation(fields: [programId], references: [id], onDelete: SetNull)
   reactions        MediaReaction[]
   comments         MediaComment[]
   views            PublicationView[]
@@ -1854,12 +1877,12 @@ model RateLimitBucket {
 
 // Personal library organization never changes a source definition's publication state.
 model ProgramLibraryState {
-  userId String @db.Char(36)
-  programId String @db.Char(36)
+  userId     String    @db.Char(36)
+  programId  String    @db.Char(36)
   archivedAt DateTime?
-  user User @relation(fields: [userId], references: [id])
-  program Program @relation(fields: [programId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+  program    Program   @relation(fields: [programId], references: [id])
+
   @@id([userId, programId])
   @@index([programId])
 }
-
