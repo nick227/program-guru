@@ -34,6 +34,7 @@ import { AvatarStack } from '@/components/social/AvatarStack'
 import { GroupCheckInModal } from '@/components/group-stage/GroupCheckInModal'
 import { MediaViewer, type ViewerItem } from '@/components/media/MediaViewer'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
+import { GatheringSuggestion } from '@/components/activity/GatheringSuggestion'
 import { resolveActivityCategory } from '@/lib/activityCategory'
 import { formatRelativeTime } from '@/lib/dates'
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
@@ -436,6 +437,9 @@ function PanelBody({
             </div>
           </div>
         </div>
+
+        {/* Real gatherings of this Activity that day; joining reuses this item (10 §9.11). */}
+        {item && <GatheringSuggestion item={item} className="calendar-panel__gathering" />}
 
         {/* 2. Primary Complete / Undo Action */}
         <div className="calendar-panel__complete-wrap">

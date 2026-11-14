@@ -26,6 +26,9 @@ export async function joinGathering(request: any) {
 export async function leaveGathering(request: any) {
   return { data: await gatherings.leave(uid(request), request.params.gatheringId) }
 }
+export async function repeatGathering(request: any) {
+  return { data: await gatherings.repeat(uid(request), request.params.gatheringId, request.body) }
+}
 export async function createGatheringLink(request: any) {
   return { data: await gatherings.createLink(uid(request), request.params.gatheringId) }
 }

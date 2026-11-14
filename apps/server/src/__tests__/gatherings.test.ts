@@ -202,7 +202,7 @@ describe('changes after joining never silently claim participation (10 §9.6)', 
 })
 
 describe('contract cases', () => {
-  for (const op of ['listActivityGatherings', 'createGathering', 'listGatherings', 'getGathering', 'updateGathering', 'joinGathering', 'leaveGathering', 'createGatheringLink']) {
+  for (const op of ['listActivityGatherings', 'createGathering', 'listGatherings', 'getGathering', 'updateGathering', 'joinGathering', 'leaveGathering', 'createGatheringLink', 'repeatGathering']) {
     it(`${op} matches the contract`, async () => {
       await contractCase(app, op)
     })

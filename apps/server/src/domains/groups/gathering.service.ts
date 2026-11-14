@@ -75,6 +75,13 @@ async function load(groupId: string, tx: Tx | typeof db = db) {
   return g
 }
 
+/** A pending personal invitation to this viewer (Do It Again, 10 §9.11). */
+async function invitedTo(groupId: string, viewerId: string | null) {
+  if (!viewerId) return false
+  const inv = await db.groupInvitation.findFirst({ where: { groupId, kind: 'USER', invitedUserId: viewerId, status: 'PENDING', expiresAt: { gt: new Date() } } })
+  return !!inv
+}
+
 async function validInvite(groupId: string, token: string | undefined) {
   if (!token) return false
   const inv = await db.groupInvitation.findUnique({ where: { tokenHash: sha256(token) } })
@@ -92,7 +99,7 @@ async function canView(viewerId: string | null, g: GatheringRow, invite?: string
   }
   if (g.status !== 'ACTIVE') return false
   if (g.visibility === 'PUBLIC') return true
-  return validInvite(g.id, invite)
+  return (await validInvite(g.id, invite)) || (await invitedTo(g.id, viewerId))
 }
 
 export async function toGathering(g: GatheringRow, viewerId: string | null) {
@@ -210,11 +217,24 @@ async function linkItem(tx: Tx, g: GatheringRow, userId: string, calendarItemId?
   if (existing) return existing.id
   const tz = await timezoneOf(userId, tx)
   const slot = memberSlot(g, tz)
-  const compatible = { ownerId: userId, activityId: g.activityId!, status: 'PLANNED' as const, enrollmentId: null, gatheringId: null }
+  // Personal items, and items of a *solo* Program enrollment (10 §9.11). A Program-group item keeps its
+  // own occurrence identity and is never attached: one item, one group.
+  const compatible: Prisma.CalendarItemWhereInput = {
+    ownerId: userId,
+    activityId: g.activityId!,
+    status: 'PLANNED',
+    gatheringId: null,
+    groupOccurrenceKey: null,
+    OR: [{ enrollmentId: null }, { enrollment: { groupId: null } }],
+  }
   const reuse = calendarItemId
     ? await tx.calendarItem.findFirst({ where: { id: calendarItemId, ...compatible } })
-    : await tx.calendarItem.findFirst({ where: { ...compatible, localDate: toDbDate(slot.localDate) }, orderBy: { createdAt: 'asc' } })
-  if (calendarItemId && !reuse) throw badRequest('That item cannot become this gathering', { calendarItemId: 'must be your own planned item of this Activity, not in a Program or another gathering' })
+    : await tx.calendarItem.findFirst({ where: { ...compatible, localDate: toDbDate(slot.localDate) }, orderBy: [{ enrollmentId: 'desc' }, { createdAt: 'asc' }] })
+  if (calendarItemId && !reuse) throw badRequest('That item cannot join this gathering', { calendarItemId: 'must be your own planned item of this Activity, not in a Program group or another gathering' })
+  // A Program day is never moved to another date by joining.
+  if (reuse?.enrollmentId && fromDbDate(reuse.localDate) !== slot.localDate) {
+    throw badRequest('Join a gathering on the same day as this Program item', { calendarItemId: 'is on a different date' })
+  }
   const link = {
     gatheringId: g.id,
     groupOccurrenceKey: gatheringKey(g.id),
@@ -334,7 +354,7 @@ export async function create(
   })
 }
 
-export async function join(userId: string, groupId: string, input: { invite?: string; idempotencyKey: string }) {
+export async function join(userId: string, groupId: string, input: { invite?: string; calendarItemId?: string | null; idempotencyKey: string }) {
   const { idempotencyKey, ...request } = input
   return withIdempotency({
     userId,
@@ -349,7 +369,7 @@ export async function join(userId: string, groupId: string, input: { invite?: st
       if (member?.status !== 'ACTIVE') {
         if (g.status !== 'ACTIVE') throw conflict('This gathering is closed')
         if (member?.status === 'REMOVED') throw notFound('Gathering')
-        const viaLink = await validInvite(groupId, input.invite)
+        const viaLink = (await validInvite(groupId, input.invite)) || (await invitedTo(groupId, userId))
         if (!viaLink && (g.visibility !== 'PUBLIC' || g.joinPolicy !== 'OPEN')) throw notFound('Gathering')
         if (isPast(g)) throw conflict('This gathering has already started')
         const count = await db.groupMember.count({ where: { groupId, status: 'ACTIVE' } })
@@ -363,8 +383,10 @@ export async function join(userId: string, groupId: string, input: { invite?: st
             update: { status: 'ACTIVE', role: 'MEMBER', joinedAt: new Date() },
           })
           await enqueue(tx, 'GroupMemberJoined', { groupId, userId })
+          // An addressed invitation is used once joined.
+          await tx.groupInvitation.updateMany({ where: { groupId, kind: 'USER', invitedUserId: userId, status: 'PENDING' }, data: { status: 'ACCEPTED' } })
         }
-        return linkItem(tx, g, userId)
+        return linkItem(tx, g, userId, input.calendarItemId)
       })
       return { ref: calendarItemId, result: { gathering: await get(userId, groupId), calendarItemId } }
     },
@@ -453,4 +475,76 @@ export async function createLink(userId: string, groupId: string) {
   const expiresAt = new Date(Date.now() + INVITE_TTL_MS)
   await db.groupInvitation.create({ data: { groupId, kind: 'LINK', createdById: userId, tokenHash: sha256(token), expiresAt } })
   return { url: `${appBase()}/gatherings/${groupId}?invite=${encodeURIComponent(token)}`, expiresAt: expiresAt.toISOString() }
+}
+
+/**
+ * Do It Again (10 §9.11): a new gathering with the same Activity, Place, capacity, visibility and join
+ * policy, owned by the member repeating it. Optionally invites the original's other current members
+ * with an existing USER invitation. No recurrence is created.
+ */
+export async function repeat(
+  userId: string,
+  groupId: string,
+  input: { localDate: string; localTime?: string | null; inviteParticipants?: boolean; idempotencyKey: string },
+) {
+  const { idempotencyKey, ...request } = input
+  return withIdempotency({
+    userId,
+    scope: 'gathering:repeat',
+    key: idempotencyKey,
+    request: { groupId, ...request },
+    load: async (ref) => {
+      const [newId, calendarItemId] = ref.split('|')
+      return { gathering: await get(userId, newId!), calendarItemId: calendarItemId! }
+    },
+    run: async () => {
+      const source = await load(groupId)
+      const me = await db.groupMember.findUnique({ where: { groupId_userId: { groupId, userId } } })
+      if (!me || me.status !== 'ACTIVE') throw notFound('Gathering')
+      checkMoment(input.localDate, input.localTime)
+      const a = source.activity!
+      if (a.moderatedAt || a.status !== 'PUBLISHED' || a.visibility === 'PRIVATE') throw badRequest('This Activity is no longer available', { activityId: 'not available' })
+      const timezone = await timezoneOf(userId)
+      const localTime = input.localTime === undefined ? source.startLocalTime : input.localTime
+      if (isPast({ startLocalDate: toDbDate(input.localDate), startLocalTime: localTime, timezone })) {
+        throw badRequest('Choose a time that has not passed', { localDate: 'is in the past' })
+      }
+      const others = input.inviteParticipants
+        ? (await db.groupMember.findMany({ where: { groupId, status: 'ACTIVE', userId: { not: userId } }, select: { userId: true } })).map((m) => m.userId)
+        : []
+      const blocked = new Set(await blockedIds(userId))
+      const result = await db.$transaction(async (tx) => {
+        const created = await tx.programGroup.create({
+          data: {
+            kind: 'GATHERING',
+            activityId: a.id,
+            ownerId: userId,
+            startLocalDate: toDbDate(input.localDate),
+            startLocalTime: localTime,
+            timezone,
+            placeId: source.placeId,
+            capacity: source.capacity,
+            visibility: source.visibility,
+            joinPolicy: source.joinPolicy,
+            joinLinkEnabled: true,
+            memberLinkSharingEnabled: true,
+            members: { create: { userId, role: 'OWNER', status: 'ACTIVE', joinedAt: new Date() } },
+          },
+        })
+        const g = await load(created.id, tx)
+        const calendarItemId = await linkItem(tx, g, userId)
+        for (const invitedUserId of others.filter((id) => !blocked.has(id))) {
+          const inv = await tx.groupInvitation.create({
+            data: { groupId: g.id, kind: 'USER', invitedUserId, createdById: userId, tokenHash: sha256(newToken()), expiresAt: new Date(Date.now() + INVITE_TTL_MS) },
+          })
+          await enqueue(tx, 'GroupInvitationCreated', { invitationId: inv.id, groupId: g.id, invitedUserId, inviterId: userId })
+        }
+        return { groupId: g.id, calendarItemId }
+      })
+      return {
+        ref: `${result.groupId}|${result.calendarItemId}`,
+        result: { gathering: await get(userId, result.groupId), calendarItemId: result.calendarItemId },
+      }
+    },
+  })
 }

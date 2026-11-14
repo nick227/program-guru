@@ -139,9 +139,28 @@ export const handlers: Record<string, Handler> = {
   },
 
   async GroupInvitationCreated(e) {
-    const found = await db.programGroup.findUnique({ where: { id: e.payload.groupId }, include: { version: true } })
-    // Handle and email invitations exist for Program groups only; gatherings share links (10 §9.7).
-    if (!found?.version) return
+    const found = await db.programGroup.findUnique({ where: { id: e.payload.groupId }, include: { version: true, activity: { select: { title: true } } } })
+    if (!found) return
+    // Do It Again invites prior participants to a gathering by name (10 §9.11).
+    if (found.kind === 'GATHERING') {
+      if (!e.payload.invitedUserId) return
+      const inviter = await displayName(e.payload.inviterId)
+      const when = found.startLocalDate ? found.startLocalDate.toISOString().slice(0, 10) : ''
+      await notify({
+        recipientId: e.payload.invitedUserId,
+        actorId: e.payload.inviterId,
+        type: 'GROUP_INVITE',
+        title: `${inviter} invited you to ${found.activity?.title ?? 'an Activity'} again${when ? ` on ${when}` : ''}`,
+        deepLink: `/gatherings/${found.id}`,
+        entityKind: 'GROUP_INVITATION',
+        entityId: e.payload.invitationId,
+        groupId: found.id,
+        dedupeKey: `${e.id}`,
+      })
+      return
+    }
+    // Handle and email invitations for Program groups.
+    if (!found.version) return
     const group = { ...found, version: found.version }
     const inviter = await displayName(e.payload.inviterId)
     if (e.payload.invitedUserId) {

@@ -256,3 +256,18 @@ Every Program-group code path filters `kind: 'PROGRAM'` instead of relying on a 
 4. Public gatherings with running or paused sessions appear in Happening Now.
 5. Existing notification types are reused (`MEMBER_JOINED`, `PROGRAM_UPDATE`); no new type.
 6. Recurring gatherings are out of scope; recurring Activities remain supported for individuals.
+
+### 9.11 Programs, suggestions, Do It Again, phases (approved 2026-11-14, milestone G4)
+
+**Solo Program items join gatherings.** A Calendar Item from a Program enrollment *without* a Program group may become a member's gathering item: joining reuses it (explicitly via `calendarItemId`, or automatically as the compatible item on the same date). It keeps its `enrollmentId`, Program day, sessions, results and progress; only its time and Place take the gathering's. A Program item is reused only on the gathering's own date, so joining never moves a Program day to another date. Leaving keeps it in the Program. If the owner later changes the gathering's date or time, the linked item moves with it like any other member's item (a personal adjustment of that Program day).
+
+**Program-group items keep their identity.** An item whose enrollment belongs to a Program group already carries that group's occurrence key; it is never attached to a gathering (one item, one group). Such a user may still join a gathering, which then creates a separate standalone item. That is an explicit choice, never an automatic duplicate.
+
+**Suggestion on the occurrence.** A planned item that is not in any group shows one compact line when public gatherings of the same Activity exist on the same date: "N people are doing this on <day> · Join". Joining passes the item's id, so the existing item is reused. Data: `listActivityGatherings`, filtered to that date. City wording only.
+
+**Do It Again.** `repeatGathering` `POST /gatherings/{gatheringId}/repeat` `{ localDate, localTime?, inviteParticipants?, idempotencyKey }` → `{ gathering, calendarItemId }`. Any active member may repeat a gathering: a new gathering with the same Activity, Place, capacity, visibility and join policy, owned by the person repeating it, on their Calendar. With `inviteParticipants`, the other current members of the original receive a personal invitation (an existing USER `GroupInvitation`, `GROUP_INVITE` notification linking to `/gatherings/{id}`); an addressed, pending invitation lets them see and join a private gathering. No recurrence is created (decision 6).
+
+**Phase-aware hero (03 §6 row order unchanged).** Only the Hero's emphasis changes. *Before* (planned, no session): date, time, Place and participants lead. *During* (session running or paused): session controls lead; gathering controls stay compact. *After* (completed): completion and shared memories lead (a count of shared photos and videos linking to Related Media), plus Do It Again for gathering members.
+
+**Tests (G4):** solo Program item joins by reuse with enrollment, Program day and progress intact; a Program item on another date is not moved; a Program-group item is never attached (explicit id refused; auto-reuse skips it, creating a separate item); repeated joins return the same item; leaving keeps the Program item; a Calendar adjustment of a Program gathering item leaves the gathering and keeps the enrollment; repeat creates a new gathering for the repeater with the same settings and invites prior members, who can then see and join it privately; the two-person journey still passes.
+

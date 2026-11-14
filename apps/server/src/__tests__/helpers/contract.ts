@@ -289,6 +289,7 @@ export const cases: Record<string, Case> = {
   updateGathering: { as: 'alice', protected: true, request: async (w) => ({ method: 'PATCH', url: `/gatherings/${(await w.gathering()).id}`, payload: { localTime: '10:00' } }) },
   joinGathering: { as: 'bob', protected: true, request: async (w) => ({ method: 'POST', url: `/gatherings/${(await w.gathering()).id}/join`, payload: { idempotencyKey: 'contract-join-gathering' } }) },
   leaveGathering: { as: 'bob', protected: true, request: async (w) => ({ method: 'POST', url: `/gatherings/${(await w.gatheringMember()).id}/leave` }) },
+  repeatGathering: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: `/gatherings/${(await w.gathering()).id}/repeat`, payload: { localDate: '2027-03-13', idempotencyKey: 'contract-repeat-gathering' } }) },
   createGatheringLink: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: `/gatherings/${(await w.gathering()).id}/link` }) },
   listPlaces: { as: 'anon', request: async () => (await seedPlace(), { method: 'GET', url: '/catalog/places?locality=Austin' }) },
   getPlace: { as: 'anon', request: async () => ({ method: 'GET', url: `/catalog/places/${(await seedPlace()).slug}` }) },

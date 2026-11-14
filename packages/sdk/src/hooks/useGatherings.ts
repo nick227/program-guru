@@ -76,6 +76,14 @@ export function useUpdateGathering() {
   )
 }
 
+export function useRepeatGathering() {
+  return useApiMutation(
+    async ({ gatheringId, ...body }: S['RepeatGatheringInput'] & { gatheringId: string }) =>
+      apiData(await getApiClient().POST('/gatherings/{gatheringId}/repeat', { params: { path: { gatheringId } }, body })).data,
+    AFFECTED,
+  )
+}
+
 export function useCreateGatheringLink() {
   return useApiMutation(
     async ({ gatheringId }: { gatheringId: string }) =>

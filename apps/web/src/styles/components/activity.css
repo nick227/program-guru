@@ -96,6 +96,40 @@
     font-size: var(--type-meta);
   }
 
+  .activity-hero__gathering-people {
+    display: inline-flex;
+  }
+
+  .activity-hero__gathering-people > * + * {
+    margin-left: -0.5rem;
+  }
+
+  .activity-hero__memories {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    color: hsl(var(--color-accent));
+  }
+
+  .activity-hero__again {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .gathering-suggestion,
+  .calendar-panel__gathering {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid hsl(var(--color-border));
+    border-radius: 0.6rem;
+    font-size: var(--type-meta);
+  }
+
   .activity-hero__gathering-actions {
     display: flex;
     flex-wrap: wrap;

@@ -24,13 +24,13 @@ Factory defaults: pnpm monorepo, Vite + React + Tailwind, Fastify routed from Op
 
 ## Phase Completed
 
-Phase 2 — Server, worker, billing: complete and gated (2026-11-07). **Catalog Expansion epic** specified 2026-11-14 (`01-PRODUCT.md` §11): Catalog → Places → Discovery milestones, not yet implemented. Raw starter data: `packages/db/prisma/seed/starter/`. All three milestones (Catalog, Places, Discovery) done; standalone Activity gatherings (10 §9) built in G1–G3. Phase 3 (frontend) is next. An earlier session started `apps/web` ahead of the Phase 2 gate; see `docs/frontend-foundation.md`.
+Phase 2 — Server, worker, billing: complete and gated (2026-11-07). **Catalog Expansion epic** specified 2026-11-14 (`01-PRODUCT.md` §11): Catalog → Places → Discovery milestones, not yet implemented. Raw starter data: `packages/db/prisma/seed/starter/`. All three milestones (Catalog, Places, Discovery) done; standalone Activity gatherings (10 §9) built in G1–G4 (G4: solo Program items, suggestions, Do It Again, phase-aware hero). Phase 3 (frontend) is next. An earlier session started `apps/web` ahead of the Phase 2 gate; see `docs/frontend-foundation.md`.
 
 ## Modules Built
 
 - [x] Schema: 63 models (`Place` added by `20261114120000_places`), migrations `0001_init` and `0002_rate_limit_bucket`, 4 CHECK constraints, 2 FULLTEXT indexes, verified on MySQL 8.4.13
-- [x] OpenAPI: 180 operations across 15 tags (Places, and eight gathering operations, 10 §9); SDK types generated
-- [x] Server (`apps/server`): **180 of 180 operations implemented**
+- [x] OpenAPI: 181 operations across 15 tags (Places, and nine gathering operations, 10 §9); SDK types generated
+- [x] Server (`apps/server`): **181 of 181 operations implemented**
 - [x] Worker (`apps/server/src/worker.ts`, a second process from the same build): outbox delivery, ffmpeg media pipeline, email, timed reminders and daily summaries, calendar horizons, ranking statistics, cleanup
 - [x] Billing: Stripe Connect per `docs/adr/0001-billing-stripe-connect.md`, behind `MARKETPLACE_ENABLED` (default off)
 - [x] Seed data (`packages/db/prisma/seed.ts`): 6 Categories, 20 Focuses, 17 ProgramTypes, 11 metrics, 6 tools, 7 achievements, 81 Activities with CC0 platform media, 5 starter Programs

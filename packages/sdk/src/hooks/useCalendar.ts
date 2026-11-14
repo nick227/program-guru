@@ -80,7 +80,7 @@ export function useSessionAction(itemId: string) {
           body,
         }),
       ).data,
-    [keys.calendar, keys.occurrences, ['achievements'], keys.programs, keys.activityAttempts],
+    [keys.calendar, keys.occurrences, ['achievements'], keys.programs, keys.activityAttempts, keys.gatherings],
     `session:${itemId}`,
   )
 }
@@ -107,7 +107,7 @@ export function useUndoCompletion() {
           params: { path: { itemId } },
         }),
       ).data,
-    [keys.calendar, keys.occurrences, ['achievements'], keys.programs, keys.activityAttempts],
+    [keys.calendar, keys.occurrences, ['achievements'], keys.programs, keys.activityAttempts, keys.gatherings],
   )
 }
 export function useQuickCompleteCalendarItem() {
@@ -142,7 +142,7 @@ export function useQuickCompleteCalendarItem() {
       if (result.session.status !== 'FINISHED' || result.item?.status !== 'DONE') throw new Error('Completion was not confirmed. Open the Activity to continue.')
       return result
     },
-    [keys.calendar, keys.occurrences, ['achievements'], keys.programs, keys.activityAttempts],
+    [keys.calendar, keys.occurrences, ['achievements'], keys.programs, keys.activityAttempts, keys.gatherings],
   )
 }
 export function useCancelCalendarItem() {
@@ -181,6 +181,7 @@ export function useUpdateCalendarItem() {
           body,
         }),
       ).data,
-    [keys.calendar, keys.occurrences],
+    // Moving or cancelling a gathering item leaves the gathering (10 §9.6).
+    [keys.calendar, keys.occurrences, keys.gatherings],
   )
 }

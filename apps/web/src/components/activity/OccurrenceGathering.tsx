@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Users } from 'lucide-react'
+import { Image as ImageIcon, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useCreateGathering,
@@ -9,17 +9,30 @@ import {
   useUpdateGathering,
   type components,
 } from '@project/sdk'
+import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ShareLinkField } from '@/components/social/ShareLink'
+import { DoItAgain, GatheringSuggestion } from './GatheringSuggestion'
 
 type S = components['schemas']
+export type HeroPhase = 'before' | 'during' | 'after'
 
 /**
- * Gathering controls inside the existing occurrence room (10 §9): who this occurrence is shared with,
- * a share link for this exact time, leaving, and (owner) public listing. A personal, standalone item
- * can be opened to others in place. The room itself (Together row, shared media) is unchanged.
+ * Gathering presence inside the existing occurrence Hero (10 §9, §9.11). The emphasis follows the
+ * phase: before, who is coming; during, nothing that competes with session controls; after, the
+ * completion and shared memories. The locked row order below the Hero never changes (03 §6).
  */
-export function OccurrenceGathering({ item, activity }: { item: S['CalendarItem']; activity?: S['ActivityDetail'] }) {
+export function OccurrenceGathering({
+  item,
+  activity,
+  phase,
+  sharedCount,
+}: {
+  item: S['CalendarItem']
+  activity?: S['ActivityDetail']
+  phase: HeroPhase
+  sharedCount: number
+}) {
   const gathering = useGathering(item.gatheringId)
   const create = useCreateGathering()
   const link = useCreateGatheringLink()
@@ -30,6 +43,29 @@ export function OccurrenceGathering({ item, activity }: { item: S['CalendarItem'
   if (item.gatheringId) {
     const g = gathering.data
     if (!g) return null
+    const line = (
+      <p className="activity-hero__gathering-line">
+        <Users size={14} aria-hidden />
+        <span>
+          {g.memberCount} {g.memberCount === 1 ? 'person' : 'people'}
+          {g.capacity ? ` of ${g.capacity}` : ''}
+          {phase === 'after' ? ` · ${g.completedCount} finished` : ` · ${g.visibility === 'PUBLIC' ? 'listed publicly' : 'invite only'}`}
+        </span>
+      </p>
+    )
+    if (phase === 'during') return <div className="activity-hero__gathering">{line}</div>
+    if (phase === 'after') {
+      return (
+        <div className="activity-hero__gathering">
+          <a href="#related-media" className="activity-hero__memories">
+            <ImageIcon size={14} aria-hidden />
+            {sharedCount > 0 ? `${sharedCount} shared ${sharedCount === 1 ? 'photo or video' : 'photos and videos'} · View` : 'Share a photo or video from this time'}
+          </a>
+          {line}
+          {g.viewerIsMember && <DoItAgain gathering={g} />}
+        </div>
+      )
+    }
     const onLeave = async () => {
       if (!window.confirm('Leave this gathering? It stays on your Calendar as your own Activity.')) return
       try {
@@ -56,13 +92,14 @@ export function OccurrenceGathering({ item, activity }: { item: S['CalendarItem'
     }
     return (
       <div className="activity-hero__gathering">
-        <p className="activity-hero__gathering-line">
-          <Users size={14} aria-hidden />
-          <span>
-            Open to others · {g.memberCount} {g.memberCount === 1 ? 'person' : 'people'}
-            {g.capacity ? ` of ${g.capacity}` : ''} · {g.visibility === 'PUBLIC' ? 'listed publicly' : 'invite only'}
+        {line}
+        {g.members.length > 1 && (
+          <span className="activity-hero__gathering-people" aria-label={g.members.map((m) => m.displayName).join(', ')}>
+            {g.members.slice(0, 6).map((m) => (
+              <Avatar key={m.id} src={m.avatarUrl} name={m.displayName} size="sm" className="h-7 w-7 ring-2 ring-surface" />
+            ))}
           </span>
-        </p>
+        )}
         <div className="activity-hero__gathering-actions">
           {g.status === 'ACTIVE' && !g.isPast && !url && (
             <Button size="sm" variant="outline" loading={link.isPending} onClick={() => void onLink()}>
@@ -83,10 +120,10 @@ export function OccurrenceGathering({ item, activity }: { item: S['CalendarItem'
     )
   }
 
-  // A personal standalone item can become a gathering in place (10 §9.4).
+  if (phase !== 'before') return null
+  // A personal or solo-Program item can join a real gathering that day, or be opened to others in place.
   const canOpen =
-    !item.enrollmentId && item.status === 'PLANNED' && !!activity && activity.status === 'PUBLISHED' && activity.visibility !== 'PRIVATE'
-  if (!canOpen) return null
+    item.status === 'PLANNED' && !item.groupName && !!activity && activity.status === 'PUBLISHED' && activity.visibility !== 'PRIVATE'
   const onOpen = async () => {
     try {
       await create.mutateAsync({
@@ -104,10 +141,13 @@ export function OccurrenceGathering({ item, activity }: { item: S['CalendarItem'
   }
   return (
     <div className="activity-hero__gathering">
-      <Button size="sm" variant="outline" loading={create.isPending} onClick={() => void onOpen()} className="self-start">
-        <Users size={14} aria-hidden />
-        Open to others
-      </Button>
+      <GatheringSuggestion item={item} />
+      {canOpen && (
+        <Button size="sm" variant="outline" loading={create.isPending} onClick={() => void onOpen()} className="self-start">
+          <Users size={14} aria-hidden />
+          Open to others
+        </Button>
+      )}
     </div>
   )
 }

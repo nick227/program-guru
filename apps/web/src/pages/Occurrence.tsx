@@ -49,7 +49,7 @@ import { MetricInput } from '@/components/activity/MetricInput'
 import { ActivityTogether } from '@/components/activity/ActivityTogether'
 import { ActivityHero, type ActivityMeta } from '@/components/activity/ActivityHero'
 import { ScheduledPlace } from '@/components/activity/ScheduledPlace'
-import { OccurrenceGathering } from '@/components/activity/OccurrenceGathering'
+import { OccurrenceGathering, type HeroPhase } from '@/components/activity/OccurrenceGathering'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { ActivitySection } from '@/components/activity/ActivitySection'
 import { ActivityShare } from '@/components/activity/ActivityShare'
@@ -587,6 +587,9 @@ function OccurrenceHero({
       : []),
   ]
 
+  const heroPhase: HeroPhase =
+    phase === 'completed' ? 'after' : phase === 'active' || phase === 'paused' ? 'during' : 'before'
+
   return (
     <ActivityHero
       hero={hero}
@@ -605,10 +608,18 @@ function OccurrenceHero({
       meta={meta}
       extraMeta={showTimer && session ? <SessionElapsed session={session} /> : null}
       footnote={
-        <>
-          <ScheduledPlace item={o.item} />
-          {!o.item.locked && <OccurrenceGathering item={o.item} activity={activity} />}
-        </>
+        // Phase-aware emphasis (10 §9.11): after completion, memories lead; otherwise time and Place.
+        heroPhase === 'after' ? (
+          <>
+            {!o.item.locked && <OccurrenceGathering item={o.item} activity={activity} phase={heroPhase} sharedCount={o.sharedMedia.length} />}
+            <ScheduledPlace item={o.item} />
+          </>
+        ) : (
+          <>
+            <ScheduledPlace item={o.item} />
+            {!o.item.locked && <OccurrenceGathering item={o.item} activity={activity} phase={heroPhase} sharedCount={o.sharedMedia.length} />}
+          </>
+        )
       }
       actions={
         <>

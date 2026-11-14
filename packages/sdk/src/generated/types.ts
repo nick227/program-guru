@@ -915,6 +915,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/gatherings/{gatheringId}/repeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Do It Again on a new date (10 §9.11)
+         * @description Same Activity, Place, capacity, visibility and join policy; owned by the member repeating it. No recurrence.
+         */
+        post: operations["repeatGathering"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gatherings/{gatheringId}/link": {
         parameters: {
             query?: never;
@@ -3358,6 +3378,11 @@ export interface components {
         };
         JoinGatheringInput: {
             invite?: string;
+            /**
+             * Format: uuid
+             * @description The member's own item to reuse: personal, or from a solo Program enrollment on the same date (10 §9.11).
+             */
+            calendarItemId?: string | null;
             idempotencyKey: string;
         };
         UpdateGatheringInput: {
@@ -3369,6 +3394,14 @@ export interface components {
             capacity?: number | null;
             listPublicly?: boolean;
             close?: boolean;
+        };
+        RepeatGatheringInput: {
+            /** Format: date */
+            localDate: string;
+            localTime?: string | null;
+            /** @description Invite the original's other current members by name. */
+            inviteParticipants?: boolean;
+            idempotencyKey: string;
         };
         GatheringJoinResult: {
             gathering: components["schemas"]["Gathering"];
@@ -7008,6 +7041,38 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    repeatGathering: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gatheringId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepeatGatheringInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["GatheringJoinResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     createGatheringLink: {
