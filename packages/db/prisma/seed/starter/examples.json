@@ -1,0 +1,822 @@
+{
+  "schemaVersion": "1.1.0",
+  "seedType": "editorial_catalog_starter",
+  "intent": "Curated raw editorial example data for AI-assisted expansion; map to real repository schema before DB import.",
+  "editorialStandard": {
+    "activityTitle": "2–7 words; specific, readable Title Case",
+    "activityDescription": "20–30 words, usually 2 sentences: activity and setting, then useful insight",
+    "instructionTitle": "6–12 words; clear sentence-like phrase, not generic label",
+    "instructionBody": "40–80 words; 3–5 plain informative sentences",
+    "instructionCount": "0 or 3 in this example set",
+    "tone": "Simple, factual, direct. No promotional filler. Do not manufacture hosts, attendees, access, or reservations."
+  },
+  "policy": {
+    "seededActivitiesAreEvents": false,
+    "generateCalendarItemsOnSeed": false,
+    "generateAttendeesOnSeed": false,
+    "generateRecurringOccurrencesOnSeed": false,
+    "allowUserCalendarScheduling": true,
+    "suggestionsAreNotVenueReservations": true,
+    "venueNotOrganizerUnlessExplicitlyConfirmed": true,
+    "preciseMeetingDetailsForConfirmedGroupOnly": true,
+    "recurrenceRulesAreEditorialSuggestions": true,
+    "verifyVenueHoursAdmissionSafetyAndPermissionBeforeScheduling": true,
+    "mediaSharingOptIn": true
+  },
+  "places": [
+    {
+      "id": "auditorium-shores",
+      "name": "Auditorium Shores",
+      "address": "Austin, TX, USA",
+      "kind": "park",
+      "sourceUrl": "https://www.austintexas.gov/",
+      "hostedByVenue": false,
+      "accessRequiresVerification": true
+    },
+    {
+      "id": "blanton-museum",
+      "name": "Blanton Museum of Art",
+      "address": "200 E Martin Luther King Jr Blvd, Austin, TX, USA",
+      "kind": "museum",
+      "sourceUrl": "https://blantonmuseum.org/visit/faqs/",
+      "hostedByVenue": false,
+      "accessRequiresVerification": true
+    },
+    {
+      "id": "barton-springs",
+      "name": "Barton Springs Pool",
+      "address": "2201 William Barton Dr, Austin, TX 78746, USA",
+      "kind": "pool",
+      "sourceUrl": "https://www.austintexas.gov/services/visit-barton-springs-pool",
+      "hostedByVenue": false,
+      "accessRequiresVerification": true
+    },
+    {
+      "id": "wildflower-center",
+      "name": "Lady Bird Johnson Wildflower Center",
+      "address": "4801 La Crosse Ave, Austin, TX, USA",
+      "kind": "garden",
+      "sourceUrl": "https://www.wildflower.org/visit",
+      "hostedByVenue": false,
+      "accessRequiresVerification": true
+    }
+  ],
+  "programs": [
+    {
+      "id": "seed-program-short-film",
+      "title": "Make a Short Film Together",
+      "description": "Write, film, and edit a short scene with a small crew. The work moves from a shared script to a finished video.",
+      "activityIds": [
+        "seed-activity-write-short-film-script",
+        "seed-activity-create-film-shot-list",
+        "seed-activity-direct-film-scene",
+        "seed-activity-camera-operator-scene",
+        "seed-activity-record-sound-scene",
+        "seed-activity-act-in-scene",
+        "seed-activity-edit-short-film"
+      ],
+      "dependencies": [
+        {
+          "before": "seed-activity-write-short-film-script",
+          "after": "seed-activity-create-film-shot-list"
+        },
+        {
+          "before": "seed-activity-create-film-shot-list",
+          "after": "seed-activity-direct-film-scene"
+        },
+        {
+          "before": "seed-activity-camera-operator-scene",
+          "after": "seed-activity-edit-short-film"
+        },
+        {
+          "before": "seed-activity-record-sound-scene",
+          "after": "seed-activity-edit-short-film"
+        },
+        {
+          "before": "seed-activity-act-in-scene",
+          "after": "seed-activity-edit-short-film"
+        }
+      ],
+      "creator": "system",
+      "scheduleMode": "participant_selected",
+      "venueHostConfirmed": false,
+      "domain": "arts-creativity",
+      "category": "filmmaking"
+    },
+    {
+      "id": "seed-program-community-garden",
+      "title": "Start a Community Garden Bed",
+      "description": "Prepare a shared garden space and plant its first seeds. Each stage leaves the next group with usable work.",
+      "activityIds": [
+        "seed-activity-prepare-community-garden-bed",
+        "seed-activity-plant-community-garden"
+      ],
+      "dependencies": [
+        {
+          "before": "seed-activity-prepare-community-garden-bed",
+          "after": "seed-activity-plant-community-garden"
+        }
+      ],
+      "creator": "system",
+      "scheduleMode": "participant_selected",
+      "venueHostConfirmed": false,
+      "domain": "home-community",
+      "category": "home-gardening"
+    },
+    {
+      "id": "seed-program-stage-show",
+      "title": "Put on a Small Stage Show",
+      "description": "Rehearse a performance and coordinate the work needed on show day. Musicians and stage crew complete different Activities.",
+      "activityIds": [
+        "seed-activity-run-concert-soundcheck",
+        "seed-activity-perform-live-set",
+        "seed-activity-manage-stage-cues"
+      ],
+      "dependencies": [
+        {
+          "before": "seed-activity-run-concert-soundcheck",
+          "after": "seed-activity-perform-live-set"
+        }
+      ],
+      "creator": "system",
+      "scheduleMode": "participant_selected",
+      "venueHostConfirmed": false,
+      "domain": "music",
+      "category": "live-performance"
+    },
+    {
+      "id": "seed-program-creative-weekend",
+      "title": "Creative Weekend in Austin",
+      "description": "Spend a weekend sketching, photographing, and exploring local art. Each Activity can be scheduled independently.",
+      "activityIds": [
+        "seed-activity-sketch-at-blanton",
+        "seed-activity-photograph-austin-skyline",
+        "seed-activity-identify-native-plants"
+      ],
+      "dependencies": [],
+      "creator": "system",
+      "scheduleMode": "participant_selected",
+      "venueHostConfirmed": false,
+      "domain": "arts-creativity",
+      "category": "sketching"
+    },
+    {
+      "id": "seed-program-remote-creative-circle",
+      "title": "Online Creative Circle",
+      "description": "Meet online for drawing, puzzles, and shared conversation. Each gathering uses a common time and simple instructions.",
+      "activityIds": [
+        "seed-activity-group-sketch-session",
+        "seed-activity-cooperative-puzzle-hour",
+        "seed-activity-virtual-coffee-chat"
+      ],
+      "dependencies": [],
+      "creator": "system",
+      "scheduleMode": "participant_selected",
+      "venueHostConfirmed": false,
+      "domain": "social",
+      "category": "conversation-circles"
+    }
+  ],
+  "activities": [
+    {
+      "id": "seed-activity-photograph-austin-skyline",
+      "slug": "photograph-austin-skyline",
+      "creator": "system",
+      "title": "Photograph the Austin Skyline",
+      "description": "Photograph downtown Austin from Auditorium Shores, where the waterfront offers wide skyline views. Experiment with framing, reflections, and natural light.",
+      "location": {
+        "mode": "venue",
+        "placeId": "auditorium-shores"
+      },
+      "recurrence": {
+        "mode": "suggested",
+        "suggestedRule": "daily near sunset",
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": false
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Find a Clear View of the Skyline",
+          "body": "Walk along the public paths and look for a clear view of downtown. Notice where the buildings meet the sky and how much water fits into your frame. Try holding your camera at different heights before choosing a position. Stay on public paths and leave room for other visitors."
+        },
+        {
+          "order": 2,
+          "title": "Capture One Wide View and One Close View",
+          "body": "Take one photograph that shows the full skyline and another that emphasizes a smaller group of buildings. Keep the horizon level and pay attention to objects along the edges. Use a third frame to experiment with reflections or foreground shapes. Compare the images before moving on."
+        },
+        {
+          "order": 3,
+          "title": "Choose Your Strongest Photograph and Keep the Original",
+          "body": "Review your photos and look for a clear subject, balanced framing, and useful light. Select your strongest image and make a small adjustment to its crop if needed. Keep the original file so you can revisit your choices later. Sharing your photo is optional."
+        }
+      ],
+      "domain": "arts-creativity",
+      "category": "photography"
+    },
+    {
+      "id": "seed-activity-sketch-at-blanton",
+      "slug": "sketch-at-blanton",
+      "creator": "system",
+      "title": "Sketch at the Blanton Museum",
+      "description": "Explore paintings and sculptures at the Blanton Museum of Art in Austin. Practice drawing their shapes, proportions, and details from direct observation.",
+      "location": {
+        "mode": "venue",
+        "placeId": "blanton-museum"
+      },
+      "recurrence": {
+        "mode": "venue_hours",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": false
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Find a Painting or Sculpture You Want to Draw",
+          "body": "Walk through the galleries and look for a painting or sculpture that holds your attention. Start with a subject that has clear shapes and a manageable amount of detail. Look at how the different parts fit together before making marks on the page. Use only permitted drawing materials and keep pathways clear."
+        },
+        {
+          "order": 2,
+          "title": "Draw the Basic Shapes Before Adding Details",
+          "body": "Start with light pencil lines to outline the largest shapes. Pay attention to their size, position, and distance from one another. Do not worry about getting every line right on your first attempt. Once the main shapes look right, add smaller details and areas of shadow."
+        },
+        {
+          "order": 3,
+          "title": "Compare Your Sketch with What You See",
+          "body": "Look at your drawing beside the original painting or sculpture. Notice whether the shapes, proportions, and important details match what you intended to capture. Adjust any areas that seem out of place, then add a few finishing touches. Keep the sketch as a record of what you observed."
+        }
+      ],
+      "editorialNotes": "Blanton permits pencil and colored pencil only; confirm current museum policies and admission.",
+      "domain": "arts-creativity",
+      "category": "sketching"
+    },
+    {
+      "id": "seed-activity-swim-at-barton-springs",
+      "slug": "swim-at-barton-springs",
+      "creator": "system",
+      "title": "Swim at Barton Springs",
+      "description": "Swim in the spring-fed water at Barton Springs Pool. Water temperatures stay relatively consistent year-round, while public access follows the pool schedule.",
+      "location": {
+        "mode": "venue",
+        "placeId": "barton-springs"
+      },
+      "recurrence": {
+        "mode": "venue_hours",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": false
+      },
+      "instructions": [],
+      "editorialNotes": "Observe lifeguard guidance, conditions, admission requirements, and Thursday cleaning closures.",
+      "domain": "fitness-sports",
+      "category": "swimming"
+    },
+    {
+      "id": "seed-activity-identify-native-plants",
+      "slug": "identify-native-plants",
+      "creator": "system",
+      "title": "Identify Native Texas Plants",
+      "description": "Explore the gardens at the Lady Bird Johnson Wildflower Center. Look for plant labels and notice how native species differ in shape and habitat.",
+      "location": {
+        "mode": "venue",
+        "placeId": "wildflower-center"
+      },
+      "recurrence": {
+        "mode": "venue_hours",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": false
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Start with Plants That Have Clear Labels",
+          "body": "Choose a garden area where you can move slowly and read the plant signs. Pick three plants with different leaf shapes, flowers, or growth patterns. Write down their names or photograph the labels for reference. Stay on designated paths and leave the plants undisturbed."
+        },
+        {
+          "order": 2,
+          "title": "Compare Leaves, Flowers, and Growing Conditions",
+          "body": "Look at each plant from a respectful distance and notice its leaves, stems, and flowers. Check whether it grows in sun, shade, or a wetter area. Compare two plants and describe one difference you can clearly see. Use the posted information rather than guessing at a species."
+        },
+        {
+          "order": 3,
+          "title": "Record Three Plants You Can Recognize Again",
+          "body": "Review the names and visible features of the plants you studied. Write one identifying detail beside each name so you can recognize it later. If you took pictures, match them with your notes. Keep the record for another visit or share it with others if you wish."
+        }
+      ],
+      "domain": "outdoors-nature",
+      "category": "plant-identification"
+    },
+    {
+      "id": "seed-activity-twenty-minute-guitar-practice",
+      "slug": "twenty-minute-guitar-practice",
+      "creator": "system",
+      "title": "Practice Guitar for Twenty Minutes",
+      "description": "Spend twenty minutes practicing one chord change or short melody. Repeating a small passage makes it easier to hear which notes need attention.",
+      "location": {
+        "mode": "anywhere"
+      },
+      "recurrence": {
+        "mode": "suggested",
+        "suggestedRule": "daily",
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": false
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Pick One Passage to Practice Today",
+          "body": "Choose a short melody or two chords that you can already play slowly. Play through them once and listen for changes that feel uneven. Identify the smallest section that needs work rather than starting an entire new song. Set a comfortable pace that lets you hear each note."
+        },
+        {
+          "order": 2,
+          "title": "Repeat Slowly and Keep the Rhythm Steady",
+          "body": "Play the chosen section several times at a steady pace. Pause when a note buzzes or your fingers miss a position, then reset and try again. Focus on smooth transitions before attempting to play faster. Take a short break if your hands feel strained."
+        },
+        {
+          "order": 3,
+          "title": "Play Once More and Note the Difference",
+          "body": "Play the section once without stopping and compare it with your first attempt. Notice whether the rhythm feels steadier or the notes sound clearer. Write down the part that still needs practice next time. The session is complete even if the passage is not perfect."
+        }
+      ],
+      "domain": "music",
+      "category": "guitar"
+    },
+    {
+      "id": "seed-activity-group-sketch-session",
+      "slug": "group-sketch-session",
+      "creator": "system",
+      "title": "Draw Together Online",
+      "description": "Join a shared drawing session from home. Everyone sketches the same prompt, then compares the different ways they interpreted it.",
+      "location": {
+        "mode": "online"
+      },
+      "recurrence": {
+        "mode": "suggested",
+        "suggestedRule": "weekly",
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": false
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Agree on One Prompt for the Session",
+          "body": "Choose a simple subject that everyone can draw with materials they already have. Make sure each participant understands the prompt before beginning. Decide how long the drawing period will last and whether cameras will be on. Leave room for people who prefer not to share their work."
+        },
+        {
+          "order": 2,
+          "title": "Draw During the Shared Time Window",
+          "body": "Start drawing when the group begins and focus on your own interpretation. Use basic shapes first, then add details if time allows. Participants can work quietly without watching each other. Keep the session moving at the agreed pace rather than stopping to critique every sketch."
+        },
+        {
+          "order": 3,
+          "title": "Compare Different Approaches Without Ranking Them",
+          "body": "Invite participants to show or describe their drawings if they choose. Notice how the same prompt led to different compositions, colors, or details. Ask what each person focused on while drawing. Save your work privately or add it to the shared media collection with permission."
+        }
+      ],
+      "domain": "arts-creativity",
+      "category": "sketching"
+    },
+    {
+      "id": "seed-activity-virtual-coffee-chat",
+      "slug": "virtual-coffee-chat",
+      "creator": "system",
+      "title": "Have Coffee and Catch Up Online",
+      "description": "Set aside time for an informal video call with friends. Bring a drink and use the session to catch up without a fixed agenda.",
+      "location": {
+        "mode": "online"
+      },
+      "recurrence": {
+        "mode": "suggested",
+        "suggestedRule": "weekly",
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": false
+      },
+      "instructions": [],
+      "domain": "social",
+      "category": "virtual-coffee"
+    },
+    {
+      "id": "seed-activity-cooperative-puzzle-hour",
+      "slug": "cooperative-puzzle-hour",
+      "creator": "system",
+      "title": "Solve a Puzzle Together",
+      "description": "Work on a shared puzzle with friends in person or online. Divide the pieces or clues naturally and compare your reasoning as you go.",
+      "location": {
+        "mode": "flexible"
+      },
+      "recurrence": {
+        "mode": "suggested",
+        "suggestedRule": "weekends",
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": false
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Pick a Puzzle Everyone Can Access",
+          "body": "Choose a jigsaw puzzle, word puzzle, or cooperative logic problem that fits the group’s time. Confirm that everyone can see the same pieces or clues before starting. Explain the goal in one sentence and agree on a comfortable stopping point. A shared online board is optional."
+        },
+        {
+          "order": 2,
+          "title": "Work Through Clues as a Group",
+          "body": "Let people describe what they notice and test their ideas before settling on one answer. Keep the puzzle visible so no participant has to rely on memory alone. Invite quieter members to contribute without putting them on the spot. If the group gets stuck, revisit what is already known."
+        },
+        {
+          "order": 3,
+          "title": "Review the Solution and Save the Result",
+          "body": "Check the completed solution together and talk about which clues mattered most. If the puzzle remains unfinished, record where the group stopped. Take a photo or screenshot only if the materials and participants permit it. The Activity can be completed after the agreed session even without solving everything."
+        }
+      ],
+      "domain": "games",
+      "category": "cooperative-games"
+    },
+    {
+      "id": "seed-activity-camera-operator-scene",
+      "slug": "camera-operator-scene",
+      "creator": "system",
+      "title": "Operate Camera for a Film Scene",
+      "description": "Frame and record a short scene with a small film crew. Keep camera movement consistent so the editor has usable footage.",
+      "location": {
+        "mode": "flexible"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Review the Shot List with the Director",
+          "body": "Read the shot list and confirm which moments need wide, medium, or close views. Check the filming location for suitable camera positions and unwanted background activity. Ask where performers will move before setting up the frame. Agree on basic continuity details so repeated takes can be edited together."
+        },
+        {
+          "order": 2,
+          "title": "Record Each Planned Shot with Stable Framing",
+          "body": "Set the camera for the chosen shot and check focus and exposure before recording. Leave a short pause before and after each take to help with editing. Watch for changes in framing, background, and performer position. Repeat a take when a clear technical issue prevents its use."
+        },
+        {
+          "order": 3,
+          "title": "Check Footage and Label the Best Takes",
+          "body": "Review a sample from each shot before the crew leaves the location. Confirm that faces, action, and sound reference points are visible where needed. Mark the best takes with simple filenames or notes. Make sure footage is copied to the agreed storage location before considering the task finished."
+        }
+      ],
+      "domain": "arts-creativity",
+      "category": "filmmaking"
+    },
+    {
+      "id": "seed-activity-record-sound-scene",
+      "slug": "record-sound-scene",
+      "creator": "system",
+      "title": "Record Sound for a Film Scene",
+      "description": "Capture clear dialogue and ambient sound during a film shoot. Monitor background noise and label recordings so the editor can identify them.",
+      "location": {
+        "mode": "flexible"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [],
+      "domain": "arts-creativity",
+      "category": "filmmaking"
+    },
+    {
+      "id": "seed-activity-act-in-scene",
+      "slug": "act-in-scene",
+      "creator": "system",
+      "title": "Perform in a Short Film Scene",
+      "description": "Rehearse and perform a short scene with other cast members. Keep your movements and positions consistent between takes to support continuous editing.",
+      "location": {
+        "mode": "flexible"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [],
+      "domain": "arts-creativity",
+      "category": "theatre"
+    },
+    {
+      "id": "seed-activity-direct-film-scene",
+      "slug": "direct-film-scene",
+      "creator": "system",
+      "title": "Direct a Short Film Scene",
+      "description": "Guide the cast and crew through a planned scene. Confirm the shot order, explain the intended action, and review each take for continuity.",
+      "location": {
+        "mode": "flexible"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Explain the Scene and Agree on the Plan",
+          "body": "Read through the scene with the cast and crew before filming starts. Explain the purpose of each shot in plain language and confirm the shooting order. Give participants a chance to flag missing props, unclear movements, or access constraints. Keep the plan short enough to follow on location."
+        },
+        {
+          "order": 2,
+          "title": "Run the Scene and Give Specific Feedback",
+          "body": "Call for a rehearsal and watch the timing, movement, and dialogue. Give one or two specific notes that performers can use on the next take. Check with the camera and sound operators before recording again. Maintain a clear order so everyone knows when the next shot begins."
+        },
+        {
+          "order": 3,
+          "title": "Confirm Coverage Before Leaving the Location",
+          "body": "Review the shot list with the camera and sound operators after the main takes. Check whether any essential action or dialogue is missing. Record brief notes about the best takes and continuity details. Release the location only after the team agrees that the planned footage is complete."
+        }
+      ],
+      "domain": "arts-creativity",
+      "category": "filmmaking"
+    },
+    {
+      "id": "seed-activity-write-short-film-script",
+      "slug": "write-short-film-script",
+      "creator": "system",
+      "title": "Write a Short Film Script",
+      "description": "Draft a short script that can be filmed with a small cast and limited locations. Clear scenes make later planning and rehearsal easier.",
+      "location": {
+        "mode": "anywhere"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Choose a Story with a Manageable Scope",
+          "body": "Write a one-sentence summary of the story and identify its main character. Keep the number of locations and speaking roles small enough for the intended crew. Decide what changes between the beginning and end. Use these choices to avoid adding scenes that are difficult to produce."
+        },
+        {
+          "order": 2,
+          "title": "Draft Scenes with Clear Action and Dialogue",
+          "body": "Write each scene so readers can understand where it happens and what the characters do. Use short action descriptions and dialogue that moves the story forward. Read the pages aloud to notice awkward exchanges or missing information. Focus on finishing a complete draft before polishing every line."
+        },
+        {
+          "order": 3,
+          "title": "Revise for What the Crew Can Actually Film",
+          "body": "Read the script with the planned locations, cast, and equipment in mind. Remove actions that require resources the crew does not have. Clarify scene transitions and any important visual details. Save a dated draft so the team can plan shots from the same version."
+        }
+      ],
+      "domain": "arts-creativity",
+      "category": "screenwriting"
+    },
+    {
+      "id": "seed-activity-create-film-shot-list",
+      "slug": "create-film-shot-list",
+      "creator": "system",
+      "title": "Create a Shot List from the Script",
+      "description": "Turn a finished script into a list of camera setups. A clear shot list helps the crew plan coverage before filming begins.",
+      "location": {
+        "mode": "anywhere"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [],
+      "domain": "arts-creativity",
+      "category": "filmmaking"
+    },
+    {
+      "id": "seed-activity-edit-short-film",
+      "slug": "edit-short-film",
+      "creator": "system",
+      "title": "Edit Footage into a Short Film",
+      "description": "Assemble recorded scenes into a complete sequence with understandable action and dialogue. Editing begins after the required footage is available.",
+      "location": {
+        "mode": "anywhere"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Organize Footage by Scene and Take",
+          "body": "Copy the video and audio files into a project folder with a consistent naming pattern. Match recordings to the scene and take notes made during filming. Check that the important files open correctly before editing. Keep an untouched copy of the original media in a separate location."
+        },
+        {
+          "order": 2,
+          "title": "Assemble a Complete First Cut from Your Chosen Takes",
+          "body": "Place the chosen takes in story order and build a continuous version from beginning to end. Prioritize clear action and understandable dialogue before adding transitions or effects. Trim unnecessary pauses and check that scene changes are easy to follow. Save the project after each major edit."
+        },
+        {
+          "order": 3,
+          "title": "Review Sound, Pacing, and Export Settings",
+          "body": "Watch the cut without stopping and note moments that feel confusing or too slow. Check dialogue levels and remove distracting gaps where practical. Confirm the final frame size and audio settings before exporting a review copy. Keep the editable project and original media for later changes."
+        }
+      ],
+      "domain": "arts-creativity",
+      "category": "filmmaking"
+    },
+    {
+      "id": "seed-activity-prepare-community-garden-bed",
+      "slug": "prepare-community-garden-bed",
+      "creator": "system",
+      "title": "Prepare a Community Garden Bed",
+      "description": "Clear and prepare an approved garden bed before planting begins. The next group can use the prepared space for seeds or seedlings.",
+      "location": {
+        "mode": "flexible"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [],
+      "editorialNotes": "Requires permission from the garden organizer and site access.",
+      "domain": "home-community",
+      "category": "home-gardening"
+    },
+    {
+      "id": "seed-activity-plant-community-garden",
+      "slug": "plant-community-garden",
+      "creator": "system",
+      "title": "Plant a Shared Garden Bed",
+      "description": "Plant seeds or seedlings in a prepared community garden bed. Leave a simple watering plan so the next participants know what needs care.",
+      "location": {
+        "mode": "flexible"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [],
+      "domain": "home-community",
+      "category": "home-gardening"
+    },
+    {
+      "id": "seed-activity-run-concert-soundcheck",
+      "slug": "run-concert-soundcheck",
+      "creator": "system",
+      "title": "Run Soundcheck for a Live Performance",
+      "description": "Check microphones, instruments, and monitor levels before a performance. A clear soundcheck helps performers and audio staff agree on usable levels.",
+      "location": {
+        "mode": "flexible"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Confirm the Stage Setup and Input List",
+          "body": "Review the performers’ equipment and the planned microphone or instrument connections. Check that cables are placed safely and that each input reaches the intended channel. Ask performers which instruments or voices need monitor support. Keep a written list of connections so changes are easy to track."
+        },
+        {
+          "order": 2,
+          "title": "Test One Source at a Time",
+          "body": "Ask each performer to play or speak at a normal performance level. Listen for distorted sound, feedback, or missing channels and adjust levels gradually. Test monitor mixes with the performers instead of making assumptions about what they hear. Keep the stage quiet while one source is being checked."
+        },
+        {
+          "order": 3,
+          "title": "Run a Short Test with the Full Group",
+          "body": "Have the group play a short passage together using the planned stage positions. Listen for imbalances that were not obvious during individual checks. Confirm that performers can hear the cues they need. Record the final settings and leave enough time to address any remaining problems before the event."
+        }
+      ],
+      "domain": "music",
+      "category": "live-performance"
+    },
+    {
+      "id": "seed-activity-perform-live-set",
+      "slug": "perform-live-set",
+      "creator": "system",
+      "title": "Perform a Scheduled Live Music Set",
+      "description": "Play a prepared set with the band at a confirmed venue or permitted event. Follow the agreed running order and respond to stage cues.",
+      "location": {
+        "mode": "flexible"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [],
+      "editorialNotes": "No public show, ticketing, or venue partnership is implied by this seed.",
+      "domain": "music",
+      "category": "live-performance"
+    },
+    {
+      "id": "seed-activity-manage-stage-cues",
+      "slug": "manage-stage-cues",
+      "creator": "system",
+      "title": "Call Stage Cues During a Play",
+      "description": "Follow the performance script and signal planned lighting, sound, and scene changes. Consistent cues keep the production coordinated while actors perform.",
+      "location": {
+        "mode": "flexible"
+      },
+      "recurrence": {
+        "mode": "flexible",
+        "suggestedRule": null,
+        "createsOccurrences": false
+      },
+      "participation": {
+        "joinableAsSystemHostedEvent": false,
+        "requiresConfirmedHost": true
+      },
+      "instructions": [
+        {
+          "order": 1,
+          "title": "Review the Cue List with Every Operator",
+          "body": "Read the running order and mark each cue in the script. Confirm which operator is responsible for lighting, sound, and scene changes. Agree on the words or signals that will start each action. Resolve unclear handoffs during rehearsal rather than during the performance."
+        },
+        {
+          "order": 2,
+          "title": "Follow the Script and Call Each Cue Clearly",
+          "body": "Track the performance from the agreed calling position. Give operators a short warning before a cue when the sequence requires it. Call the cue using the agreed wording and wait for confirmation where appropriate. Avoid adding unnecessary conversation while other cues are approaching."
+        },
+        {
+          "order": 3,
+          "title": "Record Issues for the Next Run",
+          "body": "After the performance, note cues that arrived late, were missed, or were difficult to hear. Ask the operators whether any timing or communication changes would help. Update the cue sheet before the next rehearsal or performance. Preserve the final version so everyone works from the same plan."
+        }
+      ],
+      "domain": "arts-creativity",
+      "category": "theatre"
+    }
+  ]
+}

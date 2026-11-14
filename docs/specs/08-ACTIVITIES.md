@@ -164,7 +164,7 @@ Simple grammar and everyday words. No promotional copy, generic encouragement, r
 - derives stable UUIDs from the editorial IDs (`deterministicUuid`) and upserts by slug, publishing revision 1 once; re-running it creates no new revisions;
 - translates editorial Domain slugs (§2 table in `02-DOMAIN.md`) and Category slugs to stored `Category` and `Focus` rows;
 - maps suggested recurrence to `Activity.frequency` only where it is a real `FrequencyDto` (`daily` → `DAILY`, `weekly` → `N_PER_WEEK` n=1); everything else (`daily near sunset`, `weekends`, `venue_hours`, `flexible`) leaves `frequency` empty;
-- maps Program `dependencies` to Program ordering only: relative days in dependency order, with independent Activities on the same day. No dependency data is stored;
+- maps Program `dependencies` to Program ordering only: each Activity's relative day is the day after its latest dependency and never earlier than the Activity listed before it; otherwise it shares that day. No dependency data is stored;
 - moves place-wide `editorialNotes` into `Place.accessNote`, and Activity-specific ones into an Instruction only when they help the participant; otherwise they stay in the raw file;
 - leaves `participation`, `scheduleMode`, `venueHostConfirmed` and `policy` in the raw files;
 - uses generated CC0 title cards for covers; no photographs of real Places without recorded rights;

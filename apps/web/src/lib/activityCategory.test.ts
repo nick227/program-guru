@@ -48,5 +48,12 @@ describe('activityCategory resolution', () => {
       'custom',
     ])
   })
+
+  it('maps new Domains to an existing visual family and unknown slugs to keyword/custom fallback', () => {
+    expect(resolveActivityCategory('Random Title', '', 'music')).toBe('custom')
+    expect(resolveActivityCategory('Random Title', '', 'outdoors-nature')).toBe('wellness')
+    expect(resolveActivityCategory('Random Title', '', 'home-community')).toBe('relationships')
+    expect(resolveActivityCategory('Random Title', '', 'not-a-domain')).toBe('custom')
+  })
 })
 

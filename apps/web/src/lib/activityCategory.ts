@@ -17,12 +17,33 @@ export type CategoryStyle = {
 }
 
 export const CATEGORY_DEFINITIONS: Record<ActivityCategory, { label: string }> = {
-  fitness: { label: 'Fitness' },
-  wellness: { label: 'Wellness' },
-  education: { label: 'Education' },
-  finance: { label: 'Finance' },
-  relationships: { label: 'Relationships' },
+  fitness: { label: 'Fitness & Sports' },
+  wellness: { label: 'Health & Wellness' },
+  education: { label: 'Learning' },
+  finance: { label: 'Work & Finance' },
+  relationships: { label: 'Social' },
   custom: { label: 'Custom' },
+}
+
+/**
+ * Domains added by the Catalog Expansion (02-DOMAIN §2) reuse the closest existing visual family
+ * (`--cat-*` tokens and icon) instead of new tokens. Unknown slugs fall back to `custom`.
+ */
+const DOMAIN_VISUAL_FAMILY: Record<string, ActivityCategory> = {
+  'arts-creativity': 'custom',
+  music: 'custom',
+  entertainment: 'custom',
+  games: 'relationships',
+  'home-community': 'relationships',
+  'outdoors-nature': 'wellness',
+  'food-cooking': 'wellness',
+}
+
+/** The visual family for a stored Domain slug, or null when the slug is unknown. */
+export function domainVisualCategory(slug?: string | null): ActivityCategory | null {
+  if (!slug) return null
+  if (slug in CATEGORY_DEFINITIONS) return slug as ActivityCategory
+  return DOMAIN_VISUAL_FAMILY[slug] ?? null
 }
 
 const FITNESS_KEYWORDS = [
@@ -56,9 +77,8 @@ export function resolveActivityCategory(
   programTitle: string = '',
   explicitCategory?: string | null,
 ): ActivityCategory {
-  if (explicitCategory && explicitCategory in CATEGORY_DEFINITIONS) {
-    return explicitCategory as ActivityCategory
-  }
+  const explicit = domainVisualCategory(explicitCategory)
+  if (explicit) return explicit
 
   const text = `${title} ${programTitle}`.toLowerCase()
 

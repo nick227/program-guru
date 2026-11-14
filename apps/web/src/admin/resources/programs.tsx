@@ -24,7 +24,7 @@ const detailFields: Field<Details>[] = [
   { kind: 'text', name: 'title', label: 'Title', required: true, maxLength: PROGRAM_TITLE_MAX, assist: true },
   { kind: 'textarea', name: 'description', label: 'Description', maxLength: PROGRAM_DESCRIPTION_MAX, rows: 5, assist: true },
   { kind: 'select', name: 'programTypeId', label: 'Type', required: true, options: useTypeOptions },
-  { kind: 'select', name: 'focusId', label: 'Focus', options: useFocusOptions },
+  { kind: 'select', name: 'focusId', label: 'Category', options: useFocusOptions },
   { kind: 'select', name: 'level', label: 'Level', options: [{ value: 'ALL_LEVELS', label: 'All levels' }, { value: 'BEGINNER', label: 'Beginner' }, { value: 'INTERMEDIATE', label: 'Intermediate' }, { value: 'ADVANCED', label: 'Advanced' }] },
   { kind: 'number', name: 'sessionMinutes', label: 'Typical session', min: 1, max: 1440, suffix: 'min' },
   { kind: 'select', name: 'sessionPresentation', label: 'Calendar presentation', options: [{ value: 'SEPARATE', label: 'Separate Activity tiles' }, { value: 'GROUPED', label: 'One expandable workout tile per day' }] },
@@ -129,7 +129,7 @@ export const programs = defineResource<unknown, Workspace>({
     initial: { programTypeId: '', focusId: null } satisfies Create,
     fields: [
       { kind: 'select', name: 'programTypeId', label: 'Type', required: true, options: useTypeOptions },
-      { kind: 'select', name: 'focusId', label: 'Focus', options: useFocusOptions, visible: (v: Create) => !!v.programTypeId },
+      { kind: 'select', name: 'focusId', label: 'Category', options: useFocusOptions, visible: (v: Create) => !!v.programTypeId },
     ] satisfies Field<Create>[],
     useCreate: () => {
       const m = useCreateProgram()

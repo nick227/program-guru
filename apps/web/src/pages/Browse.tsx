@@ -1613,7 +1613,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   if (categoryId) {
     activeFilterChips.push({
       key: 'category',
-      label: categoryLabelOf(categoryId) ?? 'Category',
+      label: categoryLabelOf(categoryId) ?? 'Domain',
       onRemove: () => handleCategoryChange(''),
     })
   }
@@ -1627,7 +1627,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   if (focusId) {
     activeFilterChips.push({
       key: 'focus',
-      label: focusLabelOf(focusId) ?? 'Focus',
+      label: focusLabelOf(focusId) ?? 'Category',
       onRemove: () => setParam(BROWSE_PARAM.focus, ''),
     })
   }
@@ -1673,10 +1673,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const categoryOptions = [
     {
       value: '',
-      label: 'All categories',
+      label: 'All domains',
       icon: <LayoutGrid size={15} aria-hidden />,
     },
-    ...(categories.data ?? []).map((c) => ({
+    // `custom` is the authoring fallback, never a discovery Domain (02-DOMAIN §2).
+    ...(categories.data ?? []).filter((c) => c.slug !== 'custom').map((c) => ({
       value: c.id,
       label: c.label,
       icon: <CategoryIcon category={toHeroCategory(c.slug)} size={15} />,
@@ -1903,9 +1904,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   {/* Categories shown immediately */}
                   {!mode.lockedProgramTypeId &&
                     (categories.data?.length ?? 0) > 0 && (
-                      <FilterGroup title="Category" defaultOpen>
+                      <FilterGroup title="Domain" defaultOpen>
                         <FilterOptionList
-                          ariaLabel="Category"
+                          ariaLabel="Domain"
                           options={categoryOptions}
                           value={categoryId}
                           onChange={handleCategoryChange}
@@ -1936,11 +1937,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   )}
 
                   {focusOptions.length > 0 && (
-                    <FilterGroup title="Focus" defaultOpen={!!focusId}>
+                    <FilterGroup title="Category" defaultOpen={!!focusId}>
                       <FilterOptionList
-                        ariaLabel="Filter by focus"
+                        ariaLabel="Filter by category"
                         options={[
-                          { value: '', label: 'All focuses' },
+                          { value: '', label: 'All categories' },
                           ...focusOptions,
                         ]}
                         value={focusId}

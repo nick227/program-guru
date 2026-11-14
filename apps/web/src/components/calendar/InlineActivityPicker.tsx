@@ -258,7 +258,7 @@ export function InlineActivityPicker({
               <select
                 value={newCategoryId}
                 onChange={(e) => setNewCategoryId(e.target.value)}
-                aria-label="Category"
+                aria-label="Domain"
                 className={cn(
                   'w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:border-accent focus:outline-none',
                 )}

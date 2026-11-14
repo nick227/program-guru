@@ -1,4 +1,4 @@
-import { CATEGORY_DEFINITIONS, type ActivityCategory } from './activityCategory'
+import { domainVisualCategory, type ActivityCategory } from './activityCategory'
 
 /**
  * Identity image for a Program or Activity (11-MEDIA identity media).
@@ -27,9 +27,7 @@ export type Hero = {
 export type CategorySlugOf = (categoryId?: string | null) => string | null
 
 export function toHeroCategory(slug?: string | null): ActivityCategory {
-  return slug && slug in CATEGORY_DEFINITIONS
-    ? (slug as ActivityCategory)
-    : 'custom'
+  return domainVisualCategory(slug) ?? 'custom'
 }
 
 export function resolveHero({

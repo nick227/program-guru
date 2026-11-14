@@ -368,9 +368,7 @@ export function validateContentPack(
     }
     if (act.frequency) validateFrequencyRule(act.frequency, `${path}.frequency`, issues)
 
-    if (act.instructions.length === 0) {
-      issues.push({ path: `${path}.instructions`, message: 'At least one instruction step is required' })
-    }
+    // Instructions are optional: zero is valid when the summary is enough (08 §9a).
     act.instructions.forEach((ins, ii) => {
       if (!ins.body.trim()) issues.push({ path: `${path}.instructions.${ii}.body`, message: 'Instruction body cannot be empty' })
     })

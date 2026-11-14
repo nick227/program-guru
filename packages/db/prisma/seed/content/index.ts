@@ -5,6 +5,7 @@ import { EDUCATION_ACTIVITIES, EDUCATION_PROGRAMS } from './education'
 import { FINANCE_ACTIVITIES, FINANCE_PROGRAMS } from './finance'
 import { FITNESS_ACTIVITIES, FITNESS_PROGRAMS } from './fitness'
 import { RELATIONSHIPS_ACTIVITIES, RELATIONSHIPS_PROGRAMS } from './relationships'
+import { STARTER_ACTIVITIES, STARTER_CATALOG_PROGRAMS } from './starter'
 import { WELLNESS_ACTIVITIES, WELLNESS_PROGRAMS } from './wellness'
 
 export const SEEDED_ACTIVITIES: ActivityContent[] = [
@@ -13,6 +14,7 @@ export const SEEDED_ACTIVITIES: ActivityContent[] = [
   ...WELLNESS_ACTIVITIES,
   ...FINANCE_ACTIVITIES,
   ...RELATIONSHIPS_ACTIVITIES,
+  ...STARTER_ACTIVITIES,
 ]
 
 export const STARTER_PROGRAMS: ProgramContent[] = [
@@ -21,6 +23,7 @@ export const STARTER_PROGRAMS: ProgramContent[] = [
   ...FINANCE_PROGRAMS,
   ...EDUCATION_PROGRAMS,
   ...RELATIONSHIPS_PROGRAMS,
+  ...STARTER_CATALOG_PROGRAMS,
 ]
 
 export const SEED_CONTENT_PACK: ContentPack = {

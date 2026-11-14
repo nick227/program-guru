@@ -213,7 +213,7 @@ function resolveNowInterest(
     contextLine:
       state.maxMinutes && state.maxMinutes < 999
         ? `Fitting into ${state.maxMinutes} minutes or less.`
-        : 'Pick a focus or let me choose.',
+        : 'Pick a domain or let me choose.',
     choices: [
       ...topCategories.map((cat, idx) => ({
         id: `cat-${cat.id}`,
@@ -254,7 +254,7 @@ function resolveNowResult(
       choices: [
         {
           id: 'pick-another-cat',
-          label: 'Other categories',
+          label: 'Other domains',
           variant: 'primary',
           effect: {
             type: 'transition',
@@ -892,7 +892,7 @@ function resolveExploreResult(
   return {
     nodeId: 'explore_result',
     question: 'Want to browse everything?',
-    contextLine: 'You have seen our top picks for this category.',
+    contextLine: 'You have seen our top picks for this domain.',
     choices: [
       {
         id: 'browse',

@@ -5,7 +5,7 @@
   "renderedWith": "SVG rendered by ffmpeg (librsvg)",
   "assets": {
     "push-ups": {
-      "alt": "Illustration for Push-ups (Fitness)",
+      "alt": "Illustration for Push-ups (Fitness & Sports)",
       "original": {
         "file": "illustrations/push-ups.jpg",
         "mime": "image/jpeg",
@@ -24,7 +24,7 @@
       }
     },
     "sit-ups": {
-      "alt": "Illustration for Sit-ups (Fitness)",
+      "alt": "Illustration for Sit-ups (Fitness & Sports)",
       "original": {
         "file": "illustrations/sit-ups.jpg",
         "mime": "image/jpeg",
@@ -43,7 +43,7 @@
       }
     },
     "jog-one-mile": {
-      "alt": "Illustration for Jog One Mile (Fitness)",
+      "alt": "Illustration for Jog One Mile (Fitness & Sports)",
       "original": {
         "file": "illustrations/jog-one-mile.jpg",
         "mime": "image/jpeg",
@@ -62,7 +62,7 @@
       }
     },
     "plank": {
-      "alt": "Illustration for Plank (Fitness)",
+      "alt": "Illustration for Plank (Fitness & Sports)",
       "original": {
         "file": "illustrations/plank.jpg",
         "mime": "image/jpeg",
@@ -81,7 +81,7 @@
       }
     },
     "leg-raises": {
-      "alt": "Illustration for Leg Raises (Fitness)",
+      "alt": "Illustration for Leg Raises (Fitness & Sports)",
       "original": {
         "file": "illustrations/leg-raises.jpg",
         "mime": "image/jpeg",
@@ -100,7 +100,7 @@
       }
     },
     "glute-bridge": {
-      "alt": "Illustration for Glute Bridge (Fitness)",
+      "alt": "Illustration for Glute Bridge (Fitness & Sports)",
       "original": {
         "file": "illustrations/glute-bridge.jpg",
         "mime": "image/jpeg",
@@ -119,7 +119,7 @@
       }
     },
     "cool-down": {
-      "alt": "Illustration for Cool-down (Fitness)",
+      "alt": "Illustration for Cool-down (Fitness & Sports)",
       "original": {
         "file": "illustrations/cool-down.jpg",
         "mime": "image/jpeg",
@@ -138,7 +138,7 @@
       }
     },
     "read-non-fiction-book": {
-      "alt": "Illustration for Read a Non-Fiction Book (Education)",
+      "alt": "Illustration for Read a Non-Fiction Book (Learning)",
       "original": {
         "file": "illustrations/read-non-fiction-book.jpg",
         "mime": "image/jpeg",
@@ -157,7 +157,7 @@
       }
     },
     "read-fiction-book": {
-      "alt": "Illustration for Read a Fiction Book (Education)",
+      "alt": "Illustration for Read a Fiction Book (Learning)",
       "original": {
         "file": "illustrations/read-fiction-book.jpg",
         "mime": "image/jpeg",
@@ -176,7 +176,7 @@
       }
     },
     "attend-learning-event": {
-      "alt": "Illustration for Attend Learning Event (Education)",
+      "alt": "Illustration for Attend Learning Event (Learning)",
       "original": {
         "file": "illustrations/attend-learning-event.jpg",
         "mime": "image/jpeg",
@@ -195,7 +195,7 @@
       }
     },
     "drink-glass-of-water": {
-      "alt": "Illustration for Drink One Glass of Water (Wellness)",
+      "alt": "Illustration for Drink One Glass of Water (Health & Wellness)",
       "original": {
         "file": "illustrations/drink-glass-of-water.jpg",
         "mime": "image/jpeg",
@@ -214,7 +214,7 @@
       }
     },
     "sixty-second-meditation": {
-      "alt": "Illustration for 60-Second Meditation (Wellness)",
+      "alt": "Illustration for 60-Second Meditation (Health & Wellness)",
       "original": {
         "file": "illustrations/sixty-second-meditation.jpg",
         "mime": "image/jpeg",
@@ -233,7 +233,7 @@
       }
     },
     "sleep-relaxation-technique": {
-      "alt": "Illustration for Sleep Relaxation Technique (Wellness)",
+      "alt": "Illustration for Sleep Relaxation Technique (Health & Wellness)",
       "original": {
         "file": "illustrations/sleep-relaxation-technique.jpg",
         "mime": "image/jpeg",
@@ -252,7 +252,7 @@
       }
     },
     "balance-monthly-budget": {
-      "alt": "Illustration for Balance Monthly Budget (Finance)",
+      "alt": "Illustration for Balance Monthly Budget (Work & Finance)",
       "original": {
         "file": "illustrations/balance-monthly-budget.jpg",
         "mime": "image/jpeg",
@@ -271,7 +271,7 @@
       }
     },
     "work-on-business-plan": {
-      "alt": "Illustration for Work on Business Plan (Finance)",
+      "alt": "Illustration for Work on Business Plan (Work & Finance)",
       "original": {
         "file": "illustrations/work-on-business-plan.jpg",
         "mime": "image/jpeg",
@@ -290,7 +290,7 @@
       }
     },
     "make-sales-calls": {
-      "alt": "Illustration for Make Sales Calls (Finance)",
+      "alt": "Illustration for Make Sales Calls (Work & Finance)",
       "original": {
         "file": "illustrations/make-sales-calls.jpg",
         "mime": "image/jpeg",
@@ -309,7 +309,7 @@
       }
     },
     "do-something-nice": {
-      "alt": "Illustration for Do Something Nice (Relationships)",
+      "alt": "Illustration for Do Something Nice (Social)",
       "original": {
         "file": "illustrations/do-something-nice.jpg",
         "mime": "image/jpeg",
@@ -328,7 +328,7 @@
       }
     },
     "send-friendly-text": {
-      "alt": "Illustration for Send a Friendly Text (Relationships)",
+      "alt": "Illustration for Send a Friendly Text (Social)",
       "original": {
         "file": "illustrations/send-friendly-text.jpg",
         "mime": "image/jpeg",
@@ -347,7 +347,7 @@
       }
     },
     "have-dinner-with-a-friend": {
-      "alt": "Illustration for Have Dinner with a Friend (Relationships)",
+      "alt": "Illustration for Have Dinner with a Friend (Social)",
       "original": {
         "file": "illustrations/have-dinner-with-a-friend.jpg",
         "mime": "image/jpeg",
@@ -361,6 +361,386 @@
         "mime": "image/webp",
         "bytes": 3012,
         "sha256": "e7c92f13783e19db1b96f9a4cde7bb5e34a6050d2425fab53d0fd0ba831697fb",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "photograph-austin-skyline": {
+      "alt": "Illustration for Photograph the Austin Skyline (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/photograph-austin-skyline.jpg",
+        "mime": "image/jpeg",
+        "bytes": 38055,
+        "sha256": "8614c6dbf8284ed423dfbb88ac85174b8215d53e02937943b8c44eedbcfa06e4",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/photograph-austin-skyline-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4362,
+        "sha256": "444f259b3dd6da3f5ba607de6309c2f9112b01b4159a8b710476f7b42f86ff98",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "sketch-at-blanton": {
+      "alt": "Illustration for Sketch at the Blanton Museum (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/sketch-at-blanton.jpg",
+        "mime": "image/jpeg",
+        "bytes": 35131,
+        "sha256": "244dc160f6ff47dfd84d5f33f234641f3f700d28742c8bb945c5456d663762a0",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/sketch-at-blanton-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4122,
+        "sha256": "6f42361d3bf15bd32506021b3409aa1dec624bea798636f8c6a17cfb25b1bce3",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "swim-at-barton-springs": {
+      "alt": "Illustration for Swim at Barton Springs (Fitness & Sports)",
+      "original": {
+        "file": "illustrations/swim-at-barton-springs.jpg",
+        "mime": "image/jpeg",
+        "bytes": 35706,
+        "sha256": "acac843382436886424f9f8b9b2cc12a1fc0a8128331fce8c0a496a2bdf1bbdd",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/swim-at-barton-springs-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3864,
+        "sha256": "7f5cd4f9724301a0605a325d4f27debf63d05d157afe21872d89366781fd62cb",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "identify-native-plants": {
+      "alt": "Illustration for Identify Native Texas Plants (Outdoors & Nature)",
+      "original": {
+        "file": "illustrations/identify-native-plants.jpg",
+        "mime": "image/jpeg",
+        "bytes": 45151,
+        "sha256": "31e08fbc1e75f8efe156b8f28e30ef0cbf83cfabe285da7c61b1e88f6ea20ba3",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/identify-native-plants-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5402,
+        "sha256": "e1e76ac3338c04d3dbc264ed2eee2357e2d79ef3c23aa46e8349ff8932a66742",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "twenty-minute-guitar-practice": {
+      "alt": "Illustration for Practice Guitar for Twenty Minutes (Music)",
+      "original": {
+        "file": "illustrations/twenty-minute-guitar-practice.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31945,
+        "sha256": "e5673b87f12b10960f878a1855aef1e4691a17e80bdb662efdfd7c8550819422",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/twenty-minute-guitar-practice-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3282,
+        "sha256": "174e635d524b93db56628b0e17630c57255a204b7027531d1c9c16c39c5ec42e",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "group-sketch-session": {
+      "alt": "Illustration for Draw Together Online (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/group-sketch-session.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31550,
+        "sha256": "3001ba4ebd72d01cecc959c3bb24152abaeb7ef243998351545a8c6167c95ea5",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/group-sketch-session-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3318,
+        "sha256": "f08887d4b61970f2d3bd9146164fac2865f2b6649c6b3f6e184c8d4dd2ae0478",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "virtual-coffee-chat": {
+      "alt": "Illustration for Have Coffee and Catch Up Online (Social)",
+      "original": {
+        "file": "illustrations/virtual-coffee-chat.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31009,
+        "sha256": "d526362f5e01b10854224416cd0173d1f81eb4887c189267d8b7fa2c62a3632b",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/virtual-coffee-chat-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3048,
+        "sha256": "c197432ee1227a9e4d438f3ca5d3c7ed7f064e8eff18cd104af68aa0a2a20f69",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "cooperative-puzzle-hour": {
+      "alt": "Illustration for Solve a Puzzle Together (Games)",
+      "original": {
+        "file": "illustrations/cooperative-puzzle-hour.jpg",
+        "mime": "image/jpeg",
+        "bytes": 32427,
+        "sha256": "f5ccb6d0b33a6c57270cf5b1ad2c6a446827197fc7ba993880d1bc5eafb4af64",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/cooperative-puzzle-hour-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3548,
+        "sha256": "9fbfbda508b57939fa12d160a1be0854b757f9ac5eb59162e64e044d2f2062db",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "camera-operator-scene": {
+      "alt": "Illustration for Operate Camera for a Film Scene (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/camera-operator-scene.jpg",
+        "mime": "image/jpeg",
+        "bytes": 35979,
+        "sha256": "ebb051bc7fbc8944fe3b0236f571aa88ac78ecc83e63763f27d07a13cae0faf6",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/camera-operator-scene-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4200,
+        "sha256": "4a0e5b3ff1464e4a9ca340deb7932dba593fd124b9958c9a1f19141aa42b6db8",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "record-sound-scene": {
+      "alt": "Illustration for Record Sound for a Film Scene (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/record-sound-scene.jpg",
+        "mime": "image/jpeg",
+        "bytes": 36697,
+        "sha256": "1eb91fb761ab1478a6c5100c7a940fc303039114da490e919a04a2a967de4416",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/record-sound-scene-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4160,
+        "sha256": "87ca652efb0041c88d6e273de9afa7d1250668f26cdab8f7b4756426b797b4bc",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "act-in-scene": {
+      "alt": "Illustration for Perform in a Short Film Scene (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/act-in-scene.jpg",
+        "mime": "image/jpeg",
+        "bytes": 36582,
+        "sha256": "733fb3a9772ff17f1a987b9fe430a7ddf7e57c7bcd6058529a9a58cfeef13e36",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/act-in-scene-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4248,
+        "sha256": "fee74643d730e51c11abb16a862940611ac06a3356ca6ea19348b71fc0cf2449",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "direct-film-scene": {
+      "alt": "Illustration for Direct a Short Film Scene (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/direct-film-scene.jpg",
+        "mime": "image/jpeg",
+        "bytes": 36233,
+        "sha256": "8b54f3661b7a822d65c09e0eb676850cf6ab63910d9815f923cecc6be6900fea",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/direct-film-scene-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4124,
+        "sha256": "08b3a4302b8f182c0ab2eae1ae82c19b3d91f4625341b42b361815e7d31feb20",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "write-short-film-script": {
+      "alt": "Illustration for Write a Short Film Script (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/write-short-film-script.jpg",
+        "mime": "image/jpeg",
+        "bytes": 35373,
+        "sha256": "27fa85c9bf9d997c17dbb310f450ea7f6f829c596bcd5fb02ad87d3c515103fb",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/write-short-film-script-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3712,
+        "sha256": "991c652cace8f578b46d524a2d58b5179473a7cb1172d10600356ba6c6ae1f2c",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "create-film-shot-list": {
+      "alt": "Illustration for Create a Shot List from the Script (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/create-film-shot-list.jpg",
+        "mime": "image/jpeg",
+        "bytes": 35621,
+        "sha256": "8df0d871bef49491917dbbb755a312c585407b0494f6f1f800989862317a9eea",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/create-film-shot-list-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4142,
+        "sha256": "797554def7d12318e27a3b10e026dd0a91b976bdd04c73ec157fafa691e59701",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "edit-short-film": {
+      "alt": "Illustration for Edit Footage into a Short Film (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/edit-short-film.jpg",
+        "mime": "image/jpeg",
+        "bytes": 37357,
+        "sha256": "e0087eec18f8d3fdaa245580c55982ade06afbfa7f3e73817acc71e2985689bb",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/edit-short-film-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 4180,
+        "sha256": "42c1a5a9e38417a62486bceed3dfda1cd47aea5e0e4b86e4bd293329e2557ead",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "prepare-community-garden-bed": {
+      "alt": "Illustration for Prepare a Community Garden Bed (Home & Community)",
+      "original": {
+        "file": "illustrations/prepare-community-garden-bed.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31370,
+        "sha256": "325a9567a11844e4a3968267d8c834376ff18b9da114043d088ad80266ccb2bf",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/prepare-community-garden-bed-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3420,
+        "sha256": "299b4175662200155fe607f37c6c70c198c5746e64a9afb8e9efc067b2669fec",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "plant-community-garden": {
+      "alt": "Illustration for Plant a Shared Garden Bed (Home & Community)",
+      "original": {
+        "file": "illustrations/plant-community-garden.jpg",
+        "mime": "image/jpeg",
+        "bytes": 31112,
+        "sha256": "b6526d9dfe14ccd6b55c8c80b76e963fed5bb1c5501f6b973d16d3d9dd78bd67",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/plant-community-garden-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3282,
+        "sha256": "309d6df74a9324d2b5c1ad2fde243dbebd1465d099f0afa4b60379380428c719",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "run-concert-soundcheck": {
+      "alt": "Illustration for Run Soundcheck for a Live Performance (Music)",
+      "original": {
+        "file": "illustrations/run-concert-soundcheck.jpg",
+        "mime": "image/jpeg",
+        "bytes": 44937,
+        "sha256": "4431efdf928ebfaa80401c75e644462747d0efd99a574eddb63071a3ed46ff5e",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/run-concert-soundcheck-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 5546,
+        "sha256": "9bdac06e7371b245744644c07a7974a334c5aed2e03aed6d9146148341b84468",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "perform-live-set": {
+      "alt": "Illustration for Perform a Scheduled Live Music Set (Music)",
+      "original": {
+        "file": "illustrations/perform-live-set.jpg",
+        "mime": "image/jpeg",
+        "bytes": 32816,
+        "sha256": "f81eb51a5c13018b2cb6e176d55881513ff0f951a30da3ac2e42d1b4662403a1",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/perform-live-set-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3422,
+        "sha256": "081902d0a3990699520849567eaa32a6cc0178b6c4b72834b9b0565010e41375",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "manage-stage-cues": {
+      "alt": "Illustration for Call Stage Cues During a Play (Arts & Creativity)",
+      "original": {
+        "file": "illustrations/manage-stage-cues.jpg",
+        "mime": "image/jpeg",
+        "bytes": 30095,
+        "sha256": "c3c6c94d11814bdbef07a8d122424c55a5cee6febce542af9205255b5f135b1a",
+        "width": 1200,
+        "height": 900
+      },
+      "thumb": {
+        "file": "illustrations/manage-stage-cues-thumb.webp",
+        "mime": "image/webp",
+        "bytes": 3230,
+        "sha256": "252a566175c788038257fa1f4f7539c63ef7ce29feb3539559fbe076beab778c",
         "width": 480,
         "height": 360
       }

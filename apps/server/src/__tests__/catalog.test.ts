@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { bootstrapDatabase, checkDatabaseConsistency, db, deterministicUuid, seedDatabase } from '@project/db'
+import { STARTER_CATALOG_PROGRAMS } from '@project/db/prisma/seed'
 import { assertLocalResetAllowed } from '@project/db/prisma/seed/bootstrap'
 import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
@@ -45,25 +46,25 @@ describe('listMetricDefinitions', () => {
 })
 
 describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
-  it('deterministically and idempotently seeds taxonomy, 19 curated activities, 15 starter programs, 7 achievements, and rights-cleared media', async () => {
+  it('deterministically and idempotently seeds taxonomy, 39 curated activities, 20 starter programs, 7 achievements, and rights-cleared media', async () => {
     const first = await seedDatabase(db)
     expect(first).toMatchObject({
-      categories: 6,
-      focuses: 20,
-      programTypes: 17,
+      categories: 13,
+      focuses: 39,
+      programTypes: 24,
       tags: 10,
       metrics: 11,
       tools: 6,
       achievements: 7,
-      activities: 19,
-      starterPrograms: 15,
+      activities: 39,
+      starterPrograms: 20,
     })
-    expect(first.platformMediaFiles).toBe(68) // (19 illustrations + 15 Program covers) × (original + thumbnail)
+    expect(first.platformMediaFiles).toBe(108) // (39 illustrations + 15 Program covers) × (original + thumbnail)
     // Running a second time is a no-op: same row counts, and no file is uploaded again.
     const second = await seedDatabase(db)
     expect(second).toEqual({ ...first, retiredPrograms: 0, retiredActivities: 0, platformMediaUploaded: 0 })
-    expect(await db.activity.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(19)
-    expect(await db.program.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(15)
+    expect(await db.activity.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(39)
+    expect(await db.program.count({ where: { creatorId: null, status: 'PUBLISHED' } })).toBe(20)
     expect(await db.achievementDefinition.count()).toBe(7)
     expect(await db.mediaAsset.count({ where: { ownerId: null, license: null } })).toBe(0)
     // Activities receive durationMinutes and default frequency snapshots; ProgramStats start neutral (no fake counts).
@@ -111,9 +112,61 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
     expect(tagsRes.json().data).toHaveLength(10)
     const stats = await db.programStat.findMany({ where: { program: { creatorId: null } } })
     expect(stats.every((s) => s.enrollmentCount === 0 && Number(s.rankScore) === 0)).toBe(true)
-    // Every starter Program shows its own curated CC0 cover, not a copied Activity image.
+    // The original starter Programs show curated CC0 photographs; starter-catalog Programs use their first
+    // Activity's CC0 title card, never a photograph of a real Place (08 §9a).
     const programs = await db.program.findMany({ where: { creatorId: null }, include: { coverMedia: true } })
-    expect(programs.every((p) => p.coverMedia?.license === 'CC0-1.0' && p.coverMedia.attribution?.includes('commons.wikimedia.org'))).toBe(true)
+    expect(programs.every((p) => p.coverMedia?.license === 'CC0-1.0')).toBe(true)
+    const catalogSlugs = new Set(STARTER_CATALOG_PROGRAMS.map((p) => p.slug.replace(/^starter-/, '')))
+    for (const p of programs) {
+      if (catalogSlugs.has(p.slug!)) expect(p.coverMedia?.attribution, p.slug!).not.toContain('commons.wikimedia.org')
+      else expect(p.coverMedia?.attribution, p.slug!).toContain('commons.wikimedia.org')
+    }
+  }, 30000)
+
+  it('maps the starter catalog onto existing records without scheduling anything (01 §11, 08 §9a)', async () => {
+    const before = await db.category.findMany({ where: { slug: { in: ['fitness', 'wellness', 'finance', 'relationships', 'education', 'custom'] } } })
+    await seedDatabase(db)
+    // Existing Domains keep their IDs and slugs; only labels change.
+    const after = await db.category.findMany({ where: { slug: { in: ['fitness', 'wellness', 'finance', 'relationships', 'education', 'custom'] } } })
+    const afterIds = new Map(after.map((c) => [c.slug, c.id]))
+    for (const c of before) expect(afterIds.get(c.slug), c.slug).toBe(c.id)
+    expect(Object.fromEntries(after.map((c) => [c.slug, c.label]))).toMatchObject({
+      fitness: 'Fitness & Sports', wellness: 'Health & Wellness', finance: 'Work & Finance', relationships: 'Social', education: 'Learning',
+    })
+    // Every new Domain has exactly one generated, non-featured general Program Type offering all its Categories.
+    for (const slug of ['arts-creativity', 'music', 'games', 'entertainment', 'outdoors-nature', 'food-cooking', 'home-community']) {
+      const domain = await db.category.findUniqueOrThrow({ where: { slug }, include: { programTypes: { include: { focuses: true } }, focuses: true } })
+      expect(domain.programTypes, slug).toHaveLength(1)
+      expect(domain.programTypes[0]).toMatchObject({ slug: `${slug}-program`, isFeatured: false })
+      expect(domain.programTypes[0]!.focuses).toHaveLength(domain.focuses.length)
+    }
+    // Existing Education → Music stays; new music content lives under the Music Domain.
+    const education = after.find((c) => c.slug === 'education')!
+    expect(await db.focus.findUnique({ where: { categoryId_slug: { categoryId: education.id, slug: 'music' } } })).not.toBeNull()
+    const guitar = await db.activity.findUniqueOrThrow({ where: { slug: 'twenty-minute-guitar-practice' }, include: { category: true, focuses: { include: { focus: true } } } })
+    expect(guitar.category.slug).toBe('music')
+    expect(guitar.focuses.map((f) => f.focus.slug)).toEqual(['guitar'])
+    expect(guitar.id).toBe(deterministicUuid('activity:twenty-minute-guitar-practice'))
+    // Zero-instruction Activities are valid; suggested recurrence maps only when it is a real frequency.
+    const swim = await db.activity.findUniqueOrThrow({ where: { slug: 'swim-at-barton-springs' }, include: { latestPublished: { include: { instructions: true } } } })
+    expect(swim.latestPublished?.instructions).toHaveLength(0)
+    expect(swim.frequency).toBeNull()
+    expect((await db.activity.findUniqueOrThrow({ where: { slug: 'twenty-minute-guitar-practice' } })).frequency).toEqual({ kind: 'DAILY' })
+    // Dependencies become relative-day order only.
+    const film = await db.program.findFirstOrThrow({
+      where: { slug: 'short-film', creatorId: null },
+      include: { latestPublished: { include: { items: { include: { activity: true }, orderBy: [{ relativeDay: 'asc' }, { position: 'asc' }] } } } },
+    })
+    expect(film.latestPublished!.items.map((i) => `${i.relativeDay}:${i.activity.slug}`)).toEqual([
+      '1:write-short-film-script', '2:create-film-shot-list', '3:direct-film-scene', '3:camera-operator-scene',
+      '3:record-sound-scene', '3:act-in-scene', '4:edit-short-film',
+    ])
+    // Seeded Activities are opportunities, not events.
+    expect(await db.calendarItem.count()).toBe(0)
+    expect(await db.calendarRecurrence.count()).toBe(0)
+    expect(await db.programEnrollment.count()).toBe(0)
+    expect(await db.programGroup.count()).toBe(0)
+    expect(await db.activitySession.count()).toBe(0)
   }, 30000)
 
   it('safely archives obsolete platform seeds without removing user enrollments or history', async () => {
@@ -175,11 +228,11 @@ describe('seedDatabase (08 §12, 07 §8, 09 §9a)', () => {
   it('unified bootstrapDatabase is idempotent with opt-in demo fixtures and read-only check mode', async () => {
     const first = await bootstrapDatabase({ prisma: db, mode: 'sync', fixtures: 'demo', skipMigrate: true })
     if (first.mode === 'check') throw new Error('expected sync result')
-    expect(first.catalog).toMatchObject({ categories: 6, activities: 19, starterPrograms: 15 })
+    expect(first.catalog).toMatchObject({ categories: 13, activities: 39, starterPrograms: 20 })
     expect(first.fixtures).toMatchObject({ demoUsers: 2, groups: 1, enrollments: 2 })
     expect(first.counts).toMatchObject({
-      managedProgramsActive: 15,
-      managedActivitiesActive: 19,
+      managedProgramsActive: 20,
+      managedActivitiesActive: 39,
       groups: 1,
       enrollments: 2,
     })

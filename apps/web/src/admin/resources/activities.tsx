@@ -20,7 +20,7 @@ const detailFields: Field<Details>[] = [
   { kind: 'textarea', name: 'summary', label: 'Description', maxLength: 500, rows: 3, assist: true },
   { kind: 'number', name: 'durationMinutes', label: 'Duration', min: 1, max: 1440, suffix: 'minutes' },
   { kind: 'time', name: 'targetTime', label: 'Target time' },
-  { kind: 'select', name: 'categoryId', label: 'Category', required: true, options: useCategoryOptions },
+  { kind: 'select', name: 'categoryId', label: 'Domain', required: true, options: useCategoryOptions },
 ]
 
 function DetailsForm({ activity }: { activity: Detail }) {

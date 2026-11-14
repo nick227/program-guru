@@ -33,9 +33,10 @@ export function validateBootstrapPack() {
       throw new Error(`Missing illustration in manifest.json for activity "${act.slug}"`)
     }
   }
+  // A starter Program shows its curated cover, or else its first Activity's illustration (08 §9a).
   for (const prog of STARTER_PROGRAMS) {
-    if (!manifest.programCovers?.[prog.slug]) {
-      throw new Error(`Missing curated cover in manifest.json for starter program "${prog.slug}"`)
+    if (!manifest.programCovers?.[prog.slug] && !manifest.assets[prog.activitySlugs[0]!]) {
+      throw new Error(`Starter program "${prog.slug}" has neither a curated cover nor a first-Activity illustration in manifest.json`)
     }
   }
   const verifiedFiles = verifyPlatformAssetChecksums()

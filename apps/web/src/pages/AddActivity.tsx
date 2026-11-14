@@ -339,13 +339,13 @@ export function AddActivityPage() {
                   <Loading />
                 ) : (
                   <label className="field">
-                    <span className="label">Category</span>
+                    <span className="label">Domain</span>
                     <Select
                       required
                       value={categoryId}
                       onChange={(event) => setCategoryId(event.target.value)}
                     >
-                      <option value="">Choose a category</option>
+                      <option value="">Choose a domain</option>
                       {categories.data?.map((category) => (
                         <option key={category.id} value={category.id}>
                           {category.label}

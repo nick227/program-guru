@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { compileTaxonomy, defineCategory, validateContentPack, validateTaxonomy } from '@project/shared'
-import { CATEGORY_DEFINITIONS, METRIC_DEFINITIONS, SEED_CONTENT_PACK, TAG_DEFINITIONS, TAXONOMY, TOOL_DEFINITIONS } from '@project/db/prisma/seed'
+import { DOMAIN_DEFINITIONS, METRIC_DEFINITIONS, SEED_CONTENT_PACK, TAG_DEFINITIONS, TAXONOMY, TOOL_DEFINITIONS } from '@project/db/prisma/seed'
 import { changed } from '@project/db/prisma/seed/utils'
 
 describe('declarative content contract & taxonomy', () => {
-  it('validates the platform taxonomy and curated 5-program seed pack without issues', () => {
-    expect(validateTaxonomy(CATEGORY_DEFINITIONS, TAG_DEFINITIONS)).toEqual([])
+  it('validates the platform taxonomy and curated seed pack including the starter catalog without issues', () => {
+    expect(validateTaxonomy(DOMAIN_DEFINITIONS, TAG_DEFINITIONS)).toEqual([])
     const issues = validateContentPack(SEED_CONTENT_PACK, TAXONOMY, {
       knownMetricKeys: METRIC_DEFINITIONS.map((m) => m.key),
       knownToolKeys: TOOL_DEFINITIONS.map((t) => t.key),
     })
     expect(issues).toEqual([])
-    expect(SEED_CONTENT_PACK.programs).toHaveLength(15)
-    expect(SEED_CONTENT_PACK.activities).toHaveLength(19)
+    expect(SEED_CONTENT_PACK.programs).toHaveLength(20)
+    expect(SEED_CONTENT_PACK.activities).toHaveLength(39)
   })
 
   it('supports rapid category registration with scoped focuses and reports cross-category errors', () => {

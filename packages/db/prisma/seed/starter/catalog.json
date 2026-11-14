@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "1.0.0",
+  "name": "Program Guru Starter Catalog",
+  "description": "Small curated Domain → Category vocabulary for Programs and Activities. Categories replace the former category-scoped Focus terminology. This is editorial seed data, not a Prisma migration.",
+  "domains": [
+    {
+      "slug": "fitness-sports",
+      "label": "Fitness & Sports",
+      "categories": [
+        {
+          "slug": "swimming",
+          "label": "Swimming"
+        }
+      ]
+    },
+    {
+      "slug": "health-wellness",
+      "label": "Health & Wellness",
+      "categories": [
+        {
+          "slug": "mindfulness",
+          "label": "Mindfulness"
+        }
+      ]
+    },
+    {
+      "slug": "arts-creativity",
+      "label": "Arts & Creativity",
+      "categories": [
+        {
+          "slug": "photography",
+          "label": "Photography"
+        },
+        {
+          "slug": "sketching",
+          "label": "Sketching"
+        },
+        {
+          "slug": "filmmaking",
+          "label": "Filmmaking"
+        },
+        {
+          "slug": "screenwriting",
+          "label": "Screenwriting"
+        },
+        {
+          "slug": "theatre",
+          "label": "Theatre"
+        }
+      ]
+    },
+    {
+      "slug": "music",
+      "label": "Music",
+      "categories": [
+        {
+          "slug": "guitar",
+          "label": "Guitar"
+        },
+        {
+          "slug": "live-performance",
+          "label": "Live Performance"
+        }
+      ]
+    },
+    {
+      "slug": "learning",
+      "label": "Learning",
+      "categories": [
+        {
+          "slug": "reading-comprehension",
+          "label": "Reading Comprehension"
+        }
+      ]
+    },
+    {
+      "slug": "social",
+      "label": "Social",
+      "categories": [
+        {
+          "slug": "virtual-coffee",
+          "label": "Virtual Coffee"
+        },
+        {
+          "slug": "conversation-circles",
+          "label": "Conversation Circles"
+        }
+      ]
+    },
+    {
+      "slug": "games",
+      "label": "Games",
+      "categories": [
+        {
+          "slug": "cooperative-games",
+          "label": "Cooperative Games"
+        }
+      ]
+    },
+    {
+      "slug": "entertainment",
+      "label": "Entertainment",
+      "categories": [
+        {
+          "slug": "watch-parties",
+          "label": "Watch Parties"
+        }
+      ]
+    },
+    {
+      "slug": "outdoors-nature",
+      "label": "Outdoors & Nature",
+      "categories": [
+        {
+          "slug": "plant-identification",
+          "label": "Plant Identification"
+        },
+        {
+          "slug": "hiking",
+          "label": "Hiking"
+        }
+      ]
+    },
+    {
+      "slug": "food-cooking",
+      "label": "Food & Cooking",
+      "categories": [
+        {
+          "slug": "home-cooking",
+          "label": "Home Cooking"
+        }
+      ]
+    },
+    {
+      "slug": "work-finance",
+      "label": "Work & Finance",
+      "categories": [
+        {
+          "slug": "personal-budgeting",
+          "label": "Personal Budgeting"
+        }
+      ]
+    },
+    {
+      "slug": "home-community",
+      "label": "Home & Community",
+      "categories": [
+        {
+          "slug": "home-gardening",
+          "label": "Home Gardening"
+        },
+        {
+          "slug": "community-service",
+          "label": "Community Service"
+        }
+      ]
+    }
+  ]
+}
