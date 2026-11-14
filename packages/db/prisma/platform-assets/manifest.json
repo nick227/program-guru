@@ -408,16 +408,16 @@
       "original": {
         "file": "illustrations/swim-at-barton-springs.jpg",
         "mime": "image/jpeg",
-        "bytes": 35706,
-        "sha256": "acac843382436886424f9f8b9b2cc12a1fc0a8128331fce8c0a496a2bdf1bbdd",
+        "bytes": 71158,
+        "sha256": "aa7ce4f6c6967099516de4397697c62863c6e9c57627c08f61b12737f4cc5e87",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/swim-at-barton-springs-thumb.webp",
         "mime": "image/webp",
-        "bytes": 3864,
-        "sha256": "7f5cd4f9724301a0605a325d4f27debf63d05d157afe21872d89366781fd62cb",
+        "bytes": 8022,
+        "sha256": "38e6456b0930268b482a5ca071eed7e7bb3a9473253d1417b0221c0a874a8d6c",
         "width": 480,
         "height": 360
       }
@@ -693,16 +693,16 @@
       "original": {
         "file": "illustrations/run-concert-soundcheck.jpg",
         "mime": "image/jpeg",
-        "bytes": 44937,
-        "sha256": "4431efdf928ebfaa80401c75e644462747d0efd99a574eddb63071a3ed46ff5e",
+        "bytes": 31543,
+        "sha256": "f9c77cf2f44ae1b6b3f0a804104f405f3b26e9fd5264e286f190e1c90d32c206",
         "width": 1200,
         "height": 900
       },
       "thumb": {
         "file": "illustrations/run-concert-soundcheck-thumb.webp",
         "mime": "image/webp",
-        "bytes": 5546,
-        "sha256": "9bdac06e7371b245744644c07a7974a334c5aed2e03aed6d9146148341b84468",
+        "bytes": 3392,
+        "sha256": "d7e7ba133ec41d4fbbd7daa6e6f91c7fab8bf65e587a6213e24a6b6df19edc94",
         "width": 480,
         "height": 360
       }

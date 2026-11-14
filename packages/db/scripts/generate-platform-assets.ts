@@ -23,13 +23,13 @@ const PALETTE: Record<string, Palette> = TAXONOMY.palettes
 
 type Glyph = 'weights' | 'path' | 'ripples' | 'moon' | 'book' | 'coins' | 'voices' | 'music' | 'spark'
 const GLYPH_RULES: [Glyph, RegExp][] = [
-  ['music', /music|piano|guitar|scale|song|instrument|rhythm/],
+  ['music', /music|piano|guitar|scale|song|instrument|rhythm|soundcheck/],
   ['moon', /sleep|evening|wind-?down|night|rest\b|bedtime/],
   ['coins', /budget|sav|spend|money|fund|invest|bill|expense|debt|financ|net worth|tax|account|income|subscription/],
   ['book', /read|study|lesson|vocab|language|note|journal|exam|review|flashcard|course|learn|chapter|write|reflect/],
   ['voices', /call|message|family|friend|partner|gratitude|check-in|date|dinner|connect|letter|outreach|together|talk|thank/],
   ['path', /run|walk|jog|hike|stair|bike|cycl|sprint|interval|cardio|trail|step/],
-  ['ripples', /breath|medit|mindful|relax|calm|yoga|stretch|mobility|cool-?down|warm-?up|recovery|flow|balance/],
+  ['ripples', /breath|medit|mindful|relax|calm|yoga|stretch|mobility|cool-?down|warm-?up|recovery|flow|balance|swim/],
   ['weights', /squat|push|pull|lift|press|row|plank|core|strength|dumbbell|lunge|deadlift|crunch|raise|bridge|burpee|dip|curl|circuit/],
 ]
 const DEFAULT_GLYPH: Record<string, Glyph> = {
