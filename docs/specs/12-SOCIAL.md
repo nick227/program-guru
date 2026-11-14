@@ -10,7 +10,7 @@ Daily user opens **Calendar**, not a feed. Social experiences develop from meani
 
 - **Creator profile:** one combined public UserProfile with handle/bio/avatar and permitted public Programs, Activities, media, shared achievements. No `Creator` role/model.
 - **Program discovery:** published PUBLIC Programs, composable server-side filters by Category/Type/Focus, `level`, `duration` bucket, `maxSessionMinutes`, `tags`, `accessMode`, `timing` (`ALL`, `STARTING_SOON`, or deferred `HAPPENING_NOW` when live presence exists), and text query; seeded Programs featured first for new users; ranked by relevance plus completion and retention. Program results may surface up to one discoverable `PUBLIC` Group (`featuredGroup`) with member count, recent check-in activity, and optional scheduled start, never exposing private groups or member lists. `STARTING_SOON` requires an actual upcoming `startLocalDate` on an active `PUBLIC` group; `HAPPENING_NOW` requires real live presence infrastructure (deferred, never fabricated from active enrollments). UNLISTED only direct-link preview; PRIVATE not indexed.
-- **Activity discovery:** approved public canonical Activities, Category/Focus, instruction counts/media, creator attribution; use as is or customize a copy.
+- **Activity discovery:** approved public canonical Activities, Domain/Category, instruction counts/media, creator attribution; use as is or customize a copy.
 - **Media discovery:** approved publications attached to canonical Activity or Instruction; views and likes accrue **per publication** not private files.
 - **Follow:** accepted relationship to user; private profiles use approval. Never implies Program enrollment or unlock.
 - **Group social:** completion reactions and comments on group-shared media, scoped to the group; never public.
@@ -49,9 +49,9 @@ Consolidated persistence: `packages/db/prisma/schema.prisma`. `entityKind`/`enti
 
 ## 5. Discovery UX
 
-**Entry points:** Calendar `+ Program` → `Browse`, Program Detail creator/avatar, Activity Picker search, Media Viewer creator tap, user widget → Profile / published content. No dedicated Home feed.
+**Entry points:** Calendar `+ Program` → `Browse`, Community (`/browse`), Home and its Home Agent, Program Detail creator/avatar, Activity Picker search, Media Viewer creator tap, user widget → Profile / published content. Home is not an algorithmic feed (§5a).
 
-**Program browse:** the first thing a new user sees after `Browse Programs`, leading with seeded Programs. Focused search input, compact seeded Category/Type chips, optional Focus filter and Free/Approval/Paid, image thumbnail + program title + creator + duration/frequency + access; tap opens safe preview. `Join` appears only when access permitted; otherwise `Request Access` or `Unlock` with clear terms.
+**Program browse:** the first thing a new user sees after `Browse Programs`, leading with seeded Programs. Focused search input, compact Domain/Type chips, optional Category filter and Free/Approval/Paid, image thumbnail + program title + creator + duration/frequency + access; tap opens safe preview. `Join` appears only when access permitted; otherwise `Request Access` or `Unlock` with clear terms.
 
 **Activity browse:** selected program type/focus guides suggested seeded library first; searchable list with thumb/title/instruction count/metrics and `Use` or `Customize Copy`. Avoid displaying hundreds of social likes inside picker rows.
 
@@ -59,7 +59,26 @@ Consolidated persistence: `packages/db/prisma/schema.prisma`. `entityKind`/`enti
 
 **Activity media viewer:** compact thumbnails/swipes, program creator media first if eligible, attribution + like/views, next/previous. Optional `Contribute` when authorized. Creator attribution should link to public profile; program source visible only where safe.
 
-## 6. Notifications and reminders
+## 5a. Catalog discovery surfaces (decided 2026-11-14, `01-PRODUCT.md` §11)
+
+**One source.** Community, Home, the Home Agent and the Calendar rail all read `GET /discover` through the existing SDK hooks and render the one shared discovery card. None adds its own ranking or recommendation engine. One shared web helper decides the primary action for a card: `Join` only when access is permitted and the viewer is neither the creator nor already a member or enrolled; members see `Open`, creators see `Manage`/`Open`.
+
+**Truthful data only.** Show only real participants, real check-ins, real live sessions and real Places. Never fabricate hosts, venues, availability, attendees or shared participation. A filter or section appears only when the current data can populate it.
+
+**Community (primary investment).**
+- Browse Programs, Activities and Creators by **Domain → Category**: Domain chips, then that Domain's Categories. URL-addressable, like existing filters.
+- **City, never nearby.** Location discovery says "in Austin" / "City", never "nearby", "near you" or distances, until sourced coordinates and true proximity filtering exist.
+- **Places:** a Places section and a **city** filter, shown only when at least one active Place has a public Activity. A Place opens a drawer (modeled on the Activity preview drawer) with its name, address, access note, source link and the public Activities that suggest it, labeled "Suggested place".
+- **Participation filters** use only existing data: Happening now (live sessions), Starting soon, and open public Groups. No online/in-person/solo classification (deferred).
+- Large, useful images and minimal chrome; existing card, section and drawer components.
+
+**Home.** One compact, media-led section showing the range of Activities: at most 6 Activity cards from at least 3 different Domains (when 3 exist), chosen by taking the most popular Activity per Domain in turn. Each card opens the existing Activity preview. No other Home changes.
+
+**Home Agent.** The intent menu's `Find something new` choice becomes **`Find something to do`**, shown whether or not `Continue where I left off` is available, and enters the existing `explore_interest` flow, whose Domain choices come from data. The flow, its deterministic ordering and its eligibility rules stay as they are; no new nodes or engine.
+
+**Calendar.** One compact rail of at most 6 Activities to schedule, shown in the Day view side panel when nothing is selected and beneath the empty-week message. It is never a persistent band under the grid (`03-UX.md` §2). Adding uses the existing add-calendar-item flow, including the Activity's suggested Place.
+
+
 
 Notification **indicator overlays user widget** in Calendar header with an unread count badge, 30-second background polling, window-focus refresh, and immediate invalidation after mutations. The header Bell dropdown stays compact: latest 6 grouped entries with `All`, `Direct`, and `Groups` quick filters, inline Accept/Decline for follow requests and group invitations (when pending and authorized), and links to `/notifications` and `/settings`. `/notifications` is the full Notification Center with server-side filters, cursor pagination, real avatar stacks, and expandable grouped entries.
 
@@ -138,7 +157,7 @@ interface SocialDao {
 
 `DiscoveryService` runs search with read-time permissions; `EngagementService` writes like/comment/view; `ProgramStatService` computes completion and retention; `NotificationService` consumes outbox, recipient policy, badge/read state; `ReminderService` runs the scheduled scan; `ModerationService` validates reports/action/audit; `FollowService` belongs to Users but emits social events.
 
-Endpoints: `GET /discover`, `GET /users/:handle/programs`, `GET /users/:handle/activities`, `GET /users/:handle/publications`, `GET /users/:handle/achievements`, `POST|DELETE /media-publications/:id/likes`, `GET|POST /media-publications/:id/comments`, `DELETE /media-comments/:id`, `POST /media-publications/:id/views` (qualified), `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/read`, `POST /email/unsubscribe`, `POST /reports`, `GET /moderation/reports`, `POST /moderation/reports/:id/resolve`.
+Endpoints: `GET /discover` (Activity results also filter by `placeId` and `locality`), `GET /catalog/places?locality&q` and `GET /catalog/places/:slugOrId` (public; active Places only), `GET /users/:handle/programs`, `GET /users/:handle/activities`, `GET /users/:handle/publications`, `GET /users/:handle/achievements`, `POST|DELETE /media-publications/:id/likes`, `GET|POST /media-publications/:id/comments`, `DELETE /media-comments/:id`, `POST /media-publications/:id/views` (qualified), `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/read`, `POST /email/unsubscribe`, `POST /reports`, `GET /moderation/reports`, `POST /moderation/reports/:id/resolve`.
 
 ## 10. Analytics and privacy
 
@@ -156,3 +175,6 @@ Public counts are coarse aggregated and non-identifying; suppress or round small
 - Program ranking uses completion and retention; small samples are suppressed.
 - Creator follower cannot read private logs or locked program just because of Follow relationship.
 - Public Activity carousel excludes other programs' private or paywalled videos unless separately licensed/published.
+- Discovery (§5a): `/discover?kind=ACTIVITY&locality=Austin` returns only Activities whose Place is in Austin; `placeId` likewise; inactive Places never appear; the city filter and Places section are absent with zero Places.
+- No discovery card offers `Join` to the creator or an existing member/enrollee (shared helper unit test, used by Community, Home, Agent and Calendar rail).
+- Home range section: at most 6 cards, at least 3 Domains when 3 exist; the Agent's `Find something to do` reaches `explore_interest` with data-driven Domains.

@@ -98,7 +98,7 @@ One user may perform all these jobs. There is no special `CREATOR` account role 
 | Authentication & profile | Required unique handle, one combined public profile, optional private-follow approval, email/password and Google | No separate creator tier; no Apple login |
 | Calendar | Weekly default view, multiple programs, standalone Activities, recurring personal entries, add/move/remove/complete, overlap display | No third-party calendar sync |
 | Program authoring | Eight non-linear guided steps, workspace, draft autosave, automatic scheduling with manual adjustment, publish/version | No arbitrary scripting/workflow engine |
-| Activity catalog | Curated seeds organized by Category and Focus, search/filter, customize a personal copy, private/public creation | No uncontrolled duplicate canonicalization |
+| Activity catalog | Curated seeds organized by Domain and Category (§11), search/filter, customize a personal copy, private/public creation | No uncontrolled duplicate canonicalization |
 | Instructions | Compact text and media; usually 1–3 per seeded activity; media/metrics/tools at both levels | No mandatory nesting beyond one instruction level |
 | Media | Platform assets, My Library, camera capture and upload, thumbnails, audience, attribution | No trimming, capture presets, transcription, or community reuse library |
 | Sessions/logging | Start, pause, resume, finish per Activity occurrence; effective duration and typed metrics | No universal assumption of reps/weight; a Program day is not a session |
@@ -171,6 +171,8 @@ General group chat and direct messaging, video meetings/WebRTC, comments on publ
 
 **P1+ Creator Channel & Publishing** extends `02-DOMAIN.md` §10 and cross-references monetization (`07-PROGRAMS.md`, `05-ARCHITECTURE.md` §12, ADR 0001), profiles (`06-USERS.md`, `12-SOCIAL.md`, `13-PROFILES-AND-EXPERIENCE.md`), Programs (`07-PROGRAMS.md`), Activities/Instructions (`08-ACTIVITIES.md`), and media (`11-MEDIA.md`). Domain contracts 06–13 remain authoritative for their existing surfaces until amended for this epic.
 
+**P1+ Catalog Expansion** (§11) amends `02-DOMAIN.md` §1–§3 (vocabulary, Place), `07-PROGRAMS.md` §8 (seed Programs), `08-ACTIVITIES.md` §2 and §9 (Place, editorial standard), `09-CALENDARS.md` §2, §5–§7 (scheduled Place) and `12-SOCIAL.md` §5 (discovery surfaces).
+
 ## 9. Decision log
 
 | # | Question | Decision |
@@ -179,7 +181,7 @@ General group chat and direct messaging, video meetings/WebRTC, comments on publ
 | 2 | Adding a first program | Browse seeded programs |
 | 3 | After finishing an activity | Return to calendar |
 | 4 | Customization | Simple by default, advanced on demand |
-| 5 | Seeded activity organization | Category and Focus |
+| 5 | Seeded activity organization | Category and Focus, shown as Domain and Category (#31) |
 | 6 | Customizing an existing activity | Creates a personal copy |
 | 7 | Instruction presentation | Compact text and media |
 | 8 | Scheduling | Automatic distribution, with manual calendar adjustment |
@@ -205,6 +207,11 @@ General group chat and direct messaging, video meetings/WebRTC, comments on publ
 | 28 | Content access axes | Ownership, publication status, audience access, and pricing are separate; never collapse into one visibility field |
 | 29 | Subscribe ≠ enroll | Channel subscribe never auto-enrolls or populates Calendar; lapse preserves personal history |
 | 30 | Unified creator workspace | One management surface for Programs, Activities, Instructions, Media, and Posts |
+| 31 | Catalog vocabulary (2026-11-14) | The UI says **Domain → Category**. Storage keeps `Category` (= Domain) and `Focus` (= Category), with unchanged models, IDs, slugs and API parameters (§11) |
+| 32 | Complexity tiers (2026-11-14) | Removed entirely. No tier, complexity or difficulty classification in catalog, seed files or discovery, and no replacement (§11) |
+| 33 | Places (2026-11-14) | Optional, platform-curated real Places on Activities and on scheduled occurrences; city-based discovery only (§11) |
+| 34 | Activity tags (2026-11-14) | Deferred. Online, in-person and solo are not classified until a concrete discovery requirement needs it |
+| 35 | Venue claims (2026-11-14) | Deferred until venue profiles are useful. A Place link never implies a host, sponsor or endorsement |
 
 ## 10. P1+ epic — Creator Channel & Publishing
 
@@ -349,3 +356,42 @@ Reuse Stripe Connect (destination charges, webhook-only fulfillment, `MARKETPLAC
 13. Owner updates channel branding (display name, bio, avatar or cover) via profile update; the public profile reflects the change.
 14. Owner approves or declines a pending follow request and a Program access request from Studio Audience.
 15. Dashboard shows payout/earnings aggregates and Program enrollment or completion figures without fabricating subscriber-channel metrics.
+
+## 11. P1+ epic — Catalog Expansion (decided 2026-11-14)
+
+### Intent
+
+Broaden Program Guru into a catalog of things people can do, alone or together, online or in the real world, without new execution systems. Program → Activity → Calendar → Session stays exactly as it is. The epic adds content, one optional relationship (Place), and better discovery.
+
+### Decisions
+
+1. **Vocabulary, not schema.** The UI and docs say **Domain** for the broad subject and **Category** for the specific one. Storage keeps `Category` (the Domain) and `Focus` (the Category), with unchanged models, IDs, slugs, API parameters (`categoryId`, `focusId`) and SDK names. Mapping: `02-DOMAIN.md` §2.
+2. **Twelve Domains.** The five existing broad Categories keep their IDs and slugs and get new labels; seven are added (`02-DOMAIN.md` §2). Existing Programs, Activities, Focus links, memberships, revisions and creator attribution are unchanged.
+3. **Existing references stay.** Education → Music keeps its existing Programs and Activities. New music content goes under the Music Domain.
+4. **No tiers.** Domains, Categories, Activities, Programs and seed files carry no tier, complexity or difficulty classification, and nothing replaces it. Actual Activities, schedule, Places, Program membership and participation already express how involved something is. (`ProgramLevel` on Programs is an existing, separate attribute and is out of scope for this epic.)
+5. **Places** are optional, real, platform-curated locations linked to Activities (suggested place) and to Calendar occurrences (scheduled place, user-overridable). Discovery is by city. Coordinates, maps, nearby search and venue claims come later, once reliable data exists.
+6. **Seed-only metadata stays in seed files.** Raw editorial fields (dependencies, editorial notes, participation descriptors, recurrence wording) are expressed through existing Program ordering, `Activity.frequency`, Instructions and `Place.accessNote`, or remain only in the raw files. They never become schema.
+7. **No ActivityTag yet.** Online, in-person and solo are not classified. Participation filters use only data that already exists (live sessions, open public Groups, starting soon).
+8. **Seeded Activities are opportunities, not events.** Seeding creates no Calendar Items, recurrences, enrollments, Groups, sessions or participants. Suggested recurrence is never a reservation, opening hours, organizer or attendance.
+9. **Participation behavior is unchanged.** The Shared Participation Experience requirements and `10-COLLABORATION.md` §8 remain authoritative; discovery surfaces display only real participant data and never offer Join to an existing member or the creator.
+10. **Community gets the main UI investment.** Home, the Home Agent and Calendar each get one small, specified addition (`12-SOCIAL.md` §5a). No other surfaces change.
+
+### Milestones (after this specification update)
+
+| # | Milestone | Scope | Schema change |
+|---|---|---|---|
+| 1 | **Catalog** | Domain/Category vocabulary in the UI; 12 Domains and starter Categories in `seed/taxonomy.ts`; a general Program Type per new Domain generated from its definition; data-driven Domain styling with a fallback; starter Activities and Programs mapped from `program-guru-starter-seed/` with stable IDs; editorial validation test | None |
+| 2 | **Places** | `Place`; nullable `placeId` on `Activity`, `CalendarItem` and `CalendarRecurrence`; list/get Places; Place on Activity and occurrence DTOs; place on add, move and recurrence inputs; `/discover` filters by `placeId` and `locality`; the four starter Places and their Activity links | One additive migration |
+| 3 | **Discovery** | Community browsing by Domain → Category, Places and city; one shared Join-eligibility helper; then the Home section, the Home Agent action and the Calendar rail (`12-SOCIAL.md` §5a) | None |
+
+### Acceptance tests
+
+1. After Milestone 1, every pre-existing Category, Focus, Program, Activity, revision, enrollment, Calendar Item and membership keeps its ID and references; running the seed twice changes nothing.
+2. Discovery lists 12 Domains with their UI labels; `custom` is not listed as a Domain.
+3. Every starter Activity and instruction passes the editorial standard (`08-ACTIVITIES.md` §9a); validation fails the seed test otherwise.
+4. Seeding the starter catalog creates zero Calendar Items, recurrences, enrollments, Groups, sessions and participants.
+5. Adding an Activity that has a Place copies the Place to the new Calendar Item; the user can change or clear it; changing the Activity's Place later never changes existing Calendar Items.
+6. Community filters by city return only Activities whose Place is in that city; the city filter is hidden when no Places exist.
+7. No discovery surface offers Join to an existing member or the creator.
+8. A Place page never says or implies that the venue hosts, organizes or endorses an Activity.
+

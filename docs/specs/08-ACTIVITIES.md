@@ -12,9 +12,9 @@ An **Activity** is a reusable, category-agnostic action: Leg Raises, Read, Daily
 
 | Entity | Main fields | Notes |
 |---|---|---|
-| `Activity` | id, slug? (seeds/published), creatorId? (null=platform), `canonicalActivityId?`, `sourceActivityId?`, categoryId, title, summary?, visibility, status, latestPublishedRevisionId?, timestamps | Reusable identity; customizing produces new ID with lineage |
+| `Activity` | id, slug? (seeds/published), creatorId? (null=platform), `canonicalActivityId?`, `sourceActivityId?`, categoryId (Domain), placeId? (§2a), title, summary?, visibility, status, latestPublishedRevisionId?, timestamps | Reusable identity; customizing produces new ID with lineage |
 | `ActivitySlugAlias` | id, activityId, slug, createdAt | Preserves historical activity slugs across renames |
-| `ActivityFocus` | activityId, focusId | Library is browsable by Category and Focus |
+| `ActivityFocus` | activityId, focusId | Library is browsable by Domain and Category (`02-DOMAIN.md` §2) |
 | `ActivityRevision` | id, activityId, revisionNumber, titleSnapshot, summarySnapshot, publishedAt?, editorId | Immutable if published; editable draft separate |
 | `Instruction` | id, instructionKey, activityRevisionId, position, title?, body? (sanitized rich text), media layout hint? | Revision-owned ordered children; no recursive nesting; `instructionKey` stays the same across revisions so contributions and media survive new revisions |
 | `ActivityMetric` | id, activityRevisionId?, instructionId?, metricDefinitionId, required?, position, defaults JSON?, rollupToMetricKey? | Exactly one definition target; applies at level attached |
@@ -23,6 +23,17 @@ An **Activity** is a reusable, category-agnostic action: Leg Raises, Read, Daily
 | `ToolDefinition` | id, key, label, defaultConfig JSON?, componentKey, supportedValueTypes JSON? | Approved platform control registry |
 
 **No generic `content` field, no `variations[]`, no separately forced steps.** `summary` is brief; `Instruction.body` holds guidance where needed. Instruction title optional; if video alone explains action, body can be omitted after accessible media alt/caption.
+
+### 2a. Places (decided 2026-11-14)
+
+| Entity | Main fields | Notes |
+|---|---|---|
+| `Place` | id, slug (unique), name, kind (e.g. `park`, `museum`, `pool`, `garden`), addressLine?, locality (city), region, countryCode, sourceUrl, accessNote?, isActive, createdAt, updatedAt | Platform-curated: created by seed or ADMIN only in this epic. No coordinates, hours, hosts, prices or claims yet |
+
+- **`Activity.placeId`** (nullable, `SET NULL` on delete) is the Activity's *suggested* place. It is Activity-level metadata like `categoryId`, not part of the revision snapshot: changing it never alters published revisions or existing Calendar Items. Authors choose from active Places in create and draft-update; most Activities have none.
+- **`accessNote`** holds plain, sourced visitor constraints (admission, permitted materials, closures, permission needed), worded as "check before you go". It never states hours as fact.
+- **Display.** Anywhere a Place appears, it shows name, address and city, the access note, and a link to `sourceUrl`; a directions link may be built from the address. The wording is "Suggested place". It never says "hosted by", "at this event", or shows attendees the Place didn't produce.
+- **Deferred:** coordinates, maps and nearby search (once reliable sourced coordinates exist), user-created Places, Place media, venue claims and verified venue-hosted Activities.
 
 ### Planned duration and default frequency (decided 2026-11-10)
 
@@ -130,9 +141,36 @@ Endpoints: `GET /activities` (filters: category, focus, q, source), `POST /activ
 
 ## 9. Seed library proposal
 
-Strong seeded P1 set should be **quality-led and category-balanced** rather than hundreds of placeholders. The §12 inventory is 81 Activities, each with category, focus, 1–3 concise correct Instructions, a **rights-cleared illustration**, useful metric(s), tool(s), suggested difficulty/context and attribution. **Selected demonstration videos** supplement illustrations, starting with the most-used Fitness Activities and any other Activity that is hard to understand without motion. Include outliers: simple one-media instruction, text-only activity, multi-step activity with 4–6 instructions. Avoid unsafe or overprescriptive wellness/finance advice.
+Strong seeded P1 set should be **quality-led and category-balanced** rather than hundreds of placeholders. The §12 inventory is 81 Activities, each with category, focus, 1–3 concise correct Instructions, a **rights-cleared illustration**, useful metric(s), tool(s), context and attribution. No tier, complexity or difficulty classification (`01-PRODUCT.md` §11). **Selected demonstration videos** supplement illustrations, starting with the most-used Fitness Activities and any other Activity that is hard to understand without motion. Include outliers: simple one-media instruction, text-only activity, multi-step activity with 4–6 instructions. Avoid unsafe or overprescriptive wellness/finance advice.
 
 **Seed examples:** Leg Raises, Squats, Walk, Stretch; Vocabulary Review, Reading, Instrument Practice; Meditation, Reflection; Weekly Budget Review, Savings Contribution; Call a Friend, Plan Shared Time. All Activity content must be instructionally meaningful, accessible and rights-cleared. Platform graphics may be generic; creators can replace without duplicating source asset bytes.
+
+## 9a. Editorial standard and starter catalog (decided 2026-11-14)
+
+Applies to all new and edited platform seed content. Existing seeds are not rewritten by this epic.
+
+| Field | Standard |
+|---|---|
+| Activity title | 2–7 words, specific and readable, Title Case |
+| Summary (description) | About 20–30 words, usually two sentences: the experience and setting, then one useful detail |
+| Instruction title | A meaningful sentence-like phrase, generally 6–12 words, not a generic label |
+| Instruction body | About 40–80 words, typically 3–5 plain informative sentences |
+| Instruction count | Optional; zero is valid when the summary is enough |
+
+Simple grammar and everyday words. No promotional copy, generic encouragement, repeated sentences, or invented details (hosts, attendees, bookings, hours, sponsorship). A seed test enforces these ranges on starter content (titles 2–7, summaries 20–30, instruction titles 6–12, instruction bodies 40–80 words) and fails on any violation.
+
+**Starter catalog source.** `program-guru-starter-seed/` (moved into `packages/db/prisma/seed/starter/`) is raw editorial JSON, not a Prisma fixture. The seed mapper:
+
+- derives stable UUIDs from the editorial IDs (`deterministicUuid`) and upserts by slug, publishing revision 1 once; re-running it creates no new revisions;
+- translates editorial Domain slugs (§2 table in `02-DOMAIN.md`) and Category slugs to stored `Category` and `Focus` rows;
+- maps suggested recurrence to `Activity.frequency` only where it is a real `FrequencyDto` (`daily` → `DAILY`, `weekly` → `N_PER_WEEK` n=1); everything else (`daily near sunset`, `weekends`, `venue_hours`, `flexible`) leaves `frequency` empty;
+- maps Program `dependencies` to Program ordering only: relative days in dependency order, with independent Activities on the same day. No dependency data is stored;
+- moves place-wide `editorialNotes` into `Place.accessNote`, and Activity-specific ones into an Instruction only when they help the participant; otherwise they stay in the raw file;
+- leaves `participation`, `scheduleMode`, `venueHostConfirmed` and `policy` in the raw files;
+- uses generated CC0 title cards for covers; no photographs of real Places without recorded rights;
+- creates no Calendar Items, recurrences, enrollments, Groups, sessions or participants.
+
+The raw files are fixed before import: two summaries are 19 words, and six instruction titles are under six words.
 
 ## 10. Participant representation
 
@@ -146,7 +184,8 @@ Activity Detail/Editor is **not** the daily occurrence. Opening from Calendar us
 - Reused Activity in 100 programs shares canonical identity; only public approved licensed media aggregates.
 - Actual results and scheduling never stored on Activity or ActivityRevision.
 - Metric type/unit/range validation; no hardcoded `reps` DB column; optional metric display for finance/wellness.
-- Seeded library searchable, Category and Focus filters stable, default relevant picker results, attribution visible.
+- Seeded library searchable, Domain and Category filters stable, default relevant picker results, attribution visible.
+- An Activity's Place can be set, changed and cleared in its draft; doing so leaves published revisions and existing Calendar Items unchanged; an inactive Place cannot be chosen.
 - Contribution attached to an Instruction survives a new Activity revision through `instructionKey`.
 
 ## 12. Initial seeded Activity inventory proposal (titles only; editorial review required)

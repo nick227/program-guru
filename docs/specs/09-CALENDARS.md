@@ -14,12 +14,14 @@
 
 | Model | Fields | Purpose/invariants |
 |---|---|---|
-| `CalendarItem` | id, ownerId, activityId, activityRevisionId, enrollmentId?, sourceScheduleItemId?, recurrenceId?, idempotencyKey, groupOccurrenceKey?, programDayIndex?, localDate, localTime?, scheduledAtUtc?, status, targetOverrides JSON?, movedFromDate?, isUserAdjusted, reminderSentAt?, createdAt, updatedAt | Dated or date-only occurrence; origin optional; unique `idempotencyKey` |
-| `CalendarRecurrence` | id, ownerId, activityId, activityRevisionId, rule JSON, anchorDate, localTime?, timezone, untilDate?, generatedThroughDate?, status ACTIVE/ENDED, timestamps | Personal repeat rule for a standalone Activity. `rule` is `{kind:DAILY}`, `{kind:WEEKDAYS}`, `{kind:WEEKLY,weekdays:[…]}`, `{kind:EVERY_N_DAYS,n}`, or `{kind:MONTHLY}` |
+| `CalendarItem` | id, ownerId, activityId, activityRevisionId, placeId?, enrollmentId?, sourceScheduleItemId?, recurrenceId?, idempotencyKey, groupOccurrenceKey?, programDayIndex?, localDate, localTime?, scheduledAtUtc?, status, targetOverrides JSON?, movedFromDate?, isUserAdjusted, reminderSentAt?, createdAt, updatedAt | Dated or date-only occurrence; origin optional; unique `idempotencyKey` |
+| `CalendarRecurrence` | id, ownerId, activityId, activityRevisionId, placeId?, rule JSON, anchorDate, localTime?, timezone, untilDate?, generatedThroughDate?, status ACTIVE/ENDED, timestamps | Personal repeat rule for a standalone Activity. `rule` is `{kind:DAILY}`, `{kind:WEEKDAYS}`, `{kind:WEEKLY,weekdays:[…]}`, `{kind:EVERY_N_DAYS,n}`, or `{kind:MONTHLY}` |
 | `ActivitySession` | id, calendarItemId?, activityRevisionId, userId, status, startedAt?, endedAt?, activeSeconds, lastResumedAt?, isManualCompletion, revision, createdAt | Start/pause/resume/finish attempt; unplanned session allowed |
 | `ResultEntry` | id, sessionId, instructionId?, recordedAt, notes?, createdAt | Personal record; zero or more |
 | `ResultMetricValue` | id, entryId, metricDefinitionId, intValue?, decimalValue?, boolValue?, textValue?, durationSeconds?, unit? | Exactly one typed value; validate against metric schema |
 | `UserAchievement` | id, userId, definitionId, enrollmentId?, sourceCalendarItemId?, isShared, earnedAt, revokedAt? | See §9a |
+
+**Scheduled place (decided 2026-11-14).** `CalendarItem.placeId` is where this occurrence happens. It is copied when the item is created: from the explicit `placeId` input if given, else from the recurrence's `placeId`, else from the Activity's suggested place (`08-ACTIVITIES.md` §2a). The owner can change or clear it on that one item. It is a snapshot, so later changes to the Activity's Place never rewrite existing items. A recurrence carries its `placeId` to the items it generates; updating a recurrence's place applies from `effectiveFromDate`, like its other fields. Program enrollment materialization copies the Activity's Place. Each member's item is their own: there is no group-level place in this epic. A Place never makes an item a confirmed event.
 
 Calendar Items reference both stable `ActivityId` and pinned `ActivityRevisionId`. For direct unscheduled starts, `ActivitySession.calendarItemId` nullable; when someone starts from Calendar, it is always set. Generated occurrences are stored as rows; a personal move or skip edits that row and sets `isUserAdjusted`, so no separate override table exists. Consolidated persistence: `packages/db/prisma/schema.prisma`.
 
@@ -81,7 +83,7 @@ When there are no entries: `Nothing scheduled this week` + `Browse Programs` / `
 
 The occurrence page follows `03-UX.md` §6 (authoritative):
 
-1. Header — Title, Program, Date, Status.
+1. Header — Title, Program, Date, Status, and the scheduled Place when set (one line inside the Header).
 2. Today's Results — Reps and only applicable custom metrics, with clear targets and small controls. Do not ask for elapsed session duration a second time.
 3. Collaborators — Prominent avatars, permitted completion, completion reactions. **Omit when solo.**
 4. Session Controls — Clear Start/Pause/Resume/Finish progression and `Finish now`; elapsed time is calculated from session timestamps and paused time is excluded. `Upload media` beside them adds private session media without starting the session.
@@ -97,17 +99,20 @@ These seven rows are locked. No tabs or separate sections between private/group/
 interface CalendarItemDto { id:string; localDate:string; localTime:string|null; status:string;
   title:string; activityId:string; activityRevisionId:string; programTitle:string|null;
   programDayIndex:number|null; recurrenceId:string|null; conflict:boolean; locked:boolean;
-  thumbnailUrl:string|null; participantAvatars:string[]; unreadCount:number; }
+  thumbnailUrl:string|null; participantAvatars:string[]; unreadCount:number;
+  place:PlaceSummaryDto|null; }
+interface PlaceSummaryDto { id:string; slug:string; name:string; kind:string; addressLine:string|null;
+  locality:string; region:string; countryCode:string; sourceUrl:string; accessNote:string|null; }
 interface CalendarQueryDto { startDate:string; endDate:string; timezone:string; }
 interface AddCalendarItemDto { activityId:string; revisionId?:string; localDate:string;
   localTime?:string|null; recurrence?:RecurrenceRuleDto|null; untilDate?:string|null;
-  targetOverrides?:Record<string,unknown>; }
+  targetOverrides?:Record<string,unknown>; placeId?:string|null; }  // omitted → Activity's place; null → none
 interface RecurrenceRuleDto { kind:'DAILY'|'WEEKDAYS'|'WEEKLY'|'EVERY_N_DAYS'|'MONTHLY'; weekdays?:number[]; n?:number; }
 interface CalendarRecurrenceDto { id:string; activityId:string; title:string; rule:RecurrenceRuleDto;
   anchorDate:string; localTime:string|null; untilDate:string|null; status:'ACTIVE'|'ENDED'; }
 interface UpdateRecurrenceDto { rule?:RecurrenceRuleDto; localTime?:string|null; untilDate?:string|null;
-  effectiveFromDate:string; }
-interface MoveCalendarItemDto { localDate:string; localTime?:string|null; expectedUpdatedAt:string; }
+  placeId?:string|null; effectiveFromDate:string; }
+interface MoveCalendarItemDto { localDate:string; localTime?:string|null; placeId?:string|null; expectedUpdatedAt:string; }
 interface AchievementDto { id:string; key:string; label:string; description:string; icon:string;
   programTitle:string|null; earnedAt:string; isShared:boolean; }
 interface ActivityOccurrenceDto { item:CalendarItemDto; session:ActivitySessionDto|null;
@@ -174,3 +179,4 @@ Unique `(userId, definitionId, enrollmentId)`, with evaluation idempotent. `Undo
 - Metric Last/Best uses typed schema and legitimate direction, not score comparison across people.
 - Calendar page default opens same selected date after record/upload/editor return.
 - Data isolation: collaborator can see only permitted completion/posted media, not raw personal log.
+- Scheduled place: adding an Activity with a Place copies it; explicit `placeId` and `null` override it; recurrence-generated items carry the recurrence's Place; changing the Activity's Place later leaves existing items unchanged; another user's item is never affected.

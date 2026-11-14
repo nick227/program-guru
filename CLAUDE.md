@@ -10,7 +10,7 @@ Goal-oriented platform: a personal weekly calendar for following structured Prog
 
 **Users:** one account type that can participate, create, and collaborate, plus MODERATOR/ADMIN for platform moderation. No creator role.
 
-**In V1:** auth with handles and combined public profiles; seeded library by Category and Focus (rights-cleared illustrations, selected demonstration videos); copy-on-customize; Program authoring with automatic scheduling and manual adjustment; weekly calendar; standalone Activities and recurring personal entries; independent per-Activity sessions and results; camera recording and upload; groups with three invite paths, shared completion, completion reactions, group media comments; follows, discovery, likes on public media; in-app notifications and optional daily email reminders; achievements derived from actual completions; reporting and moderation; one-time purchases and monthly Program subscriptions, after the core experience.
+**In V1:** auth with handles and combined public profiles; seeded library by Domain and Category (stored as `Category` and `Focus`; rights-cleared illustrations, selected demonstration videos); copy-on-customize; Program authoring with automatic scheduling and manual adjustment; weekly calendar; standalone Activities and recurring personal entries; independent per-Activity sessions and results; camera recording and upload; groups with three invite paths, shared completion, completion reactions, group media comments; follows, discovery, likes on public media; in-app notifications and optional daily email reminders; achievements derived from actual completions; reporting and moderation; one-time purchases and monthly Program subscriptions, after the core experience.
 
 **Parking lot (V2+):** general chat and direct messages, live video, public media comments, web push, Apple login, capture presets and trimming, community media reuse library, creator-wide plans, multi-currency, calendar sync, AI coaching.
 
@@ -24,7 +24,7 @@ Factory defaults: pnpm monorepo, Vite + React + Tailwind, Fastify routed from Op
 
 ## Phase Completed
 
-Phase 2 — Server, worker, billing: complete and gated (2026-11-07). Phase 3 (frontend) is next. An earlier session started `apps/web` ahead of the Phase 2 gate; see `docs/frontend-foundation.md`.
+Phase 2 — Server, worker, billing: complete and gated (2026-11-07). **Catalog Expansion epic** specified 2026-11-14 (`01-PRODUCT.md` §11): Catalog → Places → Discovery milestones, not yet implemented. Raw starter data: `program-guru-starter-seed/` (untracked). Phase 3 (frontend) is next. An earlier session started `apps/web` ahead of the Phase 2 gate; see `docs/frontend-foundation.md`.
 
 ## Modules Built
 

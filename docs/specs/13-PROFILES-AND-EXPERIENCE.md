@@ -41,7 +41,7 @@
 **Top-to-bottom structure:**
 
 1. **Cover + identity:** wide visual cover, avatar, display name, unique handle; compact Follow / Requested / Following action for visitors; Edit action for owner.
-2. **Credibility line:** concise biography plus up to three Category/Focus chips **derived from the creator's published Programs** (not self-declared); avoid exaggerated labels or forced promotional copy.
+2. **Credibility line:** concise biography plus up to three Domain/Category chips **derived from the creator's published Programs** (not self-declared); avoid exaggerated labels or forced promotional copy.
 3. **Compact stats:** number of public Programs and followers. Counts must be genuine and privacy-safe; never fabricate view/earnings figures.
 4. **Featured Programs:** visual cards with cover, title, duration, access type/price and clear opening action. Show the six most recently published, with an unobtrusive View All when more exist.
 5. **Published Activities:** compact grid or list; open the canonical Activity detail. Omit section when empty.

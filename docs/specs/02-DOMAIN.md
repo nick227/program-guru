@@ -7,9 +7,10 @@
 | Term | Precise meaning | Never confuse with |
 |---|---|---|
 | **User** | Identity owning a personal calendar, records, and content | Creator role |
-| **Category** | Broad subject of content | Program Type or Focus |
-| **Program Type** | Seeded/custom answer to “What are you creating?” | User-chosen title |
-| **Focus** | More specific subject under a Type | Activity tag |
+| **Domain** (stored as `Category`) | Broad subject of content, e.g. Music, Fitness & Sports | Program Type or Category |
+| **Category** (stored as `Focus`) | Specific subject within one Domain, e.g. Guitar, Swimming | Activity tag; difficulty |
+| **Program Type** | Seeded/custom answer to “What are you creating?”; belongs to one Domain | User-chosen title |
+| **Place** | A real physical location an Activity can suggest or an occurrence can be scheduled at | Event, host, venue partner or booking |
 | **Program** | Reusable authored curriculum and relative scheduling intent | User's actual calendar |
 | **Program Version** | Immutable published snapshot of a Program | Editable draft |
 | **Program Enrollment** | User adopting a specific Program Version | Following its creator; payment subscription |
@@ -46,6 +47,32 @@ Avoid `Workout`, `Exercise`, `Set`, `Lesson`, or `Habit` in core entities; these
 
 ## 2. Proposed taxonomy (data, not enums for every label)
 
+**Vocabulary (decided 2026-11-14, `01-PRODUCT.md` §11).** Every user-facing label, document and editorial file says **Domain** for the broad subject and **Category** for the specific one. Storage and the API are unchanged: the `Category` model, `categoryId` and `/catalog/categories` mean Domain; the `Focus` model, `ActivityFocus`, `focusId` and `/catalog/focuses` mean Category. The rest of this section uses the storage names where it describes records.
+
+**Domains.** Existing slugs are immutable; their labels change. Editorial files use the right-hand slugs, and the seed mapper translates them.
+
+| Stored `Category.slug` | Domain label | Editorial slug |
+|---|---|---|
+| `fitness` | Fitness & Sports | `fitness-sports` |
+| `wellness` | Health & Wellness | `health-wellness` |
+| `finance` | Work & Finance | `work-finance` |
+| `relationships` | Social | `social` |
+| `education` | Learning | `learning` |
+| `arts-creativity` (new) | Arts & Creativity | same |
+| `music` (new) | Music | same |
+| `games` (new) | Games | same |
+| `entertainment` (new) | Entertainment | same |
+| `outdoors-nature` (new) | Outdoors & Nature | same |
+| `food-cooking` (new) | Food & Cooking | same |
+| `home-community` (new) | Home & Community | same |
+| `custom` | Custom | none; authoring fallback, never listed as a Domain in discovery |
+
+Existing Focus values keep their Domain and every reference to them (for example Education → Music keeps its Programs and Activities); new content in a subject that now has its own Domain goes there (new music content goes under Music). A starter Category that matches an existing Focus in the same Domain reuses it (Health & Wellness → Mindfulness).
+
+**No tiers.** Domains, Categories, Activities and seed files carry no tier, complexity or difficulty classification, and none replaces it.
+
+**Program Types for new Domains.** `Program.programTypeId` is required and a Program's Domain is taken from its Program Type, so every Domain needs at least one active Program Type before a Program can be created in it. Each new Domain gets exactly one general Program Type, generated from the Domain's seed definition (label `<Domain> Program`, not featured, offering all of the Domain's Categories). New Domains need no hand-authored Program Types.
+
 Hierarchy: `Category → ProgramType → Focus`; `MetricDefinition` at Activity/Instruction. These are seedable lookup records with stable IDs/slugs, position, icon, active/retired state, and optional `createdById`; custom types/focus may initially be private to author. Do not make user-entered titles into taxonomy records automatically.
 
 | Category | Seeded Program Types | Example Focus values |
@@ -81,6 +108,7 @@ Schedule Template Item N─1 Activity Revision (versioned content reference)
 Activity 1─N Revisions; Activity Revision 1─N Instructions
 User N─M Program Versions via Enrollment
 User 1─N Calendar Items; Calendar Item N─1 Activity Revision
+Place 0─N Activities (suggested place); Place 0─N Calendar Items and Recurrences (scheduled place)
 Calendar Item 0─N Activity Sessions; Session 0─N Result Entries
 Calendar Recurrence 1─N Calendar Items; User 1─N Achievements
 Program Group N─1 Program Version; Group N─M Users via Membership
@@ -106,6 +134,7 @@ A user's Calendar can contain **several Programs and standalone activities**. Pr
 8. User can join a Program without following creator, follow creator without enrollment or paid access, and subscribe to a channel without enrollment or Calendar population (P1+).
 9. A Schedule Template may be reused or copied; moving a Calendar Item changes only that user's instance, including within a group.
 10. Archive and moderation actions preserve integrity of historical personal records; public distribution is revoked independently.
+11. Places are platform-curated catalog records (`08-ACTIVITIES.md` §2a). Linking an Activity or occurrence to a Place never makes the venue a host, organizer, sponsor or endorser, and never implies opening hours, availability, bookings or attendees. Only a future verified venue claim (deferred) may change that.
 11. A Program Day groups placements for authoring and display only. Each Calendar Item has independent status, sessions, and results; there is no day-level session or result.
 12. Enrollment, Program Access Grant, and Program Billing Subscription stay separate. Channel Membership and Channel Entitlement stay separate from those three and from Follow. Entitlement comes only from a verified provider event, approval, open access, channel membership rules, or admin grant.
 
