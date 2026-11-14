@@ -60,8 +60,15 @@ export function startPwa() {
   let lastCheck = 0
   const resume = () => {
     if (document.visibilityState !== 'visible' || !navigator.onLine) return
-    // Query.isStale includes observer-specific stale times (e.g. the session).
-    void queryClient.refetchQueries({ type: 'active', stale: true })
+    // Query.isStale includes observer-specific stale times, but explicitly check
+    // the account's age so returning from an offline SW shell revalidates it.
+    void queryClient.refetchQueries({
+      type: 'active',
+      predicate: query =>
+        query.isStale() ||
+        (query.queryKey.length === 1 && query.queryKey[0] === 'me' &&
+          Date.now() - query.state.dataUpdatedAt >= 60_000),
+    })
     if (registration && Date.now() - lastCheck > 60_000) {
       lastCheck = Date.now()
       void registration.update().catch(() => { /* Keep the current shell on network failure. */ })
