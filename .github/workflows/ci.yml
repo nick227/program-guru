@@ -50,6 +50,9 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @project/db generate
 
+      - name: Check generated handlers
+        run: pnpm --filter server handlers:check
+
       - name: Typecheck
         run: pnpm typecheck
 
