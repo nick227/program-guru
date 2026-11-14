@@ -27,6 +27,7 @@ type DiscoverQuery = PageQuery & {
   activityId?: string
   placeId?: string
   locality?: string
+  hasPlace?: boolean
   accessMode?: 'OPEN' | 'APPROVAL' | 'PAID'
   level?: ProgramLevel
   duration?: 'SHORT' | 'MEDIUM' | 'LONG' | 'ONGOING'
@@ -128,6 +129,7 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
         // City match on the suggested Place, never proximity (12 §5a). Inactive Places never match.
         ...(query.placeId ? { placeId: query.placeId, place: { isActive: true } } : {}),
         ...(query.locality?.trim() ? { place: { isActive: true, locality: query.locality.trim() } } : {}),
+        ...(query.hasPlace && !query.locality?.trim() && !query.placeId ? { place: { isActive: true } } : {}),
         ...(q ? { AND: [{ OR: [{ title: { contains: q } }, { summary: { contains: q } }] }] } : {}),
       },
       orderBy:

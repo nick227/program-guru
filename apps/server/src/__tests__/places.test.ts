@@ -151,8 +151,11 @@ describe('city discovery (12 §5a)', () => {
     expect(await slugs(`placeId=${dallas.id}`)).toEqual([cat.legRaises.activity.id])
     expect((await slugs('')).length).toBe(2)
 
+    expect((await slugs('hasPlace=true')).sort()).toEqual([cat.squats.activity.id, cat.legRaises.activity.id].sort())
+
     await db.place.update({ where: { id: barton.id }, data: { isActive: false } })
     expect(await slugs('locality=Austin')).toEqual([])
+    expect(await slugs('hasPlace=true')).toEqual([cat.legRaises.activity.id])
   })
 })
 

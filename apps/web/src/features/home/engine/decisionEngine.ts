@@ -1,3 +1,4 @@
+import { groupAction, sessionActionLabel } from '@/lib/joinEligibility'
 import type {
   AssistantTurn,
   DiscoveryState,
@@ -135,19 +136,23 @@ function resolveIntentMenu(signals: HomeSignals): AssistantTurn {
       variant: 'secondary',
       effect: { type: 'transition', nodeId: 'together_result' },
     },
-    hasContinue
-      ? {
-          id: 'intent-continue',
-          label: 'Continue where I left off',
-          variant: 'secondary',
-          effect: { type: 'transition', nodeId: 'continue_result' },
-        }
-      : {
-          id: 'intent-new',
-          label: 'Find something new',
-          variant: 'secondary',
-          effect: { type: 'transition', nodeId: 'explore_interest' },
-        },
+    ...(hasContinue
+      ? [
+          {
+            id: 'intent-continue',
+            label: 'Continue where I left off',
+            variant: 'secondary' as const,
+            effect: { type: 'transition' as const, nodeId: 'continue_result' as const },
+          },
+        ]
+      : []),
+    // Always offered (12 §5a); enters the existing explore flow.
+    {
+      id: 'intent-new',
+      label: 'Find something to do',
+      variant: 'secondary',
+      effect: { type: 'transition', nodeId: 'explore_interest' },
+    },
   ]
 
   return {
@@ -626,7 +631,8 @@ function resolveTogetherResult(
     choices: [
       {
         id: 'join-session',
-        label: 'Join session',
+        // Never Join for a member or the owner (12 §5a).
+        label: sessionItem?.featuredGroup ? sessionActionLabel(groupAction(sessionItem.featuredGroup)) : 'View session',
         variant: 'primary',
         effect: { type: 'execute', action: card.primaryAction },
       },

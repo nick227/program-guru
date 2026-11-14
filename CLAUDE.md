@@ -24,7 +24,7 @@ Factory defaults: pnpm monorepo, Vite + React + Tailwind, Fastify routed from Op
 
 ## Phase Completed
 
-Phase 2 — Server, worker, billing: complete and gated (2026-11-07). **Catalog Expansion epic** specified 2026-11-14 (`01-PRODUCT.md` §11): Catalog → Places → Discovery milestones, not yet implemented. Raw starter data: `packages/db/prisma/seed/starter/`. Milestones 1 (Catalog) and 2 (Places) done. Phase 3 (frontend) is next. An earlier session started `apps/web` ahead of the Phase 2 gate; see `docs/frontend-foundation.md`.
+Phase 2 — Server, worker, billing: complete and gated (2026-11-07). **Catalog Expansion epic** specified 2026-11-14 (`01-PRODUCT.md` §11): Catalog → Places → Discovery milestones, not yet implemented. Raw starter data: `packages/db/prisma/seed/starter/`. All three milestones (Catalog, Places, Discovery) done. Phase 3 (frontend) is next. An earlier session started `apps/web` ahead of the Phase 2 gate; see `docs/frontend-foundation.md`.
 
 ## Modules Built
 

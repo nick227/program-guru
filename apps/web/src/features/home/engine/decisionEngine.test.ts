@@ -225,6 +225,12 @@ describe('resolveTurn', () => {
     expect(signedInMenu.choices.some((c) => c.id === 'intent-continue')).toBe(
       true,
     )
+    // "Find something to do" is offered either way and enters the existing explore flow.
+    for (const menu of [guestMenu, signedInMenu]) {
+      const find = menu.choices.find((c) => c.id === 'intent-new')
+      expect(find?.label).toBe('Find something to do')
+      expect(find?.effect).toEqual({ type: 'transition', nodeId: 'explore_interest' })
+    }
   })
 
   it('renders day_schedule inline ordered by localTime', () => {

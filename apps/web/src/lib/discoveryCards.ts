@@ -50,6 +50,8 @@ export function activityCard(
     title: activity.title,
     meta:
       [
+        // Suggested place, never a host (08 §2a).
+        activity.place ? `${activity.place.name}, ${activity.place.locality}` : null,
         formatDurationMinutes(activity.durationMinutes),
         formatTargetTime(activity.targetTime),
         activity.instructionCount

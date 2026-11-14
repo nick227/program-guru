@@ -16,6 +16,7 @@ import {
   useJoinPublicGroupById,
   useLiveSessions,
   useMyGroups,
+  usePlaces,
   useProgramPrefetch,
   useProgramTypes,
   useProgramWorkspace,
@@ -69,6 +70,8 @@ import { activityHero, programHero, toHeroCategory, type Hero } from '@/lib/hero
 import { useDocumentTitle } from '@/lib/title'
 import { buildGroupUrl, buildProfileUrl } from '@/lib/urls'
 import { cn } from '@/lib/utils'
+import { groupAction, sessionActionLabel } from '@/lib/joinEligibility'
+import { PlacePreviewDrawer } from '@/components/activity/PlacePreviewDrawer'
 
 type S = components['schemas']
 type Sort = S['DiscoverSort']
@@ -630,8 +633,10 @@ function BrowseFeedTile({
   const live = !isPicker ? item.liveSession ?? null : null
   const g = !isPicker && !live && item.featuredGroup?.visibility === 'PUBLIC' ? item.featuredGroup : null
   const groupName = g ? (g.name?.trim() || `${item.title} group`) : null
-  const isMember = !!g && (g.viewerIsMember || joinedIds.has(g.id))
-  const canQuickJoin = !!g && !isMember && g.joinPolicy === 'OPEN'
+  const action = g ? groupAction(g, joinedIds.has(g.id)) : null
+  const isMember = action === 'open'
+  const canQuickJoin = action === 'join'
+  const liveAction = live ? groupAction(live, joinedIds.has(live.groupId)) : null
   const recentCheckIns = g?.recentCheckInCount ?? 0
   const groupSchedule = g?.startLocalDate ? `Starts ${dateLabel(g.startLocalDate)}` : null
 
@@ -769,18 +774,18 @@ function BrowseFeedTile({
               <button
                 type="button"
                 disabled={joiningGroupId === live.groupId}
-                aria-label={`Join session for ${item.title}`}
+                aria-label={`${sessionActionLabel(liveAction!)} for ${item.title}`}
                 onClick={() => onJoinSession(live)}
                 className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90 disabled:opacity-50"
               >
-                {joiningGroupId === live.groupId ? 'Joining session…' : 'Join Session'}
+                {joiningGroupId === live.groupId ? 'Joining session…' : sessionActionLabel(liveAction!)}
               </button>
             ) : (
               <Link
                 to={buildGroupUrl(live.groupId, { returnTo: currentUrl })}
                 className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90"
               >
-                Join Session
+                {sessionActionLabel(liveAction!)}
               </Link>
             )}
           </div>
@@ -863,14 +868,14 @@ function BrowseFeedTile({
                     ? 'Opening stage…'
                     : isMember
                       ? 'Open Stage'
-                      : 'Join Session'}
+                      : sessionActionLabel(action!)}
                 </button>
               ) : (
                 <Link
                   to={buildGroupUrl(g.id, { returnTo: currentUrl })}
                   className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent px-5 py-2.5 text-[15px] font-semibold text-accent-fg shadow-sm transition-colors hover:bg-accent/90"
                 >
-                  Join Session
+                  {sessionActionLabel(action!)}
                 </Link>
               )
             ) : (
@@ -988,6 +993,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const search = filters.q
   const sort = filters.sort
   const creator = filters.creator
+  // City browsing applies to Activities, whose Places carry a city (12 §5a).
+  const city = mode.kind === 'activities' ? params.get(BROWSE_PARAM.city) ?? '' : ''
+  const placesCatalog = usePlaces({ enabled: !mode.isPicker })
+  const cities = [...new Set((placesCatalog.data ?? []).map((p) => p.locality))].sort()
+  const [previewPlaceId, setPreviewPlaceId] = useState<string | null>(null)
 
   const focuses = useFocuses({
     categoryId: categoryId || undefined,
@@ -1059,9 +1069,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   }
 
   const handleJoinSession = async (session: S['LiveSessionSummary']) => {
-    const alreadyMember =
-      session.viewerIsMember || joinedGroupIds.has(session.groupId)
-    if (alreadyMember) {
+    // Members open the Stage; groups that are not open are viewed, never joined (12 §5a).
+    if (groupAction(session, joinedGroupIds.has(session.groupId)) !== 'join') {
       saveBrowseScroll(currentUrl)
       navigate(buildGroupUrl(session.groupId, { returnTo: currentUrl }))
       return
@@ -1229,7 +1238,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     scope !== 'ALL' ||
     !!search ||
     sort !== 'POPULAR' ||
-    creator !== 'ALL'
+    creator !== 'ALL' ||
+    !!city
 
   const showDirectorySections =
     !mode.isPicker && mode.kind === 'programs' && !filtered
@@ -1259,11 +1269,30 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     q: search,
     categoryId: categoryId || undefined,
     focusId: focusId || undefined,
+    locality: city || undefined,
     sort,
     enabled: mode.kind === 'activities' || showDirectorySections,
   })
 
   const liveSessions = useLiveSessions(showDirectorySections)
+  // Places section: only Places that public Activities actually suggest (12 §5a).
+  const placeActivities = useDiscoverActivities({
+    hasPlace: true,
+    sort: 'POPULAR',
+    enabled: showDirectorySections && cities.length > 0,
+  })
+  const placeGroups = (() => {
+    const byPlace = new Map<string, { place: S['Place']; activities: S['ActivitySummary'][] }>()
+    for (const item of placeActivities.data?.pages.flatMap((p) => p.data) ?? []) {
+      const a = item.activity
+      if (!a?.place) continue
+      const group = byPlace.get(a.place.id) ?? { place: a.place, activities: [] }
+      group.activities.push(a)
+      byPlace.set(a.place.id, group)
+    }
+    return [...byPlace.values()]
+  })()
+  const previewPlace = placeGroups.find((g) => g.place.id === previewPlaceId) ?? null
   const creatorsQuery = useDiscoverCreators({
     q: search,
     enabled: showDirectorySections || (!!search && !mode.isPicker),
@@ -1587,6 +1616,9 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   }
 
   const activeFilterChips: { key: string; label: string; onRemove: () => void }[] = []
+  if (city) {
+    activeFilterChips.push({ key: 'city', label: `In ${city}`, onRemove: () => setParam(BROWSE_PARAM.city, '') })
+  }
   if (search) {
     activeFilterChips.push({
       key: 'q',
@@ -1740,7 +1772,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                 mode.isPicker
                   ? mode.actionLabel
                   : item.liveSession
-                    ? 'Join Session'
+                    ? sessionActionLabel(groupAction(item.liveSession, joinedGroupIds.has(item.liveSession.groupId)))
                     : item.kind === 'programs'
                       ? 'View Program'
                       : 'View Activity'
@@ -1947,6 +1979,21 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                         value={focusId}
                         onChange={(value) => setParam(BROWSE_PARAM.focus, value)}
                         scrollable={focusOptions.length > 7}
+                      />
+                    </FilterGroup>
+                  )}
+
+                  {/* City of the suggested Place; shown only when Places exist (12 §5a). */}
+                  {mode.kind === 'activities' && !mode.isPicker && cities.length > 0 && (
+                    <FilterGroup title="City" defaultOpen={!!city}>
+                      <FilterOptionList
+                        ariaLabel="Filter by city"
+                        options={[
+                          { value: '', label: 'Any city' },
+                          ...cities.map((c) => ({ value: c, label: c })),
+                        ]}
+                        value={city}
+                        onChange={(value) => setParam(BROWSE_PARAM.city, value)}
                       />
                     </FilterGroup>
                   )}
@@ -2160,6 +2207,53 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                 />
               )}
             </div>
+
+            {/* Browse by Domain, then that Domain's Categories (12 §5a). */}
+            {!mode.isPicker && !isMyGroups && !mode.lockedProgramTypeId && categoryOptions.length > 1 && (
+              <nav aria-label="Browse by domain" className="mt-4 space-y-2.5">
+                <ul className="browse-sidebar-scroll flex gap-2 overflow-x-auto pb-1">
+                  {categoryOptions.map((option) => (
+                    <li key={option.value || 'all'} className="shrink-0">
+                      <button
+                        type="button"
+                        aria-pressed={categoryId === option.value}
+                        onClick={() => handleCategoryChange(option.value)}
+                        className={cn(
+                          'inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors',
+                          categoryId === option.value
+                            ? 'border-accent bg-accent text-accent-fg'
+                            : 'border-border/70 text-foreground/85 hover:bg-surface-muted',
+                        )}
+                      >
+                        {option.icon}
+                        {option.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {categoryId && focusOptions.length > 0 && (
+                  <ul aria-label="Categories" className="browse-sidebar-scroll flex gap-2 overflow-x-auto pb-1">
+                    {[{ value: '', label: 'All categories' }, ...focusOptions].map((option) => (
+                      <li key={option.value || 'all'} className="shrink-0">
+                        <button
+                          type="button"
+                          aria-pressed={focusId === option.value}
+                          onClick={() => setParam(BROWSE_PARAM.focus, option.value)}
+                          className={cn(
+                            'inline-flex min-h-8 items-center rounded-full px-3 text-[13px] font-medium transition-colors',
+                            focusId === option.value
+                              ? 'bg-foreground text-background'
+                              : 'bg-surface-muted text-foreground/80 hover:text-foreground',
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </nav>
+            )}
 
             {/* Active filter chips + result count */}
             <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3.5">
@@ -2443,6 +2537,45 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                           </section>
                         )
                       })}
+
+                      {placeGroups.length > 0 && (
+                        <section aria-labelledby="section-places" className="border-t border-border/35 pt-14">
+                          <div className="mb-6 flex items-baseline justify-between gap-3">
+                            <h2
+                              id="section-places"
+                              className="font-display text-[22px] font-semibold tracking-[-0.02em] text-foreground sm:text-2xl"
+                            >
+                              Places
+                            </h2>
+                          </div>
+                          <ul className="browse-sidebar-scroll flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory">
+                            {placeGroups.map(({ place, activities: placeActs }) => (
+                              <li key={place.id} className="w-[260px] shrink-0 snap-start sm:w-[300px]">
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewPlaceId(place.id)}
+                                  className="group block w-full text-left"
+                                >
+                                  <EntityHero
+                                    hero={activityHero(placeActs[0]!, categorySlugOf)}
+                                    size="card"
+                                    interactive={false}
+                                    showVideoBadge={false}
+                                    className="aspect-video w-full overflow-hidden rounded-xl"
+                                  />
+                                  <span className="mt-3 block font-display text-base font-semibold text-foreground group-hover:text-accent">
+                                    {place.name}
+                                  </span>
+                                  <span className="mt-0.5 block text-sm text-muted">
+                                    {place.locality} · {placeActs.length}{' '}
+                                    {placeActs.length === 1 ? 'Activity' : 'Activities'}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
                     </div>
                   ) : items.length > 0 || (!!search && !mode.isPicker && creatorItems.length > 0) ? (
                     <div className="space-y-12">
@@ -2522,6 +2655,16 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
           </section>
         </div>
       </div>
+
+      <PlacePreviewDrawer
+        place={previewPlace?.place ?? null}
+        activities={previewPlace?.activities ?? []}
+        onSelectActivity={(id) => {
+          setPreviewPlaceId(null)
+          setPreviewActivityId(id)
+        }}
+        onClose={() => setPreviewPlaceId(null)}
+      />
 
       <ActivityPreviewDrawer
         activityId={previewActivityId}

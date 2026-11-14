@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ExternalLink, Play, X } from 'lucide-react'
+import { ExternalLink, MapPin, Play, X } from 'lucide-react'
 import {
   useActivity,
   useActivityPublicMedia,
@@ -216,6 +216,17 @@ export function ActivityPreviewDrawer({
                 {a.summary && (
                   <p className="text-[15px] leading-relaxed text-foreground/85">
                     {a.summary}
+                  </p>
+                )}
+
+                {a.place && (
+                  <p className="flex items-start gap-2 text-sm text-muted">
+                    <MapPin size={15} aria-hidden className="mt-0.5 shrink-0" />
+                    <span>
+                      Suggested place:{' '}
+                      <span className="font-medium text-foreground/90">{a.place.name}</span>, {a.place.locality}
+                      {a.place.accessNote ? ` · ${a.place.accessNote}` : ''}
+                    </span>
                   </p>
                 )}
 

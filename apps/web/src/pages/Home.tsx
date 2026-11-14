@@ -13,6 +13,10 @@ import {
   useProgramLibrary,
 } from '@project/sdk'
 import { useDocumentTitle } from '@/lib/title'
+import { SuggestionRail } from '@/components/shared/SuggestionRail'
+import { useCategorySlugOf } from '@/components/shared/EntityHero'
+import { activityCard } from '@/lib/discoveryCards'
+import { pickAcrossDomains } from '@/lib/activityRange'
 import { HomeTopBar } from '@/features/home/components/HomeTopBar'
 import { PresentationSurface } from '@/features/home/components/PresentationSurface'
 import { ShowMeView } from '@/features/home/components/ShowMeView'
@@ -153,6 +157,15 @@ export function HomePage() {
     return [...scoped, ...base.filter((i) => i.activity?.id && !seen.has(i.activity.id))]
   }, [activities.data, categoryActivities.data])
 
+  const categorySlugOf = useCategorySlugOf()
+  const rangeCards = useMemo(
+    () =>
+      pickAcrossDomains(
+        (activities.data?.pages.flatMap((p) => p.data) ?? []).flatMap((i) => (i.activity ? [i.activity] : [])),
+      ).map((a) => activityCard(a, categorySlugOf)),
+    [activities.data, categorySlugOf],
+  )
+
   const signals: HomeSignals = useMemo(
     () => ({
       isSignedIn,
@@ -170,7 +183,8 @@ export function HomePage() {
       newPrograms: newPrograms.data?.pages.flatMap((p) => p.data) ?? [],
       activities: mergedActivities,
       creators: creators.data?.pages.flatMap((p) => p.data) ?? [],
-      categories: (categories.data ?? []).map((c) => ({
+      // `custom` is the authoring fallback, never a discovery Domain (02-DOMAIN §2).
+      categories: (categories.data ?? []).filter((c) => c.slug !== 'custom').map((c) => ({
         id: c.id,
         name: c.label,
       })),
@@ -533,15 +547,32 @@ export function HomePage() {
               />
             </div>
           ) : (
-            <PresentationSurface
-              title={presentationTitle}
-              items={presentationItems}
-              loading={loading}
-              pending={actionPending}
-              onSelect={handleSelectPresentationItem}
-              onAction={executeAction}
-              onPreviewCreator={setPreviewTarget}
-            />
+            <>
+              <PresentationSurface
+                title={presentationTitle}
+                items={presentationItems}
+                loading={loading}
+                pending={actionPending}
+                onSelect={handleSelectPresentationItem}
+                onAction={executeAction}
+                onPreviewCreator={setPreviewTarget}
+              />
+              {/* The range of things to do: one compact, varied section (12 §5a). */}
+              {rangeCards.length > 0 && (
+                <div className="w-full border-t border-border/50 py-5">
+                  <div className="mx-auto w-full max-w-5xl px-6">
+                    <SuggestionRail
+                      title="Things to do"
+                      items={rangeCards}
+                      loading={false}
+                      error={null}
+                      actionLabel="Preview"
+                      onPick={(id) => setPreviewTarget({ kind: 'activity', id })}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           )
         )}
       </main>

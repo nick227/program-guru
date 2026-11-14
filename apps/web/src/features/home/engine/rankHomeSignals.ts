@@ -1,3 +1,4 @@
+import { groupAction, sessionActionLabel } from '@/lib/joinEligibility'
 import type { AssistantTurn, HomeSignals } from './types'
 import {
   mapActivityToCard,
@@ -226,7 +227,8 @@ export function rankHomeSignals(
         choices: [
           {
             id: 'join-session',
-            label: 'Join session',
+            // Never Join for a member or the owner (12 §5a).
+            label: liveSession.featuredGroup ? sessionActionLabel(groupAction(liveSession.featuredGroup)) : 'View session',
             variant: 'primary',
             effect: { type: 'execute', action: card.primaryAction },
           },

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -46,6 +47,8 @@ type S = components['schemas']
 
 export interface SelectedActivityPanelProps {
   itemId: string | null
+  /** Desktop panel content when nothing is selected (default: a short hint). */
+  emptyContent?: ReactNode
   calendarItem?: SurfaceItem | null
   onClose?: () => void
   onComplete: (itemId: string) => Promise<void>
@@ -768,7 +771,7 @@ function PanelBody({
 }
 
 export function SelectedActivityPanel(props: SelectedActivityPanelProps) {
-  const { itemId, onClose } = props
+  const { itemId, onClose, emptyContent } = props
 
   return (
     <>
@@ -778,6 +781,8 @@ export function SelectedActivityPanel(props: SelectedActivityPanelProps) {
       >
         {itemId ? (
           <PanelBody {...props} />
+        ) : emptyContent ? (
+          emptyContent
         ) : (
           <div className="calendar-panel__empty">
             <p className="text-sm font-medium text-foreground">

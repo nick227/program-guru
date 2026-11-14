@@ -74,7 +74,7 @@ Consolidated persistence: `packages/db/prisma/schema.prisma`. `entityKind`/`enti
 
 **Home.** One compact, media-led section showing the range of Activities: at most 6 Activity cards from at least 3 different Domains (when 3 exist), chosen by taking the most popular Activity per Domain in turn. Each card opens the existing Activity preview. No other Home changes.
 
-**Home Agent.** The intent menu's `Find something new` choice becomes **`Find something to do`**, shown whether or not `Continue where I left off` is available, and enters the existing `explore_interest` flow, whose Domain choices come from data. The flow, its deterministic ordering and its eligibility rules stay as they are; no new nodes or engine.
+**Home Agent.** The intent menu's `Find something new` choice becomes **`Find something to do`**, shown whether or not `Continue where I left off` is available, and enters the existing `explore_interest` flow (Creators, Programs, Activities). The Domain choices in the existing `now_interest` step come from `listCategories`, without `custom`. The flow, its deterministic ordering and its eligibility rules stay as they are; no new nodes or engine.
 
 **Calendar.** One compact rail of at most 6 Activities to schedule, shown in the Day view side panel when nothing is selected and beneath the empty-week message. It is never a persistent band under the grid (`03-UX.md` §2). Adding uses the existing add-calendar-item flow, including the Activity's suggested Place.
 
@@ -157,7 +157,7 @@ interface SocialDao {
 
 `DiscoveryService` runs search with read-time permissions; `EngagementService` writes like/comment/view; `ProgramStatService` computes completion and retention; `NotificationService` consumes outbox, recipient policy, badge/read state; `ReminderService` runs the scheduled scan; `ModerationService` validates reports/action/audit; `FollowService` belongs to Users but emits social events.
 
-Endpoints: `GET /discover` (Activity results also filter by `placeId` and `locality`), `GET /catalog/places?locality&q` and `GET /catalog/places/:slugOrId` (public; active Places only), `GET /users/:handle/programs`, `GET /users/:handle/activities`, `GET /users/:handle/publications`, `GET /users/:handle/achievements`, `POST|DELETE /media-publications/:id/likes`, `GET|POST /media-publications/:id/comments`, `DELETE /media-comments/:id`, `POST /media-publications/:id/views` (qualified), `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/read`, `POST /email/unsubscribe`, `POST /reports`, `GET /moderation/reports`, `POST /moderation/reports/:id/resolve`.
+Endpoints: `GET /discover` (Activity results also filter by `placeId`, `locality` and `hasPlace`), `GET /catalog/places?locality&q` and `GET /catalog/places/:slugOrId` (public; active Places only), `GET /users/:handle/programs`, `GET /users/:handle/activities`, `GET /users/:handle/publications`, `GET /users/:handle/achievements`, `POST|DELETE /media-publications/:id/likes`, `GET|POST /media-publications/:id/comments`, `DELETE /media-comments/:id`, `POST /media-publications/:id/views` (qualified), `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/read`, `POST /email/unsubscribe`, `POST /reports`, `GET /moderation/reports`, `POST /moderation/reports/:id/resolve`.
 
 ## 10. Analytics and privacy
 

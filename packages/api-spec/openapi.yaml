@@ -5861,6 +5861,11 @@ paths:
           type: string
           maxLength: 100
       - in: query
+        name: hasPlace
+        description: ACTIVITY results that suggest an active Place.
+        schema:
+          type: boolean
+      - in: query
         name: accessMode
         schema:
           $ref: '#/components/schemas/AccessMode'

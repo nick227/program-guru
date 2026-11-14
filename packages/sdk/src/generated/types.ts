@@ -9858,6 +9858,8 @@ export interface operations {
                 placeId?: string;
                 /** @description ACTIVITY results whose suggested Place is in this city (case-insensitive). Never a proximity filter. */
                 locality?: string;
+                /** @description ACTIVITY results that suggest an active Place. */
+                hasPlace?: boolean;
                 accessMode?: components["schemas"]["AccessMode"];
                 level?: components["schemas"]["ProgramLevel"];
                 duration?: components["schemas"]["DiscoverDuration"];

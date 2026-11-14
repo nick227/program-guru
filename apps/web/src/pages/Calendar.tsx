@@ -25,6 +25,7 @@ import { CalendarSurface } from '@/components/calendar/CalendarSurface'
 import type { SurfaceItem } from '@/components/calendar/CalendarSurface'
 import { DatePickerPopover } from '@/components/calendar/DatePickerPopover'
 import { SelectedActivityPanel } from '@/components/calendar/SelectedActivityPanel'
+import { CalendarDiscoveryRail } from '@/components/calendar/CalendarDiscoveryRail'
 import { resolveActivityCategory } from '@/lib/activityCategory'
 import {
   addDays,
@@ -276,6 +277,16 @@ export function CalendarPage() {
         (it) => it.day === selected && it.status !== 'CANCELLED',
       ),
     [filteredItems, selected],
+  )
+
+  // Day view with nothing selected: a compact rail of Activities to schedule (12 §5a).
+  const discoveryRail = (
+    <CalendarDiscoveryRail
+      localDate={selected}
+      dateLabel={dateLabel(selected)}
+      scheduledActivityIds={(calendar.data ?? []).filter((it) => it.localDate === selected && it.status !== 'CANCELLED').map((it) => it.activityId)}
+      onScheduled={(itemId) => setSelectedItemId(itemId)}
+    />
   )
 
   const selectedCalendarItem = useMemo(
@@ -621,7 +632,10 @@ export function CalendarPage() {
               onChangeTime={changeItemTime}
               completing={quickComplete.isPending}
               undoing={undo.isPending}
+              emptyContent={discoveryRail}
             />
+            {/* The side panel is desktop-only; phones get the rail below the timeline. */}
+            {!selectedItemId && <div className="lg:hidden">{discoveryRail}</div>}
           </div>
         ) : (
           <>
@@ -653,6 +667,13 @@ export function CalendarPage() {
                   </Link>
                 </Stack>
               </Panel>
+            )}
+            {calendar.data?.length === 0 && (
+              <CalendarDiscoveryRail
+                localDate={selected}
+                dateLabel={dateLabel(selected)}
+                scheduledActivityIds={[]}
+              />
             )}
           </>
         )}

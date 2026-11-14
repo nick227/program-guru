@@ -1511,6 +1511,67 @@
   }
 }
 
+/* --- Discovery rail (12 §5a): Day side panel with nothing selected, and below an empty week --- */
+.calendar-discovery {
+  width: 100%;
+  padding: var(--space-3) var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.calendar-discovery__title {
+  font-size: var(--type-meta);
+  font-weight: 600;
+  color: hsl(var(--color-muted));
+}
+
+.calendar-discovery__list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .calendar-discovery__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.calendar-discovery__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid hsl(var(--color-border));
+  border-radius: 0.6rem;
+  background: hsl(var(--color-surface));
+}
+
+.calendar-discovery__text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.calendar-discovery__name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-discovery__meta {
+  overflow: hidden;
+  color: hsl(var(--color-muted));
+  font-size: var(--type-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* --- Compact Pronounced Activity Badge (Day View) --- */
 .calendar-badge {
   width: 12.5rem;

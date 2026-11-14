@@ -15,6 +15,10 @@ type DiscoverFilters = {
   categoryId?: string
   programTypeId?: string
   focusId?: string
+  /** Activity results only (12 §5a): suggested Place, city, or any Place. */
+  placeId?: string
+  locality?: string
+  hasPlace?: boolean
   sort?: S['DiscoverSort']
 }
 
@@ -35,6 +39,9 @@ async function discoverPage(
           categoryId: filters.categoryId || undefined,
           programTypeId: filters.programTypeId || undefined,
           focusId: filters.focusId || undefined,
+          placeId: filters.placeId || undefined,
+          locality: filters.locality || undefined,
+          hasPlace: filters.hasPlace || undefined,
           sort: filters.sort,
           cursor,
           limit,

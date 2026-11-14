@@ -24,6 +24,8 @@ export const BROWSE_PARAM = {
   tags: 'tags',
   facet: 'facet',
   view: 'view',
+  /** City of the suggested Place (Activities only). Never a proximity filter (12 §5a). */
+  city: 'city',
 } as const
 
 export interface BrowseUrlOptions {
