@@ -7,7 +7,9 @@ export function AuthGuard() {
   const me = useCurrentUser()
   const online = useOnline()
   const location = useLocation()
-  if (!me.data && !online)
+  // A service-worker-controlled offline page may still report navigator.onLine=true.
+  // Network failures (not HTTP ApiErrors) must show the reconnect fallback too.
+  if (!me.data && (!online || (me.isError && !(me.error instanceof ApiError))))
     return (
       <Page>
         <h1>Connect to load your account</h1>
