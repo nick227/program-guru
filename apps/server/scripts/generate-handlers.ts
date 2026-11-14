@@ -78,6 +78,20 @@ const domains = {
     updateCalendarRecurrence: ["calendar.updateRecurrence", "userId", "params.recurrenceId", "body"],
     },
   },
+  groups: {
+    services: { groups: 'group.service' },
+    bindings: {
+      addCompletionComment: ["groups.addCompletionComment", "userId", "params.shareId", "body"],
+      addCompletionReaction: ["groups.react", "userId", "params.shareId", "body.emoji", "body.idempotencyKey"],
+      createCheckIns: ["groups.createCheckIns", "userId", "body"],
+      createGroup: ["groups.create", "userId", "body"],
+      createGroupInvitation: ["groups.invite", "userId", "params.groupId", "body"],
+      getGroup: ["groups.get", "userId", "params.groupId"],
+      listGroupInvitations: ["groups.listInvitations", "userId", "params.groupId"],
+      updateGroup: ["groups.update", "userId", "params.groupId", "body"],
+      updateMyGroupMembership: ["groups.updateMyMembership", "userId", "params.groupId", "body"],
+    },
+  },
 } as const
 
 const root = resolve(__dirname, '../../..')
