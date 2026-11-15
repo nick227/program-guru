@@ -213,6 +213,23 @@ describe('rankHomeSignals', () => {
       type: 'transition',
       nodeId: 'day_schedule',
     })
+    // Reschedule opens the shared dialog with the item as it is; nothing moves silently (03-UX §2a).
+    expect(turn.choices.map((c) => c.label)).not.toContain('Move to tomorrow')
+    expect(turn.choices.find((c) => c.id === 'reschedule')?.effect).toEqual({
+      type: 'execute',
+      action: {
+        type: 'reschedule_item',
+        item: {
+          id: 'cal-1',
+          title: 'Morning Movement',
+          localDate: '2026-11-12',
+          localTime: '08:00',
+          recurrenceId: null,
+          updatedAt: '2026-11-12T08:00:00Z',
+          gatheringId: null,
+        },
+      },
+    })
   })
 
   it('falls back to popular program for guests with no live sessions', () => {

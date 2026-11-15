@@ -46,7 +46,13 @@ export type CardAction =
   | { type: 'open_group'; groupId: string }
   | { type: 'open_creator'; handle: string }
   | { type: 'follow_creator'; userId: string; handle: string }
-  | { type: 'move_to_tomorrow'; itemId: string; title: string; updatedAt: string }
+  /** Reschedule one of the viewer's own items in the shared dialog; recurring asks for a scope (09 §4.8). */
+  | {
+      type: 'reschedule_item'
+      item: Pick<S['CalendarItem'], 'id' | 'title' | 'localDate' | 'localTime' | 'recurrenceId' | 'updatedAt'> & {
+        gatheringId: string | null
+      }
+    }
   | { type: 'open_calendar' }
   | { type: 'open_browse' }
   | { type: 'join_gathering'; gatheringId: string; calendarItemId: string | null }

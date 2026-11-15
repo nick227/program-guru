@@ -78,16 +78,23 @@ export function rankHomeSignals(
             effect: { type: 'transition', nodeId: 'day_schedule' },
           },
           {
-            id: 'move-tomorrow',
-            label: 'Move to tomorrow',
+            // Opens the shared dialog; a recurring item asks This one / This and future (03-UX §2a).
+            id: 'reschedule',
+            label: 'Reschedule',
             variant: 'secondary',
             effect: {
               type: 'execute',
               action: {
-                type: 'move_to_tomorrow',
-                itemId: nextItem.id,
-                title: nextItem.title,
-                updatedAt: nextItem.updatedAt,
+                type: 'reschedule_item',
+                item: {
+                  id: nextItem.id,
+                  title: nextItem.title,
+                  localDate: nextItem.localDate,
+                  localTime: nextItem.localTime,
+                  recurrenceId: nextItem.recurrenceId,
+                  updatedAt: nextItem.updatedAt,
+                  gatheringId: nextItem.gatheringId ?? null,
+                },
               },
             },
           },

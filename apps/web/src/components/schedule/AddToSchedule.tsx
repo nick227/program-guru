@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarPlus } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAddCalendarItem, useJoinProgram } from '@project/sdk'
+import { useAddCalendarItem, useJoinProgram, useUpdateCalendarItem } from '@project/sdk'
 import { DatePickerPopover } from '@/components/calendar/DatePickerPopover'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
@@ -35,6 +35,17 @@ const chip = (on: boolean) =>
 export type ScheduleTarget =
   | { kind: 'activity'; id: string; title: string }
   | { kind: 'program'; id: string; title: string; programVersionId: string }
+  /** Reschedule one existing Calendar item (09 §4.8); a recurring one asks This one / This and future. */
+  | {
+      kind: 'item'
+      id: string
+      title: string
+      localDate: string
+      localTime: string | null
+      recurrenceId: string | null
+      gatheringId: string | null
+      updatedAt: string
+    }
 
 const viewerTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
@@ -58,8 +69,13 @@ export function ScheduleDialog({
   const [todayIso] = useState(() => today(viewerTimezone()))
   const addItem = useAddCalendarItem()
   const joinProgram = useJoinProgram(target.id)
-  const [localDate, setLocalDate] = useState(todayIso)
-  const [localTime, setLocalTime] = useState('')
+  const updateItem = useUpdateCalendarItem()
+  const isItem = target.kind === 'item'
+  const [localDate, setLocalDate] = useState(() =>
+    target.kind === 'item' && target.localDate >= todayIso ? target.localDate : todayIso,
+  )
+  const [localTime, setLocalTime] = useState(() => (target.kind === 'item' ? (target.localTime ?? '') : ''))
+  const [scope, setScope] = useState<'THIS_ONE' | 'THIS_AND_FUTURE'>('THIS_ONE')
   const [repeat, setRepeat] = useState<Repeat>('ONCE')
   const [weekdays, setWeekdays] = useState<number[]>([])
   const [ends, setEnds] = useState<Ends>('ONGOING')
@@ -72,13 +88,29 @@ export function ScheduleDialog({
   const toggleWeekday = (d: number) =>
     setWeekdays((days) => (days.includes(d) ? (days.length > 1 ? days.filter((x) => x !== d) : days) : [...days, d]))
   const [idempotencyKey] = useState(() => crypto.randomUUID())
-  const pending = addItem.isPending || joinProgram.isPending
+  const pending = addItem.isPending || joinProgram.isPending || updateItem.isPending
   const isProgram = target.kind === 'program'
 
+  // Synchronous guard: a double tap fires twice before `pending` re-renders, and an item edit has no
+  // idempotency key of its own.
+  const inFlight = useRef(false)
   const save = async () => {
-    if (pending) return
+    if (pending || inFlight.current) return
+    inFlight.current = true
     try {
-      if (target.kind === 'program') {
+      if (target.kind === 'item') {
+        // Never a silent recurring move: the scope is the one the person chose (09 §4.8).
+        await updateItem.mutateAsync({
+          itemId: target.id,
+          localDate,
+          localTime: localTime || null,
+          ...(target.recurrenceId ? { scope } : {}),
+          expectedUpdatedAt: target.updatedAt,
+        })
+        toast.success(
+          `Moved ${target.title} to ${dayName(localDate, todayIso)}${target.recurrenceId && scope === 'THIS_AND_FUTURE' ? ', and the ones after it' : ''}`,
+        )
+      } else if (target.kind === 'program') {
         await joinProgram.mutateAsync({
           programVersionId: target.programVersionId,
           startLocalDate: localDate,
@@ -105,6 +137,8 @@ export function ScheduleDialog({
       onClose()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not add it to your Calendar')
+    } finally {
+      inFlight.current = false
     }
   }
 
@@ -117,10 +151,10 @@ export function ScheduleDialog({
     >
       <div className="flex flex-col gap-4 p-5">
         <div className="space-y-1">
-          <h2 className="font-display text-lg font-semibold">Add to Schedule</h2>
+          <h2 className="font-display text-lg font-semibold">{isItem ? 'Reschedule' : 'Add to Schedule'}</h2>
           <p className="text-sm text-muted">
             {target.title}
-            {isProgram ? ' · choose a start date' : ' · choose a start date and how often'}
+            {isItem ? ' · choose a new date' : isProgram ? ' · choose a start date' : ' · choose a start date and how often'}
           </p>
         </div>
         <DatePickerPopover
@@ -131,7 +165,44 @@ export function ScheduleDialog({
           onSelect={setLocalDate}
           onClose={onClose}
         />
-        {!isProgram && (
+        {isItem && (
+          <>
+            <label className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-muted">Time (optional)</span>
+              <input
+                type="time"
+                value={localTime}
+                onChange={(e) => setLocalTime(e.target.value)}
+                className="min-h-10 rounded-lg border border-border bg-surface px-3 text-sm"
+              />
+            </label>
+            {target.recurrenceId && (
+              <div role="radiogroup" aria-label="Which ones" className="grid grid-cols-2 gap-1.5">
+                {(
+                  [
+                    ['THIS_ONE', 'This one'],
+                    ['THIS_AND_FUTURE', 'This and future'],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={scope === id}
+                    onClick={() => setScope(id)}
+                    className={chip(scope === id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {target.gatheringId && (
+              <p className="text-sm text-muted">This leaves the gathering; the others keep their time.</p>
+            )}
+          </>
+        )}
+        {!isProgram && !isItem && (
           <>
             <label className="flex items-center justify-between gap-3 text-sm">
               <span className="text-muted">Time (optional)</span>
@@ -214,10 +285,10 @@ export function ScheduleDialog({
           <Button
             loading={pending}
             // "Until a date" needs that date; never send an open-ended rule by mistake.
-            disabled={pending || (!isProgram && repeat !== 'ONCE' && ends === 'ON_DATE' && !endDate)}
+            disabled={pending || (!isProgram && !isItem && repeat !== 'ONCE' && ends === 'ON_DATE' && !endDate)}
             onClick={() => void save()}
           >
-            {isProgram ? `Start ${shortDay}` : repeat !== 'ONCE' ? 'Save' : `Save to ${shortDay}`}
+            {isItem ? `Move to ${shortDay}` : isProgram ? `Start ${shortDay}` : repeat !== 'ONCE' ? 'Save' : `Save to ${shortDay}`}
           </Button>
         </div>
       </div>

@@ -16,7 +16,7 @@ import {
   useMyPrograms,
 } from '@project/sdk'
 import { useDocumentTitle } from '@/lib/title'
-import { ScheduleDialog } from '@/components/schedule/AddToSchedule'
+import { ScheduleDialog, type ScheduleTarget } from '@/components/schedule/AddToSchedule'
 import { HomeTopBar } from '@/features/home/components/HomeTopBar'
 import { InlineProgramBuilder } from '@/features/home/components/InlineProgramBuilder'
 import { PresentationSurface } from '@/features/home/components/PresentationSurface'
@@ -93,7 +93,6 @@ export function HomePage() {
   const me = useCurrentUser()
   const isSignedIn = Boolean(me.data)
   const today = useMemo(() => getLocalDateIso(0), [])
-  const tomorrow = useMemo(() => getLocalDateIso(1), [])
 
   const initial = useMemo(() => loadSession(), [])
   const [nodeId, setNodeId] = useState<FlowNodeId>(initial.nodeId)
@@ -111,7 +110,7 @@ export function HomePage() {
   const [actionPending, setActionPending] = useState(false)
   // Repeated taps on Start or Join while one is in flight do nothing (state updates lag a render).
   const inFlight = useRef(false)
-  const [scheduleTarget, setScheduleTarget] = useState<{ id: string; title: string } | null>(null)
+  const [scheduleTarget, setScheduleTarget] = useState<ScheduleTarget | null>(null)
 
   useEffect(() => {
     try {
@@ -352,7 +351,7 @@ export function HomePage() {
             navigate(`/login?returnTo=${encodeURIComponent('/')}`)
             return
           }
-          setScheduleTarget({ id: action.activityId, title: action.title })
+          setScheduleTarget({ kind: 'activity', id: action.activityId, title: action.title })
           return
         case 'navigate_activity':
           navigate(`/activities/${action.activityId}`)
@@ -395,24 +394,8 @@ export function HomePage() {
         case 'open_browse':
           navigate('/browse')
           return
-        case 'move_to_tomorrow':
-          setActionPending(true)
-          try {
-            const res = await getApiClient().PATCH('/calendar-items/{itemId}', {
-              params: { path: { itemId: action.itemId } },
-              body: {
-                localDate: tomorrow,
-                expectedUpdatedAt: action.updatedAt,
-              },
-            })
-            if (res.error) throw res.error
-            await queryClient.invalidateQueries({ queryKey: ['calendar'] })
-            toast.success(`Moved ${action.title} to tomorrow`)
-          } catch {
-            toast.error('Could not move Activity right now')
-          } finally {
-            setActionPending(false)
-          }
+        case 'reschedule_item':
+          setScheduleTarget({ kind: 'item', ...action.item })
           return
         case 'follow_creator':
           if (!isSignedIn) {
@@ -435,7 +418,7 @@ export function HomePage() {
           return
       }
     },
-    [isSignedIn, navigate, queryClient, today, tomorrow, joinGathering, calendar.data],
+    [isSignedIn, navigate, queryClient, today, joinGathering, calendar.data],
   )
 
   const handleChoice = useCallback(
@@ -664,7 +647,7 @@ export function HomePage() {
       </main>
       {scheduleTarget && (
         <ScheduleDialog
-          target={{ kind: 'activity', ...scheduleTarget }}
+          target={scheduleTarget}
           onClose={() => setScheduleTarget(null)}
         />
       )}
