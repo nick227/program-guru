@@ -107,9 +107,20 @@ export function rankHomeSignals(
     if (activeEnrollment) {
       return {
         nodeId: 'opening',
-        question: `You've been working on ${activeEnrollment.programTitle}.`,
-        contextLine: 'Ready for the next session?',
-        whyReason: 'You have this Program in progress.',
+        // Claim progress only after real participation; before that, name what comes first.
+        ...(activeEnrollment.hasParticipated
+          ? {
+              question: `You've been working on ${activeEnrollment.programTitle}.`,
+              contextLine: 'Ready for the next session?',
+              whyReason: 'You have this Program in progress.',
+            }
+          : {
+              question: `${activeEnrollment.programTitle} is on your Calendar.`,
+              contextLine: activeEnrollment.nextActivity
+                ? `First up: ${activeEnrollment.nextActivity.title}, ${firstDayLabel(activeEnrollment.nextActivity.date)}.`
+                : 'Its Activities are on your Calendar.',
+              whyReason: 'You started this Program and have not done an Activity from it yet.',
+            }),
         showMeSubject: { kind: 'progress' },
         choices: [
           {
@@ -421,3 +432,12 @@ export function rankHomeSignals(
   }
 }
 
+/** "today", "tomorrow", or "Mon, Nov 16" for a local YYYY-MM-DD date. */
+function firstDayLabel(date: string, now = new Date()): string {
+  const local = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const tomorrow = new Date(now)
+  tomorrow.setDate(now.getDate() + 1)
+  if (date === local(now)) return 'today'
+  if (date === local(tomorrow)) return 'tomorrow'
+  return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}

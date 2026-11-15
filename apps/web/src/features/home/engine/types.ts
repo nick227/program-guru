@@ -130,6 +130,10 @@ export interface EnrollmentSummary {
   programId: string
   programTitle: string
   status: string
+  /** A completion or recorded participation exists; progress claims need it. */
+  hasParticipated?: boolean
+  /** The run's next scheduled Activity, when there is one. */
+  nextActivity?: { id: string; title: string; date: string } | null
 }
 
 export interface HomeSignals {

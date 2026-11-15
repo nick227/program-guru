@@ -482,6 +482,16 @@ describe('discovery quality on Home (12 §5c)', () => {
     expect([empty.card?.id, empty.question]).toEqual(['p-new', 'New: Brand New'])
   })
 
+  it('never claims progress before participation (item 8)', () => {
+    const enrollment = { id: 'e1', programId: 'p1', programTitle: 'Build your Core', status: 'ACTIVE' }
+    const fresh = rankHomeSignals({ ...base, activeEnrollments: [{ ...enrollment, hasParticipated: false, nextActivity: { id: 'i1', title: 'Plank', date: '2099-01-05' } }] })
+    expect(fresh.question).toBe('Build your Core is on your Calendar.')
+    expect(fresh.contextLine).toMatch(/^First up: Plank, /)
+    expect(fresh.question).not.toMatch(/working on/)
+    const started = rankHomeSignals({ ...base, activeEnrollments: [{ ...enrollment, hasParticipated: true }] })
+    expect(started.question).toBe("You've been working on Build your Core.")
+  })
+
   it('"Start a Program" picks For You first and shows its reason; already-known Programs are skipped', () => {
     const signals = {
       ...base,

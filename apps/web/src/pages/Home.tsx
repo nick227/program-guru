@@ -206,6 +206,10 @@ export function HomePage() {
           programId: entry.program.id,
           programTitle: entry.program.title,
           status: 'ACTIVE',
+          hasParticipated: !!entry.current && (entry.current.completed > 0 || !!entry.current.lastParticipation),
+          nextActivity: entry.current?.upcoming[0]
+            ? { id: entry.current.upcoming[0].id, title: entry.current.upcoming[0].title, date: entry.current.upcoming[0].date }
+            : null,
         })),
       liveSessions: liveSessions.data?.pages.flatMap((p) => p.data) ?? [],
       opportunities: radar.data?.recommendations ?? [],
