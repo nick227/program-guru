@@ -10,7 +10,10 @@ export function DatePickerPopover({
   todayDate,
   onSelect,
   onClose,
+  inline = false,
 }: {
+  /** Inside a dialog: laid out in place; the dialog owns Escape and closing. */
+  inline?: boolean
   selected: string
   todayDate: string
   onSelect: (day: string) => void
@@ -23,6 +26,7 @@ export function DatePickerPopover({
   }, [selected])
 
   useEffect(() => {
+    if (inline) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose()
@@ -30,16 +34,16 @@ export function DatePickerPopover({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+  }, [inline, onClose])
 
   const days = monthGrid(cursorMonth)
   const monthKey = cursorMonth.slice(0, 7)
 
   return (
     <div
-      role="dialog"
+      role={inline ? 'group' : 'dialog'}
       aria-label="Choose a date"
-      className="calendar-datepicker"
+      className={cn('calendar-datepicker', inline && 'calendar-datepicker--inline')}
     >
       <div className="calendar-datepicker__header">
         <button
@@ -108,13 +112,15 @@ export function DatePickerPopover({
         >
           Today
         </button>
-        <button
-          type="button"
-          className="calendar-datepicker__close-btn"
-          onClick={onClose}
-        >
-          Close
-        </button>
+        {!inline && (
+          <button
+            type="button"
+            className="calendar-datepicker__close-btn"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        )}
       </div>
     </div>
   )

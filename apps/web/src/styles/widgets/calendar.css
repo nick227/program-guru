@@ -230,6 +230,16 @@
   box-shadow: var(--shadow-md);
 }
 
+/* Inside the Add to Schedule dialog: laid out in place, the dialog supplies the frame. */
+.calendar-datepicker--inline {
+  position: static;
+  width: 100%;
+  max-width: none;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
 .calendar-datepicker__header {
   display: flex;
   align-items: center;
