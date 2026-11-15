@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import type { AddressInfo } from 'net'
 import { db } from '@project/db'
-import { buildTestApp, seedUser, validateResponse, testUserId as alice, testOtherUserId as bob } from './helpers'
+import { buildTestApp, seedUser, validateResponse, testUserId as alice, testOtherUserId as bob , asOfItemDay } from './helpers'
 import { seedAchievements, seedCatalog } from './helpers/fixtures'
 import { addDays, localToUtc, todayIn, toDbDate } from '../lib/time'
 import { programStats } from '../worker/jobs'
@@ -68,7 +68,7 @@ const itemOn = (userId: string, programDayIndex: number, activityId = cat.squats
 async function finish(userId: string, itemId: string, reps = 10) {
   const s = await ok(userId, 'POST', '/sessions', { calendarItemId: itemId, idempotencyKey: key() })
   await ok(userId, 'POST', `/sessions/${s.id}/results`, { values: [{ metricDefinitionId: cat.reps.id, value: reps }] })
-  await ok(userId, 'POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision })
+  await asOfItemDay(itemId, () => ok(userId, 'POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision }))
 }
 
 describe('late joiners keep the original schedule', () => {

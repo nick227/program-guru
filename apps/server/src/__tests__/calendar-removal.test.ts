@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
-import { buildTestApp, asAuth, testUserId, testOtherUserId } from './helpers'
+import { buildTestApp, asAuth, testUserId, testOtherUserId , asOfItemDay } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 
 // 09 §4.6: the Calendar is the current schedule. Removing a Program hides all of its items,
@@ -32,7 +32,10 @@ async function joined(key: string, start = today) {
 
 async function finish(itemId: string, key: string) {
   const s = (await req('POST', '/sessions', { calendarItemId: itemId, idempotencyKey: `finish-${key}` })).json().data
-  expect((await req('POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision })).statusCode).toBe(200)
+  // Completion opens on the item's day (09 §3).
+  await asOfItemDay(itemId, async () =>
+    expect((await req('POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision })).statusCode).toBe(200),
+  )
 }
 
 /** What "Remove from Programs" does in the web app: leave, then archive in the library. */

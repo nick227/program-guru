@@ -3,7 +3,7 @@
 // group's start date and other members' calendars untouched. Also: a missing request body is a 400.
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
-import { buildTestApp, asAuth, seedUser, testUserId as alice } from './helpers'
+import { buildTestApp, asAuth, seedUser, testUserId as alice , asOfItemDay } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 import { participationSummary } from '../domains/programs/participation.service'
 import { addDays, todayIn } from '../lib/time'
@@ -47,7 +47,7 @@ const join = (userId: string, programId: string, v: string, start = todayIn(TZ))
 async function finish(userId: string, itemId: string, reps = 10) {
   const s = await ok(userId, 'POST', '/sessions', { calendarItemId: itemId, idempotencyKey: key() })
   await ok(userId, 'POST', `/sessions/${s.id}/results`, { values: [{ metricDefinitionId: cat.reps.id, value: reps }] })
-  await ok(userId, 'POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision })
+  await asOfItemDay(itemId, () => ok(userId, 'POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision }))
   return s.id as string
 }
 const item = (enrollmentId: string, day: number, activityId = cat.squats.activity.id) =>

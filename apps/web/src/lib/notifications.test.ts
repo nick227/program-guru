@@ -40,6 +40,7 @@ const makeCalendarItem = (
   place: null,
   participantAvatars: [],
   unreadCount: 0,
+  completionOpensAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-11-07T12:00:00Z',
   ...overrides,
 })

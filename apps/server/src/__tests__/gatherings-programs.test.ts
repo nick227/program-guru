@@ -2,7 +2,7 @@
 // identity, repeated joins, leaving, Calendar adjustments, and Do It Again with personal invitations.
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '@project/db'
-import { asAuth, buildTestApp, testOtherUserId, testUserId } from './helpers'
+import { asAuth, buildTestApp, testOtherUserId, testUserId , asOfItemDay } from './helpers'
 import { carolId, World } from './helpers/contract'
 import { seedPlace } from './helpers/fixtures'
 
@@ -55,7 +55,7 @@ describe('solo Program items join gatherings (10 §9.11)', () => {
 
     // Completing it counts for the Program as before, and shares to the gathering.
     const s = await ok(carol, 'POST', '/sessions', { calendarItemId: item.id, idempotencyKey: key() })
-    await ok(carol, 'POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision })
+    await asOfItemDay(item.id, () => ok(carol, 'POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision }))
     expect((await db.calendarItem.findUniqueOrThrow({ where: { id: item.id } })).status).toBe('DONE')
     expect(await db.completionShare.count({ where: { groupId: g.id, userId: carol, revokedAt: null } })).toBe(1)
     const library = await ok(carol, 'GET', '/me/program-library')

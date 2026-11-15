@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@project/db'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { buildTestApp, asAuth, seedUser, validateResponse, testUserId as alice } from './helpers'
+import { buildTestApp, asAuth, seedUser, validateResponse, testUserId as alice , asOfItemDay } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 import { drain } from '../worker/outbox'
 import { programStats } from '../worker/jobs'
@@ -51,7 +51,7 @@ const liveItems = (userId: string) =>
 async function finish(userId: string, itemId: string, reps: number, notes?: string) {
   const s = await ok(userId, 'POST', '/sessions', { calendarItemId: itemId, idempotencyKey: key() })
   await ok(userId, 'POST', `/sessions/${s.id}/results`, { values: [{ metricDefinitionId: cat.reps.id, value: reps }], ...(notes ? { notes } : {}) })
-  await ok(userId, 'POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision })
+  await asOfItemDay(itemId, () => ok(userId, 'POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision }))
   return s.id as string
 }
 const dayItem = (userId: string, day: number, activityId: string) =>
@@ -359,13 +359,15 @@ describe('POC journey: publish → discover → join → group → share → upd
 
     // carol starts and pauses (started, not finished); dave finishes; erin turns sharing off, then starts.
     const day0 = (userId: string) => dayItem(userId, 0, cat.squats.activity.id)
-    const carolSession = await ok(U.carol, 'POST', '/sessions', { calendarItemId: (await day0(U.carol)).id, idempotencyKey: key() })
-    const started = await ok(U.carol, 'POST', `/sessions/${carolSession.id}/actions`, { action: 'START', expectedRevision: carolSession.revision })
+    const carolItem = (await day0(U.carol)).id
+    const carolSession = await ok(U.carol, 'POST', '/sessions', { calendarItemId: carolItem, idempotencyKey: key() })
+    const started = await asOfItemDay(carolItem, () => ok(U.carol, 'POST', `/sessions/${carolSession.id}/actions`, { action: 'START', expectedRevision: carolSession.revision }))
     await ok(U.carol, 'POST', `/sessions/${carolSession.id}/actions`, { action: 'PAUSE', expectedRevision: started.session.revision })
     await finish(U.dave, (await day0(U.dave)).id, 20)
     await ok(U.erin, 'PATCH', `/groups/${group.id}/members/me`, { sharedCompletion: false })
-    const erinSession = await ok(U.erin, 'POST', '/sessions', { calendarItemId: (await day0(U.erin)).id, idempotencyKey: key() })
-    await ok(U.erin, 'POST', `/sessions/${erinSession.id}/actions`, { action: 'START', expectedRevision: erinSession.revision })
+    const erinItem = (await day0(U.erin)).id
+    const erinSession = await ok(U.erin, 'POST', '/sessions', { calendarItemId: erinItem, idempotencyKey: key() })
+    await asOfItemDay(erinItem, () => ok(U.erin, 'POST', `/sessions/${erinSession.id}/actions`, { action: 'START', expectedRevision: erinSession.revision }))
     // frank creates an unstarted session (Upload media before starting): not "started".
     await ok(U.frank, 'POST', '/sessions', { calendarItemId: (await day0(U.frank)).id, idempotencyKey: key() })
 

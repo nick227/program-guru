@@ -3,7 +3,7 @@
 // independence of personal scheduling, refusals, and changes after joining.
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '@project/db'
-import { asAuth, buildTestApp, seedUser, testOtherUserId, testUserId, validateResponse } from './helpers'
+import { asAuth, buildTestApp, seedUser, testOtherUserId, testUserId, validateResponse , asOfItemDay } from './helpers'
 import { carolId, contractCase } from './helpers/contract'
 import { seedAchievements, seedCatalog, seedPlace } from './helpers/fixtures'
 
@@ -83,9 +83,10 @@ describe('two-person journey (10 §9.9)', () => {
 
     // Bob starts: Alice sees him active (session records, not presence). Finishing shares completion.
     const s = await ok(bob, 'POST', '/sessions', { calendarItemId: bobItem.id, idempotencyKey: key() })
-    const started = await ok(bob, 'POST', `/sessions/${s.id}/actions`, { action: 'START', expectedRevision: s.revision })
+    const started = await asOfItemDay(bobItem.id, () => ok(bob, 'POST', `/sessions/${s.id}/actions`, { action: 'START', expectedRevision: s.revision }))
     expect((await ok(alice, 'GET', `/gatherings/${g.id}`)).activeCount).toBe(1)
-    await ok(bob, 'POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: (started.session ?? started).revision })
+    // Completion opens at the gathering's time (10 §9).
+    await asOfItemDay(bobItem.id, () => ok(bob, 'POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: (started.session ?? started).revision }))
     const shares = await db.completionShare.findMany({ where: { groupId: g.id, revokedAt: null } })
     expect(shares).toMatchObject([{ userId: bob, occurrenceKey: `gathering:${g.id}`, calendarItemId: bobItem.id }])
     const aliceRoom = await occurrence(alice, aliceItem.id)
@@ -100,7 +101,7 @@ describe('two-person journey (10 §9.9)', () => {
     expect((await ok(null, 'GET', '/gatherings?when=UPCOMING&locality=Austin')).map((x: { id: string }) => x.id)).toEqual([g.id])
     expect(await ok(null, 'GET', '/gatherings?when=NOW')).toEqual([])
     const as = await ok(alice, 'POST', '/sessions', { calendarItemId: aliceItem.id, idempotencyKey: key() })
-    await ok(alice, 'POST', `/sessions/${as.id}/actions`, { action: 'START', expectedRevision: as.revision })
+    await asOfItemDay(aliceItem.id, () => ok(alice, 'POST', `/sessions/${as.id}/actions`, { action: 'START', expectedRevision: as.revision }))
     expect((await ok(null, 'GET', '/gatherings?when=NOW')).map((x: { id: string; activeCount: number }) => [x.id, x.activeCount])).toEqual([[g.id, 1]])
 
     // Leave: Bob's item stays on his Calendar as a personal occurrence; the room shows one member.

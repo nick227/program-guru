@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { db } from '@project/db'
-import { buildTestApp, asAuth, testUserId, testOtherUserId, seedUser } from './helpers'
+import { buildTestApp, asAuth, testUserId, testOtherUserId, seedUser , asOfItemDay } from './helpers'
 import { makeMedia, seedCatalog } from './helpers/fixtures'
 import { drain } from '../worker/outbox'
 import { dailySummaries, extendHorizons, programStats, timedReminders } from '../worker/jobs'
@@ -179,11 +179,13 @@ describe('horizons and statistics', () => {
     const start = async (itemId: string, key: string) => { const r = (await req('POST', '/sessions', { calendarItemId: itemId, idempotencyKey: key }, testOtherUserId)).json(); if (!r.data) throw new Error(JSON.stringify(r)); return r.data }
     for (const [item, key] of [[undone, 'undo-session-a'], [done, 'undo-session-b']] as const) {
       const s = await start(item!.id, key)
-      expect((await req('POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision }, testOtherUserId)).statusCode).toBe(200)
+      await asOfItemDay(item!.id, async () =>
+        expect((await req('POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: s.revision }, testOtherUserId)).statusCode).toBe(200),
+      )
     }
     expect((await req('POST', `/calendar-items/${undone!.id}/undo-completion`, undefined, testOtherUserId)).statusCode).toBe(200)
     const open = await start(inProgress!.id, 'undo-session-c')
-    await req('POST', `/sessions/${open.id}/actions`, { action: 'START', expectedRevision: open.revision }, testOtherUserId)
+    await asOfItemDay(inProgress!.id, () => req('POST', `/sessions/${open.id}/actions`, { action: 'START', expectedRevision: open.revision }, testOtherUserId))
     expect((await req('POST', `/enrollments/${e.id}/leave`, { futureItems: 'REMOVE' }, testOtherUserId)).statusCode).toBe(200)
     const left = await db.calendarItem.findMany({ where: { enrollmentId: e.id, status: { not: 'CANCELLED' } }, include: { sessions: true } })
     // Completed history and work genuinely in progress stay; the undone item leaves with the rest.

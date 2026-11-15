@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, onTestFinished } from 'vitest'
 import { db } from '@project/db'
-import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, seedUser, pinToday, unpinToday } from './helpers'
+import { buildTestApp, asAuth, validateResponse, testUserId, testOtherUserId, seedUser, pinToday, unpinToday , asOfItemDay } from './helpers'
 import { seedCatalog } from './helpers/fixtures'
 import { contractCase } from './helpers/contract'
 
@@ -610,7 +610,7 @@ describe('Check-in centered Groups, multi-group sharing, media, comments, and St
     })).json().data
     const calItem = await db.calendarItem.findFirstOrThrow({ where: { enrollmentId: en.id, activityId } })
     const sess = (await req('POST', '/sessions', { calendarItemId: calItem.id, idempotencyKey: key() })).json().data
-    await req('POST', `/sessions/${sess.id}/actions`, { action: 'FINISH', expectedRevision: sess.revision })
+    await asOfItemDay(calItem.id, () => req('POST', `/sessions/${sess.id}/actions`, { action: 'FINISH', expectedRevision: sess.revision }))
 
     const itemsBeforeCheckIn = await db.calendarItem.count({ where: { ownerId: testUserId } })
     // Share one check-in across BOTH groups (g1 & g2) with a note (zero duplicate calendar items)

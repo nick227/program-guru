@@ -11,6 +11,7 @@ import { buildApp, specPath } from '../../app'
 import { forbidden, unauthorized } from '../../lib/errors'
 import { setViewerResolver } from '../../lib/auth'
 import { setStorageRoot } from '../../infrastructure/storage'
+import { completionOpensAt } from '../../domains/calendar/completionWindow'
 import { mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -125,4 +126,27 @@ export function pinToday(instant: string) {
 
 export function unpinToday() {
   vi.useRealTimers()
+}
+
+/**
+ * Runs `fn` as of the moment an item can be completed (09 §3: completion opens on the item's day,
+ * or at a gathering's time). For tests whose fixed dates are in the future; restores any clock the
+ * test had already pinned.
+ */
+export async function asOfItemDay<T>(itemId: string, fn: () => Promise<T>): Promise<T> {
+  const item = await db.calendarItem.findUniqueOrThrow({
+    where: { id: itemId },
+    select: { ownerId: true, localDate: true, gatheringId: true, gathering: { select: { startLocalDate: true, startLocalTime: true, timezone: true } } },
+  })
+  const tz = (await db.userPreference.findUnique({ where: { userId: item.ownerId } }))?.timezone ?? 'UTC'
+  const opens = completionOpensAt(item, tz)
+  if (opens.getTime() <= Date.now()) return fn()
+  const pinned = vi.isFakeTimers() ? Date.now() : null
+  pinToday(new Date(opens.getTime() + 60_000).toISOString())
+  try {
+    return await fn()
+  } finally {
+    if (pinned === null) unpinToday()
+    else vi.setSystemTime(new Date(pinned))
+  }
 }
