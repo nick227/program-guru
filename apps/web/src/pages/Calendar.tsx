@@ -25,6 +25,9 @@ import { CalendarSurface } from '@/components/calendar/CalendarSurface'
 import type { SurfaceItem } from '@/components/calendar/CalendarSurface'
 import { DatePickerPopover } from '@/components/calendar/DatePickerPopover'
 import { SelectedActivityPanel } from '@/components/calendar/SelectedActivityPanel'
+import { MoveEntryDialog, type MoveTarget } from '@/components/calendar/MoveEntryDialog'
+import { ScheduleDialog, type ScheduleTarget } from '@/components/schedule/AddToSchedule'
+import { canMoveCalendarEntry } from '@/lib/calendarGrouping'
 import { CalendarDiscoveryRail } from '@/components/calendar/CalendarDiscoveryRail'
 import {
   RemoveFromCalendarDialog,
@@ -44,6 +47,12 @@ import {
 import { markDailyEmailPromptSeen } from '@/lib/notifications'
 import { isValidTargetTime, formatTargetTime } from '@/lib/targetTime'
 import { useOnline } from '@/lib/useOnline'
+import {
+  CALENDAR_CATEGORY_FILTERS,
+  resolveCalendarView,
+  useCalendarPrefs,
+  type CalendarCategoryFilter,
+} from '@/lib/calendarPrefs'
 import { cn } from '@/lib/utils'
 import { useDocumentTitle } from '@/lib/title'
 
@@ -76,8 +85,13 @@ export function CalendarPage() {
   const defaultReminderTime =
     me.data!.data.preferences.notifications?.dailyReminderTime ?? '08:00'
   const [reminderTime, setReminderTime] = useState(defaultReminderTime)
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [showAllHours, setShowAllHours] = useState(false)
+  // View, filter and hours persist per user in this browser; a URL view (shared link) wins (03-UX §5).
+  const [calendarPrefs, setCalendarPrefs] = useCalendarPrefs(userId)
+  const categoryFilter = calendarPrefs.category
+  const setCategoryFilter = (category: CalendarCategoryFilter) => setCalendarPrefs({ category })
+  const showAllHours = calendarPrefs.allHours
+  const setShowAllHours = (next: boolean | ((prev: boolean) => boolean)) =>
+    setCalendarPrefs({ allHours: typeof next === 'function' ? next(showAllHours) : next })
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
   const datePickerRef = useRef<HTMLDivElement>(null)
@@ -85,7 +99,7 @@ export function CalendarPage() {
   const current = today(timezone)
   const requestedDay = params.get('day') ?? params.get('week')
   const selected = isLocalDate(requestedDay) ? requestedDay : current
-  const view: View = params.get('view') === 'month' ? 'month' : 'day'
+  const view: View = resolveCalendarView(params.get('view'), calendarPrefs)
   const monthRange = monthBounds(selected)
   const range =
     view === 'day' ? { start: selected, end: selected } : monthRange
@@ -98,6 +112,10 @@ export function CalendarPage() {
   // Entries removed in this session stay hidden while the Calendar refetches (no flash back).
   const [removedIds, setRemovedIds] = useState<ReadonlySet<string>>(() => new Set())
   const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null)
+  // Month moves show at their new date at once; a failed write restores them (03-UX §5).
+  const [pendingDates, setPendingDates] = useState<Record<string, string>>({})
+  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null)
+  const [rescheduleTarget, setRescheduleTarget] = useState<ScheduleTarget | null>(null)
   const completionKeys = useRef(new Map<string, string>())
   const origin = `/calendar?${new URLSearchParams({
     view,
@@ -132,6 +150,7 @@ export function CalendarPage() {
   }
 
   const updateCalendarParams = (nextView: View, nextDay = selected) => {
+    if (nextView !== calendarPrefs.view) setCalendarPrefs({ view: nextView })
     const next = new URLSearchParams(params)
     next.set('view', nextView)
     next.set('day', nextDay)
@@ -179,7 +198,7 @@ export function CalendarPage() {
       : item.conflict
     return {
       id: item.id,
-      day: item.localDate,
+      day: pendingDates[item.id] ?? item.localDate,
       title: item.title,
       localTime,
       programTitle: item.programTitle,
@@ -256,6 +275,107 @@ export function CalendarPage() {
         return next
       })
     }
+  }
+
+  const whenLabel = (localDate: string, localTime: string | null | undefined) =>
+    [dateLabel(localDate, { weekday: 'short', month: 'short', day: 'numeric' }), formatTargetTime(localTime ?? null) ?? 'Any time'].join(' · ')
+
+  // Month drag (03-UX §5): the date changes, the time stays. A recurring or gathering entry confirms
+  // first; a single move happens at once with Undo. Same update operation as Reschedule (09 §4.8).
+  const requestMoveItem = (itemId: string, toDay: string) => {
+    const item = rawItems.find((row) => row.id === itemId)
+    if (!item || item.localDate === toDay) return
+    if (!canMoveCalendarEntry({ status: item.status, locked: item.locked })) {
+      toast.error(item.status === 'DONE' ? 'Completed entries keep their date' : "This entry can't be moved")
+      return
+    }
+    if (item.recurrenceId || item.gatheringId) {
+      setMoveTarget({
+        id: item.id,
+        title: item.title,
+        toDay,
+        toLabel: whenLabel(toDay, item.localTime),
+        recurring: Boolean(item.recurrenceId),
+        inGathering: Boolean(item.gatheringId),
+      })
+      return
+    }
+    void moveItem(itemId, toDay, 'THIS_ONE')
+  }
+
+  const clearPendingDate = (itemId: string) =>
+    setPendingDates((prev) => {
+      const next = { ...prev }
+      delete next[itemId]
+      return next
+    })
+
+  const moveItem = async (itemId: string, toDay: string, scope: RemoveScope) => {
+    const item = rawItems.find((row) => row.id === itemId)
+    if (!item) return
+    const fromDay = item.localDate
+    const series = scope === 'THIS_AND_FUTURE' && Boolean(item.recurrenceId)
+    setPendingDates((prev) => ({ ...prev, [itemId]: toDay }))
+    try {
+      const updated = await updateItem.mutateAsync({
+        itemId,
+        localDate: toDay,
+        ...(item.recurrenceId ? { scope } : {}),
+        expectedUpdatedAt: item.updatedAt ?? new Date().toISOString(),
+      })
+      setMoveTarget(null)
+      const to = dateLabel(toDay, { weekday: 'short', month: 'short', day: 'numeric' })
+      if (series) {
+        // A series move re-creates the later entries, so there is no single entry to put back.
+        toast.success(`Moved ${item.title} and the ones after it to start ${to}`)
+        return
+      }
+      toast.success(`Moved ${item.title} to ${to}`, {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            setPendingDates((prev) => ({ ...prev, [itemId]: fromDay }))
+            updateItem
+              .mutateAsync({
+                itemId,
+                localDate: fromDay,
+                ...(item.recurrenceId ? { scope: 'THIS_ONE' as const } : {}),
+                expectedUpdatedAt: updated.updatedAt,
+              })
+              .then(() => toast.success(`${item.title} is back on ${dateLabel(fromDay, { weekday: 'short', month: 'short', day: 'numeric' })}`))
+              .catch((err: unknown) => toast.error(err instanceof Error ? err.message : 'Could not undo the move'))
+              .finally(() => clearPendingDate(itemId))
+          },
+        },
+      })
+    } catch (err) {
+      setMoveTarget(null)
+      toast.error(
+        err instanceof Error && /changed|conflict|version/i.test(err.message)
+          ? `${item.title} changed elsewhere, so it stays on ${dateLabel(fromDay, { weekday: 'short', month: 'short', day: 'numeric' })}`
+          : err instanceof Error
+            ? `Could not move ${item.title}: ${err.message}`
+            : `Could not move ${item.title}`,
+      )
+    } finally {
+      clearPendingDate(itemId)
+    }
+  }
+
+  // Move to date from the panel (phones and keyboard): the shared Reschedule dialog, unchanged.
+  const requestReschedule = (itemId: string) => {
+    const item = rawItems.find((row) => row.id === itemId)
+    if (!item || !canMoveCalendarEntry({ status: item.status, locked: item.locked })) return
+    setRescheduleTarget({
+      kind: 'item',
+      id: item.id,
+      title: item.title,
+      localDate: item.localDate,
+      localTime: item.localTime ?? null,
+      recurrenceId: item.recurrenceId ?? null,
+      gatheringId: item.gatheringId ?? null,
+      updatedAt: item.updatedAt,
+    })
   }
 
   const requestRemoveItem = (itemId: string) => {
@@ -385,6 +505,7 @@ export function CalendarPage() {
       onUndoComplete={undoCompleteItem}
       onChangeTime={changeItemTime}
       onRemove={requestRemoveItem}
+      onReschedule={requestReschedule}
       completing={quickComplete.isPending}
       undoing={undo.isPending}
       removing={cancelItem.isPending}
@@ -576,15 +697,7 @@ export function CalendarPage() {
                 </div>
               )}
               <div role="group" aria-label="Filter activities" className="calendar-view-menu__filters">
-                {[
-                  { id: 'all', label: 'All Activities' },
-                  { id: 'fitness', label: 'Fitness' },
-                  { id: 'wellness', label: 'Wellness' },
-                  { id: 'education', label: 'Education' },
-                  { id: 'finance', label: 'Finance' },
-                  { id: 'relationships', label: 'Relationships' },
-                  { id: 'group', label: 'Group' },
-                ].map((chip) => {
+                {CALENDAR_CATEGORY_FILTERS.map((chip) => {
                   const isSelected = categoryFilter === chip.id
                   return (
                     <button
@@ -756,6 +869,8 @@ export function CalendarPage() {
                   nextItemId={dayContext?.nextItem?.id ?? null}
                   selectedItemId={selectedItemId}
                   onSelectItem={selectItem}
+                  onMoveItem={online ? requestMoveItem : undefined}
+                  todayIso={current}
                   onItemScheduled={(itemId) => setSelectedItemId(itemId)}
                   onComplete={(itemId) => void completeItem(itemId)}
                   onChangeTime={(itemId, localTime) =>
@@ -787,6 +902,20 @@ export function CalendarPage() {
               />
             )}
           </>
+        )}
+        {moveTarget && (
+          <MoveEntryDialog
+            key={`${moveTarget.id}-${moveTarget.toDay}`}
+            target={moveTarget}
+            pending={updateItem.isPending}
+            onConfirm={(scope) => void moveItem(moveTarget.id, moveTarget.toDay, scope)}
+            onClose={() => {
+              if (!updateItem.isPending) setMoveTarget(null)
+            }}
+          />
+        )}
+        {rescheduleTarget && (
+          <ScheduleDialog target={rescheduleTarget} onClose={() => setRescheduleTarget(null)} />
         )}
         {removeTarget && (
           <RemoveFromCalendarDialog

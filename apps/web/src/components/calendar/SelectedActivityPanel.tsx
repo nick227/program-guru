@@ -45,7 +45,7 @@ import { useMediaUploads } from '@/lib/useMediaUploads'
 import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { useOnline } from '@/lib/useOnline'
 import { cn } from '@/lib/utils'
-import type { SurfaceItem } from '@/lib/calendarGrouping'
+import { canMoveCalendarEntry, type SurfaceItem } from '@/lib/calendarGrouping'
 
 type S = components['schemas']
 
@@ -60,6 +60,8 @@ export interface SelectedActivityPanelProps {
   onChangeTime: (itemId: string, localTime: string | null) => Promise<void>
   /** Opens the Remove from Calendar confirmation; never completes or deletes the Activity. */
   onRemove?: (itemId: string) => void
+  /** Opens the shared Reschedule dialog (Move to date; the tap path for moving on phones). */
+  onReschedule?: (itemId: string) => void
   completing?: boolean
   undoing?: boolean
   removing?: boolean
@@ -73,6 +75,7 @@ function PanelBody({
   onUndoComplete,
   onChangeTime,
   onRemove,
+  onReschedule,
   completing = false,
   undoing = false,
   removing = false,
@@ -290,6 +293,8 @@ function PanelBody({
   const occurrenceHref = calendarItem?.href ?? `/occurrences/${itemId}`
   // A completed entry keeps its record; the server asks for Undo first (09 §4.8).
   const canRemove = Boolean(onRemove) && !isDone && status !== 'CANCELLED'
+  const canReschedule =
+    Boolean(onReschedule) && !isLocked && canMoveCalendarEntry({ status, locked: isLocked })
 
   const toggleHeart = (share: S['CompletionShare']) => {
     const emoji = '❤️'
@@ -568,13 +573,24 @@ function PanelBody({
               <span>{completing ? 'Saving...' : opensLabel ?? 'Mark as Complete'}</span>
             </button>
           )}
-          {(isOpenEntry || canRemove) && (
+          {(isOpenEntry || canRemove || canReschedule) && (
             <div className="calendar-panel__secondary-actions">
               {isOpenEntry && (
                 <Link to={occurrenceHref} className="calendar-panel__secondary-btn">
                   <Play size={13} className="fill-current" aria-hidden />
                   {resumable ? 'Resume' : 'Start'}
                 </Link>
+              )}
+              {canReschedule && (
+                <button
+                  type="button"
+                  disabled={!online}
+                  onClick={() => onReschedule?.(itemId)}
+                  className="calendar-panel__secondary-btn"
+                >
+                  <CalendarDays size={13} aria-hidden />
+                  Move to date
+                </button>
               )}
               {canRemove && (
                 <button

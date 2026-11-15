@@ -94,3 +94,17 @@ export function groupCalendarEntries(dayItems: SurfaceItem[]): CalendarRenderEnt
   return entries
 }
 
+
+/**
+ * Whether an entry can be moved to another date by drag or Move to date (03-UX §5): open entries only.
+ * Completed, skipped, removed and locked entries keep their date, and the UI says so instead of
+ * letting a drop fail.
+ */
+export function canMoveCalendarEntry(item: {
+  status?: string | null
+  done?: boolean
+  locked?: boolean | null
+}): boolean {
+  if (item.locked || item.done) return false
+  return !item.status || item.status === 'PLANNED' || item.status === 'NOT_PARTICIPATING'
+}

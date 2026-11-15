@@ -16,6 +16,7 @@ import { resolveActivityCategory, type ActivityCategory } from '@/lib/activityCa
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
 import { cn } from '@/lib/utils'
 import { completionOpen } from '@/lib/completionWindow'
+import { canMoveCalendarEntry } from '@/lib/calendarGrouping'
 
 export type ActivityTileDensity = 'pill' | 'card' | 'timeblock' | 'month' | 'day'
 
@@ -321,6 +322,77 @@ export function ActivityTile({
       )}
     </>
   )
+
+  if (density === 'month') {
+    // Month (03-UX §5): one readable row per entry. A quiet category edge, the time, the title on up to
+    // two lines; completed entries keep their title with a check. Open entries drag to another date.
+    const movable = draggable && canMoveCalendarEntry(item)
+    const monthContent = (
+      <>
+        {isDone ? (
+          <Check size={12} className="calendar-chip__done" aria-hidden />
+        ) : null}
+        <span className="calendar-chip__text">
+          {timeDisplay && <span className="calendar-chip__time">{timeDisplay}</span>}
+          <span className={cn('calendar-chip__title', isDone && 'calendar-chip__title--done')}>{item.title}</span>
+        </span>
+        {(item.unreadCount ?? 0) > 0 && <UnreadDot count={item.unreadCount ?? 0} />}
+      </>
+    )
+    return (
+      <article
+        data-category={category}
+        data-item-id={item.id}
+        draggable={movable}
+        title={draggable && !movable ? `${item.title} · ${statusLabel}, can't be moved` : undefined}
+        onDragStart={movable ? (event) => onDragStart?.(event, item) : undefined}
+        onDragEnd={movable ? onDragEnd : undefined}
+        className={cn(
+          'calendar-tile calendar-chip',
+          isDone && 'calendar-chip--done',
+          movable && 'calendar-chip--movable',
+          selected && 'calendar-chip--selected',
+          isDragging && 'calendar-chip--dragging',
+          className,
+        )}
+      >
+        {onSelect ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onSelect()
+            }}
+            aria-pressed={selected}
+            aria-label={`${item.title}, ${timeDisplay ?? 'Any time'}, ${statusLabel}`}
+            className="calendar-chip__trigger"
+          >
+            {monthContent}
+          </button>
+        ) : item.href ? (
+          <Link to={item.href} aria-label={`${item.title}, ${statusLabel} — open activity`} className="calendar-chip__trigger">
+            {monthContent}
+          </Link>
+        ) : (
+          <div className="calendar-chip__trigger">{monthContent}</div>
+        )}
+        {canComplete && (
+          <button
+            type="button"
+            className="calendar-chip__complete"
+            aria-label={`Mark ${item.title} complete`}
+            disabled={completing}
+            onClick={(event) => {
+              event.stopPropagation()
+              onComplete?.(item.id)
+            }}
+          >
+            <CheckCircle2 size={15} aria-hidden />
+          </button>
+        )}
+      </article>
+    )
+  }
 
   if (density === 'day') {
     const dayBadgeContent = (

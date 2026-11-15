@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupCalendarEntries, type SurfaceItem } from './calendarGrouping'
+import { canMoveCalendarEntry, groupCalendarEntries, type SurfaceItem } from './calendarGrouping'
 
 const makeItem = (overrides: Partial<SurfaceItem>): SurfaceItem => ({
   id: 'item-1',
@@ -93,3 +93,15 @@ describe('groupCalendarEntries', () => {
   })
 })
 
+
+describe('canMoveCalendarEntry (03-UX §5)', () => {
+  it('moves open entries only; completed, skipped, removed and locked keep their date', () => {
+    expect(canMoveCalendarEntry({ status: 'PLANNED' })).toBe(true)
+    expect(canMoveCalendarEntry({ status: 'NOT_PARTICIPATING' })).toBe(true)
+    expect(canMoveCalendarEntry({ status: 'DONE' })).toBe(false)
+    expect(canMoveCalendarEntry({ status: 'PLANNED', done: true })).toBe(false)
+    expect(canMoveCalendarEntry({ status: 'SKIPPED' })).toBe(false)
+    expect(canMoveCalendarEntry({ status: 'CANCELLED' })).toBe(false)
+    expect(canMoveCalendarEntry({ status: 'PLANNED', locked: true })).toBe(false)
+  })
+})
