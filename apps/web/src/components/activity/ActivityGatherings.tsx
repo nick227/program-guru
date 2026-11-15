@@ -23,6 +23,13 @@ import { GatheringCategoriesPicker } from './GatheringCategoriesPicker'
 
 type S = components['schemas']
 
+/** The join confirmation; says when a Program day stayed on its own date (10 §9.11). */
+export function joinedMessage(result: { otherProgramItemDate?: string | null }) {
+  return result.otherProgramItemDate
+    ? `Joined as its own Calendar item. Your Program still has this on ${dateLabel(result.otherProgramItemDate, { weekday: 'short', month: 'short', day: 'numeric' })}.`
+    : 'Joined. It is on your Calendar.'
+}
+
 export function gatheringWhen(g: Pick<S['Gathering'], 'localDate' | 'localTime'>) {
   const day = dateLabel(g.localDate, { weekday: 'short', month: 'short', day: 'numeric' })
   return g.localTime ? `${day} · ${formatTargetTime(g.localTime)}` : day
@@ -50,7 +57,7 @@ export function ActivityGatherings({ activity, returnTo }: { activity: S['Activi
     setJoiningId(g.id)
     try {
       const result = await join.mutateAsync({ gatheringId: g.id, idempotencyKey: crypto.randomUUID() })
-      toast.success('Joined. It is on your Calendar.')
+      toast.success(joinedMessage(result))
       openItem(result.calendarItemId)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not join')

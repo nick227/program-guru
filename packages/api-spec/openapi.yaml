@@ -8553,6 +8553,10 @@ components:
       properties:
         gathering: {$ref: '#/components/schemas/Gathering'}
         calendarItemId: {type: string, format: uuid}
+        otherProgramItemDate:
+          type: [string, 'null']
+          format: date
+          description: Join only. When the join created a separate item, the member's next planned Program item of the same Activity on another date; joining never moves it (10 §9.11).
     GatheringLeaveResult:
       type: object
       required: [calendarItemId]

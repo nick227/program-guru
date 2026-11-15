@@ -139,3 +139,23 @@ describe('Do It Again (10 §9.11)', () => {
     expect((await req(carol, 'POST', `/gatherings/${g.id}/repeat`, { localDate: '2027-03-20', idempotencyKey: key() })).statusCode).toBe(404)
   })
 })
+
+describe('joining on another date says so (10 §9.11)', () => {
+  it('names the Program day that stays put when the join creates a separate item', async () => {
+    const { item, activityId, enrollmentId } = await soloProgramItem()
+    const programDate = item.localDate.toISOString().slice(0, 10)
+    const otherDay = new Date(item.localDate.getTime() + 3 * 86_400_000).toISOString().slice(0, 10)
+    const g = await createAt(alice, activityId, otherDay)
+    const joined = await ok(carol, 'POST', `/gatherings/${g.id}/join`, { idempotencyKey: key() })
+    expect(joined.calendarItemId).not.toBe(item.id)
+    expect(joined.otherProgramItemDate).toBe(programDate)
+    // The Program item did not move.
+    expect(await db.calendarItem.findUniqueOrThrow({ where: { id: item.id } })).toMatchObject({ enrollmentId, localDate: item.localDate, gatheringId: null })
+
+    // Same-day join reuses the Program item, so there is nothing elsewhere to mention.
+    const same = await createAt(bob, activityId, programDate)
+    const reused = await ok(carol, 'POST', `/gatherings/${same.id}/join`, { idempotencyKey: key() })
+    expect(reused.calendarItemId).toBe(item.id)
+    expect(reused.otherProgramItemDate).toBeNull()
+  })
+})

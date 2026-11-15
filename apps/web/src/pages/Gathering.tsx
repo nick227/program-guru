@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { MapPin, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCurrentUser, useGathering, useJoinGathering } from '@project/sdk'
-import { gatheringWhen } from '@/components/activity/ActivityGatherings'
+import { gatheringWhen, joinedMessage } from '@/components/activity/ActivityGatherings'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -39,7 +39,7 @@ export function GatheringPage() {
     setJoining(true)
     try {
       const result = await join.mutateAsync({ gatheringId: g.id, invite: invite ?? undefined, idempotencyKey: crypto.randomUUID() })
-      toast.success('Joined. It is on your Calendar.')
+      toast.success(joinedMessage(result))
       navigate(`/occurrences/${result.calendarItemId}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not join')

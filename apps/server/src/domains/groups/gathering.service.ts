@@ -407,7 +407,7 @@ export async function join(userId: string, groupId: string, input: { invite?: st
     scope: 'gathering:join',
     key: idempotencyKey,
     request: { groupId, ...request },
-    load: async (ref) => ({ gathering: await get(userId, groupId), calendarItemId: ref }),
+    load: async (ref) => ({ gathering: await get(userId, groupId), calendarItemId: ref, otherProgramItemDate: await programItemElsewhere(userId, ref) }),
     run: async () => {
       const g = await load(groupId)
       if (!(await canView(userId, g, input.invite))) throw notFound('Gathering')
@@ -434,9 +434,27 @@ export async function join(userId: string, groupId: string, input: { invite?: st
         }
         return linkItem(tx, g, userId, input.calendarItemId)
       })
-      return { ref: calendarItemId, result: { gathering: await get(userId, groupId), calendarItemId } }
+      return {
+        ref: calendarItemId,
+        result: { gathering: await get(userId, groupId), calendarItemId, otherProgramItemDate: await programItemElsewhere(userId, calendarItemId) },
+      }
     },
   })
+}
+
+/**
+ * When the gathering item is not a Program item, the member's next planned Program item of the same
+ * Activity on another date, so the confirmation can say the Program day stayed put (10 §9.11).
+ */
+async function programItemElsewhere(userId: string, gatheringItemId: string): Promise<string | null> {
+  const item = await db.calendarItem.findUnique({ where: { id: gatheringItemId }, select: { activityId: true, enrollmentId: true, localDate: true } })
+  if (!item || item.enrollmentId) return null
+  const other = await db.calendarItem.findFirst({
+    where: { ownerId: userId, activityId: item.activityId, enrollmentId: { not: null }, status: 'PLANNED', gatheringId: null, localDate: { not: item.localDate } },
+    orderBy: { localDate: 'asc' },
+    select: { localDate: true },
+  })
+  return other ? fromDbDate(other.localDate) : null
 }
 
 export async function leave(userId: string, groupId: string) {

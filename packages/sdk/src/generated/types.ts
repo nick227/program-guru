@@ -3465,6 +3465,11 @@ export interface components {
             gathering: components["schemas"]["Gathering"];
             /** Format: uuid */
             calendarItemId: string;
+            /**
+             * Format: date
+             * @description Join only. When the join created a separate item, the member's next planned Program item of the same Activity on another date; joining never moves it (10 §9.11).
+             */
+            otherProgramItemDate?: string | null;
         };
         GatheringLeaveResult: {
             /**
