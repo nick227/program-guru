@@ -138,6 +138,11 @@ The startup gate enforces every required row: a missing value fails the deploy w
 - Dependency updates (Dependabot PR) after release, behind green CI.
 - Update `CLAUDE.md` deploy notes after the first real deploy (operations count 154, IaC instead of `railway.json`).
 - Reconcile frontend branches with backend contract additions: `participationStartDate`, `NOT_PARTICIPATING` (done on notifications branch), received invitations (done there), Activity media history (activity-authoring).
+- **Stale browser specs (cleanup task, found 2026-11-15).** Nine Playwright specs fail on `main` and already failed on `7c15a56`, before the Home surfer / Add to Schedule / Create a Program work, so they predate it. Each fails in both projects (desktop and mobile, 18 runs):
+  - `e2e/calendar-variants.spec.ts`: `calendar 1/3/6/10 Activities: geometry, overflow and day navigation` (waits for the group tile text `Morning crew`); `failed quick completion stays pending and preserves its retry key` (button `Mark Squats complete` not found); `calendar defaults to Day, toggles Month, and exposes Pages menu in main header` (no `.calendar-tile--day`).
+  - `e2e/hero.spec.ts`: `a new Activity takes several files, each uploaded to its own revision` and `a failed upload shows its error and retries with the same file` (Add Activity has no `Category` field to select).
+  - `e2e/program-library-integration.spec.ts`: `Library browser keeps filters and cached content through discovery and participation` (no `Program type` field with that label).
+  Likely cause: the tests trail the minimal Calendar tile and Add Activity / library redesigns. Update the tests (or the fixtures) separately; don't fold it into feature milestones. Repro: `pnpm --filter web exec playwright test e2e/calendar-variants.spec.ts e2e/hero.spec.ts e2e/program-library-integration.spec.ts`.
 
 ## 9. Remaining product gaps (spec vs built)
 
