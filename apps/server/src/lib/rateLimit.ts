@@ -33,6 +33,16 @@ export const GLOBAL_RATE_LIMIT = {
   windowMs: 60_000,
 }
 
+/**
+ * Signed media delivery (11-MEDIA §6): its own per-IP bucket, so the images on a page never use up
+ * the general API budget. The signature and per-fetch authorization still guard every request.
+ */
+export const MEDIA_DELIVERY_RATE_LIMIT = {
+  max: 1200,
+  windowMs: 60_000,
+}
+const MEDIA_DELIVERY_PATH = /^\/media-files\//
+
 export const AUTH_ROUTE_LIMITS: Record<string, AuthRouteLimit> = {
   'POST /auth/register': { scope: 'auth:register', max: 10, windowMs: 60_000 },
   'POST /auth/login': { scope: 'auth:login', max: 10, windowMs: 60_000, byEmail: true },
@@ -177,6 +187,14 @@ export async function rateLimitPreHandler(request: FastifyRequest, reply: Fastif
         reply,
       )
     }
+    return
+  }
+
+  if (request.method === 'GET' && MEDIA_DELIVERY_PATH.test(request.url)) {
+    await enforceRateLimit(
+      { key: `media:ip:${ip}`, max: MEDIA_DELIVERY_RATE_LIMIT.max, windowMs: MEDIA_DELIVERY_RATE_LIMIT.windowMs, now },
+      reply,
+    )
     return
   }
 

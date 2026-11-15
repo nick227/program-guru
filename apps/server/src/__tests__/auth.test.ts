@@ -184,6 +184,23 @@ describe('database-backed rate limiting (RateLimitBucket)', () => {
     expect(bucket.count).toBe(20)
   })
 
+  it('signed media delivery uses its own bucket, never the general API budget (11-MEDIA §6)', async () => {
+    const instance = await buildApp({ rateLimit: true })
+    await instance.ready()
+    try {
+      const ip = '203.0.113.77'
+      const media = await instance.inject({ method: 'GET', url: '/media-files/00000000-0000-4000-8000-000000000999/thumb?exp=1&sig=x', remoteAddress: ip })
+      expect(media.statusCode).toBe(404) // bad signature, but it was counted in the media bucket
+      expect(media.headers['x-ratelimit-limit']).toBe('1200')
+      const api = await instance.inject({ method: 'GET', url: '/catalog/categories', remoteAddress: ip })
+      expect(api.headers['x-ratelimit-limit']).toBe('300')
+      const keys = (await db.rateLimitBucket.findMany({ where: { key: { contains: ip } } })).map((b) => [b.key, b.count])
+      expect(keys.sort()).toEqual([[`global:ip:${ip}`, 1], [`media:ip:${ip}`, 1]])
+    } finally {
+      await instance.close()
+    }
+  })
+
   it('resets expired buckets atomically under concurrency and prunes stale rows', async () => {
     const t0 = new Date('2026-11-07T12:00:00.000Z')
     const key = 'expiry:auth:login:ip:198.51.100.99'

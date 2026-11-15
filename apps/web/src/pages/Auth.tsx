@@ -127,7 +127,7 @@ export function VerifyEmailPage() {
     }
   }, [token, verify])
 
-  const signedIn = me.isSuccess
+  const signedIn = !!me.data
   const verified = me.data?.data.emailVerified === true
 
   if (token) {

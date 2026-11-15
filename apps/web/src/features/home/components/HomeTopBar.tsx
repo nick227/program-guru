@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { RotateCcw } from 'lucide-react'
-import { useCurrentUser } from '@project/sdk'
+import { useAuthState } from '@project/sdk'
 import { AccountMenu } from '@/components/account/AccountMenu'
 import { HeaderNavMenu } from '@/components/shared/HeaderNavMenu'
 
@@ -14,7 +14,7 @@ interface HomeTopBarProps {
  * on the left, Reset and Menu controls on the right.
  */
 export function HomeTopBar({ onReset, showReset }: HomeTopBarProps) {
-  const me = useCurrentUser()
+  const auth = useAuthState()
 
   return (
     <header className="w-full pt-[env(safe-area-inset-top)]">
@@ -42,8 +42,10 @@ export function HomeTopBar({ onReset, showReset }: HomeTopBarProps) {
             </button>
           )}
           <HeaderNavMenu />
-          {me.data ? (
+          {auth === 'signed-in' ? (
             <AccountMenu />
+          ) : auth === 'unknown' ? (
+            <span aria-hidden className="inline-block h-10 w-10" />
           ) : (
             <Link
               to="/login"

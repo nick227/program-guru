@@ -76,6 +76,8 @@ Trimming, thumbnail selection, framing presets, and countdowns are deferred. No 
 
 Store timestamps/byte sizes, perceptual/cryptographic hashes for duplicate/upload integrity as appropriate; never make hash or original path public. Private CDN signed URLs short-lived and bound to authorization; require origin download check. Group access removal invalidates future signed links quickly.
 
+**Delivery caching and rate limits (approved 2026-11-15).** Signed delivery URLs are stable within their expiry bucket, so a browser may keep a delivered file privately for up to five minutes (`Cache-Control: private, max-age=300`); shared caches never store it, and every fetch that reaches the API is re-authorized. Signed delivery has its own per-IP rate bucket, separate from the general API bucket, so the images on an ordinary page never use up the budget for API calls. A rate-limited or failed session check (`429`, `5xx`) never counts as signed out: clients retry and show the signed-out state only on `401`.
+
 ## 7. Public Activity hub / contribution workflow
 
 A contribution is a PUBLIC `MediaPublication` with `activityId` (and optional `instructionKey`); there is no separate contribution record.

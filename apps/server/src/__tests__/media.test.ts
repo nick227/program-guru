@@ -543,6 +543,8 @@ describe('signed file delivery resilience', () => {
     expect(res.headers['content-type']).toMatch(/image\/webp/)
     expect(res.rawPayload.equals(bytes)).toBe(true)
     expect(res.headers['x-content-type-options']).toBe('nosniff')
+    // Private, short browser caching only (11-MEDIA §6); shared caches never store it.
+    expect(res.headers['cache-control']).toBe('private, max-age=300')
   })
 
   it('returns 404 for an invalid storage key without leaking the path', async () => {

@@ -32,7 +32,7 @@ export function AuthGuard() {
         <Loading />
       </Page>
     )
-  if (me.error instanceof ApiError && me.error.status === 401)
+  if (me.data === null || (me.error instanceof ApiError && me.error.status === 401))
     return (
       <Navigate
         replace

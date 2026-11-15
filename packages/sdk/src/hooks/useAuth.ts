@@ -1,5 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getApiClient, apiError } from '../client'
+import { getApiClient, apiError, ApiError } from '../client'
+
+/** Rate limiting or a server error says nothing about the session; only 401 means signed out. */
+export function isTransientAuthError(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 429 || error.status >= 500)
+}
 
 export function useCurrentUser() {
   return useQuery({
@@ -8,12 +13,32 @@ export function useCurrentUser() {
       const { data, error, response } = await getApiClient().GET('/auth/me', {
         signal,
       })
+      // Signed out is an answer, not an error: an errored query with no data refetches on every
+      // mount and briefly reads as pending, which made each new component re-request /auth/me.
+      if (response.status === 401) return null
       if (error) throw apiError(response, error)
       return data!
     },
-    retry: false,
+    // Retry transient failures with backoff; the query stays pending meanwhile, so no screen
+    // renders a signed-out state for a session that is still valid.
+    retry: (count, error) => isTransientAuthError(error) && count < 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
     staleTime: 60_000,
   })
+}
+
+export type AuthState = 'signed-in' | 'signed-out' | 'unknown'
+
+/** Signed out only on a 401 (resolved as `null`). Pending checks and transient failures are 'unknown'. */
+export function authStateOf(me: { data?: unknown; error: unknown }): AuthState {
+  if (me.data) return 'signed-in'
+  if (me.data === null) return 'signed-out'
+  if (me.error instanceof ApiError && me.error.status === 401) return 'signed-out'
+  return 'unknown'
+}
+
+export function useAuthState(): AuthState {
+  return authStateOf(useCurrentUser())
 }
 
 export function useLogin() {

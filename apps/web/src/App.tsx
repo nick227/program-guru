@@ -37,11 +37,11 @@ import { UnsubscribePage } from '@/pages/Unsubscribe'
 import { StudioPage } from '@/pages/Studio'
 import { AdminApp } from '@/admin/registry'
 import { Page, Stage } from '@/components/ui/Layout'
-import { ErrorMessage } from '@/components/ui/Feedback'
+import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { AccountMenu } from '@/components/account/AccountMenu'
 import { HeaderNavMenu } from '@/components/shared/HeaderNavMenu'
 import { LibraryBrowserPage } from '@/pages/Browse'
-import { useCurrentUser } from '@project/sdk'
+import { authStateOf, useCurrentUser } from '@project/sdk'
 
 const AUTH_PATHS = new Set([
   '/login',
@@ -57,6 +57,14 @@ function Root() {
   const online = useOnline()
   const location = useLocation()
   const me = useCurrentUser()
+  const auth = authStateOf(me)
+  // A transient /auth/me failure (rate limit, server error) is not a sign-out: keep retrying quietly.
+  const authUnavailable = auth === 'unknown' && !me.isPending
+  useEffect(() => {
+    if (!authUnavailable) return
+    const retry = window.setInterval(() => void me.refetch(), 5000)
+    return () => window.clearInterval(retry)
+  }, [authUnavailable, me.refetch])
   const showHeaderMenu = !AUTH_PATHS.has(location.pathname)
   const isHomeRoute = location.pathname === '/'
   useEffect(() => {
@@ -99,20 +107,34 @@ function Root() {
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
               {showHeaderMenu && <HeaderNavMenu />}
-            {me.data ? (
+            {auth === 'signed-in' ? (
               <AccountMenu />
-            ) : (
+            ) : auth === 'signed-out' ? (
               <div className="flex items-center gap-3">
                 <Link to="/login" className="inline-flex min-h-11 items-center text-sm font-semibold text-accent">
                   Sign in
                 </Link>
               </div>
+            ) : (
+              <span aria-hidden className="inline-block h-11 w-11" />
             )}
             </div>
           </div>
         </header>
       )}
-      <Outlet />
+      {authUnavailable && (
+        <p role="status" className="border-b bg-surface px-4 py-2 text-center text-sm text-muted">
+          We could not confirm your sign-in just now. Retrying.
+        </p>
+      )}
+      {/* Wait for the session check so viewer-scoped queries load once, for the right viewer. */}
+      {me.isPending ? (
+        <Page>
+          <Loading />
+        </Page>
+      ) : (
+        <Outlet />
+      )}
     </>
   )
 }

@@ -29,7 +29,9 @@ export async function getMediaFile(request: any, reply: FastifyReply) {
   // Re-authorize on every fetch (revocation, blocks, lapsed membership), then serve the range.
   await media.authorizeDelivery(viewer, mediaId, context.publicationId)
   const file = await media.fileForDelivery(mediaId, variant, request.headers.range)
-  reply.header('cache-control', 'private, no-store')
+  // URLs are stable within their expiry bucket: let the viewer's browser keep the file briefly;
+  // shared caches never store it (11-MEDIA §6).
+  reply.header('cache-control', 'private, max-age=300')
   reply.header('x-content-type-options', 'nosniff')
   reply.header('accept-ranges', 'bytes')
   if ('unsatisfiable' in file) {
