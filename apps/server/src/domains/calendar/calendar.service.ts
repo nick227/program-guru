@@ -323,6 +323,9 @@ export async function update(
   if (input.status === 'NOT_PARTICIPATING') throw badRequest('Not participating is set by the server', { status: 'is set by the server' })
   const tz = await userTimezone(userId)
   await db.$transaction(async (tx) => {
+    // Lock the row first: two concurrent edits (a double tap on This and future) must not both pass the
+    // version check and each split the recurrence; the second now waits and gets 409.
+    await tx.$queryRaw`SELECT id FROM CalendarItem WHERE id = ${itemId} FOR UPDATE`
     const item = await ownItem(tx, userId, itemId)
     if (item.updatedAt.toISOString() !== new Date(input.expectedUpdatedAt).toISOString()) throw versionConflict()
     if (input.status && item.status === 'DONE') throw badRequest('Undo the completion first', { status: 'item is done' })

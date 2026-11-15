@@ -73,6 +73,26 @@ describe('standalone and recurring entries (P1)', () => {
     expect(recurrences.json().data[0].untilDate).toBe('2026-11-23')
   })
 
+  it('two concurrent This-and-future moves split the recurrence once (double tap)', async () => {
+    const created = (
+      await req('POST', '/calendar/items', {
+        activityId: cat.squats.activity.id,
+        localDate: '2026-11-10',
+        recurrence: { kind: 'WEEKLY', weekdays: [2] },
+        idempotencyKey: key(),
+      })
+    ).json().data
+    const first = created.item
+    const body = { localDate: '2026-11-12', scope: 'THIS_AND_FUTURE', expectedUpdatedAt: first.updatedAt }
+    const results = await Promise.all([req('PATCH', `/calendar-items/${first.id}`, body), req('PATCH', `/calendar-items/${first.id}`, body)])
+    expect(results.map((r) => r.statusCode).sort()).toEqual([200, 409])
+    const active = await db.calendarRecurrence.findMany({ where: { ownerId: testUserId, status: 'ACTIVE' } })
+    // The original (now ending before Nov 10) and exactly one new rule from Nov 12.
+    expect(active.filter((r) => r.untilDate === null)).toHaveLength(1)
+    const dates = (await req('GET', '/calendar/items?start=2026-11-09&end=2026-11-30')).json().data.map((i: any) => i.localDate)
+    expect(dates).toEqual(['2026-11-12', '2026-11-19', '2026-11-26'])
+  })
+
   it('flags overlapping timed items and moves one to the next open slot', async () => {
     await addOnce('2026-11-10', '07:00')
     const second = (await addOnce('2026-11-10', '07:00', cat.legRaises.activity.id)).json().data.item
