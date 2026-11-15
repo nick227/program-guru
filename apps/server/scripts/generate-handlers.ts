@@ -130,6 +130,22 @@ const domains = {
       startPayoutOnboarding: ["billing.startOnboarding", "userId"],
     },
   },
+  social: {
+    services: {
+      social: 'social.service',
+      notifications: 'notification.service',
+      moderation: 'moderation.service',
+    },
+    bindings: {
+      addMediaPublicationComment: ["social.addComment", "userId", "params.publicationId", "body.body", "body.idempotencyKey"],
+      createReport: ["moderation.report", "userId", "body"],
+      getUnreadNotificationCount: ["notifications.unreadCount", "userId"],
+      grantProgramAccess: ["moderation.grantAccess", "userId", "params.programId", "body"],
+      likeMediaPublication: ["social.like", "userId", "params.publicationId"],
+      resolveReport: ["moderation.resolve", "userId", "params.reportId", "body"],
+      unlikeMediaPublication: ["social.unlike", "userId", "params.publicationId"],
+    },
+  },
 } as const
 
 const root = resolve(__dirname, '../../..')
