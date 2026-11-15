@@ -117,7 +117,7 @@ export function ActivitySurfer({
     <section
       aria-label="Activities"
       aria-roledescription="carousel"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-4 sm:px-6 mt-28"
+      className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-4 sm:px-6 mt-8"
     >
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold text-muted">Activities</h2>
@@ -141,7 +141,7 @@ export function ActivitySurfer({
           e.preventDefault()
           e.stopPropagation()
         }}
-        className="flex touch-pan-y select-none flex-col overflow-hidden rounded-[var(--radius-panel)] border border-border bg-surface animate-in fade-in duration-150"
+        className="flex touch-pan-y grid grid-cols-4 select-none flex-col overflow-hidden rounded-[var(--radius-panel)] border border-border bg-surface animate-in fade-in duration-150"
       >
         <button
           type="button"

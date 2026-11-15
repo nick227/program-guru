@@ -18,9 +18,7 @@ import {
 import { useDocumentTitle } from '@/lib/title'
 import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { interleaveUnique, pickAcrossDomains } from '@/lib/activityRange'
-import { NeedsPeoplePrompt } from '@/components/activity/NeedsPeoplePrompt'
 import { ScheduleDialog } from '@/components/schedule/AddToSchedule'
-import { ActivitySurfer } from '@/features/home/components/ActivitySurfer'
 import { HomeTopBar } from '@/features/home/components/HomeTopBar'
 import { PresentationSurface } from '@/features/home/components/PresentationSurface'
 import { ShowMeView } from '@/features/home/components/ShowMeView'
@@ -683,34 +681,6 @@ export function HomePage() {
           />
           </TransitionSurface>
         </div>
-        {todayLeads && presentation}
-        {surferVisible && (
-          <div className="flex w-full flex-col gap-4 pb-6">
-            {needsPeople && (
-              <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
-                <NeedsPeoplePrompt item={needsPeople} />
-              </div>
-            )}
-            <ActivitySurfer
-              deck={deckLoading ? [] : deck}
-              index={surferIndex}
-              loading={deckLoading}
-              keyboardActive={surferVisible}
-              categorySlugOf={categorySlugOf}
-              viewerId={me.data?.data.id ?? null}
-              followedIds={followedIds}
-              followPending={actionPending}
-              onIndexChange={(i) => setSurferKey(deck[i]?.activity.id ?? null)}
-              onParticipate={handleParticipate}
-              onSchedule={(card) =>
-                void executeAction({ type: 'schedule_activity', activityId: card.activity.id, title: card.activity.title })
-              }
-              onOpenCreator={(handle) => navigate(`/@${handle}`)}
-              onFollow={(user) => void executeAction({ type: 'follow_creator', userId: user.id, handle: user.handle })}
-            />
-          </div>
-        )}
-        {!todayLeads && presentation}
       </main>
       {scheduleTarget && (
         <ScheduleDialog

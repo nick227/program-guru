@@ -61,7 +61,7 @@ export function TransitionSurface({
   return (
     <div
       className={cn(
-        'w-full animate-in fade-in duration-200 motion-reduce:animate-none',
+        'w-full animate-in min-h-[85vh] flex flex-col justify-center fade-in duration-200 motion-reduce:animate-none',
         className,
       )}
     >

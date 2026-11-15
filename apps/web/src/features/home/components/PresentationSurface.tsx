@@ -38,7 +38,7 @@ function ActionIcon({ action }: { action: CardAction }) {
  * Owns all entity visuals: one primary entity by default, or up to three horizontal items.
  */
 export function PresentationSurface({
-  title = 'Suggested',
+  title = 'Ideas',
   items,
   loading,
   pending,
@@ -54,7 +54,7 @@ export function PresentationSurface({
       aria-label="Presentation"
       className="w-full border-t border-border/50 py-5"
     >
-      <div className="mx-auto w-full max-w-[620px] px-6">
+      <div className="mx-auto w-full max-w-5xl px-6">
         <p className="mb-3 text-[11px] font-medium uppercase tracking-wider text-muted">
           {title}
         </p>
