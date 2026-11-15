@@ -60,12 +60,23 @@ export interface ParticipantGroup {
   avatarUrls?: string[]
 }
 
+/**
+ * The card's identity image for the Agent turn (11-MEDIA identity order): best image first, then the
+ * Domain's category art when none loads. Creator cards also carry their avatar.
+ */
+export interface CardHero {
+  images: (string | null | undefined)[]
+  categoryId: string | null
+  avatarUrl?: string | null
+}
+
 export interface AssistantCard {
   kind: 'scheduled' | 'activity' | 'program' | 'creator' | 'session'
   id: string
   title: string
   subtitle: string
   thumbnailUrl?: string | null
+  hero?: CardHero
   status?: S['CalendarItem']['status']
   localTime?: string | null
   participants?: ParticipantGroup

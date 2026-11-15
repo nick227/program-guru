@@ -24,6 +24,7 @@ import { PresentationSurface } from '@/features/home/components/PresentationSurf
 import { ShowMeView } from '@/features/home/components/ShowMeView'
 import { TransitionSurface } from '@/features/home/components/TransitionSurface'
 import { TurnStage } from '@/features/home/components/TurnStage'
+import { cardHeroSrc } from '@/features/home/components/TurnHero'
 import { resolveTurn } from '@/features/home/engine/decisionEngine'
 import { buildPresentationItems } from '@/features/home/engine/presentationFeed'
 import { buildSurferDeck, reusableTodayItem, type SurferCard } from '@/features/home/engine/surferDeck'
@@ -275,6 +276,19 @@ export function HomePage() {
     () => resolveTurn(nodeId, state, signals),
     [nodeId, state, signals],
   )
+
+  // Surfing: warm the image of the card "Another idea" / "Next Activity" would show next.
+  const nextCard = useMemo(
+    () =>
+      turn.card
+        ? resolveTurn(nodeId, { ...state, excludedIds: [...state.excludedIds, turn.card.id] }, signals).card
+        : undefined,
+    [nodeId, state, signals, turn.card],
+  )
+  useEffect(() => {
+    const src = cardHeroSrc(nextCard)
+    if (src) new Image().src = src
+  }, [nextCard])
 
   const presentationItems = useMemo(() => {
     if (turn.cards && turn.cards.length > 0) return turn.cards.slice(0, 3)

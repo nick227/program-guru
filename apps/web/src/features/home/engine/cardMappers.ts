@@ -1,7 +1,27 @@
 import type { components } from '@project/sdk'
-import type { AssistantCard } from './types'
+import type { AssistantCard, CardHero } from './types'
 
 type S = components['schemas']
+
+type Covered = { coverMedia?: { posterUrl?: string | null; thumbnailUrl?: string | null } | null }
+const coverOf = (e: Covered) => e.coverMedia?.posterUrl ?? e.coverMedia?.thumbnailUrl
+
+export function activityCardHero(a: S['ActivitySummary']): CardHero {
+  return { images: [coverOf(a), a.thumbnailUrl], categoryId: a.categoryId }
+}
+
+export function programCardHero(p: S['ProgramSummary']): CardHero {
+  return { images: [coverOf(p), p.coverUrl], categoryId: p.type?.categoryId ?? null }
+}
+
+/**
+ * A creator's leading Program among already-loaded discovery lists: the first with a cover, else the
+ * first at all. Its cover becomes the creator card's image; nothing is fetched.
+ */
+export function leadProgramFor(creatorId: string, lists: (S['DiscoverItem'][] | undefined)[]): S['ProgramSummary'] | null {
+  const mine = lists.flatMap((l) => l ?? []).flatMap((i) => (i.program?.creator?.id === creatorId ? [i.program] : []))
+  return mine.find((p) => coverOf(p) || p.coverUrl) ?? mine[0] ?? null
+}
 
 function formatMinutes(minutes: number | null | undefined): string | null {
   if (!minutes || minutes <= 0) return null
@@ -23,6 +43,7 @@ export function mapCalendarItemToCard(item: S['CalendarItem']): AssistantCard {
     title: item.title,
     subtitle,
     thumbnailUrl: item.thumbnailUrl,
+    hero: { images: [item.thumbnailUrl], categoryId: null },
     status: item.status,
     localTime: item.localTime,
     participants:
@@ -59,6 +80,7 @@ export function mapActivityToCard(
     title: activity.title,
     subtitle: parts.length > 0 ? parts.join(' · ') : 'Activity',
     thumbnailUrl: activity.thumbnailUrl,
+    hero: activityCardHero(activity),
     participants: activity.creator
       ? {
           label: `Creator`,
@@ -106,6 +128,7 @@ export function mapProgramToCard(
     title: program.title,
     subtitle: parts.length > 0 ? parts.join(' · ') : 'Program',
     thumbnailUrl: program.coverUrl,
+    hero: programCardHero(program),
     participants,
     previewTarget: { kind: 'program', id: program.id },
     primaryAction: {
@@ -130,6 +153,7 @@ export function mapSessionToCard(item: S['DiscoverItem']): AssistantCard | null 
       title,
       subtitle,
       thumbnailUrl: item.program?.coverUrl ?? null,
+      hero: item.program ? programCardHero(item.program) : undefined,
       participants:
         group.memberAvatars && group.memberAvatars.length > 0
           ? {
@@ -152,13 +176,17 @@ export function mapSessionToCard(item: S['DiscoverItem']): AssistantCard | null 
   return null
 }
 
-export function mapCreatorToCard(creator: S['UserSummary']): AssistantCard {
+export function mapCreatorToCard(creator: S['UserSummary'], leadProgram?: S['ProgramSummary'] | null): AssistantCard {
   return {
     kind: 'creator',
     id: creator.id,
     title: creator.displayName,
     subtitle: `@${creator.handle} · Creator`,
     thumbnailUrl: creator.avatarUrl,
+    hero: {
+      ...(leadProgram ? programCardHero(leadProgram) : { images: [], categoryId: null }),
+      avatarUrl: creator.avatarUrl,
+    },
     previewTarget: { kind: 'creator', handle: creator.handle },
     primaryAction: {
       type: 'preview',
@@ -176,6 +204,7 @@ export function mapOpportunityToCard(o: S['Opportunity'], when: string): Assista
     title: g.activity.title,
     subtitle: [when, g.place ? `${g.place.name}, ${g.place.locality}` : null].filter(Boolean).join(' · '),
     thumbnailUrl: g.activity.thumbnailUrl,
+    hero: activityCardHero(g.activity),
     participants: g.members.length
       ? { label: 'Going', count: g.memberCount, users: g.members }
       : undefined,

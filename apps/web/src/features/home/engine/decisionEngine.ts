@@ -11,6 +11,7 @@ import type {
 import {
   mapActivityToCard,
   mapCalendarItemToCard,
+  leadProgramFor,
   mapCreatorToCard,
   mapOpportunityToCard,
   mapProgramToCard,
@@ -829,7 +830,7 @@ function resolveExploreResult(
           handle: creator.handle,
           displayName: creator.displayName,
         },
-        card: mapCreatorToCard(creator),
+        card: mapCreatorToCard(creator, leadProgramFor(creator.id, [signals.forYouPrograms, signals.followedPrograms, signals.popularPrograms, signals.newPrograms])),
         choices: [
           {
             id: 'follow-creator',

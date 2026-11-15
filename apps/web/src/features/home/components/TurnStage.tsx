@@ -8,6 +8,7 @@ import type {
 } from '../engine/types'
 import { InlineExecution } from './InlineExecution'
 import { InlinePreview } from './InlinePreview'
+import { TurnHero } from './TurnHero'
 
 interface TurnStageProps {
   turn: AssistantTurn
@@ -167,6 +168,9 @@ export function TurnStage({
               </button>
             ))}
           </div>
+        )}
+        {turn.card && turn.nodeId !== 'day_schedule' && (
+          <TurnHero card={turn.card} onOpen={() => onPreview(turn.card!.previewTarget)} />
         )}
         <div className="space-y-2.5">
           <h1 className={`font-display font-semibold tracking-tight ${compact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'}`}>

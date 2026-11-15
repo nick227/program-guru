@@ -7,6 +7,7 @@ import { canSuggestNewProgram } from './programEligibility'
 import {
   mapActivityToCard,
   mapCalendarItemToCard,
+  leadProgramFor,
   mapCreatorToCard,
   mapProgramToCard,
   mapSessionToCard,
@@ -389,7 +390,7 @@ export function rankHomeSignals(
       nodeId: 'opening',
       question: voice.question,
       contextLine: voice.contextLine,
-      card: mapCreatorToCard(creator.creator),
+      card: mapCreatorToCard(creator.creator, leadProgramFor(creator.creator.id, [signals.forYouPrograms, signals.followedPrograms, signals.popularPrograms, signals.newPrograms])),
       choices: [
         {
           id: 'open-creator',

@@ -3,6 +3,7 @@ import { canSuggestNewProgram } from './programEligibility'
 import {
   mapActivityToCard,
   mapCalendarItemToCard,
+  leadProgramFor,
   mapCreatorToCard,
   mapProgramToCard,
   withReason,
@@ -92,7 +93,7 @@ export function buildPresentationItems(
     }
     for (const item of signals.followedCreators ?? []) {
       if (item.creator) {
-        push(mapCreatorToCard(item.creator))
+        push(mapCreatorToCard(item.creator, leadProgramFor(item.creator.id, [signals.forYouPrograms, signals.followedPrograms, signals.popularPrograms, signals.newPrograms])))
       }
     }
     return out
