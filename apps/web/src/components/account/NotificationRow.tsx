@@ -32,19 +32,15 @@ export interface NotificationInlineAction {
 export function NotificationRow({
   notification: n,
   timezone,
-  compact = false,
   marking = false,
   inlineAction,
   onMarkRead,
-  onNavigate,
 }: {
   notification: Notification
   timezone?: string
-  compact?: boolean
   marking?: boolean
   inlineAction?: NotificationInlineAction
   onMarkRead?: (ids: string[]) => void
-  onNavigate?: (notification: Notification) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const ids = notificationIds(n)
@@ -56,7 +52,7 @@ export function NotificationRow({
   const totalActors = n.actorCount ?? actors.length
   const extraActors = Math.max(0, totalActors - visibleActors.length)
   const items = n.items ?? []
-  const canExpand = !compact && items.length > 1
+  const canExpand = items.length > 1
   const meta = getNotificationMeta(n.type)
   const target = resolveNotificationLink(n)
 
@@ -64,7 +60,6 @@ export function NotificationRow({
     if (unread && onMarkRead) {
       onMarkRead(ids)
     }
-    onNavigate?.(n)
   }
 
   return (
@@ -74,7 +69,7 @@ export function NotificationRow({
       data-group-count={groupCount}
       className={cn(
         'transition-colors',
-        compact ? 'p-3' : 'p-4',
+        'p-4',
         unread ? 'border-accent bg-accent/5' : 'opacity-85',
       )}
     >
@@ -257,20 +252,18 @@ export function NotificationRow({
           </div>
         )}
 
-        {!compact && (
-          <Row className="mt-1 justify-between">
-            <Link to={target} onClick={handleOpen} className={linkButton}>
-              {meta.actionLabel}
-            </Link>
-            <span className="text-xs text-muted">
-              {unread
-                ? unreadCount > 1
-                  ? `${unreadCount} unread`
-                  : 'Unread'
-                : 'Read'}
-            </span>
-          </Row>
-        )}
+        <Row className="mt-1 justify-between">
+          <Link to={target} onClick={handleOpen} className={linkButton}>
+            {meta.actionLabel}
+          </Link>
+          <span className="text-xs text-muted">
+            {unread
+              ? unreadCount > 1
+                ? `${unreadCount} unread`
+                : 'Unread'
+              : 'Read'}
+          </span>
+        </Row>
       </Stack>
     </Panel>
   )

@@ -24,16 +24,13 @@ function extractErrorMessage(err: unknown): string {
 
 export function useNotificationActions({
   rows,
-  enabled = true,
   onMarkRead,
 }: {
   rows: NotificationItem[]
-  enabled?: boolean
   onMarkRead: (ids: string[]) => void
 }) {
-  const hasFollowRequest =
-    enabled && rows.some((r) => r.type === 'FOLLOW_REQUEST')
-  const hasGroupInvite = enabled && rows.some((r) => r.type === 'GROUP_INVITE')
+  const hasFollowRequest = rows.some((r) => r.type === 'FOLLOW_REQUEST')
+  const hasGroupInvite = rows.some((r) => r.type === 'GROUP_INVITE')
 
   const followRequests = useMyFollowRequests({ enabled: hasFollowRequest })
   const groupInvites = useMyGroupInvitations(hasGroupInvite)

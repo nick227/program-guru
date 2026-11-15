@@ -816,43 +816,36 @@ async function setupNotificationsMock(
   }
 }
 
-test('compact notification dropdown and mobile slide-up sheet update unread count and mark read', async ({
+test('the bell links to the Notification Center; opening it marks nothing, and read actions sync the badge', async ({
   page,
 }) => {
   const { requests } = await setupNotificationsMock(page)
   await login(page, 'participant@test.local', 'password')
 
-  // Unread count starts at 3 in the Calendar account widget
-  const bell = page.getByRole('button', { name: 'Notifications' })
+  // Unread count starts at 3 on the header bell, which is a plain link (no popover).
+  await page.setViewportSize({ width: 1280, height: 900 })
+  const bell = page.getByRole('link', { name: 'Notifications' })
+  await expect(bell.getByLabel('3 Unread notifications')).toBeVisible()
+  await bell.click()
+  await expect(page).toHaveURL(/\/notifications$/)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByText('Time for Morning Squats')).toBeVisible()
+  // Opening the page never marks anything read.
+  expect(requests.some((r) => r.path === '/notifications/read')).toBe(false)
   await expect(bell.getByLabel('3 Unread notifications')).toBeVisible()
 
-  // Open compact dropdown on desktop (1280px)
-  await page.setViewportSize({ width: 1280, height: 900 })
-  await bell.click()
-  const dialog = page.getByRole('dialog', { name: 'Recent notifications' })
-  await expect(dialog).toBeVisible()
-  await expect(dialog.getByText('Time for Morning Squats')).toBeVisible()
-
-  // Mark one notification read inside the panel
-  await dialog
-    .getByRole('button', { name: 'Mark "Time for Morning Squats" read' })
-    .click()
+  // Mark one read on the page.
+  await page.getByRole('button', { name: 'Mark "Time for Morning Squats" read' }).click()
   await expect(bell.getByLabel('2 Unread notifications')).toBeVisible()
-  expect(
-    requests.find((r) => r.path === '/notifications/read')?.body,
-  ).toEqual({ ids: [uid(101)] })
+  expect(requests.find((r) => r.path === '/notifications/read')?.body).toEqual({ ids: [uid(101)] })
 
-  // Verify mobile slide-up presentation at 360px with zero horizontal overflow
+  // Phone width: the same page, no horizontal overflow.
   await page.setViewportSize({ width: 360, height: 780 })
-  await expect(dialog).toBeVisible()
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true)
+  await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 
-  // Mark all read clears the unread indicator
-  await dialog.getByRole('button', { name: 'Mark all read' }).click()
+  // Mark all read clears the unread indicator.
+  await page.getByRole('button', { name: 'Mark all read' }).click()
   await expect(bell.getByLabel(/Unread notifications/)).toHaveCount(0)
 })
 

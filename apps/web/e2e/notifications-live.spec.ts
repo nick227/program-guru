@@ -103,15 +103,13 @@ test('live API + worker: handle invitation notification → ID-based acceptance 
   const allNotifs = (await checkDupeRes.json()).data as Array<{ type: string }>
   expect(allNotifs.filter((n) => n.type === 'ACTIVITY_REMINDER')).toHaveLength(1)
 
-  // Open Notifications dropdown on Calendar and click the ACTIVITY_REMINDER to navigate to the Occurrence
+  // The header bell opens the Notification Center; the ACTIVITY_REMINDER navigates to the Occurrence
   await page.goto('/')
-  const trigger = page.getByRole('button', { name: 'Notifications' })
-  await expect(trigger).toContainText(/[1-9]/)
-  await trigger.click()
-
-  const panel = page.getByRole('dialog', { name: 'Recent notifications' })
-  await expect(panel).toBeVisible()
-  await panel.getByText(new RegExp(`Time for ${activity.title}`)).click()
+  const bell = page.getByRole('link', { name: 'Notifications' })
+  await expect(bell).toContainText(/[1-9]/)
+  await bell.click()
+  await expect(page).toHaveURL(/\/notifications$/)
+  await page.getByText(new RegExp(`Time for ${activity.title}`)).first().click()
   await expect(page).toHaveURL(new RegExp(`/occurrences/${scheduledItem.id}`))
 
   // Complete the scheduled occurrence in the UI -> worker emits ACHIEVEMENT_EARNED (First step)

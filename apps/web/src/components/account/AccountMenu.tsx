@@ -1,92 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Bell, X } from 'lucide-react'
-import {
-  useCurrentUser,
-  useLogout,
-  useMarkNotificationsRead,
-  useNotifications,
-  useUnreadNotificationCount,
-} from '@project/sdk'
-import { Panel, Row, Stack } from '@/components/ui/Layout'
+import { useEffect, useRef } from 'react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Bell } from 'lucide-react'
+import { useCurrentUser, useLogout, useUnreadNotificationCount } from '@project/sdk'
+import { Panel, Stack } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
-import { ErrorMessage, Loading } from '@/components/ui/Feedback'
+import { ErrorMessage } from '@/components/ui/Feedback'
 import { UnreadDot } from '@/components/shared/UnreadDot'
-import { NotificationRow } from '@/components/account/NotificationRow'
 import { linkButton } from '@/components/shared/Navigation'
-import { notificationUnreadCount } from '@/lib/notifications'
-import { useNotificationActions } from '@/lib/useNotificationActions'
 import { toggleTheme } from '@/lib/theme'
 import { buildProfileUrl } from '@/lib/urls'
-
-type BellFilter = 'all' | 'direct' | 'groups'
-
-const BELL_FILTERS: { id: BellFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'direct', label: 'Direct' },
-  { id: 'groups', label: 'Groups' },
-]
 
 export function AccountMenu() {
   const me = useCurrentUser()
   const unread = useUnreadNotificationCount()
   const logout = useLogout()
   const navigate = useNavigate()
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [bellFilter, setBellFilter] = useState<BellFilter>('all')
   const detailsRef = useRef<HTMLDetailsElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  const recent = useNotifications({
-    limit: 6,
-    enabled: panelOpen,
-    filter: bellFilter,
-  })
-  const mark = useMarkNotificationsRead()
 
   const profile = me.data!.data.profile
-  const timezone = me.data!.data.preferences.timezone
   const count = unread.data?.count ?? 0
-  const rows = recent.data?.pages.flatMap((p) => p.data) ?? []
-  const hasUnread =
-    count > 0 || rows.some((n) => notificationUnreadCount(n) > 0)
-  const getInlineAction = useNotificationActions({
-    rows,
-    enabled: panelOpen,
-    onMarkRead: (ids) => mark.mutate({ ids }),
-  })
-
-  useEffect(() => {
-    if (!panelOpen) return
-    const isPhone = window.matchMedia('(max-width: 639.98px)').matches
-    const prevOverflow = document.body.style.overflow
-    if (isPhone) {
-      document.body.style.overflow = 'hidden'
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setPanelOpen(false)
-      }
-    }
-    const onPointerDown = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setPanelOpen(false)
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('mousedown', onPointerDown)
-    return () => {
-      if (isPhone) {
-        document.body.style.overflow = prevOverflow
-      }
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('mousedown', onPointerDown)
-    }
-  }, [panelOpen])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -111,151 +44,22 @@ export function AccountMenu() {
   }, [])
 
   return (
-    <div ref={containerRef} className="relative flex items-center gap-2">
-      <button
-        type="button"
+    <div className="relative flex items-center gap-2">
+      {/* The bell is a plain link to the Notification Center (12-SOCIAL); the badge is the unread count. */}
+      <NavLink
+        to="/notifications"
         aria-label="Notifications"
-        aria-expanded={panelOpen}
-        aria-haspopup="dialog"
-        onClick={() => {
-          if (detailsRef.current) detailsRef.current.open = false
-          setPanelOpen((prev) => !prev)
-        }}
-        className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full border bg-surface px-3 transition-colors hover:bg-surface-muted"
+        className={({ isActive }) =>
+          `relative flex min-h-11 min-w-11 items-center justify-center rounded-full border px-3 transition-colors hover:bg-surface-muted ${
+            isActive ? 'border-accent bg-accent/10 text-accent' : 'bg-surface'
+          }`
+        }
       >
         <Bell size={18} aria-hidden />
         <UnreadDot count={count} />
-      </button>
+      </NavLink>
 
-      {panelOpen && (
-        <>
-          <div
-            aria-hidden
-            onClick={() => setPanelOpen(false)}
-            className="fixed inset-0 z-20 bg-black/30 sm:hidden"
-          />
-          <section
-            role="dialog"
-            aria-label="Recent notifications"
-            className="fixed inset-x-0 bottom-0 z-30 flex max-h-[82vh] flex-col rounded-t-2xl border-t bg-surface pb-[env(safe-area-inset-bottom)] shadow-lg sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[min(32rem,70vh)] sm:w-96 sm:rounded-xl sm:border sm:pb-0"
-          >
-            <div className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-border sm:hidden" />
-            <div className="sticky top-0 z-10 shrink-0 border-b bg-surface px-4 py-3">
-              <Row className="justify-between gap-2">
-                <Row className="min-w-0 gap-2">
-                  <h2 className="text-base font-semibold">Notifications</h2>
-                  <UnreadDot count={count} inline />
-                </Row>
-                <Row className="shrink-0 gap-1">
-                  <Button
-                    variant="ghost"
-                    className="min-h-11 px-2.5 text-xs"
-                    disabled={!hasUnread || mark.isPending}
-                    loading={mark.isPending}
-                    onClick={() => mark.mutate({ all: true })}
-                  >
-                    Mark all read
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Close notifications"
-                    onClick={() => setPanelOpen(false)}
-                  >
-                    <X size={16} />
-                  </Button>
-                </Row>
-              </Row>
-              <Row
-                role="tablist"
-                aria-label="Quick notification filters"
-                className="mt-2 gap-1.5"
-              >
-                {BELL_FILTERS.map((tab) => {
-                  const active = bellFilter === tab.id
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      onClick={() => setBellFilter(tab.id)}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                        active
-                          ? 'border-accent bg-accent text-white'
-                          : 'bg-surface text-muted hover:bg-surface-muted hover:text-text'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  )
-                })}
-              </Row>
-            </div>
-            <Stack className="gap-3 overflow-y-auto px-4 py-3">
-
-              <ErrorMessage
-                error={recent.error || mark.error}
-                retry={() => void recent.refetch()}
-              />
-
-              {recent.isPending ? (
-                <Loading />
-              ) : rows.length === 0 ? (
-                <Panel className="py-6 text-center">
-                  <p className="text-sm text-muted">
-                    {bellFilter === 'all'
-                      ? 'You are caught up.'
-                      : `No ${bellFilter} notifications.`}
-                  </p>
-                </Panel>
-              ) : (
-                <Stack className="gap-2">
-                  {rows.slice(0, 6).map((n) => (
-                    <NotificationRow
-                      key={n.groupKey ?? n.id}
-                      notification={n}
-                      timezone={timezone}
-                      compact
-                      marking={mark.isPending}
-                      inlineAction={getInlineAction(n)}
-                      onMarkRead={(ids) => mark.mutate({ ids })}
-                      onNavigate={() => setPanelOpen(false)}
-                    />
-                  ))}
-                </Stack>
-              )}
-
-              <Row className="justify-between border-t pt-2">
-                <Link
-                  to="/notifications"
-                  onClick={() => setPanelOpen(false)}
-                  className={linkButton}
-                >
-                  Open Inbox
-                </Link>
-                <Link
-                  to="/settings"
-                  onClick={() => setPanelOpen(false)}
-                  className="text-xs text-muted underline hover:text-text"
-                >
-                  Reminder settings
-                </Link>
-              </Row>
-            </Stack>
-          </section>
-        </>
-      )}
-
-      <details
-        ref={detailsRef}
-        className="relative"
-        onToggle={(e) => {
-          if ((e.currentTarget as HTMLDetailsElement).open) {
-            setPanelOpen(false)
-          }
-        }}
-      >
+      <details ref={detailsRef} className="relative">
         <summary
           className="relative flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center gap-2 rounded-full border bg-surface p-1 sm:min-w-0 sm:justify-start sm:py-1 sm:pl-1 sm:pr-3"
           aria-label="Account"
