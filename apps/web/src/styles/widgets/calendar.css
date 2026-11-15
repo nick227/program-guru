@@ -535,6 +535,7 @@
 }
 
 .calendar-month-more {
+  width: 100%;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
@@ -1001,6 +1002,23 @@
   gap: var(--space-2);
   color: inherit;
   text-decoration: none;
+}
+
+.calendar-tile__link--button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Month: the tile whose details are open in the Selected Activity panel. */
+.calendar-tile--selected,
+.calendar-tile--selected:hover {
+  border-color: hsl(var(--color-accent));
+  box-shadow: 0 0 0 1px hsl(var(--color-accent));
 }
 
 .calendar-tile__link:focus-visible {
@@ -1757,14 +1775,15 @@
 /* --- Selected Activity Right Panel & Mobile Bottom Sheet --- */
 .calendar-panel {
   position: sticky;
-  top: 1rem;
+  /* Clears the sticky app header (4rem) so the title is never hidden while the grid scrolls. */
+  top: 5rem;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid hsl(var(--color-border));
   border-radius: var(--radius-panel);
   background: hsl(var(--color-surface));
   box-shadow: var(--shadow-md);
-  max-height: calc(100vh - 2rem);
+  max-height: calc(100vh - 6rem);
 }
 
 .calendar-panel__empty {

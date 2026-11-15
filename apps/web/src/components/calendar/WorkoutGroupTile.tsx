@@ -104,6 +104,8 @@ export function WorkoutGroupTile({
                 key={item.id}
                 item={item}
                 density="month"
+                selected={selectedItemId === item.id}
+                onSelect={onSelectItem ? () => onSelectItem(item.id) : undefined}
                 onComplete={onComplete}
                 completing={completing}
               />

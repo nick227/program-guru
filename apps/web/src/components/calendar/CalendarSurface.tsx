@@ -17,6 +17,7 @@ export type CalendarDay = {
   inCurrentMonth?: boolean
 }
 
+const MONTH_VISIBLE = 4
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 /** All 24h opens here unless an Activity or the current hour is earlier. */
 const DAY_START_HOUR = 6
@@ -429,7 +430,8 @@ function DayItems({
   onComplete,
   completing,
   showEmpty = true,
-  onExpand,
+  selectedItemId = null,
+  onSelectItem,
 }: {
   day: CalendarDay
   items: SurfaceItem[]
@@ -438,8 +440,11 @@ function DayItems({
   onComplete?: (itemId: string) => void
   completing?: boolean
   showEmpty?: boolean
-  onExpand?: () => void
+  selectedItemId?: string | null
+  /** Month: a tile opens the Selected Activity panel instead of navigating. */
+  onSelectItem?: (itemId: string) => void
 }) {
+  const [showAll, setShowAll] = useState(false)
   const rows = items.filter((item) => item.day === day.id)
 
   if (!rows.length) {
@@ -460,6 +465,8 @@ function DayItems({
         key={entry.key}
         group={entry}
         density={density}
+        selectedItemId={selectedItemId}
+        onSelectItem={onSelectItem}
         onComplete={onComplete}
         completing={completing}
       />
@@ -469,6 +476,8 @@ function DayItems({
         item={entry.item}
         density={density}
         showTimeInMonth={showTimeInMonth}
+        selected={selectedItemId === entry.item.id}
+        onSelect={onSelectItem ? () => onSelectItem(entry.item.id) : undefined}
         onComplete={onComplete}
         completing={completing}
       />
@@ -512,14 +521,16 @@ function DayItems({
 
   return (
     <div className="calendar-day-items">
-      {(density === 'month' ? entries.slice(0, 4) : entries).map(renderEntry)}
-      {density === 'month' && entries.length > 4 && (
+      {(density === 'month' && !showAll ? entries.slice(0, MONTH_VISIBLE) : entries).map(renderEntry)}
+      {density === 'month' && entries.length > MONTH_VISIBLE && (
+        // Every Activity stays reachable: the cell expands in place.
         <button
           type="button"
+          aria-expanded={showAll}
           className="calendar-month-more"
-          onClick={onExpand}
+          onClick={() => setShowAll((v) => !v)}
         >
-          +{entries.length - 4} more
+          {showAll ? 'Show fewer' : `+${entries.length - MONTH_VISIBLE} more`}
         </button>
       )}
     </div>
@@ -656,7 +667,8 @@ export function CalendarSurface({
                   items={items}
                   density="month"
                   showTimeInMonth={showAllHours}
-                  onExpand={() => onSelect(day.id)}
+                  selectedItemId={selectedItemId}
+                  onSelectItem={onSelectItem}
                   onComplete={onComplete}
                   completing={completing}
                   showEmpty={false}

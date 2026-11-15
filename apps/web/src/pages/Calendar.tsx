@@ -357,14 +357,45 @@ export function CalendarPage() {
     />
   )
 
+  // Day and Month share one selection and one panel; it holds while the entry is in the visible range.
   const selectedCalendarItem = useMemo(
-    () => dayItems.find((it) => it.id === selectedItemId) ?? null,
-    [dayItems, selectedItemId],
+    () =>
+      filteredItems.find((it) => it.id === selectedItemId && it.status !== 'CANCELLED') ?? null,
+    [filteredItems, selectedItemId],
+  )
+
+  // Month: selecting an entry also moves the selected day to it, so switching to Day keeps it.
+  const selectItem = (itemId: string) => {
+    setSelectedItemId(itemId)
+    const day = filteredItems.find((it) => it.id === itemId)?.day
+    if (view === 'month' && day && day !== selected) {
+      const next = new URLSearchParams(params)
+      next.set('day', day)
+      next.delete('week')
+      setParams(next, { replace: true })
+    }
+  }
+
+  const selectedPanel = (
+    <SelectedActivityPanel
+      itemId={selectedItemId}
+      calendarItem={selectedCalendarItem}
+      onClose={() => setSelectedItemId(null)}
+      onComplete={completeItem}
+      onUndoComplete={undoCompleteItem}
+      onChangeTime={changeItemTime}
+      onRemove={requestRemoveItem}
+      completing={quickComplete.isPending}
+      undoing={undo.isPending}
+      removing={cancelItem.isPending}
+      emptyContent={discoveryRail}
+    />
   )
 
   useEffect(() => {
-    if (view !== 'day') {
-      setSelectedItemId(null)
+    if (calendar.isPending) return
+    if (view === 'month') {
+      if (selectedItemId && !selectedCalendarItem) setSelectedItemId(null)
       return
     }
     const isDesktop =
@@ -378,7 +409,7 @@ export function CalendarPage() {
     } else if (selectedItemId && !dayItems.some((it) => it.id === selectedItemId)) {
       setSelectedItemId(null)
     }
-  }, [view, selected, dayItems, selectedItemId, dayContext?.nextItem?.id])
+  }, [view, selected, dayItems, selectedItemId, selectedCalendarItem, calendar.isPending, dayContext?.nextItem?.id])
 
   const days =
     view === 'month'
@@ -679,7 +710,7 @@ export function CalendarPage() {
                 onToggleAllHours={() => setShowAllHours((v) => !v)}
                 nextItemId={dayContext?.nextItem?.id ?? null}
                 selectedItemId={selectedItemId}
-                onSelectItem={(itemId) => setSelectedItemId(itemId)}
+                onSelectItem={selectItem}
                 onItemScheduled={(itemId) => setSelectedItemId(itemId)}
                 onComplete={(itemId) => void completeItem(itemId)}
                 onChangeTime={(itemId, localTime) =>
@@ -704,51 +735,37 @@ export function CalendarPage() {
               )}
             </div>
 
-            <SelectedActivityPanel
-              itemId={selectedItemId}
-              calendarItem={selectedCalendarItem}
-              onClose={() => setSelectedItemId(null)}
-              onComplete={completeItem}
-              onUndoComplete={undoCompleteItem}
-              onChangeTime={changeItemTime}
-              onRemove={requestRemoveItem}
-              completing={quickComplete.isPending}
-              undoing={undo.isPending}
-              removing={cancelItem.isPending}
-              emptyContent={discoveryRail}
-            />
+            {selectedPanel}
             {/* The side panel is desktop-only; phones get the rail below the timeline. */}
             {!selectedItemId && <div className="lg:hidden">{discoveryRail}</div>}
-            {removeTarget && (
-              <RemoveFromCalendarDialog
-                key={removeTarget.id}
-                target={removeTarget}
-                pending={cancelItem.isPending}
-                onConfirm={(scope) => void removeItem(removeTarget.id, scope)}
-                onClose={() => {
-                  if (!cancelItem.isPending) setRemoveTarget(null)
-                }}
-              />
-            )}
           </div>
         ) : (
           <>
-            <CalendarSurface
-              days={days}
-              selected={selected}
-              onSelect={(day) => updateCalendarParams('day', day)}
-              items={filteredItems}
-              view={view}
-              timezone={timezone}
-              showAllHours={showAllHours}
-              onToggleAllHours={() => setShowAllHours((v) => !v)}
-              nextItemId={dayContext?.nextItem?.id ?? null}
-              onComplete={(itemId) => void completeItem(itemId)}
-              onChangeTime={(itemId, localTime) =>
-                void changeItemTime(itemId, localTime)
-              }
-              completing={quickComplete.isPending || !online}
-            />
+            {/* Month: the same Selected Activity panel, beside the grid once an entry is selected. */}
+            <div className={cn(selectedItemId && 'calendar-day-layout calendar-day-layout--month')}>
+              <div className="calendar-day-layout__timeline">
+                <CalendarSurface
+                  days={days}
+                  selected={selected}
+                  onSelect={(day) => updateCalendarParams('day', day)}
+                  items={filteredItems}
+                  view={view}
+                  timezone={timezone}
+                  showAllHours={showAllHours}
+                  onToggleAllHours={() => setShowAllHours((v) => !v)}
+                  nextItemId={dayContext?.nextItem?.id ?? null}
+                  selectedItemId={selectedItemId}
+                  onSelectItem={selectItem}
+                  onItemScheduled={(itemId) => setSelectedItemId(itemId)}
+                  onComplete={(itemId) => void completeItem(itemId)}
+                  onChangeTime={(itemId, localTime) =>
+                    void changeItemTime(itemId, localTime)
+                  }
+                  completing={quickComplete.isPending || !online}
+                />
+              </div>
+              {selectedItemId && selectedPanel}
+            </div>
             {calendar.data?.length === 0 && (
               <Panel className="text-center">
                 <Stack className="items-center py-6">
@@ -770,6 +787,17 @@ export function CalendarPage() {
               />
             )}
           </>
+        )}
+        {removeTarget && (
+          <RemoveFromCalendarDialog
+            key={removeTarget.id}
+            target={removeTarget}
+            pending={cancelItem.isPending}
+            onConfirm={(scope) => void removeItem(removeTarget.id, scope)}
+            onClose={() => {
+              if (!cancelItem.isPending) setRemoveTarget(null)
+            }}
+          />
         )}
       </Stack>
     </Page>

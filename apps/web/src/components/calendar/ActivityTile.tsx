@@ -423,15 +423,29 @@ export function ActivityTile({
         compact && 'calendar-tile--compact',
         isDone && 'calendar-tile--complete',
         isNext && !isDone && 'calendar-tile--next',
+        selected && 'calendar-tile--selected',
         item.conflict && 'calendar-tile--conflict',
         isDragging && 'calendar-tile--dragging',
         className,
       )}
     >
-      {item.href ? (
+      {onSelect ? (
+        // A selectable tile (Month) opens the Selected Activity panel instead of navigating.
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelect()
+          }}
+          aria-pressed={selected}
+          aria-label={`${item.title}, ${statusLabel}`}
+          className="calendar-tile__link calendar-tile__link--button"
+        >
+          {content}
+        </button>
+      ) : item.href ? (
         <Link
           to={item.href}
-          onClick={onSelect}
           className="calendar-tile__link"
           aria-label={`${item.title}, ${item.programTitle ?? 'Activity'}, ${statusLabel} — open activity`}
         >
