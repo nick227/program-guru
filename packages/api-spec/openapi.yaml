@@ -1916,6 +1916,18 @@ paths:
         schema:
           type: string
           maxLength: 100
+      - in: query
+        name: focusId
+        description: Inherited or additional Category.
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: categoryId
+        description: Domain of the Activity or of an additional Category.
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Success
@@ -7976,6 +7988,7 @@ components:
       - MEDIA
       - COMMENT
       - USER
+      - GATHERING
     ReportReason:
       type: string
       enum:
@@ -8429,10 +8442,21 @@ components:
     Gathering:
       type: object
       description: One shared, dated occurrence of one Activity (10 §9). Counts come from real records only.
-      required: [id, activity, localDate, localTime, timezone, place, capacity, visibility, joinPolicy, status, owner, memberCount, members, scheduledCount, activeCount, completedCount, isFull, isPast, viewerIsMember, viewerIsOwner, viewerCalendarItemId]
+      required: [id, activity, categories, lookingFor, localDate, localTime, timezone, place, capacity, visibility, joinPolicy, status, owner, memberCount, members, scheduledCount, activeCount, completedCount, isFull, isPast, viewerIsMember, viewerIsOwner, viewerCalendarItemId]
       properties:
         id: {type: string, format: uuid}
         activity: {$ref: '#/components/schemas/ActivitySummary'}
+        categories:
+          type: array
+          description: Inherited from the Activity first, then up to 3 added by the organizer (10 §9.12).
+          items:
+            type: object
+            required: [id, label, inherited]
+            properties:
+              id: {type: string, format: uuid}
+              label: {type: string}
+              inherited: {type: boolean}
+        lookingFor: {type: [string, 'null'], maxLength: 140, description: Organizer note; null when empty or hidden by moderation.}
         localDate: {type: string, format: date}
         localTime: {type: [string, 'null']}
         timezone: {type: string}
@@ -8470,6 +8494,12 @@ components:
         listPublicly: {type: boolean, description: Public and open; default private and invite-only.}
         capacity: {type: [integer, 'null'], minimum: 1}
         idempotencyKey: {type: string, minLength: 8, maxLength: 120}
+        focusIds:
+          type: array
+          maxItems: 3
+          items: {type: string, format: uuid}
+          description: Additional curated Categories (not the Activity's own).
+        lookingFor: {type: [string, 'null'], maxLength: 140}
       additionalProperties: false
     JoinGatheringInput:
       type: object
@@ -8490,6 +8520,12 @@ components:
         capacity: {type: [integer, 'null'], minimum: 1}
         listPublicly: {type: boolean}
         close: {type: boolean}
+        focusIds:
+          type: array
+          maxItems: 3
+          items: {type: string, format: uuid}
+          description: Additional curated Categories (not the Activity's own).
+        lookingFor: {type: [string, 'null'], maxLength: 140}
       additionalProperties: false
     RepeatGatheringInput:
       type: object

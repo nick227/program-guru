@@ -173,6 +173,12 @@
     font-size: var(--type-meta);
   }
 
+  .activity-gatherings__looking {
+    margin: var(--space-1) 0 0;
+    font-size: var(--type-meta);
+    font-style: italic;
+  }
+
   .activity-gatherings__avatars {
     display: inline-flex;
   }

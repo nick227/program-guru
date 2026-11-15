@@ -271,3 +271,19 @@ Every Program-group code path filters `kind: 'PROGRAM'` instead of relying on a 
 
 **Tests (G4):** solo Program item joins by reuse with enrollment, Program day and progress intact; a Program item on another date is not moved; a Program-group item is never attached (explicit id refused; auto-reuse skips it, creating a separate item); repeated joins return the same item; leaving keeps the Program item; a Calendar adjustment of a Program gathering item leaves the gathering and keeps the enrollment; repeat creates a new gathering for the repeater with the same settings and invites prior members, who can then see and join it privately; the two-person journey still passes.
 
+### 9.12 Discovery associations and "Looking for" (approved 2026-11-15)
+
+Discovery-first, not coordination-first: the catalog connects relevant people with real gatherings; everyone joins with the same Join (§9.5). No roles, quotas, approvals or new participation states.
+
+**Categories.** A gathering **inherits** its Activity's Categories (`ActivityFocus`) and may have **up to 3 additional** curated Categories (`GatheringFocus`: gathering, Category, position). Additional Categories must be approved and active, are deduplicated, and may not repeat an inherited one. They live only on the gathering: the Activity's own classification never changes. The owner sets them at creation or later; Do It Again copies them.
+
+**Looking for.** An optional owner-written note, at most 140 characters (trimmed; empty clears it), for example "Looking for actors and lighting help". It is shown wherever the gathering is visible (share page, room, Radar, Community) and follows the gathering's visibility. It is reportable (report target `GATHERING`); a moderator's HIDE hides the note (the gathering itself is unaffected) until RESTORE. A user whose publishing is restricted cannot set a non-empty note. Do It Again copies it.
+
+**Schema (additive, `20261115120000_gathering_discovery`):** `GatheringFocus(groupId, focusId, position)` with both foreign keys cascading; `ProgramGroup.lookingFor VARCHAR(140) NULL`, `ProgramGroup.lookingForHiddenAt DATETIME NULL`; `ReportTargetType` gains `GATHERING`.
+
+**API.** `CreateGatheringInput` and `UpdateGatheringInput` gain `focusIds` (≤ 3) and `lookingFor`. `Gathering` gains `categories` (`{ id, label, inherited }`, inherited first) and `lookingFor` (null when empty or hidden). `listGatherings` gains `focusId` and `categoryId` (Domain), matching inherited or additional Categories.
+
+**Discovery.** Community: with a Category or Domain selected, a compact "Gatherings" row shows public upcoming gatherings matching through inherited or additional Categories. Radar's interest reason (12 §5b) uses the gathering's inherited and additional Categories (completed Activities only), falling back to Domain.
+
+**Tests:** inherited and additional Categories both match in Community and Radar; additional Categories never change the Activity; duplicates and inherited repeats are rejected; at most 3; the note respects visibility, is reportable, hides on moderation and restores; restricted users cannot set it; joining is unchanged.
+

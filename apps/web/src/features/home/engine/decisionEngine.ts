@@ -1,4 +1,5 @@
 import { dateLabel } from '@/lib/dates'
+import { lookingForText } from '@/lib/lookingFor'
 import { formatTargetTime } from '@/lib/targetTime'
 import { groupAction, sessionActionLabel } from '@/lib/joinEligibility'
 import type {
@@ -559,7 +560,7 @@ function resolveTogetherResult(
     return {
       nodeId: 'together_result',
       question: `${g.activity.title}, ${when}`,
-      contextLine: opportunity.reasons.map((r) => r.label).join(' · '),
+      contextLine: [...opportunity.reasons.map((r) => r.label), g.lookingFor ? lookingForText(g.lookingFor) : null].filter(Boolean).join(' · '),
       card,
       choices: [
         { id: 'join-gathering', label: 'Join', variant: 'primary', effect: { type: 'execute', action: card.primaryAction } },

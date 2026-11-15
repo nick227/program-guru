@@ -3197,7 +3197,7 @@ export interface components {
         /** @enum {string} */
         NotificationType: "ACTIVITY_REMINDER" | "DAILY_SUMMARY" | "FOLLOW_REQUEST" | "FOLLOW_ACCEPTED" | "GROUP_INVITE" | "MEMBER_JOINED" | "COMPLETION_SHARED" | "COMPLETION_REACTION" | "GROUP_MEDIA_SHARED" | "GROUP_MEDIA_COMMENT" | "CONTRIBUTION_APPROVED" | "PROGRAM_ACCESS" | "PROGRAM_UPDATE" | "ACHIEVEMENT_EARNED" | "PAYMENT_ISSUE" | "COMPLETION_COMMENT";
         /** @enum {string} */
-        ReportTargetType: "PROGRAM" | "ACTIVITY" | "MEDIA" | "COMMENT" | "USER";
+        ReportTargetType: "PROGRAM" | "ACTIVITY" | "MEDIA" | "COMMENT" | "USER" | "GATHERING";
         /** @enum {string} */
         ReportReason: "HARASSMENT" | "PRIVACY" | "COPYRIGHT" | "MISLEADING" | "UNSAFE" | "OTHER";
         /** @enum {string} */
@@ -3376,6 +3376,15 @@ export interface components {
             /** Format: uuid */
             id: string;
             activity: components["schemas"]["ActivitySummary"];
+            /** @description Inherited from the Activity first, then up to 3 added by the organizer (10 §9.12). */
+            categories: {
+                /** Format: uuid */
+                id: string;
+                label: string;
+                inherited: boolean;
+            }[];
+            /** @description Organizer note; null when empty or hidden by moderation. */
+            lookingFor: string | null;
             /** Format: date */
             localDate: string;
             localTime: string | null;
@@ -3418,6 +3427,9 @@ export interface components {
             listPublicly?: boolean;
             capacity?: number | null;
             idempotencyKey: string;
+            /** @description Additional curated Categories (not the Activity's own). */
+            focusIds?: string[];
+            lookingFor?: string | null;
         };
         JoinGatheringInput: {
             invite?: string;
@@ -3437,6 +3449,9 @@ export interface components {
             capacity?: number | null;
             listPublicly?: boolean;
             close?: boolean;
+            /** @description Additional curated Categories (not the Activity's own). */
+            focusIds?: string[];
+            lookingFor?: string | null;
         };
         RepeatGatheringInput: {
             /** Format: date */
@@ -6964,6 +6979,10 @@ export interface operations {
             query?: {
                 when?: "NOW" | "UPCOMING";
                 locality?: string;
+                /** @description Inherited or additional Category. */
+                focusId?: string;
+                /** @description Domain of the Activity or of an additional Category. */
+                categoryId?: string;
             };
             header?: never;
             path?: never;

@@ -1297,6 +1297,12 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   })
   // Gatherings (10 §9.7): upcoming ones decide the "With others" shortcut; active ones lead Happening Now.
   const upcomingGatherings = usePublicGatherings({ when: 'UPCOMING', enabled: !mode.isPicker })
+  const categoryGatherings = usePublicGatherings({
+    when: 'UPCOMING',
+    focusId: focusId || undefined,
+    categoryId: focusId ? undefined : categoryId || undefined,
+    enabled: !mode.isPicker && (!!focusId || !!categoryId),
+  })
   const activeGatherings = usePublicGatherings({ when: 'NOW', enabled: showDirectorySections })
   // Directory Activities: most-used alongside newest, so new catalog content is visible (12 §5a).
   const newestActivities = useDiscoverActivities({ sort: 'NEW', enabled: showDirectorySections })
@@ -2314,6 +2320,33 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                   </ul>
                 )}
               </nav>
+            )}
+
+            {/* Gatherings for the selected Domain or Category, inherited or added (10 §9.12). */}
+            {!mode.isPicker && !isMyGroups && (categoryGatherings.data?.length ?? 0) > 0 && (
+              <section aria-labelledby="section-category-gatherings" className="mt-5">
+                <h2 id="section-category-gatherings" className="mb-2.5 text-sm font-semibold text-muted">
+                  Gatherings
+                </h2>
+                <ul className="browse-sidebar-scroll flex gap-3 overflow-x-auto pb-1">
+                  {categoryGatherings.data!.slice(0, 8).map((g) => (
+                    <li key={g.id} className="w-[260px] shrink-0">
+                      <Link
+                        to={`/gatherings/${g.id}`}
+                        className="block h-full rounded-xl border border-border/60 p-3 transition-colors hover:bg-surface-muted"
+                      >
+                        <span className="block truncate font-semibold text-foreground">{g.activity.title}</span>
+                        <span className="block truncate text-sm text-muted">
+                          {dateLabel(g.localDate)}
+                          {g.place ? ` · ${g.place.name}, ${g.place.locality}` : ''} · {g.memberCount} going
+                        </span>
+                        {g.lookingFor && <span className="mt-1 block truncate text-sm italic text-foreground/80">{g.lookingFor}</span>}
+                        <span className="mt-1 block text-sm font-semibold text-accent">{groupAction(g) === 'open' ? 'Open' : 'Join'}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
 
             {/* Active filter chips + result count */}

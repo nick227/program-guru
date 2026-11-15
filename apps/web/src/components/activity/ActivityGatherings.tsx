@@ -19,6 +19,7 @@ import { dateLabel, today } from '@/lib/dates'
 import { groupAction } from '@/lib/joinEligibility'
 import { formatTargetTime } from '@/lib/targetTime'
 import { ActivitySection } from './ActivitySection'
+import { GatheringCategoriesPicker } from './GatheringCategoriesPicker'
 
 type S = components['schemas']
 
@@ -85,6 +86,7 @@ export function ActivityGatherings({ activity, returnTo }: { activity: S['Activi
                       {g.capacity ? ` of ${g.capacity}` : ''}
                     </span>
                   </p>
+                  {g.lookingFor && <p className="activity-gatherings__looking">{g.lookingFor}</p>}
                 </div>
                 <span className="activity-gatherings__avatars" aria-hidden>
                   {g.members.slice(0, 4).map((m) => (
@@ -147,6 +149,8 @@ function CreateTime({
   const [placeId, setPlaceId] = useState(activity.place?.id ?? '')
   const [open, setOpen] = useState(false)
   const [listPublicly, setListPublicly] = useState(false)
+  const [focusIds, setFocusIds] = useState<string[]>([])
+  const [lookingFor, setLookingFor] = useState('')
   const pending = create.isPending || add.isPending
 
   const submit = async (event: React.FormEvent) => {
@@ -159,6 +163,8 @@ function CreateTime({
           localTime: localTime || null,
           placeId: placeId || null,
           listPublicly: listPublicly && activity.visibility === 'PUBLIC',
+          focusIds,
+          lookingFor: lookingFor.trim() || null,
           idempotencyKey: crypto.randomUUID(),
         })
         toast.success(listPublicly ? 'Created and listed publicly' : 'Created. Share the link from the Activity screen.')
@@ -212,6 +218,20 @@ function CreateTime({
             <span className="block text-xs text-muted">People you share the link with can join this time.</span>
           </span>
         </label>
+      )}
+      {open && (
+        <>
+          <label className="activity-gatherings__field">
+            <span className="label">Looking for (optional)</span>
+            <Input
+              value={lookingFor}
+              maxLength={140}
+              placeholder="e.g. Looking for actors and lighting help"
+              onChange={(e) => setLookingFor(e.target.value)}
+            />
+          </label>
+          <GatheringCategoriesPicker value={focusIds} onChange={setFocusIds} inherited={activity.focusIds} />
+        </>
       )}
       {open && activity.visibility === 'PUBLIC' && (
         <label className="activity-gatherings__check">

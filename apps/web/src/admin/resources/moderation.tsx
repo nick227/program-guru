@@ -10,7 +10,7 @@ type Publication = AdminListRow<'/moderation/publications'>
 type Kind = components['schemas']['ModerationActionKind']
 
 const targetHref = (t: Report['target']) =>
-  ({ PROGRAM: `/programs/${t.id}`, ACTIVITY: `/activities/${t.id}`, MEDIA: `/media/${t.id}`, USER: `/admin/users/${t.id}`, COMMENT: undefined })[t.type]
+  ({ PROGRAM: `/programs/${t.id}`, ACTIVITY: `/activities/${t.id}`, MEDIA: `/media/${t.id}`, USER: `/admin/users/${t.id}`, COMMENT: undefined, GATHERING: `/gatherings/${t.id}` })[t.type]
 
 /** One resolution: a status, an optional moderation action on the target, and the audit reason. */
 const resolution = (status: 'RESOLVED' | 'DISMISSED', action?: Kind) =>

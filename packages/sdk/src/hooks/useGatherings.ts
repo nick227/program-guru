@@ -30,13 +30,26 @@ export function useMyOpportunities(enabled = true, limit = 10) {
   })
 }
 
-export function usePublicGatherings(filter: { when?: 'NOW' | 'UPCOMING'; locality?: string; enabled?: boolean } = {}) {
+export function usePublicGatherings(
+  filter: { when?: 'NOW' | 'UPCOMING'; locality?: string; focusId?: string; categoryId?: string; enabled?: boolean } = {},
+) {
   return useQuery({
-    queryKey: useViewerKey([...keys.gatherings, 'public', filter.when ?? 'UPCOMING', filter.locality ?? null]),
+    queryKey: useViewerKey([...keys.gatherings, 'public', filter.when ?? 'UPCOMING', filter.locality ?? null, filter.focusId ?? null, filter.categoryId ?? null]),
     enabled: filter.enabled ?? true,
     queryFn: async ({ signal }) =>
       apiData(
-        await getApiClient().GET('/gatherings', { params: { query: { when: filter.when, locality: filter.locality || undefined } }, signal }),
+        await getApiClient().GET('/gatherings', {
+          params: {
+            query: {
+              when: filter.when,
+              locality: filter.locality || undefined,
+              // Inherited or additional Categories both match (10 §9.12).
+              focusId: filter.focusId || undefined,
+              categoryId: filter.categoryId || undefined,
+            },
+          },
+          signal,
+        }),
       ).data,
   })
 }

@@ -57,7 +57,11 @@ export async function opportunities(userId: string, query: { limit?: number }, n
       startLocalTime: true,
       timezone: true,
       capacity: true,
-      activity: { select: { title: true, categoryId: true, category: { select: { label: true } } } },
+      activity: {
+        select: { title: true, categoryId: true, category: { select: { label: true } }, focuses: { select: { focusId: true, focus: { select: { label: true } } } } },
+      },
+      // Additional curated Categories (10 §9.12) match interests exactly like inherited ones.
+      focuses: { select: { focusId: true, focus: { select: { label: true } } } },
       members: { where: { status: 'ACTIVE' }, select: { userId: true } },
     },
     orderBy: [{ startLocalDate: 'asc' }, { startLocalTime: 'asc' }, { id: 'asc' }],
@@ -79,7 +83,7 @@ export async function opportunities(userId: string, query: { limit?: number }, n
     }),
     db.calendarItem.findMany({
       where: { ownerId: userId, status: 'DONE' },
-      select: { activity: { select: { categoryId: true } } },
+      select: { activity: { select: { categoryId: true, focuses: { select: { focusId: true } } } } },
       orderBy: { updatedAt: 'desc' },
       take: MAX_COMPLETED,
     }),
@@ -102,7 +106,11 @@ export async function opportunities(userId: string, query: { limit?: number }, n
   for (const e of enrollments) for (const it of e.version.items) if (!programByActivity.has(it.activityId)) programByActivity.set(it.activityId, e.version.title)
   // 4. Your interests: Domains of completed Activities.
   const doneByDomain = new Map<string, number>()
-  for (const c of completed) doneByDomain.set(c.activity.categoryId, (doneByDomain.get(c.activity.categoryId) ?? 0) + 1)
+  const doneByCategory = new Map<string, number>()
+  for (const c of completed) {
+    doneByDomain.set(c.activity.categoryId, (doneByDomain.get(c.activity.categoryId) ?? 0) + 1)
+    for (const f of c.activity.focuses) doneByCategory.set(f.focusId, (doneByCategory.get(f.focusId) ?? 0) + 1)
+  }
   // 3. People you've done things with: members of gatherings the viewer was in, minus blocks.
   const coMembers = myGatherings.length
     ? await db.groupMember.findMany({
@@ -150,8 +158,17 @@ export async function opportunities(userId: string, query: { limit?: number }, n
         label: friend === g.ownerId ? `${names.get(friend)}, from an earlier gathering, is organizing` : `${names.get(friend)}, from an earlier gathering, is going`,
       })
     }
-    const done = doneByDomain.get(g.activity!.categoryId) ?? 0
-    if (done > 0) reasons.push({ kind: 'YOUR_INTERESTS', label: `You've done ${plural(done, `${g.activity!.category.label} Activity`, `${g.activity!.category.label} Activities`)}` })
+    // Category first (inherited or added; the most-completed one), then Domain. Completed Activities only.
+    const categories = [...g.activity!.focuses, ...g.focuses]
+    const best = categories
+      .map((f) => ({ label: f.focus.label, done: doneByCategory.get(f.focusId) ?? 0 }))
+      .reduce((a, b) => (b.done > a.done ? b : a), { label: '', done: 0 })
+    const domainDone = doneByDomain.get(g.activity!.categoryId) ?? 0
+    if (best.done > 0) {
+      reasons.push({ kind: 'YOUR_INTERESTS', label: `Related to your interest in ${best.label}: you've done ${plural(best.done, `${best.label} Activity`, `${best.label} Activities`)}` })
+    } else if (domainDone > 0) {
+      reasons.push({ kind: 'YOUR_INTERESTS', label: `You've done ${plural(domainDone, `${g.activity!.category.label} Activity`, `${g.activity!.category.label} Activities`)}` })
+    }
     if (!reasons.length) continue
     ranked.push({
       id: g.id,

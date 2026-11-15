@@ -11,6 +11,7 @@ import { addDays, fromDbDate, localToUtc, todayIn, toDbDate, type LocalDate } fr
 import { activityInclude, loadRevisions, toActivitySummary } from '../activities/mapper'
 import { assertActivePlace, toPlace } from '../catalog/catalog.service'
 import { blockedIds, isBlockedEitherWay } from '../users/follow.service'
+import { isPublishingRestricted } from '../social/moderation.service'
 import { toUserSummary } from '../users/mapper'
 
 type Tx = Prisma.TransactionClient
@@ -23,9 +24,10 @@ const appBase = () => (process.env.PUBLIC_APP_URL ?? 'http://localhost:5173').re
 export const gatheringKey = (groupId: string) => `gathering:${groupId}`
 
 const gatheringInclude = {
-  activity: { include: activityInclude },
+  activity: { include: { ...activityInclude, focuses: { include: { focus: true } } } },
   place: true,
   owner: { include: { profile: true } },
+  focuses: { include: { focus: true }, orderBy: { position: 'asc' } },
 } satisfies Prisma.ProgramGroupInclude
 type GatheringRow = Prisma.ProgramGroupGetPayload<{ include: typeof gatheringInclude }>
 
@@ -133,6 +135,12 @@ export async function toGathering(g: GatheringRow, viewerId: string | null) {
     capacity: g.capacity,
     visibility: g.visibility,
     joinPolicy: g.joinPolicy,
+    // Inherited from the Activity first, then the organizer's additional ones (10 §9.12).
+    categories: [
+      ...g.activity!.focuses.map((f) => ({ id: f.focusId, label: f.focus.label, inherited: true })),
+      ...g.focuses.map((f) => ({ id: f.focusId, label: f.focus.label, inherited: false })),
+    ],
+    lookingFor: g.lookingFor && !g.lookingForHiddenAt ? g.lookingFor : null,
     status: g.status,
     owner: toUserSummary(g.owner.profile!),
     memberCount: members.length,
@@ -181,7 +189,7 @@ export async function listForActivity(viewerId: string | null, activityId: strin
  * Public gatherings. NOW: at least one member's Activity session is running or paused (authoritative
  * session records, never presence). UPCOMING: not yet started. City match only, never proximity.
  */
-export async function listPublic(viewerId: string | null, query: { when?: 'NOW' | 'UPCOMING'; locality?: string }, now = new Date()) {
+export async function listPublic(viewerId: string | null, query: { when?: 'NOW' | 'UPCOMING'; locality?: string; focusId?: string; categoryId?: string }, now = new Date()) {
   const blocked = await blockedIds(viewerId)
   const when = query.when ?? 'UPCOMING'
   const locality = query.locality?.trim()
@@ -194,6 +202,11 @@ export async function listPublic(viewerId: string | null, query: { when?: 'NOW' 
       activity: { status: 'PUBLISHED', moderatedAt: null },
       ...(blocked.length ? { ownerId: { notIn: blocked } } : {}),
       ...(locality ? { place: { isActive: true, locality } } : {}),
+      // Inherited (the Activity's) or additional (the gathering's) Categories both match (10 §9.12).
+      AND: [
+        ...(query.focusId ? [{ OR: [{ activity: { focuses: { some: { focusId: query.focusId } } } }, { focuses: { some: { focusId: query.focusId } } }] }] : []),
+        ...(query.categoryId ? [{ OR: [{ activity: { categoryId: query.categoryId } }, { focuses: { some: { focus: { categoryId: query.categoryId } } } }] }] : []),
+      ],
       ...(when === 'NOW'
         ? { gatheringItems: { some: { sessions: { some: { status: { in: ['ACTIVE', 'PAUSED'] } } } } } }
         : { startLocalDate: { gte: toDbDate(addDays(todayIn('UTC', now), -1)) } }),
@@ -289,6 +302,35 @@ function checkMoment(localDate: string, localTime: string | null | undefined) {
   if (localTime != null && !HHMM.test(localTime)) throw badRequest('Time must be HH:MM', { localTime: 'must be HH:MM' })
 }
 
+const MAX_ADDED_CATEGORIES = 3
+
+/**
+ * Additional Categories (10 §9.12): approved and active, deduplicated, at most 3, never one the Activity
+ * already has. They are stored on the gathering only; the Activity's classification never changes.
+ */
+async function checkFocuses(focusIds: string[] | undefined, activityId: string) {
+  if (focusIds === undefined) return undefined
+  const unique = [...new Set(focusIds)]
+  if (unique.length !== focusIds.length) throw badRequest('Each Category can be added once', { focusIds: 'contains duplicates' })
+  if (unique.length > MAX_ADDED_CATEGORIES) throw badRequest(`Add at most ${MAX_ADDED_CATEGORIES} Categories`, { focusIds: `at most ${MAX_ADDED_CATEGORIES}` })
+  if (!unique.length) return unique
+  const inherited = await db.activityFocus.findMany({ where: { activityId, focusId: { in: unique } }, select: { focusId: true } })
+  if (inherited.length) throw badRequest('That Category already comes from the Activity', { focusIds: 'repeats an inherited Category' })
+  const found = await db.focus.count({ where: { id: { in: unique }, isActive: true, reviewState: 'APPROVED' } })
+  if (found !== unique.length) throw badRequest('Choose from the listed Categories', { focusIds: 'contains an unknown Category' })
+  return unique
+}
+
+/** Looking for (10 §9.12): trimmed, ≤140 characters, empty clears it; restricted publishers cannot set one. */
+async function checkLookingFor(userId: string, value: string | null | undefined) {
+  if (value === undefined) return undefined
+  const text = value?.trim() ?? ''
+  if (!text) return null
+  if (text.length > 140) throw badRequest('Keep it to 140 characters', { lookingFor: 'at most 140 characters' })
+  if (await isPublishingRestricted(userId)) throw forbidden('Your publishing is restricted')
+  return text
+}
+
 function checkCapacity(capacity: number | null | undefined) {
   if (capacity == null) return
   if (!Number.isInteger(capacity) || capacity < 1) throw badRequest('Capacity must be at least 1', { capacity: 'must be a whole number of at least 1' })
@@ -297,7 +339,7 @@ function checkCapacity(capacity: number | null | undefined) {
 export async function create(
   userId: string,
   activityId: string,
-  input: { localDate: string; localTime?: string | null; placeId?: string | null; calendarItemId?: string | null; listPublicly?: boolean; capacity?: number | null; idempotencyKey: string },
+  input: { localDate: string; localTime?: string | null; placeId?: string | null; calendarItemId?: string | null; listPublicly?: boolean; capacity?: number | null; focusIds?: string[]; lookingFor?: string | null; idempotencyKey: string },
 ) {
   const { idempotencyKey, ...request } = input
   return withIdempotency({
@@ -319,6 +361,8 @@ export async function create(
       if (input.listPublicly && activity.visibility !== 'PUBLIC') throw badRequest('Only public Activities can be listed publicly', { listPublicly: 'requires a public Activity' })
       if (input.placeId) await assertActivePlace(input.placeId)
       const placeId = input.placeId === undefined ? activity.placeId : input.placeId
+      const focusIds = (await checkFocuses(input.focusIds, activityId)) ?? []
+      const lookingFor = (await checkLookingFor(userId, input.lookingFor)) ?? null
       const timezone = await timezoneOf(userId)
       if (isPast({ startLocalDate: toDbDate(input.localDate), startLocalTime: input.localTime ?? null, timezone })) {
         throw badRequest('Choose a time that has not passed', { localDate: 'is in the past' })
@@ -334,6 +378,8 @@ export async function create(
             timezone,
             placeId,
             capacity: input.capacity ?? null,
+            lookingFor,
+            focuses: { create: focusIds.map((focusId, position) => ({ focusId, position })) },
             // Private and invite-only unless listing publicly was chosen (decision 3).
             visibility: input.listPublicly ? 'PUBLIC' : 'PRIVATE',
             joinPolicy: input.listPublicly ? 'OPEN' : 'INVITE_ONLY',
@@ -406,10 +452,12 @@ export async function leave(userId: string, groupId: string) {
 export async function update(
   userId: string,
   groupId: string,
-  input: { localDate?: string; localTime?: string | null; placeId?: string | null; capacity?: number | null; listPublicly?: boolean; close?: boolean },
+  input: { localDate?: string; localTime?: string | null; placeId?: string | null; capacity?: number | null; listPublicly?: boolean; close?: boolean; focusIds?: string[]; lookingFor?: string | null },
 ) {
   const g = await load(groupId)
   if (g.ownerId !== userId) throw forbidden('Only the gathering owner can do that')
+  const focusIds = await checkFocuses(input.focusIds, g.activityId!)
+  const lookingFor = await checkLookingFor(userId, input.lookingFor)
   if (g.status !== 'ACTIVE') throw conflict('This gathering is closed')
   if (input.localDate !== undefined) checkMoment(input.localDate, input.localTime)
   else if (input.localTime != null && !HHMM.test(input.localTime)) throw badRequest('Time must be HH:MM', { localTime: 'must be HH:MM' })
@@ -435,6 +483,10 @@ export async function update(
         startLocalTime: next.startLocalTime,
         placeId: input.placeId,
         capacity: input.capacity,
+        lookingFor,
+        ...(focusIds === undefined
+          ? {}
+          : { focuses: { deleteMany: {}, create: focusIds.map((focusId, position) => ({ focusId, position })) } }),
         ...(input.listPublicly === undefined
           ? {}
           : input.listPublicly
@@ -524,6 +576,8 @@ export async function repeat(
             timezone,
             placeId: source.placeId,
             capacity: source.capacity,
+            lookingFor: source.lookingForHiddenAt ? null : source.lookingFor,
+            focuses: { create: source.focuses.map((f) => ({ focusId: f.focusId, position: f.position })) },
             visibility: source.visibility,
             joinPolicy: source.joinPolicy,
             joinLinkEnabled: true,

@@ -324,11 +324,25 @@ model Focus {
   createdBy    User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
   programTypes ProgramTypeFocus[]
   activities   ActivityFocus[]
+  gatherings   GatheringFocus[]
   programs     Program[]
   versions     ProgramVersion[]
 
   @@unique([categoryId, slug])
   @@index([createdById])
+}
+
+/// Additional curated Categories of a gathering, for discovery only (10 §9.12). Never changes the Activity.
+model GatheringFocus {
+  groupId  String @db.Char(36)
+  focusId  String @db.Char(36)
+  position Int    @default(0)
+
+  group ProgramGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  focus Focus        @relation(fields: [focusId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, focusId])
+  @@index([focusId])
 }
 
 model ProgramTypeFocus {
@@ -1304,6 +1318,9 @@ model ProgramGroup {
   startLocalTime           String?         @db.VarChar(5)
   placeId                  String?         @db.Char(36)
   capacity                 Int?
+  // Optional organizer note (10 §9.12); hidden by moderation while lookingForHiddenAt is set
+  lookingFor               String?         @db.VarChar(140)
+  lookingForHiddenAt       DateTime?
   stageTheme               String          @default("constellation") @db.VarChar(40)
   status                   GroupStatus     @default(ACTIVE)
   createdAt                DateTime        @default(now())
@@ -1319,6 +1336,7 @@ model ProgramGroup {
   enrollments    ProgramEnrollment[]
   completions    CompletionShare[]
   publications   MediaPublication[]
+  focuses        GatheringFocus[]
 
   @@index([programVersionId, status])
   @@index([visibility, status, startLocalDate])
@@ -1670,6 +1688,7 @@ enum ReportTargetType {
   MEDIA
   COMMENT
   USER
+  GATHERING
 }
 
 enum ReportReason {

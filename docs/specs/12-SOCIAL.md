@@ -92,7 +92,7 @@ Answers "what's something worthwhile I can actually do, with the right people, a
   1. **On your Calendar**: a planned item of the same Activity on the same day that is not in any group ("You have Walk Outdoors on Sat; 3 people are doing it at 9:00 AM").
   2. **In your Program**: the Activity is in one of the viewer's active enrollments ("Part of 30-Day Wellness").
   3. **People you've done things with**: its owner or a member shared an earlier gathering with the viewer ("Sam, from an earlier gathering, is going").
-  4. **Your interests**: its Domain matches Activities the viewer has completed ("You've done 4 Arts & Creativity Activities").
+  4. **Your interests**: one of its Categories, inherited from its Activity or added by its organizer (10 §9.12), matches Activities the viewer has completed ("Related to your interest in Theatre: you've done 3 Theatre Activities"); otherwise its Domain does ("You've done 4 Arts & Creativity Activities"). Completed Activities only; scheduled ones are the Calendar signal.
   Within a tier, soonest first; deduplicated by gathering id; a gathering with no reason is never shown.
 - **`needsPeople`**: gatherings the viewer has joined that have a capacity and open spots, with `openSpots`. A separate participation prompt whose only action is Share; never a recommendation to join.
 

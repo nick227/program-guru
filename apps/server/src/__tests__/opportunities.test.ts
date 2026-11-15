@@ -73,12 +73,13 @@ describe('each reason is truthful and tiered', () => {
     expect(ids(await radar())).not.toContain(next.id)
   })
 
-  it('YOUR_INTERESTS: the Domain of Activities completed', async () => {
+  it('YOUR_INTERESTS: Categories of Activities completed', async () => {
     const done = (await ok(alice, 'POST', '/calendar/items', { activityId: cat.squats.activity.id, localDate: '2026-11-10', idempotencyKey: key() })).item
     await db.calendarItem.update({ where: { id: done.id }, data: { status: 'DONE' } })
     const g = await gathering(bob, cat.legRaises.activity.id)
     const rec = (await radar()).recommendations.find((x) => x.gathering.id === g.id)!
-    expect(rec.reasons).toEqual([{ kind: 'YOUR_INTERESTS', label: "You've done 1 Fitness Activity" }])
+    // Squats and Leg Raises share the Strength Category, so the Category-level reason applies (10 §9.12).
+    expect(rec.reasons).toEqual([{ kind: 'YOUR_INTERESTS', label: "Related to your interest in Strength: you've done 1 Strength Activity" }])
   })
 
   it('no reason, no recommendation; tiers order results; limit bounds them', async () => {

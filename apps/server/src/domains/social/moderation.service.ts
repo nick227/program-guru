@@ -7,7 +7,7 @@ import { enqueue } from '../../lib/outbox'
 import { offsetArgs, toOffsetPage, type PageQuery } from '../../lib/paging'
 import { toUserSummary } from '../users/mapper'
 
-type TargetType = 'PROGRAM' | 'ACTIVITY' | 'MEDIA' | 'COMMENT' | 'USER'
+type TargetType = 'PROGRAM' | 'ACTIVITY' | 'MEDIA' | 'COMMENT' | 'USER' | 'GATHERING'
 
 async function targetExists(type: TargetType, id: string) {
   switch (type) {
@@ -21,6 +21,8 @@ async function targetExists(type: TargetType, id: string) {
       return !!(await db.mediaComment.findUnique({ where: { id }, select: { id: true } }))
     case 'USER':
       return !!(await db.user.findUnique({ where: { id }, select: { id: true } }))
+    case 'GATHERING':
+      return !!(await db.programGroup.findFirst({ where: { id, kind: 'GATHERING' }, select: { id: true } }))
   }
 }
 
@@ -70,6 +72,10 @@ export async function applyModeration(tx: Prisma.TransactionClient, actorId: str
       return tx.mediaPublication.update({ where: { id }, data: { status: 'REVOKED' } })
     case 'MEDIA:RESTORE':
       return tx.mediaPublication.update({ where: { id }, data: { status: 'APPROVED' } })
+    // A gathering report is about its organizer note (10 §9.12): HIDE hides the note, not the gathering.
+    case 'GATHERING:HIDE':
+    case 'GATHERING:RESTORE':
+      return tx.programGroup.update({ where: { id }, data: { lookingForHiddenAt: hide ? now : null } })
     case 'COMMENT:HIDE':
     case 'COMMENT:RESTORE':
       return tx.mediaComment.update({ where: { id }, data: { status: hide ? 'HIDDEN' : 'VISIBLE' } })

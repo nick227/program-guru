@@ -24,7 +24,7 @@ Factory defaults: pnpm monorepo, Vite + React + Tailwind, Fastify routed from Op
 
 ## Phase Completed
 
-Phase 2 — Server, worker, billing: complete and gated (2026-11-07). **Catalog Expansion epic** specified 2026-11-14 (`01-PRODUCT.md` §11): Catalog → Places → Discovery milestones, not yet implemented. Raw starter data: `packages/db/prisma/seed/starter/`. All three milestones (Catalog, Places, Discovery) done; standalone Activity gatherings (10 §9) built in G1–G4 (G4: solo Program items, suggestions, Do It Again, phase-aware hero); Opportunity Radar (12 §5b) on Home and the Home Agent. Phase 3 (frontend) is next. An earlier session started `apps/web` ahead of the Phase 2 gate; see `docs/frontend-foundation.md`.
+Phase 2 — Server, worker, billing: complete and gated (2026-11-07). **Catalog Expansion epic** specified 2026-11-14 (`01-PRODUCT.md` §11): Catalog → Places → Discovery milestones, not yet implemented. Raw starter data: `packages/db/prisma/seed/starter/`. All three milestones (Catalog, Places, Discovery) done; standalone Activity gatherings (10 §9) built in G1–G4 (G4: solo Program items, suggestions, Do It Again, phase-aware hero); Opportunity Radar (12 §5b) on Home and the Home Agent; gathering discovery associations and "Looking for" (10 §9.12). Phase 3 (frontend) is next. An earlier session started `apps/web` ahead of the Phase 2 gate; see `docs/frontend-foundation.md`.
 
 ## Modules Built
 

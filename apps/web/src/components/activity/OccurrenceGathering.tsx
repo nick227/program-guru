@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { lookingForText } from '@/lib/lookingFor'
 import { Image as ImageIcon, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -10,9 +11,11 @@ import {
   type components,
 } from '@project/sdk'
 import { Avatar } from '@/components/ui/Avatar'
+import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { ShareLinkField } from '@/components/social/ShareLink'
 import { DoItAgain, GatheringSuggestion } from './GatheringSuggestion'
+import { GatheringCategoriesPicker } from './GatheringCategoriesPicker'
 
 type S = components['schemas']
 export type HeroPhase = 'before' | 'during' | 'after'
@@ -39,6 +42,7 @@ export function OccurrenceGathering({
   const leave = useLeaveGathering()
   const update = useUpdateGathering()
   const [url, setUrl] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
 
   if (item.gatheringId) {
     const g = gathering.data
@@ -93,6 +97,7 @@ export function OccurrenceGathering({
     return (
       <div className="activity-hero__gathering">
         {line}
+        {g.lookingFor && <p className="activity-gatherings__looking">{lookingForText(g.lookingFor)}</p>}
         {g.members.length > 1 && (
           <span className="activity-hero__gathering-people" aria-label={g.members.map((m) => m.displayName).join(', ')}>
             {g.members.slice(0, 6).map((m) => (
@@ -111,10 +116,22 @@ export function OccurrenceGathering({
               {g.visibility === 'PUBLIC' ? 'Stop listing publicly' : 'List publicly'}
             </Button>
           )}
+          {g.viewerIsOwner && g.status === 'ACTIVE' && !editing && (
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+              Edit details
+            </Button>
+          )}
           <Button size="sm" variant="ghost" loading={leave.isPending} onClick={() => void onLeave()}>
             Leave gathering
           </Button>
         </div>
+        {editing && (
+          <GatheringDetailsEditor
+            gathering={g}
+            onDone={() => setEditing(false)}
+            save={(body) => update.mutateAsync({ gatheringId: g.id, ...body })}
+          />
+        )}
         {url && <ShareLinkField url={url} shareTitle={activity?.title ?? 'Join me'} copiedMessage="Link copied" inputLabel="Gathering link" />}
       </div>
     )
@@ -149,5 +166,51 @@ export function OccurrenceGathering({
         </Button>
       )}
     </div>
+  )
+}
+
+/** Owner-only: the Looking for note and up to 3 additional Categories (10 §9.12). */
+function GatheringDetailsEditor({
+  gathering,
+  onDone,
+  save,
+}: {
+  gathering: S['Gathering']
+  onDone: () => void
+  save: (body: { lookingFor: string | null; focusIds: string[] }) => Promise<unknown>
+}) {
+  const [lookingFor, setLookingFor] = useState(gathering.lookingFor ?? '')
+  const [focusIds, setFocusIds] = useState(gathering.categories.filter((c) => !c.inherited).map((c) => c.id))
+  const [saving, setSaving] = useState(false)
+  const inherited = gathering.categories.filter((c) => c.inherited).map((c) => c.id)
+  const onSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      await save({ lookingFor: lookingFor.trim() || null, focusIds })
+      toast.success('Saved')
+      onDone()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save')
+    } finally {
+      setSaving(false)
+    }
+  }
+  return (
+    <form onSubmit={(e) => void onSave(e)} className="activity-gatherings__form" aria-label="Gathering details">
+      <label className="activity-gatherings__field">
+        <span className="label">Looking for (optional)</span>
+        <Input value={lookingFor} maxLength={140} onChange={(e) => setLookingFor(e.target.value)} placeholder="e.g. Looking for actors and lighting help" />
+      </label>
+      <GatheringCategoriesPicker value={focusIds} onChange={setFocusIds} inherited={inherited} />
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" loading={saving}>
+          Save
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   )
 }

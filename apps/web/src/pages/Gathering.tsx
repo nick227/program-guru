@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { lookingForText } from '@/lib/lookingFor'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { MapPin, Users } from 'lucide-react'
 import { toast } from 'sonner'
@@ -9,6 +10,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { Page } from '@/components/ui/Layout'
+import { ReportButton } from '@/components/shared/ReportButton'
 import { activityHero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
 import { buildActivityUrl } from '@/lib/urls'
@@ -77,6 +79,20 @@ export function GatheringPage() {
                   <Avatar key={m.id} src={m.avatarUrl} name={m.displayName} size="sm" className="-ml-1.5 h-8 w-8 ring-2 ring-background first:ml-0" />
                 ))}
               </div>
+              {g.lookingFor && (
+                <p className="rounded-lg border border-border/60 bg-surface-muted/60 p-3 text-sm">
+                  {lookingForText(g.lookingFor)}
+                </p>
+              )}
+              {g.categories.length > 0 && (
+                <ul className="flex flex-wrap gap-1.5 pt-1" aria-label="Categories">
+                  {g.categories.map((c) => (
+                    <li key={c.id} className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-foreground/80">
+                      {c.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {g.activity.summary && <p className="pt-2 text-[15px] leading-relaxed text-foreground/85">{g.activity.summary}</p>}
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -100,6 +116,7 @@ export function GatheringPage() {
               <Link className="text-sm font-medium text-accent hover:underline" to={buildActivityUrl(g.activity)}>
                 About this Activity
               </Link>
+              {g.lookingFor && <ReportButton target={{ type: 'GATHERING', id: g.id }} ownerId={g.owner.id} label="Report note" />}
             </div>
           </>
         )}
