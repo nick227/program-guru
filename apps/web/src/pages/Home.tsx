@@ -14,11 +14,8 @@ import {
   useDiscoverPrograms,
   useProgramLibrary,
   useMyPrograms,
-  usePublicGatherings,
 } from '@project/sdk'
 import { useDocumentTitle } from '@/lib/title'
-import { useCategorySlugOf } from '@/components/shared/EntityHero'
-import { interleaveUnique, pickAcrossDomains } from '@/lib/activityRange'
 import { ScheduleDialog } from '@/components/schedule/AddToSchedule'
 import { HomeTopBar } from '@/features/home/components/HomeTopBar'
 import { InlineProgramBuilder } from '@/features/home/components/InlineProgramBuilder'
@@ -29,7 +26,7 @@ import { TurnStage } from '@/features/home/components/TurnStage'
 import { cardHeroSrc } from '@/features/home/components/TurnHero'
 import { resolveTurn } from '@/features/home/engine/decisionEngine'
 import { buildPresentationItems } from '@/features/home/engine/presentationFeed'
-import { buildSurferDeck, reusableTodayItem, type SurferCard } from '@/features/home/engine/surferDeck'
+import { reusableTodayItem } from '@/lib/participation'
 import type {
   AssistantCard,
   CardAction,
@@ -65,15 +62,13 @@ function loadSession(): {
   nodeId: FlowNodeId
   state: DiscoveryState
   history: HistoryEntry[]
-  surferKey: string | null
 } {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)
-    if (!raw) return { nodeId: 'opening', state: INITIAL_STATE, history: [], surferKey: null }
+    if (!raw) return { nodeId: 'opening', state: INITIAL_STATE, history: [] }
     const parsed = JSON.parse(raw)
     if (parsed && typeof parsed.nodeId === 'string' && parsed.state) {
       return {
-        surferKey: typeof parsed.surferKey === 'string' ? parsed.surferKey : null,
         nodeId: parsed.nodeId as FlowNodeId,
         state: {
           ...INITIAL_STATE,
@@ -88,7 +83,7 @@ function loadSession(): {
   } catch {
     // Ignore malformed sessionStorage
   }
-  return { nodeId: 'opening', state: INITIAL_STATE, history: [], surferKey: null }
+  return { nodeId: 'opening', state: INITIAL_STATE, history: [] }
 }
 
 export function HomePage() {
@@ -116,22 +111,18 @@ export function HomePage() {
   const [actionPending, setActionPending] = useState(false)
   // Repeated taps on Start or Join while one is in flight do nothing (state updates lag a render).
   const inFlight = useRef(false)
-  // The surfer remembers the Activity on screen, not an index, so it survives data refreshes.
-  const [surferKey, setSurferKey] = useState<string | null>(initial.surferKey)
-  // Follows made here; the Following list only holds creators with published content.
-  const [followedHere, setFollowedHere] = useState<string[]>([])
   const [scheduleTarget, setScheduleTarget] = useState<{ id: string; title: string } | null>(null)
 
   useEffect(() => {
     try {
       sessionStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ nodeId, state, history, surferKey }),
+        JSON.stringify({ nodeId, state, history }),
       )
     } catch {
       // Ignore storage quota errors
     }
-  }, [nodeId, state, history, surferKey])
+  }, [nodeId, state, history])
 
   // Compose existing SDK hooks client-side for P1
   const calendar = useCalendar(today, today, isSignedIn)
@@ -182,40 +173,6 @@ export function HomePage() {
     return [...scoped, ...base.filter((i) => i.activity?.id && !seen.has(i.activity.id))]
   }, [activities.data, categoryActivities.data])
 
-  // Newest catalog Activities alongside the most-used ones, so new content is visible without
-  // inventing popularity (12 §5a). Both are existing `/discover` orderings.
-  const newestActivities = useDiscoverActivities({ sort: 'NEW', enabled: true })
-  const categorySlugOf = useCategorySlugOf()
-  // The Activity surfer (03-UX §2a): existing reads only, ordered and deduplicated in surferDeck.
-  const nowGatherings = usePublicGatherings({ when: 'NOW' })
-  const upcomingGatherings = usePublicGatherings({ when: 'UPCOMING' })
-  const deck = useMemo(() => {
-    const listOf = (data: typeof activities.data) =>
-      (data?.pages.flatMap((p) => p.data) ?? []).flatMap((i) => (i.activity ? [i.activity] : []))
-    return buildSurferDeck({
-      now: nowGatherings.data ?? [],
-      radar: radar.data?.recommendations ?? [],
-      upcoming: upcomingGatherings.data ?? [],
-      catalog: pickAcrossDomains(interleaveUnique(listOf(activities.data), listOf(newestActivities.data)), 40),
-    })
-  }, [nowGatherings.data, radar.data, upcomingGatherings.data, activities.data, newestActivities.data])
-  // Shown once every source has settled, so the first card never swaps under the viewer.
-  const deckLoading =
-    activities.isPending ||
-    newestActivities.isPending ||
-    nowGatherings.isPending ||
-    upcomingGatherings.isPending ||
-    (isSignedIn && radar.isPending)
-  const surferIndex = Math.max(0, deck.findIndex((c) => c.activity.id === surferKey))
-  const followedIds = useMemo(
-    () =>
-      new Set([
-        ...followedHere,
-        ...(followedCreators.data?.pages.flatMap((p) => p.data) ?? []).flatMap((i) => (i.creator ? [i.creator.id] : [])),
-      ]),
-    [followedCreators.data, followedHere],
-  )
-  const needsPeople = radar.data?.needsPeople[0] ?? null
 
   const signals: HomeSignals = useMemo(
     () => ({
@@ -468,7 +425,6 @@ export function HomePage() {
               params: { path: { userId: action.userId } },
             })
             if (res.error) throw res.error
-            setFollowedHere((ids) => [...ids, action.userId])
             await queryClient.invalidateQueries({ queryKey: ['discover'] })
             toast.success(`Following @${action.handle}`)
           } catch {
@@ -601,20 +557,9 @@ export function HomePage() {
   // Create a Program replaces the conversation while it is open; exploring and creating never overlap.
   const building = nodeId === 'create_program' && !previewTarget && !executionItemId
 
-  // Home's Activity surfer shows only on the Agent's opening turn, with nothing open over it (03-UX §2a).
-  const surferVisible =
+  // The opening turn renders compactly when nothing is open over it (03-UX §2a).
+  const openingCompact =
     nodeId === 'opening' && turn.nodeId === 'opening' && !previewTarget && !executionItemId && !showMeOpen
-
-  const handleParticipate = useCallback((card: SurferCard) => {
-    setShowWhy(false)
-    setPreviewTarget({
-      kind: 'activity',
-      id: card.activity.id,
-      gatheringId: card.gathering?.id ?? null,
-      calendarItemId: card.calendarItemId,
-    })
-    window.scrollTo({ top: 0 })
-  }, [])
 
   const handleSelectPresentationItem = useCallback((card: AssistantCard) => {
     setShowWhy(false)
@@ -678,7 +623,7 @@ export function HomePage() {
           className={
             previewTarget?.kind === 'group' || previewTarget?.kind === 'session'
               ? 'flex flex-1 flex-col'
-              : surferVisible
+              : openingCompact
                 ? 'flex flex-col'
                 : 'flex flex-1 flex-col justify-center'
           }
@@ -694,7 +639,7 @@ export function HomePage() {
             executionItemId={executionItemId}
             isSignedIn={isSignedIn}
             todayIso={today}
-            compact={surferVisible}
+            compact={openingCompact}
             canGoBack={
               history.length > 0 ||
               previewTarget !== null ||

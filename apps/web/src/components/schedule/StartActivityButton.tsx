@@ -4,7 +4,7 @@ import { Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { getApiClient, useAddCalendarItem } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
-import { reusableTodayItem } from '@/features/home/engine/surferDeck'
+import { reusableTodayItem } from '@/lib/participation'
 import { today } from '@/lib/dates'
 
 /**
