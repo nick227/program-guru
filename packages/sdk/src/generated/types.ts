@@ -837,6 +837,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/opportunities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Opportunity Radar
+         * @description Joinable upcoming gatherings with truthful reasons in deterministic tiers, and gatherings I joined that still need people (12-SOCIAL §5b).
+         */
+        get: operations["listMyOpportunities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gatherings": {
         parameters: {
             query?: never;
@@ -3327,6 +3347,29 @@ export interface components {
         };
         Ack: {
             ok: boolean;
+        };
+        Opportunities: {
+            recommendations: components["schemas"]["Opportunity"][];
+            needsPeople: components["schemas"]["NeedsPeople"][];
+        };
+        Opportunity: {
+            gathering: components["schemas"]["Gathering"];
+            reasons: {
+                /** @enum {string} */
+                kind: "ON_YOUR_CALENDAR" | "IN_YOUR_PROGRAM" | "PEOPLE_YOU_KNOW" | "YOUR_INTERESTS";
+                label: string;
+            }[];
+            /** @description The gathering has a time and nothing on the viewer's Calendar is within an hour of it. */
+            fitsSchedule: boolean;
+            /**
+             * Format: uuid
+             * @description The viewer's own item that joining reuses.
+             */
+            calendarItemId: string | null;
+        };
+        NeedsPeople: {
+            gathering: components["schemas"]["Gathering"];
+            openSpots: number;
         };
         /** @description One shared, dated occurrence of one Activity (10 §9). Counts come from real records only. */
         Gathering: {
@@ -6888,6 +6931,32 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["RateLimited"];
+        };
+    };
+    listMyOpportunities: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Opportunities"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     listGatherings: {

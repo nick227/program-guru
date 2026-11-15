@@ -1865,6 +1865,36 @@ paths:
           $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/RateLimited'
+  /me/opportunities:
+    get:
+      operationId: listMyOpportunities
+      summary: Opportunity Radar
+      tags:
+      - groups
+      description: Joinable upcoming gatherings with truthful reasons in deterministic tiers, and gatherings I joined that still need people (12-SOCIAL §5b).
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Opportunities'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /gatherings:
     get:
       operationId: listGatherings
@@ -8364,6 +8394,38 @@ components:
       properties:
         ok:
           type: boolean
+    Opportunities:
+      type: object
+      required: [recommendations, needsPeople]
+      properties:
+        recommendations:
+          type: array
+          items: {$ref: '#/components/schemas/Opportunity'}
+        needsPeople:
+          type: array
+          items: {$ref: '#/components/schemas/NeedsPeople'}
+    Opportunity:
+      type: object
+      required: [gathering, reasons, fitsSchedule, calendarItemId]
+      properties:
+        gathering: {$ref: '#/components/schemas/Gathering'}
+        reasons:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [kind, label]
+            properties:
+              kind: {type: string, enum: [ON_YOUR_CALENDAR, IN_YOUR_PROGRAM, PEOPLE_YOU_KNOW, YOUR_INTERESTS]}
+              label: {type: string}
+        fitsSchedule: {type: boolean, description: The gathering has a time and nothing on the viewer's Calendar is within an hour of it.}
+        calendarItemId: {type: [string, 'null'], format: uuid, description: "The viewer's own item that joining reuses."}
+    NeedsPeople:
+      type: object
+      required: [gathering, openSpots]
+      properties:
+        gathering: {$ref: '#/components/schemas/Gathering'}
+        openSpots: {type: integer, minimum: 1}
     Gathering:
       type: object
       description: One shared, dated occurrence of one Activity (10 §9). Counts come from real records only.

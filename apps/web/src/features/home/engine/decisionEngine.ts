@@ -1,3 +1,5 @@
+import { dateLabel } from '@/lib/dates'
+import { formatTargetTime } from '@/lib/targetTime'
 import { groupAction, sessionActionLabel } from '@/lib/joinEligibility'
 import type {
   AssistantTurn,
@@ -9,6 +11,7 @@ import {
   mapActivityToCard,
   mapCalendarItemToCard,
   mapCreatorToCard,
+  mapOpportunityToCard,
   mapProgramToCard,
   mapSessionToCard,
 } from './cardMappers'
@@ -546,6 +549,25 @@ function resolveTogetherResult(
   signals: HomeSignals,
 ): AssistantTurn {
   const excluded = new Set(state.excludedIds)
+  // Opportunity Radar leads (12 §5b): a joinable gathering with its truthful reasons. "See another"
+  // moves through the list; with none left, the existing Program-session results follow unchanged.
+  const opportunity = (signals.opportunities ?? []).find((o) => !excluded.has(o.gathering.id))
+  if (opportunity) {
+    const g = opportunity.gathering
+    const when = `${dateLabel(g.localDate, { weekday: 'short', month: 'short', day: 'numeric' })}${g.localTime ? ` · ${formatTargetTime(g.localTime)}` : ''}`
+    const card = mapOpportunityToCard(opportunity, when)
+    return {
+      nodeId: 'together_result',
+      question: `${g.activity.title}, ${when}`,
+      contextLine: opportunity.reasons.map((r) => r.label).join(' · '),
+      card,
+      choices: [
+        { id: 'join-gathering', label: 'Join', variant: 'primary', effect: { type: 'execute', action: card.primaryAction } },
+        { id: 'different', label: 'See another', variant: 'secondary', effect: { type: 'refine', kind: 'different' } },
+        { id: 'something-else', label: 'Something else', variant: 'secondary', effect: { type: 'transition', nodeId: 'intent_menu' } },
+      ],
+    }
+  }
   const sessionItem = signals.liveSessions.find((item) => {
     const id = item.featuredGroup?.id ?? item.program?.id
     return id && !excluded.has(id) &&

@@ -9,6 +9,8 @@ import {
   useCurrentUser,
   useDiscoverActivities,
   useDiscoverCreators,
+  useJoinGathering,
+  useMyOpportunities,
   useDiscoverPrograms,
   useProgramLibrary,
 } from '@project/sdk'
@@ -17,6 +19,7 @@ import { SuggestionRail } from '@/components/shared/SuggestionRail'
 import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { activityCard } from '@/lib/discoveryCards'
 import { interleaveUnique, pickAcrossDomains } from '@/lib/activityRange'
+import { NeedsPeoplePrompt } from '@/components/activity/NeedsPeoplePrompt'
 import { HomeTopBar } from '@/features/home/components/HomeTopBar'
 import { PresentationSurface } from '@/features/home/components/PresentationSurface'
 import { ShowMeView } from '@/features/home/components/ShowMeView'
@@ -83,6 +86,8 @@ function loadSession(): {
   return { nodeId: 'opening', state: INITIAL_STATE, history: [] }
 }
 
+const GATHERING_CARD = 'gathering:'
+
 export function HomePage() {
   useDocumentTitle('Home')
   const navigate = useNavigate()
@@ -148,6 +153,9 @@ export function HomePage() {
     enabled: Boolean(state.categoryId),
   })
   const creators = useDiscoverCreators({ enabled: true })
+  // Opportunity Radar (12 §5b): one result set for the Agent and the rail.
+  const radar = useMyOpportunities(isSignedIn)
+  const joinGathering = useJoinGathering()
 
   const mergedActivities = useMemo(() => {
     const base = activities.data?.pages.flatMap((p) => p.data) ?? []
@@ -169,6 +177,16 @@ export function HomePage() {
     )
   }, [activities.data, newestActivities.data, categorySlugOf])
 
+  const railCards = useMemo(() => {
+    const picks = (radar.data?.recommendations ?? []).slice(0, 2).map((o) => ({
+      ...activityCard(o.gathering.activity, categorySlugOf),
+      id: `${GATHERING_CARD}${o.gathering.id}`,
+      meta: o.reasons[0]!.label,
+    }))
+    return [...picks, ...rangeCards].slice(0, 5)
+  }, [radar.data, rangeCards, categorySlugOf])
+  const needsPeople = radar.data?.needsPeople[0] ?? null
+
   const signals: HomeSignals = useMemo(
     () => ({
       isSignedIn,
@@ -185,6 +203,7 @@ export function HomePage() {
           status: 'ACTIVE',
         })),
       liveSessions: liveSessions.data?.pages.flatMap((p) => p.data) ?? [],
+      opportunities: radar.data?.recommendations ?? [],
       popularPrograms: popularPrograms.data?.pages.flatMap((p) => p.data) ?? [],
       newPrograms: newPrograms.data?.pages.flatMap((p) => p.data) ?? [],
       activities: mergedActivities,
@@ -200,6 +219,7 @@ export function HomePage() {
       calendar.data,
       library.data,
       liveSessions.data,
+      radar.data,
       popularPrograms.data,
       newPrograms.data,
       mergedActivities,
@@ -311,6 +331,24 @@ export function HomePage() {
         case 'open_program':
           navigate(`/programs/${action.programId}`)
           return
+        case 'join_gathering': {
+          // One primary action: join (reusing the viewer's item), then open that occurrence.
+          setActionPending(true)
+          try {
+            const result = await joinGathering.mutateAsync({
+              gatheringId: action.gatheringId,
+              calendarItemId: action.calendarItemId,
+              idempotencyKey: crypto.randomUUID(),
+            })
+            toast.success('Joined. It is on your Calendar.')
+            navigate(`/occurrences/${result.calendarItemId}`)
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Could not join')
+          } finally {
+            setActionPending(false)
+          }
+          return
+        }
         case 'open_group':
           setShowWhy(false)
           setShowMeOpen(false)
@@ -365,7 +403,7 @@ export function HomePage() {
           return
       }
     },
-    [isSignedIn, navigate, queryClient, today, tomorrow],
+    [isSignedIn, navigate, queryClient, today, tomorrow, joinGathering],
   )
 
   const handleChoice = useCallback(
@@ -565,17 +603,22 @@ export function HomePage() {
                 onAction={executeAction}
                 onPreviewCreator={setPreviewTarget}
               />
-              {/* The range of things to do: one compact, varied section (12 §5a). */}
-              {rangeCards.length > 0 && (
+              {/* The range of things to do (12 §5a), led by up to two Radar recommendations (12 §5b). */}
+              {(railCards.length > 0 || needsPeople) && (
                 <div className="w-full border-t border-border/50 py-5">
-                  <div className="mx-auto w-full max-w-5xl px-6">
+                  <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-6">
+                    {needsPeople && <NeedsPeoplePrompt item={needsPeople} />}
                     <SuggestionRail
                       title="Things to do"
-                      items={rangeCards}
+                      items={railCards}
                       loading={false}
                       error={null}
-                      actionLabel="Preview"
-                      onPick={(id) => setPreviewTarget({ kind: 'activity', id })}
+                      actionLabel="Open"
+                      onPick={(id) =>
+                        id.startsWith(GATHERING_CARD)
+                          ? navigate(`/gatherings/${id.slice(GATHERING_CARD.length)}`)
+                          : setPreviewTarget({ kind: 'activity', id })
+                      }
                     />
                   </div>
                 </div>

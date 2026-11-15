@@ -19,6 +19,17 @@ export function useActivityGatherings(activityId: string, enabled = true) {
   })
 }
 
+/** Opportunity Radar (12 §5b): joinable gatherings with reasons, and joined ones that need people. */
+export function useMyOpportunities(enabled = true, limit = 10) {
+  return useQuery({
+    queryKey: useViewerKey([...keys.gatherings, 'opportunities', limit]),
+    enabled,
+    staleTime: 30_000,
+    queryFn: async ({ signal }) =>
+      apiData(await getApiClient().GET('/me/opportunities', { params: { query: { limit } }, signal })).data,
+  })
+}
+
 export function usePublicGatherings(filter: { when?: 'NOW' | 'UPCOMING'; locality?: string; enabled?: boolean } = {}) {
   return useQuery({
     queryKey: useViewerKey([...keys.gatherings, 'public', filter.when ?? 'UPCOMING', filter.locality ?? null]),

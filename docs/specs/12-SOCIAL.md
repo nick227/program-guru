@@ -82,6 +82,30 @@ Consolidated persistence: `packages/db/prisma/schema.prisma`. `entityKind`/`enti
 
 
 
+## 5b. Opportunity Radar (approved 2026-11-15)
+
+Answers "what's something worthwhile I can actually do, with the right people, at the right time?" from real records, with a stated reason for every suggestion. No scoring model, no new engine.
+
+**`GET /me/opportunities?limit`** (signed in; `limit` ≤ 20, default 10) returns two lists:
+
+- **`recommendations`**: upcoming gatherings (10 §9) the viewer can join. Each has `reasons` (one or more, in tier order), `fitsSchedule`, and `calendarItemId` (the viewer's own item that joining would reuse, when one exists). Tiers, best first:
+  1. **On your Calendar**: a planned item of the same Activity on the same day that is not in any group ("You have Walk Outdoors on Sat; 3 people are doing it at 9:00 AM").
+  2. **In your Program**: the Activity is in one of the viewer's active enrollments ("Part of 30-Day Wellness").
+  3. **People you've done things with**: its owner or a member shared an earlier gathering with the viewer ("Sam, from an earlier gathering, is going").
+  4. **Your interests**: its Domain matches Activities the viewer has completed ("You've done 4 Arts & Creativity Activities").
+  Within a tier, soonest first; deduplicated by gathering id; a gathering with no reason is never shown.
+- **`needsPeople`**: gatherings the viewer has joined that have a capacity and open spots, with `openSpots`. A separate participation prompt whose only action is Share; never a recommendation to join.
+
+**Eligibility.** Recommendations include only public, open gatherings, or private ones with a pending invitation addressed to the viewer (Do It Again); never past, full, closed, already joined, owned by a user who blocks or is blocked by the viewer, or on an unpublished or moderated Activity. A gathering whose time is within an hour of one of the viewer's timed Calendar items on the same day (other than the item it would reuse) is excluded as a conflict; date-only gatherings never conflict. Co-participant signals use only gatherings both people were members of, minus blocks.
+
+**Bounds.** At most 200 candidate gatherings in the next 84 days; viewer signals from at most 84 days of Calendar items, active enrollments and 500 completed items; full gathering summaries only for returned items.
+
+**Surfaces.** One primary action each: a recommendation's is **Join** (reusing `calendarItemId` when present, then opening the viewer's occurrence); a needs-people item's is **Share**.
+- **Home Agent:** "Do something together" leads with the top recommendation and its reasons; "See another" moves through the list; with none, the existing Program-session results follow unchanged. No new Agent action.
+- **Home rail:** "Things to do" starts with up to two recommendations, then the existing varied Activities; a needs-people prompt appears above it.
+
+## 6. Notifications and reminders
+
 Notification **indicator overlays user widget** in Calendar header with an unread count badge, 30-second background polling, window-focus refresh, and immediate invalidation after mutations. The header Bell dropdown stays compact: latest 6 grouped entries with `All`, `Direct`, and `Groups` quick filters, inline Accept/Decline for follow requests and group invitations (when pending and authorized), and links to `/notifications` and `/settings`. `/notifications` is the full Notification Center with server-side filters, cursor pagination, real avatar stacks, and expandable grouped entries.
 
 **Grouping:** Related reactions (`COMPLETION_REACTION`), comments (`COMPLETION_COMMENT`, `GROUP_MEDIA_COMMENT`), and group participation events (`COMPLETION_SHARED`, `GROUP_MEDIA_SHARED`, `MEMBER_JOINED`) are grouped server-side before pagination by recipient, event family, target entity, and a bounded time window (6 hours). Each grouped entry preserves all underlying notification `ids`, accurate `unreadCount`, distinct `actors` (for avatar stacks), and underlying `items` for expansion. Marking a grouped entry read marks all of its underlying `ids` read.

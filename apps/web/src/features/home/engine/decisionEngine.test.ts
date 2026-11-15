@@ -412,3 +412,37 @@ describe('resolveTurn', () => {
   })
 })
 
+
+describe('Opportunity Radar in "Do something together" (12 §5b)', () => {
+  const opportunity = (id: string, label: string) =>
+    ({
+      gathering: {
+        id,
+        activity: { id: `act-${id}`, title: 'Swim at Barton Springs', thumbnailUrl: null },
+        localDate: '2026-12-12',
+        localTime: '18:00',
+        place: { name: 'Barton Springs Pool', locality: 'Austin' },
+        memberCount: 2,
+        members: [],
+      },
+      reasons: [{ kind: 'ON_YOUR_CALENDAR', label }],
+      fitsSchedule: true,
+      calendarItemId: 'item-1',
+    }) as unknown as NonNullable<HomeSignals['opportunities']>[number]
+
+  it('leads with the top recommendation, its reasons, and one Join action that reuses the item', () => {
+    const turn = resolveTurn('together_result', { excludedIds: [] }, makeBaseSignals({ opportunities: [opportunity('g1', 'You have Swim on Sat')] }))
+    expect(turn.question).toBe('Swim at Barton Springs, Sat, Dec 12 · 6:00 PM')
+    expect(turn.contextLine).toBe('You have Swim on Sat')
+    expect(turn.choices[0]).toMatchObject({ label: 'Join', effect: { type: 'execute', action: { type: 'join_gathering', gatheringId: 'g1', calendarItemId: 'item-1' } } })
+    expect(turn.choices.filter((c) => c.variant === 'primary')).toHaveLength(1)
+  })
+
+  it('"See another" moves through the list; with none left, the existing fallback follows', () => {
+    const signals = makeBaseSignals({ opportunities: [opportunity('g1', 'a'), opportunity('g2', 'b')] })
+    expect(resolveTurn('together_result', { excludedIds: ['g1'] }, signals).card?.id).toBe('g2')
+    const fallback = resolveTurn('together_result', { excludedIds: ['g1', 'g2'] }, signals)
+    expect(fallback.card?.kind ?? null).not.toBe('session')
+    expect(resolveTurn('together_result', { excludedIds: [] }, makeBaseSignals()).choices.some((c) => c.id === 'join-gathering')).toBe(false)
+  })
+})

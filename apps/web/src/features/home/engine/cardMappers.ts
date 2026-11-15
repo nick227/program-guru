@@ -166,3 +166,20 @@ export function mapCreatorToCard(creator: S['UserSummary']): AssistantCard {
     },
   }
 }
+
+/** An Opportunity Radar recommendation (12 §5b): one primary action, Join, reusing the viewer's item. */
+export function mapOpportunityToCard(o: S['Opportunity'], when: string): AssistantCard {
+  const g = o.gathering
+  return {
+    kind: 'session',
+    id: g.id,
+    title: g.activity.title,
+    subtitle: [when, g.place ? `${g.place.name}, ${g.place.locality}` : null].filter(Boolean).join(' · '),
+    thumbnailUrl: g.activity.thumbnailUrl,
+    participants: g.members.length
+      ? { label: 'Going', count: g.memberCount, users: g.members }
+      : undefined,
+    previewTarget: { kind: 'activity', id: g.activity.id },
+    primaryAction: { type: 'join_gathering', gatheringId: g.id, calendarItemId: o.calendarItemId },
+  }
+}

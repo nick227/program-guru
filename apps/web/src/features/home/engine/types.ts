@@ -43,6 +43,7 @@ export type CardAction =
   | { type: 'move_to_tomorrow'; itemId: string; title: string; updatedAt: string }
   | { type: 'open_calendar' }
   | { type: 'open_browse' }
+  | { type: 'join_gathering'; gatheringId: string; calendarItemId: string | null }
 
 export interface ParticipantGroup {
   label: string
@@ -138,6 +139,8 @@ export interface HomeSignals {
   /** All owned or previously joined Programs; null until the personal library resolves. */
   knownProgramIds?: string[] | null
   liveSessions: S['DiscoverItem'][]
+  /** Opportunity Radar recommendations (12 §5b), best tier first. */
+  opportunities?: S['Opportunity'][]
   popularPrograms: S['DiscoverItem'][]
   newPrograms: S['DiscoverItem'][]
   activities: S['DiscoverItem'][]

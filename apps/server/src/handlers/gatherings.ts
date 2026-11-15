@@ -1,6 +1,7 @@
 // Standalone Activity gatherings (10-COLLABORATION §9).
 import { requireUser, resolveViewer } from '../lib/auth'
 import * as gatherings from '../domains/groups/gathering.service'
+import { opportunities } from '../domains/groups/opportunity.service'
 
 const uid = (request: any) => requireUser(request).id
 const viewerId = async (request: any) => (await resolveViewer(request))?.id ?? null
@@ -31,4 +32,8 @@ export async function repeatGathering(request: any) {
 }
 export async function createGatheringLink(request: any) {
   return { data: await gatherings.createLink(uid(request), request.params.gatheringId) }
+}
+
+export async function listMyOpportunities(request: any) {
+  return { data: await opportunities(uid(request), request.query) }
 }
