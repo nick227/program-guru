@@ -141,15 +141,17 @@ export function rankHomeSignals(
     }
   }
 
-  // Tier 2 (12 §5c): a Program from a creator the viewer follows, then a personalized one (Following
-  // or Your interests), then the newest Program. Each says truthfully why it is here.
+  // Tier 2 (12 §5c): the FOR_YOU order (Following, Your interests, then Explore across Domains) with
+  // its truthful reason, so a new account's first suggestion is varied rather than whatever was
+  // published last. "Another idea" excludes what was shown and continues down the same order.
+  // Followed creators' newest, then the newest Program, only when FOR_YOU has nothing eligible.
   if (signals.isSignedIn) {
     const eligible = (item: S['DiscoverItem']) =>
       !!item.program && !excluded.has(item.program.id) && canSuggestNewProgram(item.program, signals)
-    const followed = (signals.followedPrograms ?? []).find(eligible)
-    const personal = followed ? undefined : (signals.forYouPrograms ?? []).find((i) => eligible(i) && i.reason?.kind !== 'EXPLORE')
-    const freshProgram = followed ?? personal ?? signals.newPrograms.find(eligible)
-    const reason = followed ? followedReason(followed) : personal?.reason ?? null
+    const forYou = (signals.forYouPrograms ?? []).find(eligible)
+    const followed = forYou ? undefined : (signals.followedPrograms ?? []).find(eligible)
+    const freshProgram = forYou ?? followed ?? signals.newPrograms.find(eligible)
+    const reason = forYou ? forYou.reason ?? null : followed ? followedReason(followed) : null
     if (freshProgram?.program) {
       const voice = phraseProgramTurn(
         freshProgram.program,

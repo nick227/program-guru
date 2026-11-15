@@ -118,6 +118,8 @@ Within the existing UI (no layout changes), `GET /discover?kind=PROGRAM` gains:
   Bounded: at most 300 candidates, 500 follows and 500 completed items read per request.
 - **`RELEVANT`** (default): rank score, then newest; the unconditional platform-first term is removed.
 
+**Home's first suggestion and Community Following (approved 2026-11-15).** When nothing on the viewer's Calendar leads, Home's first signed-in Program suggestion walks the `FOR_YOU` order with its reason, and "Another idea" continues down it, so a new account sees varied established and new Programs across Domains rather than whatever was published last. The newest Program (labelled "New") appears only when `FOR_YOU` returns nothing eligible. Home claims progress ("You've been working on…") only after a completion or recorded participation; before that it names the Program's first scheduled Activity. Community's existing Creator filter gains **Following** (signed in, Programs) through `creatorScope=FOLLOWING`; the owner's "N following" profile count links to it. Home gains no Following control. Profiles stay private by default; nothing changes privacy automatically.
+
 **Public outcomes (rule; nothing published yet).** A completion percentage such as "68% finished week 1" may be shown only when enough eligible participants have actually reached the end of that period (the denominator is participants whose week 1 has ended, not sign-ups). Below that threshold, show counts ("8 people finished week 1") only when they meet the privacy minimum (§10); otherwise nothing. Recommendation reasons never cite outcomes.
 
 ## 6. Notifications and reminders

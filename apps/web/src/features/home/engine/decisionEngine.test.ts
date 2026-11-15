@@ -465,13 +465,21 @@ describe('discovery quality on Home (12 §5c)', () => {
     expect(turn.contextLine).toBe('From Maya, who you follow')
   })
 
-  it('without follows, a personalized reason leads; Explore-only cold start keeps the plain new-Program fallback', () => {
+  it('the first signed-in suggestion walks FOR_YOU with its reason; cold start uses Explore, not the newest Program', () => {
     const interest = programItem('p-int', 'Sketch Daily', { reason: { kind: 'YOUR_INTERESTS', label: 'Matches your Sketching Activities' } })
     expect(rankHomeSignals({ ...base, forYouPrograms: [interest] }).contextLine).toBe('Matches your Sketching Activities')
     const explore = programItem('p-exp', 'Explore Me', { reason: { kind: 'EXPLORE', label: 'Explore Fitness' } })
-    const cold = rankHomeSignals({ ...base, forYouPrograms: [explore], newPrograms: [programItem('p-new', 'Brand New')] })
-    expect(cold.card?.id).toBe('p-new')
-    expect(cold.question).toBe('New: Brand New')
+    const explore2 = programItem('p-exp2', 'Next Domain', { reason: { kind: 'EXPLORE', label: 'New in Music' } })
+    const cold = rankHomeSignals({ ...base, forYouPrograms: [explore, explore2], newPrograms: [programItem('p-new', 'Brand New')] })
+    expect(cold.card?.id).toBe('p-exp')
+    expect(cold.contextLine).toBe('Explore Fitness')
+    expect(cold.question).not.toMatch(/^New:/)
+    // Another idea continues down the same order, still with a reason.
+    const next = rankHomeSignals({ ...base, forYouPrograms: [explore, explore2], newPrograms: [programItem('p-new', 'Brand New')] }, ['p-exp'])
+    expect([next.card?.id, next.contextLine]).toEqual(['p-exp2', 'New in Music'])
+    // Only with no FOR_YOU result does the newest Program appear, labelled New.
+    const empty = rankHomeSignals({ ...base, forYouPrograms: [], newPrograms: [programItem('p-new', 'Brand New')] })
+    expect([empty.card?.id, empty.question]).toEqual(['p-new', 'New: Brand New'])
   })
 
   it('"Start a Program" picks For You first and shows its reason; already-known Programs are skipped', () => {
