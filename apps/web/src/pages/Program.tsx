@@ -19,6 +19,8 @@ import {
   useUpdateProgramVisibility,
 } from '@project/sdk'
 import { toast } from 'sonner'
+import { CalendarDays } from 'lucide-react'
+import { useFirstScheduledDayUrl } from '@/lib/useFirstScheduledDay'
 import { Page, Stage } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
@@ -156,6 +158,7 @@ export function ProgramPage() {
   const join = useJoinProgram(id)
   const enrollmentId = p?.myEnrollmentId || entry?.current?.id || ''
   const enrollment = useEnrollment(enrollmentId)
+  const firstDayUrl = useFirstScheduledDayUrl(id ?? '', signedIn)
   const enrollmentAction = usePersonalEnrollmentAction()
   const acceptUpdate = useAcceptEnrollmentUpdate(enrollmentId)
   const dismissUpdate = useDismissEnrollmentUpdate(enrollmentId)
@@ -497,7 +500,15 @@ export function ProgramPage() {
             primaryLoading={join.isPending}
             primaryDone={added}
             primaryNote={
-              runStarts.length > 0 && (
+              (added && firstDayUrl) || runStarts.length > 0 ? (
+                <>
+                  {added && firstDayUrl && (
+                    <Link to={firstDayUrl} className="btn btn--outline btn--sm self-start">
+                      <CalendarDays size={14} aria-hidden />
+                      View Calendar
+                    </Link>
+                  )}
+                  {runStarts.length > 0 && (
                 <nav aria-label="Previous runs" className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
                   <span className="mr-0.5 font-medium text-muted">Runs</span>
                   {runStarts.map((run) => (
@@ -511,7 +522,9 @@ export function ProgramPage() {
                     </Link>
                   ))}
                 </nav>
-              )
+                  )}
+                </>
+              ) : null
             }
             shareUrl={publicUrl}
             onEditProgram={

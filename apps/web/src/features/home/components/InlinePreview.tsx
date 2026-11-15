@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { ArrowLeft, CalendarPlus, ExternalLink, Play, UserPlus } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CalendarPlus, ExternalLink, Play, UserPlus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { useFirstScheduledDayUrl } from '@/lib/useFirstScheduledDay'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -88,6 +90,7 @@ function ProgramPreviewBody({
   const join = useJoinProgram(programId)
   const library = useProgramLibrary(isSignedIn)
   const [joined, setJoined] = useState(false)
+  const firstDayUrl = useFirstScheduledDayUrl(programId, joined)
 
   const prog = query.data
   if (query.isPending) {
@@ -164,7 +167,16 @@ function ProgramPreviewBody({
           <span>{join.isPending ? 'Joining…' : 'Join Program'}</span>
         </button>
       )}
-      {(joined || alreadyKnown) && (
+      {joined && firstDayUrl ? (
+        // Right after starting: go to the Program's first scheduled Activity (item 7).
+        <Link
+          to={firstDayUrl}
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-105"
+        >
+          <CalendarDays size={15} aria-hidden />
+          View Calendar
+        </Link>
+      ) : (joined || alreadyKnown) && (
         <span className="inline-flex min-h-10 items-center rounded-full border border-accent/40 bg-accent/15 px-4 py-2 text-xs font-semibold text-accent">
           {prog.viewerAccess === 'OWNER' ? 'Created by you' : 'In your Programs'}
         </span>
