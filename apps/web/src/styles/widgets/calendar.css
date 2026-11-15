@@ -184,6 +184,12 @@
   box-shadow: none;
 }
 
+/* Wide dialog cells would be square and tall; keep rows compact. */
+.calendar-datepicker--inline .calendar-datepicker__day {
+  aspect-ratio: auto;
+  height: 2.25rem;
+}
+
 .calendar-datepicker__header {
   display: flex;
   align-items: center;
