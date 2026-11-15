@@ -41,7 +41,7 @@ export function DiscoveryCard({
     >
       <EntityHero hero={item.hero} size="card" className="aspect-hero rounded-none" />
       <span className="flex min-w-0 flex-col gap-1 p-3 sm:p-4">
-        <span className="line-clamp-2 text-base font-semibold leading-snug text-foreground">{item.title}</span>
+        <span className="line-clamp-1 text-base font-semibold leading-snug text-foreground">{item.title}</span>
         {item.byline && <span className="truncate text-sm text-muted">{item.byline}</span>}
         <span className="truncate text-sm text-muted">{item.meta}</span>
       </span>

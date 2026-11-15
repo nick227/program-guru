@@ -179,6 +179,7 @@ export function CalendarPage() {
       unreadCount: item.unreadCount,
       recurrenceId: item.recurrenceId,
       updatedAt: item.updatedAt,
+      completionOpensAt: item.completionOpensAt,
       href: `/occurrences/${item.id}?returnTo=${encodeURIComponent(origin)}`,
     }
   })

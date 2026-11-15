@@ -15,6 +15,7 @@ import { UnreadDot } from '@/components/shared/UnreadDot'
 import { resolveActivityCategory, type ActivityCategory } from '@/lib/activityCategory'
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
 import { cn } from '@/lib/utils'
+import { completionOpen } from '@/lib/completionWindow'
 
 export type ActivityTileDensity = 'pill' | 'card' | 'timeblock' | 'month' | 'day'
 
@@ -42,6 +43,8 @@ export type ActivityTileItem = {
   unreadCount?: number
   recurrenceId?: string | null
   updatedAt?: string
+  /** When completion opens (09 §3); the quiet Complete button stays hidden until then. */
+  completionOpensAt?: string | null
 }
 
 export type ActivityTileProps = {
@@ -94,6 +97,7 @@ export function ActivityTile({
     !item.notParticipating &&
     item.status !== 'NOT_PARTICIPATING' &&
     !item.locked &&
+    completionOpen(item) &&
     (!item.status || item.status === 'PLANNED')
   const canAdjustTime =
     Boolean(onChangeTime) &&

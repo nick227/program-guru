@@ -40,6 +40,7 @@ import { formatRelativeTime } from '@/lib/dates'
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
 import { buildActivityUrl, buildGroupUrl } from '@/lib/urls'
 import { useMediaUploads } from '@/lib/useMediaUploads'
+import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { useOnline } from '@/lib/useOnline'
 import { cn } from '@/lib/utils'
 import type { SurfaceItem } from '@/lib/calendarGrouping'
@@ -281,11 +282,14 @@ function PanelBody({
   const communityStats = occurrence?.communityStats ?? null
   const collab = occurrence?.collaborators ?? null
 
+  // Completion opens on the item's day, or at a gathering's time (09 §3).
+  const opensLabel = item ? completionOpensLabel(item) : null
   const canComplete =
     !isDone &&
     !isLocked &&
     status !== 'NOT_PARTICIPATING' &&
-    status !== 'CANCELLED'
+    status !== 'CANCELLED' &&
+    (!item || completionOpen(item))
 
   const toggleHeart = (share: S['CompletionShare']) => {
     const emoji = '❤️'
@@ -369,14 +373,6 @@ function PanelBody({
               >
                 <span>{title}</span>
                 <ArrowUpRight size={14} className="shrink-0 opacity-75" aria-hidden />
-              </Link>
-              <Link
-                to={`/occurrences/${itemId}`}
-                className="shrink-0 p-1 text-muted transition-colors hover:text-foreground"
-                title="Open occurrence session"
-                aria-label="Open occurrence session"
-              >
-                <ArrowUpRight size={15} aria-hidden />
               </Link>
             </div>
             <div ref={timeWrapRef} className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
@@ -468,7 +464,7 @@ function PanelBody({
               className="calendar-panel__complete-btn"
             >
               <Check size={16} aria-hidden />
-              <span>{completing ? 'Saving...' : 'Mark as Complete'}</span>
+              <span>{completing ? 'Saving...' : opensLabel ?? 'Mark as Complete'}</span>
             </button>
           )}
         </div>

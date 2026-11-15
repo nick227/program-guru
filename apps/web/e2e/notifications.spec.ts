@@ -312,6 +312,7 @@ async function setupNotificationsMock(
           )
             ? 1
             : 0,
+          completionOpensAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-11-07T12:00:00Z',
         },
         // Pre-join item dated before participationStartDate -> NOT_PARTICIPATING (never Missed, never reminded)
@@ -333,6 +334,7 @@ async function setupNotificationsMock(
           place: null,
           participantAvatars: [],
           unreadCount: 0,
+          completionOpensAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-11-07T12:00:00Z',
         },
         // Duplicate occurrence on same date/time/activity/enrollment to verify deduplication
@@ -354,6 +356,7 @@ async function setupNotificationsMock(
           place: null,
           participantAvatars: [],
           unreadCount: 0,
+          completionOpensAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-11-07T12:00:00Z',
         },
       ] satisfies S['CalendarItem'][])
@@ -379,6 +382,7 @@ async function setupNotificationsMock(
           place: null,
           participantAvatars: [],
           unreadCount: 0,
+          completionOpensAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-11-07T12:00:00Z',
         },
         session: null,

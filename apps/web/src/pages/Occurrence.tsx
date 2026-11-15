@@ -58,6 +58,7 @@ import { buildActivityUrl } from '@/lib/urls'
 import { calendarUrl, dateLabel, safeReturn, today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
+import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { cn } from '@/lib/utils'
 
 type S = components['schemas']
@@ -550,6 +551,10 @@ function OccurrenceHero({
     },
     categorySlugOf,
   )
+  // Completion opens on the item's day, or at a gathering's time (09 §3); Start opens on the day.
+  const completionLocked = !completionOpen(o.item)
+  const opensLabel = completionOpensLabel(o.item)
+  const dayArrived = isToday || o.item.localDate < today(Intl.DateTimeFormat().resolvedOptions().timeZone)
   const dateText = isToday
     ? `${dateLabel(o.item.localDate)} (Today)`
     : dateLabel(o.item.localDate)
@@ -639,7 +644,7 @@ function OccurrenceHero({
                     <Button
                       size="lg"
                       className="activity-cta"
-                      disabled={disabled}
+                      disabled={disabled || !dayArrived}
                       loading={pendingButton === 'start'}
                       onClick={() => onPerform('START', 'start')}
                     >
@@ -649,7 +654,7 @@ function OccurrenceHero({
                     <Button
                       variant="outline"
                       size="lg"
-                      disabled={disabled}
+                      disabled={disabled || completionLocked}
                       loading={pendingButton === 'finish-no-timer'}
                       onClick={() => onPerform('FINISH', 'finish-no-timer')}
                     >
@@ -663,7 +668,7 @@ function OccurrenceHero({
                   <Button
                     size="lg"
                     className="activity-cta"
-                    disabled={disabled}
+                    disabled={disabled || completionLocked}
                     loading={pendingButton === 'finish'}
                     onClick={() => onPerform('FINISH', 'finish')}
                   >
@@ -676,7 +681,7 @@ function OccurrenceHero({
                   <Button
                     size="lg"
                     className="activity-cta"
-                    disabled={disabled}
+                    disabled={disabled || completionLocked}
                     loading={pendingButton === 'finish'}
                     onClick={() => onPerform('FINISH', 'finish')}
                   >
@@ -700,7 +705,7 @@ function OccurrenceHero({
                   <Button
                     size="lg"
                     className="activity-cta"
-                    disabled={disabled}
+                    disabled={disabled || completionLocked}
                     loading={pendingButton === 'finish'}
                     onClick={() => onPerform('FINISH', 'finish')}
                   >
@@ -743,6 +748,11 @@ function OccurrenceHero({
                 </Button>
               )}
             </div>
+            {opensLabel && phase !== 'completed' && (
+              <p className="text-sm text-muted" role="note">
+                {opensLabel}
+              </p>
+            )}
             <div className="activity-session__tools">
               <Button variant="outline" disabled={!online} onClick={onUploadMedia}>
                 <Upload size={16} aria-hidden />

@@ -194,6 +194,7 @@ describe('rankHomeSignals', () => {
           place: null,
           participantAvatars: [],
           unreadCount: 0,
+          completionOpensAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-11-12T08:00:00Z',
         },
       ],
@@ -312,6 +313,7 @@ describe('resolveTurn', () => {
       place: null,
       participantAvatars: [],
       unreadCount: 0,
+      completionOpensAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-11-12T08:00:00Z',
     }
     const turn = resolveTurn(
@@ -390,6 +392,7 @@ describe('resolveTurn', () => {
             place: null,
             participantAvatars: [],
             unreadCount: 0,
+            completionOpensAt: '2026-01-01T00:00:00Z',
             updatedAt: '2026-11-12T08:00:00Z',
           },
         ],

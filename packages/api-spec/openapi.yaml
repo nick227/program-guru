@@ -10918,6 +10918,7 @@ components:
       - participantAvatars
       - unreadCount
       - place
+      - completionOpensAt
       - updatedAt
       properties:
         id:
@@ -10988,6 +10989,10 @@ components:
           type: array
           items:
             type: string
+        completionOpensAt:
+          type: string
+          format: date-time
+          description: When Finish is accepted (09 §3) — the start of the item's day in the owner's timezone, or a gathering's scheduled date and time. Clients disable completion until then.
         gatheringId:
           type: [string, 'null']
           format: uuid

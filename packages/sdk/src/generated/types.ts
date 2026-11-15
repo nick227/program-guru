@@ -2561,7 +2561,7 @@ export interface paths {
         };
         /**
          * Discover
-         * @description PUBLISHED, PUBLIC, not moderated. Programs rank by quality and recency (no platform-first term), or FOR_YOU with reasons (12-SOCIAL §5c); completion, and retention.
+         * @description PUBLISHED, PUBLIC, not moderated. RELEVANT ranks Programs by completion and retention, then recency, with no platform-first term; FOR_YOU adds one truthful reason per item (12-SOCIAL §5c).
          */
         get: operations["discover"];
         put?: never;
@@ -4299,6 +4299,11 @@ export interface components {
             /** @description Measured session duration at fetch time, never an estimated target duration. */
             activeSeconds?: number | null;
             participantAvatars: string[];
+            /**
+             * Format: date-time
+             * @description When Finish is accepted (09 §3) — the start of the item's day in the owner's timezone, or a gathering's scheduled date and time. Clients disable completion until then.
+             */
+            completionOpensAt: string;
             /**
              * Format: uuid
              * @description Set while this item is the member's occurrence of a gathering (10 §9).

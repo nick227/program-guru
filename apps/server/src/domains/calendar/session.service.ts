@@ -6,7 +6,8 @@ import { withIdempotency } from '../../lib/idempotency'
 import { enqueue } from '../../lib/outbox'
 import { canUseActivity, isOwner as isActivityOwner } from '../activities/access'
 import { achievementInclude, evaluate, toAchievement } from './achievements'
-import { itemDto } from './calendar.service'
+import { itemDto, userTimezone } from './calendar.service'
+import { assertCanComplete, assertCanStart } from './completionWindow'
 import { ownerThumb } from '../media/media.service'
 import { itemGroupId } from '../groups/itemGroup'
 
@@ -71,6 +72,16 @@ export async function act(userId: string, sessionId: string, input: { action: Ac
     const s = await ownSession(tx, userId, sessionId)
     if (s.revision !== input.expectedRevision) throw versionConflict('This activity changed on another screen. Reload to continue.')
     const now = new Date()
+    // Completion opens on the item's day, or at the gathering's time (09 §3); Start on the day.
+    if (s.calendarItemId && (input.action === 'START' || input.action === 'FINISH')) {
+      const item = await tx.calendarItem.findUniqueOrThrow({
+        where: { id: s.calendarItemId },
+        select: { localDate: true, gatheringId: true, gathering: { select: { startLocalDate: true, startLocalTime: true, timezone: true } } },
+      })
+      const tz = await userTimezone(userId)
+      if (input.action === 'START') assertCanStart(item, tz, now)
+      else assertCanComplete(item, tz, now)
+    }
     let data: Prisma.ActivitySessionUpdateInput
     switch (`${s.status}:${input.action}`) {
       case 'READY:START':

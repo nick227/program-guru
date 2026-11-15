@@ -13,6 +13,7 @@ import { evaluate } from './achievements'
 import { assertActivePlace, toPlace } from '../catalog/catalog.service'
 import { itemGroupId } from '../groups/itemGroup'
 import { departInTx } from '../groups/gathering.service'
+import { completionOpensAt } from './completionWindow'
 
 type Tx = Prisma.TransactionClient
 const MAX_RANGE_DAYS = 62
@@ -24,13 +25,14 @@ export async function userTimezone(userId: string) {
 const itemInclude = {
   enrollment: { include: { program: { include: { policy: true } }, version: true, group: true } },
   place: true,
-  gathering: { select: { id: true, name: true, activity: { select: { title: true } } } },
+  gathering: { select: { id: true, name: true, startLocalDate: true, startLocalTime: true, timezone: true, activity: { select: { title: true } } } },
 } satisfies Prisma.CalendarItemInclude
 type ItemRow = Prisma.CalendarItemGetPayload<{ include: typeof itemInclude }>
 
 /** Projects items for display: titles, thumbnails, conflicts, lock state, group signals. */
 export async function toCalendarItems(userId: string, items: ItemRow[]) {
   const revs = await loadCalendarRevisions(items.map((i) => i.activityRevisionId))
+  const ownerTz = await userTimezone(userId)
   // Locked: Program content requires an entitlement the user no longer has (subscription lapsed).
   const lockedProgramIds = new Set(
     items
@@ -122,6 +124,7 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
       unreadCount: i.groupOccurrenceKey ? unreadByKey.get(i.groupOccurrenceKey) ?? 0 : 0,
       place: i.place ? toPlace(i.place) : null,
       gatheringId: i.gatheringId,
+      completionOpensAt: completionOpensAt(i, ownerTz).toISOString(),
       updatedAt: i.updatedAt.toISOString(),
     }
   })

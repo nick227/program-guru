@@ -18,6 +18,7 @@ import {
   useUndoCompletion,
   type components,
 } from '@project/sdk'
+import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { MetricInput } from '@/components/activity/MetricInput'
 import { Avatar } from '@/components/ui/Avatar'
@@ -409,12 +410,13 @@ function ExecutionBody({
           <>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || !completionOpen(o.item)}
+              title={completionOpensLabel(o.item) ?? undefined}
               onClick={() => void perform('FINISH')}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-105 disabled:opacity-50"
             >
               <Check size={15} aria-hidden />
-              <span>{busy ? 'Saving…' : 'Finish'}</span>
+              <span>{busy ? 'Saving…' : completionOpensLabel(o.item) ?? 'Finish'}</span>
             </button>
             <button
               type="button"

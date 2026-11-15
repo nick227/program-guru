@@ -271,6 +271,8 @@ Every Program-group code path filters `kind: 'PROGRAM'` instead of relying on a 
 
 **Tests (G4):** solo Program item joins by reuse with enrollment, Program day and progress intact; a Program item on another date is not moved; a Program-group item is never attached (explicit id refused; auto-reuse skips it, creating a separate item); repeated joins return the same item; leaving keeps the Program item; a Calendar adjustment of a Program gathering item leaves the gathering and keeps the enrollment; repeat creates a new gathering for the repeater with the same settings and invites prior members, who can then see and join it privately; the two-person journey still passes.
 
+**No completion before the gathering (approved 2026-11-15).** A member cannot finish a gathering item before the gathering's scheduled date and time (09 §3, `completionOpensAt`), so a future gathering never reports anyone as finished.
+
 ### 9.12 Discovery associations and "Looking for" (approved 2026-11-15)
 
 Discovery-first, not coordination-first: the catalog connects relevant people with real gatherings; everyone joins with the same Join (§9.5). No roles, quotas, approvals or new participation states.
