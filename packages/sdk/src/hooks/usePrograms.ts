@@ -114,9 +114,10 @@ export function useDiscoverPrograms(
     getNextPageParam: (last) => last.meta.nextCursor ?? undefined,
   })
 }
-export function useMyPrograms(status?: S['ProgramStatus']) {
+export function useMyPrograms(status?: S['ProgramStatus'], enabled = true) {
   return useInfiniteQuery({
     queryKey: useViewerKey([...keys.mine, status ?? 'all']),
+    enabled,
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) =>
       apiData(

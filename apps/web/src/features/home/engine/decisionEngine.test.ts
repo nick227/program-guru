@@ -223,6 +223,38 @@ describe('rankHomeSignals', () => {
 })
 
 describe('resolveTurn', () => {
+  it('separates exploring from creating Programs (03-UX §2a)', () => {
+    const labels = (signals: Parameters<typeof makeBaseSignals>[0]) =>
+      resolveTurn('intent_menu', { excludedIds: [] }, makeBaseSignals(signals)).choices.map((c) => c.label)
+    expect(labels({})).toEqual(expect.arrayContaining(['Explore Activities', 'Explore Programs', 'Create a Program']))
+    expect(labels({})).not.toContain('Start a Program')
+    expect(labels({})).not.toContain('Continue editing')
+    const withDraft = labels({ drafts: [{ id: 'd1', title: 'My Draft' } as never] })
+    expect(withDraft).toContain('Continue editing')
+
+    // Explore Programs recommends existing Programs; it never speaks of a new one.
+    const goal = resolveTurn('program_goal', { excludedIds: [] }, makeBaseSignals())
+    expect(goal.question).not.toMatch(/new Program/i)
+    // Create a Program opens the builder with a clean state.
+    const create = resolveTurn('intent_menu', { excludedIds: [] }, makeBaseSignals()).choices.find((c) => c.label === 'Create a Program')
+    expect(create?.effect).toEqual({ type: 'transition', nodeId: 'create_program', patch: { builder: {} } })
+  })
+
+  it('resumes a draft in the builder from Continue editing', () => {
+    const turn = resolveTurn(
+      'continue_editing',
+      { excludedIds: [] },
+      makeBaseSignals({ drafts: [{ id: 'd1', title: 'Strength Base' } as never, { id: 'd2', title: '' } as never] }),
+    )
+    expect(turn.card).toBeUndefined()
+    expect(turn.choices.map((c) => c.label)).toEqual(['Strength Base', 'Untitled Program', 'Create a new Program'])
+    expect(turn.choices[0]!.effect).toEqual({
+      type: 'transition',
+      nodeId: 'create_program',
+      patch: { builder: { programId: 'd1', step: 'activities' } },
+    })
+  })
+
   it('filters activities by time window in Do something now flow', () => {
     const turn = resolveTurn(
       'now_result',

@@ -428,7 +428,7 @@ export function rankHomeSignals(
       },
       {
         id: 'program',
-        label: 'Start a Program',
+        label: 'Explore Programs',
         variant: 'secondary',
         effect: { type: 'transition', nodeId: 'program_goal' },
       },

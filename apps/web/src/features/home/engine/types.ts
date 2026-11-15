@@ -19,6 +19,9 @@ export type FlowNodeId =
   | 'continue_result'
   | 'explore_interest'
   | 'explore_result'
+  /** Guided inline authoring of a new or resumed Program draft (03-UX §2a). */
+  | 'create_program'
+  | 'continue_editing'
 
 export type PresentationMode = 'for_you' | 'happening_now' | 'popular' | 'following'
 
@@ -137,6 +140,18 @@ export interface DiscoveryState {
   preferPopular?: boolean
   lastCompletedTitle?: string
   excludedIds: string[]
+  /** Home's Create a Program builder; saved with the conversation so Back, Next and reload keep it. */
+  builder?: ProgramBuilderState
+}
+
+export interface ProgramBuilderState {
+  /** Set once the draft exists; before that the Add Program form shows. */
+  programId?: string
+  /** The Program type chosen in the form, before the draft exists. */
+  typeId?: string
+  step?: 'details' | 'activities' | 'publish'
+  /** The Activity library is open over the Activities step. */
+  picking?: boolean
 }
 
 export interface EnrollmentSummary {
@@ -152,6 +167,8 @@ export interface EnrollmentSummary {
 
 export interface HomeSignals {
   isSignedIn: boolean
+  /** The viewer's Program drafts (Continue editing), newest first. */
+  drafts?: S['ProgramSummary'][]
   todayItems: S['CalendarItem'][]
   activeEnrollments: EnrollmentSummary[]
   /** All owned or previously joined Programs; null until the personal library resolves. */

@@ -13,6 +13,7 @@ import {
   useMyOpportunities,
   useDiscoverPrograms,
   useProgramLibrary,
+  useMyPrograms,
   usePublicGatherings,
 } from '@project/sdk'
 import { useDocumentTitle } from '@/lib/title'
@@ -20,6 +21,7 @@ import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { interleaveUnique, pickAcrossDomains } from '@/lib/activityRange'
 import { ScheduleDialog } from '@/components/schedule/AddToSchedule'
 import { HomeTopBar } from '@/features/home/components/HomeTopBar'
+import { InlineProgramBuilder } from '@/features/home/components/InlineProgramBuilder'
 import { PresentationSurface } from '@/features/home/components/PresentationSurface'
 import { ShowMeView } from '@/features/home/components/ShowMeView'
 import { TransitionSurface } from '@/features/home/components/TransitionSurface'
@@ -134,6 +136,8 @@ export function HomePage() {
   // Compose existing SDK hooks client-side for P1
   const calendar = useCalendar(today, today, isSignedIn)
   const library = useProgramLibrary(isSignedIn)
+  // Continue editing (03-UX §2a): the viewer's Program drafts.
+  const drafts = useMyPrograms('DRAFT', isSignedIn)
   const categories = useCategories()
   const liveSessions = useDiscoverPrograms({
     timing: 'HAPPENING_NOW',
@@ -240,6 +244,7 @@ export function HomePage() {
       popularPrograms: popularPrograms.data?.pages.flatMap((p) => p.data) ?? [],
       newPrograms: newPrograms.data?.pages.flatMap((p) => p.data) ?? [],
       activities: mergedActivities,
+      drafts: drafts.data?.pages.flatMap((p) => p.data) ?? [],
       creators: creators.data?.pages.flatMap((p) => p.data) ?? [],
       // `custom` is the authoring fallback, never a discovery Domain (02-DOMAIN §2).
       categories: (categories.data ?? []).filter((c) => c.slug !== 'custom').map((c) => ({
@@ -259,6 +264,7 @@ export function HomePage() {
       popularPrograms.data,
       newPrograms.data,
       mergedActivities,
+      drafts.data,
       creators.data,
       categories.data,
     ],
@@ -592,6 +598,9 @@ export function HomePage() {
     [],
   )
 
+  // Create a Program replaces the conversation while it is open; exploring and creating never overlap.
+  const building = nodeId === 'create_program' && !previewTarget && !executionItemId
+
   // Home's Activity surfer shows only on the Agent's opening turn, with nothing open over it (03-UX §2a).
   const surferVisible =
     nodeId === 'opening' && turn.nodeId === 'opening' && !previewTarget && !executionItemId && !showMeOpen
@@ -654,6 +663,17 @@ export function HomePage() {
         id="main"
         className="flex flex-1 flex-col"
       >
+        {building ? (
+          <InlineProgramBuilder
+            builder={state.builder ?? {}}
+            onChange={(builder) => setState((prev) => ({ ...prev, builder }))}
+            onExit={() => (history.length > 0 ? handleBack() : handleReset())}
+            onPublished={(programId) => {
+              handleReset()
+              setPreviewTarget({ kind: 'program', id: programId })
+            }}
+          />
+        ) : (
         <div
           className={
             previewTarget?.kind === 'group' || previewTarget?.kind === 'session'
@@ -695,6 +715,7 @@ export function HomePage() {
           />
           </TransitionSurface>
         </div>
+        )}
       </main>
       {scheduleTarget && (
         <ScheduleDialog

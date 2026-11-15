@@ -129,18 +129,35 @@ function resolveIntentMenu(signals: HomeSignals): AssistantTurn {
       signals.activeEnrollments.some((e) => e.status === 'ACTIVE'))
 
   const choices: AssistantTurn['choices'] = [
+    // Four separate intents (03-UX §2a): exploring never creates, creating never recommends.
     {
       id: 'intent-now',
-      label: 'Do something now',
+      label: 'Explore Activities',
       variant: 'primary',
       effect: { type: 'transition', nodeId: 'now_time' },
     },
     {
       id: 'intent-program',
-      label: 'Start a Program',
+      label: 'Explore Programs',
       variant: 'secondary',
       effect: { type: 'transition', nodeId: 'program_goal' },
     },
+    {
+      id: 'intent-create',
+      label: 'Create a Program',
+      variant: 'secondary',
+      effect: { type: 'transition', nodeId: 'create_program', patch: { builder: {} } },
+    },
+    ...((signals.drafts?.length ?? 0) > 0
+      ? [
+          {
+            id: 'intent-drafts',
+            label: 'Continue editing',
+            variant: 'secondary' as const,
+            effect: { type: 'transition' as const, nodeId: 'continue_editing' as const },
+          },
+        ]
+      : []),
     {
       id: 'intent-together',
       label: 'Do something together',
@@ -365,6 +382,35 @@ function resolveNowResult(
   }
 }
 
+/** Resume a Program draft in Home's builder (03-UX §2a); never a recommendation. */
+function resolveContinueEditing(signals: HomeSignals): AssistantTurn {
+  const drafts = (signals.drafts ?? []).slice(0, 4)
+  return {
+    nodeId: 'continue_editing',
+    question: drafts.length ? 'Which draft do you want to keep building?' : 'You have no drafts.',
+    contextLine: drafts.length ? 'Drafts are saved as you go.' : 'Create a Program to start one.',
+    // No card: its preview would open a Program page, but a draft's only action here is to resume it.
+    choices: [
+      ...drafts.map((d, i) => ({
+        id: `draft-${d.id}`,
+        label: d.title || 'Untitled Program',
+        variant: (i === 0 ? 'primary' : 'secondary') as 'primary' | 'secondary',
+        effect: {
+          type: 'transition' as const,
+          nodeId: 'create_program' as const,
+          patch: { builder: { programId: d.id, step: 'activities' as const } },
+        },
+      })),
+      {
+        id: 'draft-new',
+        label: 'Create a new Program',
+        variant: 'secondary' as const,
+        effect: { type: 'transition' as const, nodeId: 'create_program' as const, patch: { builder: {} } },
+      },
+    ],
+  }
+}
+
 function resolveProgramGoal(signals: HomeSignals): AssistantTurn {
   const topCategories = signals.categories.slice(0, 3)
   if (topCategories.length === 0) {
@@ -373,8 +419,8 @@ function resolveProgramGoal(signals: HomeSignals): AssistantTurn {
 
   return {
     nodeId: 'program_goal',
-    question: 'What is your focus for a new Program?',
-    contextLine: 'I will narrow down Programs that match.',
+    question: 'What kind of Program are you looking for?',
+    contextLine: 'I will narrow down existing Programs that match.',
     choices: [
       ...topCategories.map((cat, idx) => ({
         id: `prog-cat-${cat.id}`,
@@ -991,7 +1037,7 @@ function resolveDaySchedule(signals: HomeSignals): AssistantTurn {
         },
         {
           id: 'start-prog',
-          label: 'Start a Program',
+          label: 'Explore Programs',
           variant: 'secondary',
           effect: { type: 'transition', nodeId: 'program_goal' },
         },
@@ -1188,5 +1234,14 @@ export function resolveTurn(
       return resolveExploreInterest()
     case 'explore_result':
       return resolveExploreResult(state, signals)
+    case 'create_program':
+      return {
+        nodeId: 'create_program',
+        question: 'Create a Program',
+        contextLine: 'Name it, add Activities, then publish or save the draft.',
+        choices: [],
+      }
+    case 'continue_editing':
+      return resolveContinueEditing(signals)
   }
 }
