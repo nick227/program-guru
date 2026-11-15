@@ -1264,6 +1264,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     tags: selectedTags.length ? selectedTags : undefined,
     sort,
     timing: timing !== 'ALL' ? timing : undefined,
+    creatorScope: creator === 'FOLLOWING' ? 'FOLLOWING' : undefined,
     enabled: mode.kind === 'programs' && !isMyGroups,
   })
 
@@ -1373,7 +1374,8 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     durationMinutes?: number | null
   }) =>
     !excluded.has(item.id) &&
-    (creator === 'ALL' || (creator === 'PLATFORM') === item.isPlatform) &&
+    // FOLLOWING is already applied by the server; Activities have no follow scope.
+    (creator === 'ALL' || creator === 'FOLLOWING' || (creator === 'PLATFORM') === item.isPlatform) &&
     matchesBrowseDuration(duration, mode.kind, item)
 
   const mapProgramItem = (
@@ -1738,7 +1740,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   if (creator !== 'ALL') {
     activeFilterChips.push({
       key: 'creator',
-      label: creator === 'PLATFORM' ? 'Platform' : 'Community',
+      label: creator === 'PLATFORM' ? 'Platform' : creator === 'FOLLOWING' ? 'Following' : 'Community',
       onRemove: () => setParam(BROWSE_PARAM.creator, 'ALL', 'ALL'),
     })
   }
@@ -2122,6 +2124,10 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                         { value: 'ALL', label: 'All creators' },
                         { value: 'PLATFORM', label: 'Platform' },
                         { value: 'COMMUNITY', label: 'Community' },
+                        // People you actually follow (12 §5c); Programs only, signed in only.
+                        ...(me.data && mode.kind === 'programs'
+                          ? [{ value: 'FOLLOWING' as const, label: 'Following' }]
+                          : []),
                       ]}
                       value={creator}
                       onChange={(value) =>
@@ -2742,11 +2748,17 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                       <div className="pt-4">
                         <EmptyState
                           level={3}
-                          title={`No ${nounPlural} match these filters`}
+                          title={
+                            creator === 'FOLLOWING' && mode.kind === 'programs'
+                              ? 'No Programs from people you follow'
+                              : `No ${nounPlural} match these filters`
+                          }
                           description={
-                            filtered
-                              ? 'Try adjusting your search or clearing a filter.'
-                              : undefined
+                            creator === 'FOLLOWING' && mode.kind === 'programs'
+                              ? 'Follow creators from their profile to see their Programs here. Private profiles count once they accept.'
+                              : filtered
+                                ? 'Try adjusting your search or clearing a filter.'
+                                : undefined
                           }
                           action={
                             <div className="flex flex-wrap items-center justify-center gap-3">

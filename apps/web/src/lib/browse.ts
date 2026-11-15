@@ -6,7 +6,8 @@ type ProgramLevel = components['schemas']['ProgramLevel']
 
 export type BrowseKind = 'programs' | 'activities'
 export type BrowsePick = 'program' | 'activity'
-export type BrowseCreator = 'ALL' | 'PLATFORM' | 'COMMUNITY'
+/** FOLLOWING is applied by the server (12 §5c, `creatorScope`), and only to Programs. */
+export type BrowseCreator = 'ALL' | 'PLATFORM' | 'COMMUNITY' | 'FOLLOWING'
 export type BrowseDuration = '' | 'short' | 'medium' | 'long' | 'ongoing'
 export type BrowseTiming = 'ALL' | 'STARTING_SOON'
 

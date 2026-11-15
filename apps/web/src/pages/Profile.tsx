@@ -228,10 +228,21 @@ export function ProfilePage() {
                     {p.followerCount}{' '}
                     {p.followerCount === 1 ? 'follower' : 'followers'}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-2.5 py-1 text-foreground">
-                    <UserCheck size={14} className="text-accent" />
-                    {p.followingCount} following
-                  </span>
+                  {isOwner ? (
+                    // Your own following list: the Community Creator filter (12 §5c).
+                    <Link
+                      to="/browse?creator=FOLLOWING"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-2.5 py-1 text-foreground transition-colors hover:text-accent"
+                    >
+                      <UserCheck size={14} className="text-accent" />
+                      {p.followingCount} following
+                    </Link>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-muted px-2.5 py-1 text-foreground">
+                      <UserCheck size={14} className="text-accent" />
+                      {p.followingCount} following
+                    </span>
+                  )}
                   {p.focusChips?.slice(0, 3).map((chip) => (
                     <span
                       key={chip.id}
