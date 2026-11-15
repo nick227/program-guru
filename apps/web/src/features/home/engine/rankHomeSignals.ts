@@ -129,11 +129,11 @@ export function rankHomeSignals(
                 : 'Its Activities are on your Calendar.',
               whyReason: 'You started this Program and have not done an Activity from it yet.',
             }),
-        showMeSubject: { kind: 'progress' },
+        showMeSubject: { kind: 'program', id: activeEnrollment.programId, title: activeEnrollment.programTitle },
         choices: [
           {
             id: 'continue-program',
-            label: 'Preview Program',
+            label: 'Show me',
             variant: 'primary',
             effect: {
               type: 'execute',
@@ -142,12 +142,6 @@ export function rankHomeSignals(
                 target: { kind: 'program', id: activeEnrollment.programId },
               },
             },
-          },
-          {
-            id: 'show-me',
-            label: 'Show me',
-            variant: 'secondary',
-            effect: { type: 'show_me' },
           },
           {
             id: 'something-else',
@@ -198,7 +192,7 @@ export function rankHomeSignals(
         choices: [
           {
             id: 'open-program',
-            label: 'Preview Program',
+            label: 'Show me',
             variant: 'primary',
             effect: {
               type: 'execute',
@@ -309,7 +303,7 @@ export function rankHomeSignals(
       choices: [
         {
           id: 'start-program',
-          label: 'Preview Program',
+          label: 'Show me',
           variant: 'primary',
           effect: {
             type: 'execute',
@@ -318,12 +312,6 @@ export function rankHomeSignals(
               target: { kind: 'program', id: popular.program.id },
             },
           },
-        },
-        {
-          id: 'show-me',
-          label: 'Show me',
-          variant: 'secondary',
-          effect: { type: 'show_me' },
         },
         {
           id: 'why-this',

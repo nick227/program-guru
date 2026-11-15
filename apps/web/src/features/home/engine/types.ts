@@ -100,7 +100,6 @@ export type ShowMeSubject =
   | { kind: 'creator'; handle: string; displayName: string }
   | { kind: 'schedule' }
   | { kind: 'session'; id: string; title: string; users: ParticipantGroup['users'] }
-  | { kind: 'progress' }
 
 export type ChoiceEffect =
   | { type: 'execute'; action: CardAction }

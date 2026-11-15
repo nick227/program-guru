@@ -19,22 +19,18 @@ import { useDocumentTitle } from '@/lib/title'
 import { ScheduleDialog, type ScheduleTarget } from '@/components/schedule/AddToSchedule'
 import { HomeTopBar } from '@/features/home/components/HomeTopBar'
 import { InlineProgramBuilder } from '@/features/home/components/InlineProgramBuilder'
-import { PresentationSurface } from '@/features/home/components/PresentationSurface'
 import { ShowMeView } from '@/features/home/components/ShowMeView'
 import { TransitionSurface } from '@/features/home/components/TransitionSurface'
 import { TurnStage } from '@/features/home/components/TurnStage'
 import { cardHeroSrc } from '@/features/home/components/TurnHero'
 import { resolveTurn } from '@/features/home/engine/decisionEngine'
-import { buildPresentationItems } from '@/features/home/engine/presentationFeed'
 import { reusableTodayItem } from '@/lib/participation'
 import type {
-  AssistantCard,
   CardAction,
   ChoiceButton,
   DiscoveryState,
   FlowNodeId,
   HomeSignals,
-  PresentationMode,
   PreviewTarget,
 } from '@/features/home/engine/types'
 
@@ -102,8 +98,6 @@ export function HomePage() {
   const [executionItemId, setExecutionItemId] = useState<string | null>(null)
   const [showWhy, setShowWhy] = useState(false)
   const [showMeOpen, setShowMeOpen] = useState(false)
-  const [presentationMode, setPresentationMode] =
-    useState<PresentationMode>('for_you')
   const [completedInSession, setCompletedInSession] = useState<string | null>(
     null,
   )
@@ -251,24 +245,6 @@ export function HomePage() {
     const src = cardHeroSrc(nextCard)
     if (src) new Image().src = src
   }, [nextCard])
-
-  const presentationItems = useMemo(() => {
-    if (turn.cards && turn.cards.length > 0) return turn.cards.slice(0, 3)
-    if (turn.card) return [turn.card]
-    if (turn.presentationHint?.items && turn.presentationHint.items.length > 0) {
-      return turn.presentationHint.items.slice(0, 3)
-    }
-    const activeMode = turn.presentationHint?.mode ?? presentationMode
-    return buildPresentationItems(activeMode, signals).slice(0, 1)
-  }, [presentationMode, signals, turn.card, turn.cards, turn.presentationHint])
-
-  const presentationTitle = useMemo(() => {
-    if (turn.cards && turn.cards.length > 1) return 'Results'
-    if (turn.presentationHint?.label) return turn.presentationHint.label
-    if (turn.presentationHint?.mode === 'popular') return 'Popular'
-    if (turn.presentationHint?.mode === 'following') return 'Following'
-    return 'Suggested'
-  }, [turn.cards, turn.presentationHint])
 
   const handleReset = useCallback(() => {
     setPreviewTarget(null)
@@ -437,6 +413,13 @@ export function HomePage() {
         return
       }
       if (effect.type === 'show_me') {
+        // A Program opens its inline overview over the turn; Back closes it and keeps this turn (03-UX §2a).
+        if (turn.showMeSubject?.kind === 'program') {
+          setShowWhy(false)
+          setShowMeOpen(false)
+          setPreviewTarget({ kind: 'program', id: turn.showMeSubject.id })
+          return
+        }
         setShowMeOpen((prev) => !prev)
         return
       }
@@ -488,7 +471,7 @@ export function HomePage() {
         setState((prev) => ({ ...prev, excludedIds: nextExcluded }))
       }
     },
-    [executeAction, handleReset, nodeId, state, turn.card?.id],
+    [executeAction, handleReset, nodeId, state, turn.card?.id, turn.showMeSubject],
   )
 
   const handleCloseExecution = useCallback(() => {
@@ -544,37 +527,20 @@ export function HomePage() {
   const openingCompact =
     nodeId === 'opening' && turn.nodeId === 'opening' && !previewTarget && !executionItemId && !showMeOpen
 
-  const handleSelectPresentationItem = useCallback((card: AssistantCard) => {
-    setShowWhy(false)
-    setShowMeOpen(false)
-    setPreviewTarget(card.previewTarget)
-  }, [])
-
-  // Today's own item stays ahead of the surfer (03-UX §1.9, §2a); Program and Creator ideas follow it.
-  const todayLeads = turn.card?.kind === 'scheduled' || turn.card?.kind === 'session'
-  const presentation = !previewTarget && !executionItemId && turn.nodeId !== 'day_schedule' && (
-    showMeOpen && turn.showMeSubject ? (
-      <div className="w-full border-t border-border/50 py-5">
+  // Show me for a session, Creator or today's schedule opens beneath the turn; a Program opens the
+  // inline Program overview instead (03-UX §2a).
+  const showMeSubject = turn.showMeSubject?.kind === 'program' ? null : turn.showMeSubject
+  const showMe =
+    showMeOpen && showMeSubject && !previewTarget && !executionItemId && turn.nodeId !== 'day_schedule' ? (
+      <div className="w-full border-t border-border/50 px-4 py-5 sm:px-6">
         <ShowMeView
-          subject={turn.showMeSubject}
+          subject={showMeSubject}
           todayItems={signals.todayItems}
-          activeProgramCount={signals.activeEnrollments.length}
           onClose={() => setShowMeOpen(false)}
           onPreview={setPreviewTarget}
         />
       </div>
-    ) : (
-      <PresentationSurface
-        title={presentationTitle}
-        items={presentationItems}
-        loading={loading}
-        pending={actionPending}
-        onSelect={handleSelectPresentationItem}
-        onAction={executeAction}
-        onPreviewCreator={setPreviewTarget}
-      />
-    )
-  )
+    ) : null
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
@@ -644,6 +610,7 @@ export function HomePage() {
           </TransitionSurface>
         </div>
         )}
+        {!building && showMe}
       </main>
       {scheduleTarget && (
         <ScheduleDialog

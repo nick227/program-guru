@@ -17,7 +17,10 @@ import { GroupStageExperience } from '@/pages/Group'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { Avatar } from '@/components/ui/Avatar'
 import { gatheringWhen } from '@/components/activity/ActivityGatherings'
-import { activityHero } from '@/lib/hero'
+import { activityHero, programHero } from '@/lib/hero'
+import { dateLabel } from '@/lib/dates'
+import { formatTargetTime } from '@/lib/targetTime'
+import { buildOccurrenceUrl } from '@/lib/urls'
 import { peopleLine } from '@/lib/participation'
 import { AddToScheduleButton } from '@/components/schedule/AddToSchedule'
 import { ActivityParticipation } from '@/components/activity/ActivityParticipation'
@@ -102,6 +105,7 @@ function ProgramPreviewBody({
   const library = useProgramLibrary(isSignedIn)
   const [joined, setJoined] = useState(false)
   const firstDayUrl = useFirstScheduledDayUrl(programId, joined)
+  const categorySlugOf = useCategorySlugOf()
 
   const prog = query.data
   if (query.isPending) {
@@ -152,70 +156,215 @@ function ProgramPreviewBody({
     }
   }
 
-  const meta = [
-    prog.durationDays ? `${prog.durationDays} days` : prog.frequencyLabel,
-    prog.type?.label,
-    prog.level.replace('_', ' '),
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  // The viewer's own run, from the personal library (never invented; signed out there is none).
+  const run = libraryEntry?.current ?? null
+  const status = libraryEntry?.status ?? null
+  const isOwner = prog.viewerAccess === 'OWNER'
+  const completed = status === 'Completed'
+  const enrolled = Boolean(run) && !completed && status !== 'Archived'
+  const next = enrolled && status !== 'Paused' ? (run?.upcoming[0] ?? null) : null
+  const participantCount = libraryEntry?.participation?.participantCount ?? prog.enrollmentCount
+  const friends = libraryEntry?.participation?.friends ?? []
+  const outline = prog.safeActivityOutline ?? []
+  const commitment = [
+    prog.durationDays ? `${prog.durationDays} ${prog.durationDays === 1 ? 'day' : 'days'}` : null,
+    prog.frequencyLabel,
+    prog.sessionMinutes ? `about ${prog.sessionMinutes} min a session` : null,
+  ].filter(Boolean)
+  const meta = [prog.type?.label, prog.level.replace('_', ' ')].filter(Boolean).join(' · ')
+  const returnTo = '/'
+  const primary =
+    'inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-105 disabled:opacity-50'
+  const secondary =
+    'inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-surface-raised px-4 py-2 text-sm font-medium transition hover:bg-surface-muted'
+  const hasPrimary = canJoinInline || Boolean(next) || (joined && Boolean(firstDayUrl))
 
   return (
     <TransitionSurface ready>
-      <PreviewShell
-        title={prog.title}
-        subtitle={meta}
-        body={prog.description}
-        onClose={onClose}
+      <section
+        aria-label={`${prog.title} overview`}
+        className="mx-auto flex w-full max-w-[620px] flex-col gap-5 px-4 py-6 text-left animate-in fade-in duration-200 sm:px-6"
       >
-      {canJoinInline && (
+        <EntityHero hero={programHero(prog, categorySlugOf)} size="banner" interactive={false} className="aspect-[16/9] w-full" />
+
+        <header className="space-y-1.5">
+          <h1 className="font-display text-2xl font-semibold tracking-tight">{prog.title}</h1>
+          <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
+            {prog.creator ? (
+              <button
+                type="button"
+                onClick={() => onExecute({ type: 'open_creator', handle: prog.creator!.handle })}
+                className="inline-flex items-center gap-1.5 font-medium text-foreground hover:underline"
+              >
+                <Avatar src={prog.creator.avatarUrl} name={prog.creator.displayName} size="sm" className="h-5 w-5 text-[9px]" />
+                {prog.creator.displayName}
+              </button>
+            ) : (
+              <span className="font-medium text-foreground">Program.Guru</span>
+            )}
+            {meta && <span aria-hidden>·</span>}
+            {meta && <span className="capitalize">{meta.toLowerCase()}</span>}
+          </p>
+        </header>
+
+        {prog.description && (
+          <p className="line-clamp-3 text-sm leading-relaxed text-muted">{prog.description}</p>
+        )}
+
+        {/* Commitment and people: what joining means, and who else does it (12 §10). */}
+        <dl className="grid grid-cols-1 gap-3 rounded-xl bg-surface-raised/50 p-4 text-sm sm:grid-cols-2">
+          <div className="space-y-0.5">
+            <dt className="text-xs font-medium text-muted">Commitment</dt>
+            <dd className="font-medium">{commitment.length ? commitment.join(' · ') : 'At your own pace'}</dd>
+          </div>
+          <div className="space-y-0.5">
+            <dt className="text-xs font-medium text-muted">People</dt>
+            <dd className="flex items-center gap-2 font-medium">
+              {friends.length > 0 && (
+                <span className="flex -space-x-1.5" aria-hidden>
+                  {friends.slice(0, 4).map((f) => (
+                    <Avatar key={f.id} src={f.avatarUrl} name={f.displayName} size="sm" className="h-5 w-5 text-[9px] ring-2 ring-surface" />
+                  ))}
+                </span>
+              )}
+              <span>
+                {/* The server withholds counts under the minimum sample of 5 (12 §10, §10a). */}
+                {participantCount != null
+                  ? `${participantCount} ${participantCount === 1 ? 'participant' : 'participants'}`
+                  : 'Fewer than 5 participants'}
+                {run && (enrolled || completed) ? ' · including you' : ''}
+                {friends.length > 0 ? ` · ${friends.length} you follow` : ''}
+              </span>
+            </dd>
+          </div>
+        </dl>
+
+        {/* Your run: real progress, the next Activity and what follows (enrolled or completed only). */}
+        {run && (enrolled || completed) && (
+          <section aria-label="Your progress" className="space-y-3 rounded-xl border border-border/70 p-4">
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-semibold">{completed ? 'Completed' : status === 'Paused' ? 'Paused' : `Week ${run.week}`}</span>
+              <span className="text-xs text-muted tabular-nums">
+                {run.planned ? `${run.completed} of ${run.planned} done` : 'Nothing scheduled yet'}
+              </span>
+            </div>
+            {run.planned > 0 && (
+              <div
+                className="h-2 w-full overflow-hidden rounded-full bg-surface-muted"
+                role="progressbar"
+                aria-label="Program progress"
+                aria-valuemin={0}
+                aria-valuemax={run.planned}
+                aria-valuenow={run.completed}
+              >
+                <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round((run.completed / run.planned) * 100)}%` }} />
+              </div>
+            )}
+            {enrolled && run.upcoming.length > 0 && (
+              <ol className="space-y-1.5" aria-label="Coming up">
+                {run.upcoming.slice(0, 3).map((a, i) => (
+                  <li key={a.id}>
+                    <Link
+                      to={buildOccurrenceUrl(a.id, { returnTo })}
+                      className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm transition hover:bg-surface-raised"
+                    >
+                      <span className="min-w-0 truncate">
+                        {i === 0 && <span className="mr-1.5 text-xs font-semibold text-accent">Next</span>}
+                        {a.title}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted">
+                        {dateLabel(a.date, { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {a.time ? ` · ${formatTargetTime(a.time)}` : ''}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        )}
+
+        {/* The plan, as the creator outlined it (safe for paid Programs). */}
+        {outline.length > 0 && (
+          <section aria-label="Activity plan" className="space-y-2">
+            <h2 className="text-xs font-medium uppercase tracking-wider text-muted">Activity plan</h2>
+            <ol className="space-y-1">
+              {outline.slice(0, 5).map((step, idx) => (
+                <li key={`${step.title}-${idx}`} className="flex items-center justify-between gap-3 rounded-lg bg-surface-raised/40 px-3 py-2 text-sm">
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    {/* The first day an Activity appears; shown once per day so a shared day reads as a group. */}
+                    <span className="w-11 shrink-0 text-xs font-semibold tabular-nums text-accent">
+                      {step.dayIndex == null
+                        ? String(idx + 1).padStart(2, '0')
+                        : idx === 0 || outline[idx - 1]?.dayIndex !== step.dayIndex
+                          ? `Day ${step.dayIndex + 1}`
+                          : ''}
+                    </span>
+                    <span className="truncate">{step.title}</span>
+                  </span>
+                  {step.durationMinutes && <span className="shrink-0 text-xs text-muted">{step.durationMinutes} min</span>}
+                </li>
+              ))}
+            </ol>
+            {outline.length > 5 && <p className="text-xs text-muted">+{outline.length - 5} more in the full plan</p>}
+          </section>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          {next && (
+            <Link to={buildOccurrenceUrl(next.id, { returnTo })} className={primary}>
+              <Play size={14} className="fill-current" aria-hidden />
+              Continue
+            </Link>
+          )}
+          {canJoinInline && (
+            <button type="button" disabled={join.isPending} onClick={() => void handleJoin()} className={primary}>
+              <Play size={14} className="fill-current" aria-hidden />
+              <span>{join.isPending ? 'Starting…' : 'Start Program'}</span>
+            </button>
+          )}
+          {(canJoinInline || !isSignedIn) && prog.latestVersionId && (
+            <AddToScheduleButton
+              target={{ kind: 'program', id: prog.id, title: prog.title, programVersionId: prog.latestVersionId }}
+              signedIn={isSignedIn}
+              returnTo={returnTo}
+              onScheduled={() => {
+                setJoined(true)
+                void queryClient.invalidateQueries()
+              }}
+            />
+          )}
+          {joined && firstDayUrl && (
+            // Right after starting: go to the Program's first scheduled Activity.
+            <Link to={firstDayUrl} className={primary}>
+              <CalendarDays size={15} aria-hidden />
+              View Calendar
+            </Link>
+          )}
+          {!next && !joined && (isOwner || completed) && (
+            <span className="inline-flex min-h-10 items-center rounded-full border border-accent/40 bg-accent/15 px-4 py-2 text-xs font-semibold text-accent">
+              {isOwner ? 'Created by you' : 'Completed'}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => onExecute({ type: 'open_program', programId })}
+            className={hasPrimary ? secondary : primary}
+          >
+            <span>Open Program Page</span>
+            <ExternalLink size={14} aria-hidden />
+          </button>
+        </div>
+
         <button
           type="button"
-          disabled={join.isPending}
-          onClick={() => void handleJoin()}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-105 disabled:opacity-50"
+          onClick={onClose}
+          className="inline-flex items-center gap-1.5 self-center px-2 py-1 text-xs font-medium text-muted transition hover:text-inherit"
         >
-          <span>{join.isPending ? 'Joining…' : 'Join Program'}</span>
+          <ArrowLeft size={13} aria-hidden />
+          <span>Back</span>
         </button>
-      )}
-      {canJoinInline && prog.latestVersionId && (
-        <AddToScheduleButton
-          target={{ kind: 'program', id: prog.id, title: prog.title, programVersionId: prog.latestVersionId }}
-          signedIn={isSignedIn}
-          returnTo="/"
-          onScheduled={() => {
-            setJoined(true)
-            void queryClient.invalidateQueries()
-          }}
-        />
-      )}
-      {joined && firstDayUrl ? (
-        // Right after starting: go to the Program's first scheduled Activity (item 7).
-        <Link
-          to={firstDayUrl}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-105"
-        >
-          <CalendarDays size={15} aria-hidden />
-          View Calendar
-        </Link>
-      ) : (joined || alreadyKnown) && (
-        <span className="inline-flex min-h-10 items-center rounded-full border border-accent/40 bg-accent/15 px-4 py-2 text-xs font-semibold text-accent">
-          {prog.viewerAccess === 'OWNER' ? 'Created by you' : 'In your Programs'}
-        </span>
-      )}
-      <button
-        type="button"
-        onClick={() => onExecute({ type: 'open_program', programId })}
-        className={
-          canJoinInline
-            ? 'inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-surface-raised px-4 py-2 text-sm font-medium transition hover:bg-surface-muted'
-            : 'inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-105'
-        }
-      >
-        <span>Open Program Page</span>
-        <ExternalLink size={14} aria-hidden />
-      </button>
-    </PreviewShell>
+      </section>
     </TransitionSurface>
   )
 }

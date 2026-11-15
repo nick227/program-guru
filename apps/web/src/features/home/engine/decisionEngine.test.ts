@@ -431,6 +431,30 @@ describe('resolveTurn', () => {
     expect(turn.whyReason).toBeTruthy()
   })
 
+  it('a Program turn offers one Show me, the inline Program overview, and nothing that enrolls (03-UX §2a)', () => {
+    const turns = [
+      resolveTurn('program_result', { excludedIds: [] }, makeBaseSignals()),
+      rankHomeSignals(makeBaseSignals()),
+    ]
+    for (const turn of turns) {
+      const labels = turn.choices.map((c) => c.label)
+      expect(labels.filter((l) => l === 'Show me')).toHaveLength(1)
+      expect(labels).not.toContain('Preview Program')
+      expect(turn.choices.find((c) => c.label === 'Show me')?.effect).toEqual({
+        type: 'execute',
+        action: { type: 'preview', target: { kind: 'program', id: 'prog-1' } },
+      })
+      expect(turn.showMeSubject).toMatchObject({ kind: 'program', id: 'prog-1' })
+    }
+    // An enrolled Program's turn shows that Program, not a generic progress view.
+    const enrolled = rankHomeSignals({
+      ...makeBaseSignals({ isSignedIn: true }),
+      activeEnrollments: [{ id: 'e1', programId: 'p1', programTitle: 'Build your Core', status: 'ACTIVE', hasParticipated: true }] as never,
+    })
+    expect(enrolled.showMeSubject).toMatchObject({ kind: 'program', id: 'p1' })
+    expect(enrolled.choices.filter((c) => c.label === 'Show me')).toHaveLength(1)
+  })
+
   it('reacts to Activity completion with post_completion choices', () => {
     const turn = resolveTurn(
       'post_completion',

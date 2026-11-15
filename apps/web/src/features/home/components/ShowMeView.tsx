@@ -1,68 +1,16 @@
 import { Check, Clock, X } from 'lucide-react'
-import {
-  useProgramPreview,
-  useUserByHandle,
-  useUserPrograms,
-  type components,
-} from '@project/sdk'
+import { useUserByHandle, useUserPrograms, type components } from '@project/sdk'
 import { Avatar } from '@/components/ui/Avatar'
 import type { PreviewTarget, ShowMeSubject } from '../engine/types'
 
 type S = components['schemas']
 
 interface ShowMeViewProps {
-  subject: ShowMeSubject
+  /** A Program never comes here: Show me opens the inline Program overview (InlinePreview). */
+  subject: Exclude<ShowMeSubject, { kind: 'program' }>
   todayItems: S['CalendarItem'][]
-  activeProgramCount: number
   onClose: () => void
   onPreview: (target: PreviewTarget) => void
-}
-
-function ProgramOutlineShowMe({
-  programId,
-  onPreview,
-}: {
-  programId: string
-  onPreview: (target: PreviewTarget) => void
-}) {
-  const query = useProgramPreview(programId)
-  if (query.isPending) {
-    return (
-      <div className="h-24 animate-pulse rounded-xl bg-surface-raised/40" />
-    )
-  }
-  const outline = query.data?.safeActivityOutline ?? []
-  if (outline.length === 0) {
-    return (
-      <p className="text-xs text-muted">
-        {query.data?.description ?? 'Structured Program ready to start.'}
-      </p>
-    )
-  }
-  return (
-    <div className="space-y-2">
-      {outline.slice(0, 4).map((step, idx) => (
-        <button
-          key={`${step.title}-${idx}`}
-          type="button"
-          onClick={() => onPreview({ kind: 'program', id: programId })}
-          className="flex w-full items-center justify-between gap-3 rounded-xl bg-surface-raised/50 px-3.5 py-2.5 text-left transition hover:bg-surface-raised"
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="text-xs font-semibold text-accent">
-              {String(idx + 1).padStart(2, '0')}
-            </span>
-            <span className="truncate text-sm font-medium">{step.title}</span>
-          </div>
-          {step.durationMinutes && (
-            <span className="shrink-0 text-xs text-muted">
-              {step.durationMinutes}m
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
-  )
 }
 
 function CreatorShowMe({
@@ -124,7 +72,6 @@ function CreatorShowMe({
 export function ShowMeView({
   subject,
   todayItems,
-  activeProgramCount,
   onClose,
   onPreview,
 }: ShowMeViewProps) {
@@ -133,8 +80,6 @@ export function ShowMeView({
     .slice()
     .sort((a, b) => (a.localTime ?? '99:99').localeCompare(b.localTime ?? '99:99'))
 
-  const doneCount = sortedToday.filter((i) => i.status === 'DONE').length
-
   return (
     <section
       aria-label="Visual detail"
@@ -142,15 +87,11 @@ export function ShowMeView({
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <span className="text-xs font-medium uppercase tracking-wider text-muted">
-          {subject.kind === 'program'
-            ? `Inside ${subject.title}`
-            : subject.kind === 'creator'
-              ? subject.displayName
-              : subject.kind === 'schedule'
-                ? "Today's timeline"
-                : subject.kind === 'session'
-                  ? `Who's in ${subject.title}`
-                  : 'Your progress'}
+          {subject.kind === 'creator'
+            ? subject.displayName
+            : subject.kind === 'schedule'
+              ? "Today's timeline"
+              : `Who's in ${subject.title}`}
         </span>
         <button
           type="button"
@@ -161,10 +102,6 @@ export function ShowMeView({
           <X size={14} aria-hidden />
         </button>
       </div>
-
-      {subject.kind === 'program' && (
-        <ProgramOutlineShowMe programId={subject.id} onPreview={onPreview} />
-      )}
 
       {subject.kind === 'creator' && (
         <CreatorShowMe handle={subject.handle} onPreview={onPreview} />
@@ -232,29 +169,6 @@ export function ShowMeView({
         </div>
       )}
 
-      {subject.kind === 'progress' && (
-        <div className="space-y-3 rounded-xl bg-surface-raised/50 p-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">
-              {activeProgramCount}{' '}
-              {activeProgramCount === 1 ? 'active Program' : 'active Programs'}
-            </span>
-            <span className="text-xs text-muted">
-              {doneCount}/{sortedToday.length} done today
-            </span>
-          </div>
-          {sortedToday.length > 0 && (
-            <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
-              <div
-                className="h-full rounded-full bg-accent transition-all"
-                style={{
-                  width: `${Math.round((doneCount / sortedToday.length) * 100)}%`,
-                }}
-              />
-            </div>
-          )}
-        </div>
-      )}
     </section>
   )
 }

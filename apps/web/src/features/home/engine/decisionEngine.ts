@@ -573,7 +573,7 @@ function resolveProgramResult(
     choices: [
       {
         id: 'open-program',
-        label: 'Preview Program',
+        label: 'Show me',
         variant: 'primary',
         effect: {
           type: 'execute',
@@ -582,12 +582,6 @@ function resolveProgramResult(
             target: { kind: 'program', id: match.program.id },
           },
         },
-      },
-      {
-        id: 'show-me',
-        label: 'Show me',
-        variant: 'secondary',
-        effect: { type: 'show_me' },
       },
       {
         id: 'why-this',
@@ -651,7 +645,7 @@ function resolveTogetherResult(
         choices: [
           {
             id: 'open-program',
-            label: 'Preview Program',
+            label: 'Show me',
             variant: 'primary',
             effect: {
               type: 'execute',
@@ -791,7 +785,7 @@ function resolveContinueResult(
       choices: [
         {
           id: 'open-active',
-          label: 'Preview Program',
+          label: 'Show me',
           variant: 'primary',
           effect: {
             type: 'execute',
@@ -971,7 +965,7 @@ function resolveExploreResult(
       choices: [
         {
           id: 'open-prog',
-          label: 'Preview Program',
+          label: 'Show me',
           variant: 'primary',
           effect: {
             type: 'execute',
