@@ -74,7 +74,7 @@ Consolidated persistence: `packages/db/prisma/schema.prisma`. `entityKind`/`enti
 - **Participation filters** use only existing data: Happening now (live sessions), Starting soon, and open public Groups. No online/in-person/solo classification (deferred).
 - Large, useful images and minimal chrome; existing card, section and drawer components.
 
-**Home.** One compact, media-led section showing the range of Activities: at most 6 Activity cards from at least 3 different Domains (when 3 exist), chosen by taking the most popular Activity per Domain in turn. Each card opens the existing Activity preview. No other Home changes.
+**Home** (revised 2026-11-15, replacing the six-card section): the **Activity surfer** (`03-UX.md` §2a): one media-led Activity at a time with Next/Previous, built only from existing reads (`listGatherings` NOW and UPCOMING, `getMyOpportunities`, and the `POPULAR`/`NEW` Activity orderings picked across Domains). Each Activity appears once. A gathering is a way to do that Activity with others, never a separate kind of card: the card names the Activity and shows the gathering's real members (avatars, at most 8 visible), member count, active count (members with a running or paused session, never presence), date, time and Place, exactly as `Gathering` already exposes them. An Activity with no visible gathering shows no avatars and no counts. No Activity-wide participation count exists yet.
 
 **Home Agent.** The intent menu's `Find something new` choice becomes **`Find something to do`**, shown whether or not `Continue where I left off` is available, and enters the existing `explore_interest` flow (Creators, Programs, Activities). The Domain choices in the existing `now_interest` step come from `listCategories`, without `custom`. The flow, its deterministic ordering and its eligibility rules stay as they are; no new nodes or engine.
 
@@ -102,7 +102,7 @@ Answers "what's something worthwhile I can actually do, with the right people, a
 
 **Surfaces.** One primary action each: a recommendation's is **Join** (reusing `calendarItemId` when present, then opening the viewer's occurrence); a needs-people item's is **Share**.
 - **Home Agent:** "Do something together" leads with the top recommendation and its reasons; "See another" moves through the list; with none, the existing Program-session results follow unchanged. No new Agent action.
-- **Home rail:** "Things to do" starts with up to two recommendations, then the existing varied Activities; a needs-people prompt appears above it.
+- **Home surfer:** recommendations follow happening-now gatherings, each with its first reason; a needs-people prompt appears above the surfer. (Replaces the "Things to do" rail, 2026-11-15.)
 
 ## 5c. Program discovery quality (approved 2026-11-15)
 
