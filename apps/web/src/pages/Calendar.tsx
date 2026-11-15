@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import {
   useCalendar,
+  useCancelCalendarItem,
   useCurrentUser,
   useQuickCompleteCalendarItem,
   useUndoCompletion,
@@ -25,6 +26,11 @@ import type { SurfaceItem } from '@/components/calendar/CalendarSurface'
 import { DatePickerPopover } from '@/components/calendar/DatePickerPopover'
 import { SelectedActivityPanel } from '@/components/calendar/SelectedActivityPanel'
 import { CalendarDiscoveryRail } from '@/components/calendar/CalendarDiscoveryRail'
+import {
+  RemoveFromCalendarDialog,
+  type RemoveScope,
+  type RemoveTarget,
+} from '@/components/calendar/RemoveFromCalendarDialog'
 import { resolveActivityCategory } from '@/lib/activityCategory'
 import {
   addDays,
@@ -36,7 +42,7 @@ import {
   today,
 } from '@/lib/dates'
 import { markDailyEmailPromptSeen } from '@/lib/notifications'
-import { isValidTargetTime } from '@/lib/targetTime'
+import { isValidTargetTime, formatTargetTime } from '@/lib/targetTime'
 import { useOnline } from '@/lib/useOnline'
 import { cn } from '@/lib/utils'
 import { useDocumentTitle } from '@/lib/title'
@@ -87,7 +93,11 @@ export function CalendarPage() {
   const undo = useUndoCompletion()
   const quickComplete = useQuickCompleteCalendarItem()
   const updateItem = useUpdateCalendarItem()
+  const cancelItem = useCancelCalendarItem()
   const [pendingTimes, setPendingTimes] = useState<Record<string, string | null>>({})
+  // Entries removed in this session stay hidden while the Calendar refetches (no flash back).
+  const [removedIds, setRemovedIds] = useState<ReadonlySet<string>>(() => new Set())
+  const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null)
   const completionKeys = useRef(new Map<string, string>())
   const origin = `/calendar?${new URLSearchParams({
     view,
@@ -144,7 +154,10 @@ export function CalendarPage() {
     setParams(next, { replace: true })
   }
 
-  const rawItems = calendar.data ?? []
+  const rawItems = useMemo(
+    () => (calendar.data ?? []).filter((item) => !removedIds.has(item.id)),
+    [calendar.data, removedIds],
+  )
   const effectiveTimes = new Map<string, number>()
   const hasPendingTimes = Object.keys(pendingTimes).length > 0
   if (hasPendingTimes) {
@@ -245,6 +258,44 @@ export function CalendarPage() {
     }
   }
 
+  const requestRemoveItem = (itemId: string) => {
+    const item = rawItems.find((row) => row.id === itemId)
+    if (!item || item.status === 'DONE') return
+    const when = [
+      dateLabel(item.localDate, { weekday: 'short', month: 'short', day: 'numeric' }),
+      formatTargetTime(item.localTime) ?? 'Any time',
+    ].join(' · ')
+    setRemoveTarget({
+      id: item.id,
+      title: item.title,
+      whenLabel: when,
+      recurring: Boolean(item.recurrenceId),
+      inGathering: Boolean(item.gatheringId),
+    })
+  }
+
+  // Removing cancels the Calendar entry only (09 §4.8): never a completion, never the Activity.
+  // The mutation resolves after the Calendar refetch, so a This-and-future removal shows exactly the
+  // entries the server cancelled; the removed id is also hidden in case that refetch fails.
+  const removeItem = async (itemId: string, scope: RemoveScope) => {
+    const item = rawItems.find((row) => row.id === itemId)
+    if (!item) return
+    const effectiveScope: RemoveScope = item.recurrenceId ? scope : 'THIS_ONE'
+    try {
+      await cancelItem.mutateAsync({ itemId, scope: effectiveScope })
+      setRemovedIds((prev) => new Set([...prev, itemId]))
+      setRemoveTarget(null)
+      if (selectedItemId === itemId) setSelectedItemId(null)
+      toast.success(
+        effectiveScope === 'THIS_AND_FUTURE'
+          ? `Removed ${item.title} and the ones after it`
+          : `Removed ${item.title} from your Calendar`,
+      )
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not remove it right now')
+    }
+  }
+
   const filteredItems = useMemo(() => {
     if (categoryFilter === 'all') return items
     if (categoryFilter === 'group') {
@@ -301,7 +352,7 @@ export function CalendarPage() {
     <CalendarDiscoveryRail
       localDate={selected}
       dateLabel={dateLabel(selected)}
-      scheduledActivityIds={(calendar.data ?? []).filter((it) => it.localDate === selected && it.status !== 'CANCELLED').map((it) => it.activityId)}
+      scheduledActivityIds={rawItems.filter((it) => it.localDate === selected && it.status !== 'CANCELLED').map((it) => it.activityId)}
       onScheduled={(itemId) => setSelectedItemId(itemId)}
     />
   )
@@ -660,12 +711,25 @@ export function CalendarPage() {
               onComplete={completeItem}
               onUndoComplete={undoCompleteItem}
               onChangeTime={changeItemTime}
+              onRemove={requestRemoveItem}
               completing={quickComplete.isPending}
               undoing={undo.isPending}
+              removing={cancelItem.isPending}
               emptyContent={discoveryRail}
             />
             {/* The side panel is desktop-only; phones get the rail below the timeline. */}
             {!selectedItemId && <div className="lg:hidden">{discoveryRail}</div>}
+            {removeTarget && (
+              <RemoveFromCalendarDialog
+                key={removeTarget.id}
+                target={removeTarget}
+                pending={cancelItem.isPending}
+                onConfirm={(scope) => void removeItem(removeTarget.id, scope)}
+                onClose={() => {
+                  if (!cancelItem.isPending) setRemoveTarget(null)
+                }}
+              />
+            )}
           </div>
         ) : (
           <>

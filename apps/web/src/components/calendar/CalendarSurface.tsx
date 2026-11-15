@@ -18,6 +18,8 @@ export type CalendarDay = {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
+/** All 24h opens here unless an Activity or the current hour is earlier. */
+const DAY_START_HOUR = 6
 
 function getCurrentTimeInZone(timezone?: string) {
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
@@ -76,11 +78,13 @@ function DayHourlyTable({
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropSlot, setDropSlot] = useState<string | null>(null)
   const [addingSlot, setAddingSlot] = useState<string | null>(null)
+  const [showEarlyHours, setShowEarlyHours] = useState(false)
   const [now, setNow] = useState(() => getCurrentTimeInZone(timezone))
   const draggingIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     setAddingSlot(null)
+    setShowEarlyHours(false)
   }, [day.id])
 
   useEffect(() => {
@@ -107,15 +111,23 @@ function DayHourlyTable({
   }
 
   const isViewingToday = day.today || day.id === now.date
+  const populatedHours = [...byHour.keys()].map(Number).sort((a, b) => a - b)
 
-  const visibleHours = (() => {
-    if (showAllHours) return HOURS
-    const activeSet = new Set<number>()
-    for (const hourKey of byHour.keys()) {
-      activeSet.add(Number(hourKey))
-    }
-    return [...activeSet].sort((a, b) => a - b)
-  })()
+  // Focused: only the hours with Activities.
+  // All 24h: the day opens at the earliest of 6 AM, the first Activity, and the current hour;
+  // the quiet hours before it fold into one row instead of greeting people with empty midnight.
+  const earlyStart = Math.min(
+    DAY_START_HOUR,
+    populatedHours[0] ?? DAY_START_HOUR,
+    isViewingToday ? now.hour : DAY_START_HOUR,
+  )
+  const foldEarly = showAllHours && !showEarlyHours && earlyStart > 0
+
+  const visibleHours = showAllHours
+    ? foldEarly
+      ? HOURS.slice(earlyStart)
+      : HOURS
+    : populatedHours
 
   const showAnyTimeRow = true
 
@@ -254,6 +266,23 @@ function DayHourlyTable({
                     </button>
                   )}
                 </div>
+              </td>
+            </tr>
+          )}
+
+          {foldEarly && (
+            <tr className="calendar-day-table__row calendar-day-table__row--gap">
+              <th scope="row" className="calendar-day-table__time" aria-hidden>
+                ···
+              </th>
+              <td className="calendar-day-table__gap-cell">
+                <button
+                  type="button"
+                  onClick={() => setShowEarlyHours(true)}
+                  className="calendar-day-table__gap-btn"
+                >
+                  {formatHourLabel(0)} – {formatHourLabel(earlyStart - 1)} · Show earlier hours
+                </button>
               </td>
             </tr>
           )}

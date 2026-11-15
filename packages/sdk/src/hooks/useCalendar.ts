@@ -159,7 +159,8 @@ export function useCancelCalendarItem() {
           params: { path: { itemId }, query: { scope } },
         }),
       ).data,
-    [keys.calendar, keys.occurrences, keys.programs],
+    // Removing a gathering item also leaves the gathering (10 §9.6).
+    [keys.calendar, keys.occurrences, keys.programs, keys.gatherings],
   )
 }
 export function useAddCalendarItem() {

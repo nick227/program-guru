@@ -73,6 +73,34 @@ describe('standalone and recurring entries (P1)', () => {
     expect(recurrences.json().data[0].untilDate).toBe('2026-11-23')
   })
 
+  it('Remove from Calendar cancels the entry only: no completion, the Activity stays, a done entry needs Undo first', async () => {
+    const added = (await addOnce('2026-11-10', '07:00')).json().data.item
+    const removed = await req('DELETE', `/calendar-items/${added.id}?scope=THIS_ONE`)
+    expect(removed.statusCode).toBe(200)
+    expect(removed.json().data.status).toBe('CANCELLED')
+    expect(await db.activitySession.count({ where: { userId: testUserId, status: 'FINISHED' } })).toBe(0)
+    expect(await db.activity.findUnique({ where: { id: cat.squats.activity.id } })).not.toBeNull()
+    const day = (await req('GET', '/calendar/items?start=2026-11-10&end=2026-11-10')).json().data
+    expect(day).toEqual([])
+    // The same Activity can be scheduled again.
+    const again = await addOnce('2026-11-11')
+    expect(again.statusCode).toBe(201)
+
+    // A recurring THIS_ONE removal leaves the rest of the series.
+    const series = (await req('POST', '/calendar/items', { activityId: cat.squats.activity.id, localDate: '2026-11-16', localTime: '18:00', recurrence: { kind: 'DAILY' }, untilDate: '2026-11-19', idempotencyKey: key() })).json().data
+    const days = (await req('GET', '/calendar/items?start=2026-11-16&end=2026-11-19')).json().data
+    await req('DELETE', `/calendar-items/${days[1].id}?scope=THIS_ONE`)
+    const rest = (await req('GET', '/calendar/items?start=2026-11-16&end=2026-11-19')).json().data
+    expect(rest.map((i: any) => i.localDate)).toEqual(['2026-11-16', '2026-11-18', '2026-11-19'])
+    expect(series.recurrence.status).toBe('ACTIVE')
+
+    // A completed entry keeps its record.
+    const doneId = again.json().data.item.id
+    const s = (await req('POST', '/sessions', { calendarItemId: doneId, idempotencyKey: key() })).json().data
+    await req('POST', `/sessions/${s.id}/actions`, { action: 'FINISH', expectedRevision: 0 })
+    expect((await req('DELETE', `/calendar-items/${doneId}?scope=THIS_ONE`)).statusCode).toBe(400)
+  })
+
   it('two concurrent This-and-future moves split the recurrence once (double tap)', async () => {
     const created = (
       await req('POST', '/calendar/items', {

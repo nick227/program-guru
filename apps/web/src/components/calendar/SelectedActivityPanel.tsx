@@ -3,10 +3,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpRight,
+  CalendarDays,
   Check,
   Clock3,
   Heart,
   Image as ImageIcon,
+  Play,
   Send,
   Trash2,
   X,
@@ -30,13 +32,13 @@ import {
 import { toast } from 'sonner'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { AvatarStack } from '@/components/social/AvatarStack'
 import { GroupCheckInModal } from '@/components/group-stage/GroupCheckInModal'
 import { MediaViewer, type ViewerItem } from '@/components/media/MediaViewer'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
+import { ActivityParticipation } from '@/components/activity/ActivityParticipation'
 import { GatheringSuggestion } from '@/components/activity/GatheringSuggestion'
 import { resolveActivityCategory } from '@/lib/activityCategory'
-import { formatRelativeTime } from '@/lib/dates'
+import { dateLabel, formatRelativeTime, isLocalDate } from '@/lib/dates'
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
 import { buildActivityUrl, buildGroupUrl } from '@/lib/urls'
 import { useMediaUploads } from '@/lib/useMediaUploads'
@@ -56,8 +58,11 @@ export interface SelectedActivityPanelProps {
   onComplete: (itemId: string) => Promise<void>
   onUndoComplete: (itemId: string) => Promise<void>
   onChangeTime: (itemId: string, localTime: string | null) => Promise<void>
+  /** Opens the Remove from Calendar confirmation; never completes or deletes the Activity. */
+  onRemove?: (itemId: string) => void
   completing?: boolean
   undoing?: boolean
+  removing?: boolean
 }
 
 function PanelBody({
@@ -67,8 +72,10 @@ function PanelBody({
   onComplete,
   onUndoComplete,
   onChangeTime,
+  onRemove,
   completing = false,
   undoing = false,
+  removing = false,
   isMobileSheet = false,
 }: SelectedActivityPanelProps & { isMobileSheet?: boolean }) {
   const online = useOnline()
@@ -198,28 +205,6 @@ function PanelBody({
     item?.title,
   ])
 
-  const communityAvatars = useMemo(() => {
-    if (occurrence?.collaborators?.members.length) {
-      return occurrence.collaborators.members.map((m) => ({
-        id: m.user.id,
-        name: m.user.displayName,
-        avatarUrl: m.user.avatarUrl,
-      }))
-    }
-    const seen = new Set<string>()
-    const creators: { id: string; name: string; avatarUrl?: string | null }[] = []
-    for (const m of occurrence?.communityMedia ?? []) {
-      if (!m.creator || seen.has(m.creator.id)) continue
-      seen.add(m.creator.id)
-      creators.push({
-        id: m.creator.id,
-        name: m.creator.displayName,
-        avatarUrl: m.creator.avatarUrl,
-      })
-    }
-    return creators
-  }, [occurrence?.collaborators?.members, occurrence?.communityMedia])
-
   if (!itemId) return null
 
   if (occurrenceQuery.isPending && !occurrence) {
@@ -266,6 +251,15 @@ function PanelBody({
         calendarItem?.thumbnailUrl ||
         mediaRailItems[0]?.thumbnailUrl)) ||
     null
+  // The one image opens the viewer at itself when it is part of the media set.
+  const heroViewerIndex = Math.max(
+    0,
+    mediaRailItems.findIndex((m) => m.thumbnailUrl === thumbUrl),
+  )
+  const localDate = item?.localDate ?? calendarItem?.day ?? null
+  const dateDisplay = isLocalDate(localDate)
+    ? dateLabel(localDate, { weekday: 'short', month: 'short', day: 'numeric' })
+    : null
 
   const description = !isLocked ? (activityQuery.data?.summary?.trim() || null) : null
   const distinctInstructions = isLocked
@@ -279,7 +273,6 @@ function PanelBody({
         return true
       })
 
-  const communityStats = occurrence?.communityStats ?? null
   const collab = occurrence?.collaborators ?? null
 
   // Completion opens on the item's day, or at a gathering's time (09 §3).
@@ -290,6 +283,13 @@ function PanelBody({
     status !== 'NOT_PARTICIPATING' &&
     status !== 'CANCELLED' &&
     (!item || completionOpen(item))
+  const isOpenEntry =
+    !isDone && !isLocked && status !== 'CANCELLED' && status !== 'NOT_PARTICIPATING'
+  const sessionStatus = calendarItem?.sessionStatus ?? null
+  const resumable = sessionStatus === 'ACTIVE' || sessionStatus === 'PAUSED'
+  const occurrenceHref = calendarItem?.href ?? `/occurrences/${itemId}`
+  // A completed entry keeps its record; the server asks for Undo first (09 §4.8).
+  const canRemove = Boolean(onRemove) && !isDone && status !== 'CANCELLED'
 
   const toggleHeart = (share: S['CompletionShare']) => {
     const emoji = '❤️'
@@ -351,100 +351,201 @@ function PanelBody({
       )}
 
       <div className="calendar-panel__content">
-        {/* 1. Header: Thumbnail, Clickable Title, Duration/Time */}
-        <div className="calendar-panel__header">
-          {thumbUrl ? (
-            <img
-              src={thumbUrl}
-              alt=""
-              onError={() => setThumbFailed(true)}
-              className="calendar-panel__thumb"
-            />
-          ) : (
-            <span className="calendar-panel__cat-badge" aria-hidden>
-              <CategoryIcon category={category} size={22} />
-            </span>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <Link
-                to={detailHref}
-                className="calendar-panel__title-link"
-              >
-                <span>{title}</span>
-                <ArrowUpRight size={14} className="shrink-0 opacity-75" aria-hidden />
-              </Link>
-            </div>
-            <div ref={timeWrapRef} className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-              {durationMinutes ? (
-                <span className="inline-flex items-center gap-1">
-                  <Clock3 size={12} aria-hidden />
-                  {durationMinutes} min
-                </span>
-              ) : null}
-              {durationMinutes ? <span aria-hidden>·</span> : null}
-              {!isLocked && status !== 'CANCELLED' && editingTime ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <input
-                    type="time"
-                    autoFocus
-                    aria-label={`Time of day for ${title}`}
-                    value={targetTimeInput(localTime)}
-                    onChange={(e) => {
-                      const next = parseTargetTime(e.target.value)
-                      if (next !== localTime) {
-                        void onChangeTime(itemId, next)
-                      }
-                    }}
-                    className="rounded-md border border-border bg-background px-1.5 py-0.5 text-xs text-foreground"
-                  />
-                  {localTime && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void onChangeTime(itemId, null)
-                        setEditingTime(false)
-                      }}
-                      className="rounded border border-border px-1.5 py-0.5 text-[11px] text-muted hover:text-foreground"
-                    >
-                      Any time
-                    </button>
-                  )}
+        {/* 1. Title, then when */}
+        <header className="calendar-panel__header">
+          <Link to={detailHref} className="calendar-panel__title-link">
+            <span>{title}</span>
+            <ArrowUpRight size={15} className="calendar-panel__title-arrow" aria-hidden />
+          </Link>
+          {programTitle && <p className="calendar-panel__subtitle">{programTitle}</p>}
+          <div ref={timeWrapRef} className="calendar-panel__when">
+            {dateDisplay && (
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays size={13} aria-hidden />
+                {dateDisplay}
+              </span>
+            )}
+            {dateDisplay && <span aria-hidden>·</span>}
+            {!isLocked && status !== 'CANCELLED' && editingTime ? (
+              <span className="inline-flex items-center gap-1.5">
+                <input
+                  type="time"
+                  autoFocus
+                  aria-label={`Time of day for ${title}`}
+                  value={targetTimeInput(localTime)}
+                  onChange={(e) => {
+                    const next = parseTargetTime(e.target.value)
+                    if (next !== localTime) {
+                      void onChangeTime(itemId, next)
+                    }
+                  }}
+                  className="rounded-md border border-border bg-background px-1.5 py-0.5 text-xs text-foreground"
+                />
+                {localTime && (
                   <button
                     type="button"
-                    aria-label="Done adjusting time"
-                    onClick={() => setEditingTime(false)}
-                    className="p-0.5 text-muted hover:text-foreground"
+                    onClick={() => {
+                      void onChangeTime(itemId, null)
+                      setEditingTime(false)
+                    }}
+                    className="rounded border border-border px-1.5 py-0.5 text-[11px] text-muted hover:text-foreground"
                   >
-                    <Check size={13} />
+                    Any time
                   </button>
-                </span>
-              ) : (
+                )}
                 <button
                   type="button"
-                  disabled={isLocked || status === 'CANCELLED'}
-                  onClick={() => setEditingTime(true)}
-                  className="inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:bg-surface-muted hover:text-foreground disabled:pointer-events-none"
+                  aria-label="Done adjusting time"
+                  onClick={() => setEditingTime(false)}
+                  className="p-0.5 text-muted hover:text-foreground"
                 >
-                  {!durationMinutes && <Clock3 size={12} aria-hidden />}
-                  <span>{timeDisplay ?? 'Any time'}</span>
+                  <Check size={13} />
                 </button>
-              )}
-            </div>
+              </span>
+            ) : (
+              <button
+                type="button"
+                disabled={isLocked || status === 'CANCELLED'}
+                onClick={() => setEditingTime(true)}
+                aria-label={`Adjust time, ${timeDisplay ?? 'Any time'}`}
+                className="calendar-panel__time-btn"
+              >
+                <Clock3 size={13} aria-hidden />
+                <span>{timeDisplay ?? 'Any time'}</span>
+              </button>
+            )}
+            {durationMinutes ? (
+              <>
+                <span aria-hidden>·</span>
+                <span>{durationMinutes} min</span>
+              </>
+            ) : null}
           </div>
+        </header>
+
+        {/* 2. One image: the resolved thumbnail, else the category fallback. */}
+        <div className="calendar-panel__hero">
+          {thumbUrl ? (
+            mediaRailItems.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setViewerIndex(heroViewerIndex)}
+                aria-label={`View photos of ${title}`}
+                className="calendar-panel__hero-btn"
+              >
+                <img
+                  src={thumbUrl}
+                  alt=""
+                  onError={() => setThumbFailed(true)}
+                  className="calendar-panel__hero-img"
+                />
+                {mediaRailItems.length > 1 && (
+                  <span className="calendar-panel__hero-count">
+                    <ImageIcon size={12} aria-hidden />
+                    {mediaRailItems.length}
+                  </span>
+                )}
+              </button>
+            ) : (
+              <img
+                src={thumbUrl}
+                alt=""
+                onError={() => setThumbFailed(true)}
+                className="calendar-panel__hero-img"
+              />
+            )
+          ) : (
+            <span className="calendar-panel__hero-fallback" aria-hidden>
+              <CategoryIcon category={category} size={30} />
+            </span>
+          )}
         </div>
+
+        {/* 3. Concise description; steps stay one tap away. */}
+        {description && <p className="calendar-panel__description">{description}</p>}
+        {distinctInstructions.length > 0 && (
+          <details className="calendar-panel__steps-wrap">
+            <summary className="calendar-panel__steps-summary">
+              {distinctInstructions.length} {distinctInstructions.length === 1 ? 'step' : 'steps'}
+            </summary>
+            <ul className="calendar-panel__steps" aria-label="Instructions">
+              {distinctInstructions.map((step, index) => (
+                <li key={step.id} className="calendar-panel__step">
+                  <span className="calendar-panel__step-num" aria-hidden>
+                    {index + 1}.
+                  </span>
+                  <div className="min-w-0">
+                    {step.title && (
+                      <span className="font-medium text-foreground">
+                        {step.title}
+                        {step.body ? ': ' : ''}
+                      </span>
+                    )}
+                    {step.body && <span className="text-foreground/85">{step.body}</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
 
         {/* Real gatherings of this Activity that day; joining reuses this item (10 §9.11). */}
         {item && <GatheringSuggestion item={item} className="calendar-panel__gathering" />}
 
-        {/* 2. Primary Complete / Undo Action */}
-        <div className="calendar-panel__complete-wrap">
+        {/* 4. Participation: the shared component (03-UX §2b), plus this session's own count. */}
+        {(activityId || collab) && (
+          <section className="calendar-panel__section" aria-label="Participation">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="calendar-panel__together-title">Participation</h3>
+              {groupId && (
+                <Link
+                  to={buildGroupUrl(groupId)}
+                  className="text-xs font-semibold text-accent hover:underline"
+                >
+                  Open session →
+                </Link>
+              )}
+            </div>
+            {collab && (
+              <div className="flex min-w-0 items-center gap-2 text-xs text-muted">
+                {collab.members.length > 0 && (
+                  <span className="flex shrink-0 -space-x-1.5" aria-hidden>
+                    {collab.members.slice(0, 4).map((m) => (
+                      <Avatar
+                        key={m.user.id}
+                        src={m.user.avatarUrl}
+                        name={m.user.displayName}
+                        size="sm"
+                        className="h-5 w-5 text-[9px] ring-2 ring-surface"
+                      />
+                    ))}
+                  </span>
+                )}
+                <span className="truncate">
+                  {collab.finishedCount > 0
+                    ? `${collab.finishedCount} of ${collab.totalCount} finished in this session`
+                    : `${collab.totalCount} in this session`}
+                </span>
+              </div>
+            )}
+            {activityId && (
+              <ActivityParticipation
+                activity={{ id: activityId, title }}
+                variant="summary"
+                returnTo={occurrenceHref}
+              />
+            )}
+          </section>
+        )}
+
+        {/* 5. Actions: Complete / Undo, Start or Resume, Remove from Calendar. */}
+        <div className="calendar-panel__actions">
           {isLocked ? (
             <Link
               to={`/occurrences/${itemId}`}
               className="btn btn--outline w-full justify-center"
             >
-              Access needed · Open Activity
+              Open Activity
             </Link>
           ) : isDone ? (
             <button
@@ -467,62 +568,28 @@ function PanelBody({
               <span>{completing ? 'Saving...' : opensLabel ?? 'Mark as Complete'}</span>
             </button>
           )}
+          {(isOpenEntry || canRemove) && (
+            <div className="calendar-panel__secondary-actions">
+              {isOpenEntry && (
+                <Link to={occurrenceHref} className="calendar-panel__secondary-btn">
+                  <Play size={13} className="fill-current" aria-hidden />
+                  {resumable ? 'Resume' : 'Start'}
+                </Link>
+              )}
+              {canRemove && (
+                <button
+                  type="button"
+                  disabled={!online || removing}
+                  onClick={() => onRemove?.(itemId)}
+                  className="calendar-panel__remove-btn"
+                >
+                  <Trash2 size={13} aria-hidden />
+                  Remove from Calendar
+                </button>
+              )}
+            </div>
+          )}
         </div>
-
-        {/* 3. Description (directly beneath primary action) */}
-        {description && (
-          <p className="calendar-panel__description">{description}</p>
-        )}
-
-        {/* 4. Distinct Instructions (only when available, no cards or oversized numbers) */}
-        {distinctInstructions.length > 0 && (
-          <ul className="calendar-panel__steps" aria-label="Instructions">
-            {distinctInstructions.map((step, index) => (
-              <li key={step.id} className="calendar-panel__step">
-                <span className="calendar-panel__step-num" aria-hidden>
-                  {index + 1}.
-                </span>
-                <div className="min-w-0">
-                  {step.title && (
-                    <span className="font-medium text-foreground">
-                      {step.title}
-                      {step.body ? ': ' : ''}
-                    </span>
-                  )}
-                  {step.body && (
-                    <span className="text-foreground/85">{step.body}</span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* 5. Horizontal Rail of Related Media Thumbnails (no Media heading) */}
-        {mediaRailItems.length > 0 && (
-          <div className="calendar-panel__media-rail" aria-label="Related media">
-            {mediaRailItems.slice(0, 6).map((m, index) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setViewerIndex(index)}
-                className="calendar-panel__media-thumb"
-              >
-                {m.thumbnailUrl ? (
-                  <img
-                    src={m.thumbnailUrl}
-                    alt={m.alt ?? 'Activity media'}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center text-muted">
-                    <ImageIcon size={16} />
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
 
         <ErrorMessage
           error={
@@ -533,166 +600,123 @@ function PanelBody({
           }
         />
 
-        {/* 6. Community: Compact "Together now" section */}
-        <section className="calendar-panel__section" aria-label="Together now">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="calendar-panel__together-title">Together now</h3>
-            {groupId && (
-              <Link
-                to={buildGroupUrl(groupId)}
+        {/* 6. The session's check-ins and messages (Group Activities only). */}
+        {groupId && (
+          <section className="calendar-panel__section" aria-label="Recent check-ins">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-medium text-muted">Recent check-ins</span>
+              <button
+                type="button"
+                onClick={() => setCheckInOpen(true)}
+                disabled={!online}
                 className="text-xs font-semibold text-accent hover:underline"
               >
-                Open session →
-              </Link>
-            )}
-          </div>
+                + Check in
+              </button>
+            </div>
 
-          {collab ? (
-            <p className="text-xs text-muted">
-              {collab.finishedCount > 0
-                ? `${collab.finishedCount} of ${collab.totalCount} finished in this session`
-                : `${collab.totalCount} in this group`}
-            </p>
-          ) : communityStats &&
-            (communityStats.participants != null ||
-              communityStats.completions != null) ? (
-            <p className="text-xs text-muted">
-              {[
-                communityStats.participants != null
-                  ? `${communityStats.participants} recent participants`
-                  : null,
-                communityStats.completions != null
-                  ? `${communityStats.completions} recent completions`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-          ) : (
-            <p className="text-xs text-muted">No recent shared participation yet.</p>
-          )}
-
-          {communityAvatars.length > 0 && (
-            <AvatarStack people={communityAvatars} max={4} />
-          )}
-
-          {groupId && (
-            <div className="space-y-3 pt-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-medium text-muted">
-                  Recent check-ins
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setCheckInOpen(true)}
-                  disabled={!online}
-                  className="text-xs font-semibold text-accent hover:underline"
-                >
-                  + Check in
-                </button>
-              </div>
-
-              {completionsQuery.isPending ? (
-                <Loading />
-              ) : checkInRows.length > 0 ? (
-                <ul className="space-y-2.5">
-                  {checkInRows.slice(0, 5).map((share) => {
-                    const isMe = share.user.id === viewerId
-                    const liked = share.reactions.some(
-                      (r) => r.emoji === '❤️' && r.reactedByMe,
-                    )
-                    const likeCount =
-                      share.reactions.find((r) => r.emoji === '❤️')?.count ?? 0
-                    return (
-                      <li key={share.id} className="flex items-start justify-between gap-2">
-                        <div className="flex min-w-0 items-start gap-2">
-                          <Avatar
-                            src={share.user.avatarUrl}
-                            name={share.user.displayName}
-                            size="sm"
-                          />
-                          <div className="min-w-0">
-                            <p className="text-xs leading-snug text-foreground">
-                              <strong className="font-semibold">
-                                {isMe ? 'You' : share.user.displayName}
-                              </strong>{' '}
-                              <span className="text-muted">
-                                {share.media ? 'added a photo' : 'completed this'}
-                              </span>
-                            </p>
-                            <p className="text-[11px] text-muted">
-                              {formatRelativeTime(share.completedAt)}
-                            </p>
-                            {share.note && (
-                              <p className="mt-1 text-xs text-foreground/90">
-                                {share.note}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          aria-pressed={liked}
-                          aria-label={`Like ${share.user.displayName}'s check-in`}
-                          disabled={!online}
-                          onClick={() => toggleHeart(share)}
-                          className={cn(
-                            'inline-flex shrink-0 items-center gap-1 rounded-full p-1 text-xs text-muted transition-colors hover:text-foreground',
-                            liked && 'text-accent',
-                          )}
-                        >
-                          <Heart size={14} fill={liked ? 'currentColor' : 'none'} />
-                          {likeCount > 0 && <span>{likeCount}</span>}
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : null}
-
-              {commentRows.length > 0 && (
-                <ul className="space-y-2 border-t border-border/60 pt-2">
-                  {commentRows.map((c) => (
-                    <li
-                      key={c.id}
-                      className="flex items-start justify-between gap-2 rounded-lg bg-surface-raised/60 px-2.5 py-2 text-xs"
-                    >
+            {completionsQuery.isPending ? (
+              <Loading />
+            ) : checkInRows.length > 0 ? (
+              <ul className="space-y-2.5">
+                {checkInRows.slice(0, 5).map((share) => {
+                  const isMe = share.user.id === viewerId
+                  const liked = share.reactions.some(
+                    (r) => r.emoji === '❤️' && r.reactedByMe,
+                  )
+                  const likeCount =
+                    share.reactions.find((r) => r.emoji === '❤️')?.count ?? 0
+                  return (
+                    <li key={share.id} className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 items-start gap-2">
                         <Avatar
-                          src={c.author.avatarUrl}
-                          name={c.author.displayName}
+                          src={share.user.avatarUrl}
+                          name={share.user.displayName}
                           size="sm"
                         />
                         <div className="min-w-0">
-                          <p className="font-medium text-foreground">
-                            {c.author.displayName}{' '}
-                            <span className="font-normal text-muted">
-                              · {formatRelativeTime(c.createdAt)}
+                          <p className="text-xs leading-snug text-foreground">
+                            <strong className="font-semibold">
+                              {isMe ? 'You' : share.user.displayName}
+                            </strong>{' '}
+                            <span className="text-muted">
+                              {share.media ? 'added a photo' : 'completed this'}
                             </span>
                           </p>
-                          <p className="mt-0.5 break-words text-foreground/90">
-                            {c.body}
+                          <p className="text-[11px] text-muted">
+                            {formatRelativeTime(share.completedAt)}
                           </p>
+                          {share.note && (
+                            <p className="mt-1 text-xs text-foreground/90">
+                              {share.note}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      {c.canDelete && (
-                        <button
-                          type="button"
-                          aria-label="Delete comment"
-                          disabled={!online || deleteComment.isPending}
-                          onClick={() => deleteComment.mutate(c.id)}
-                          className="shrink-0 p-1 text-muted hover:text-danger"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        aria-pressed={liked}
+                        aria-label={`Like ${share.user.displayName}'s check-in`}
+                        disabled={!online}
+                        onClick={() => toggleHeart(share)}
+                        className={cn(
+                          'inline-flex shrink-0 items-center gap-1 rounded-full p-1 text-xs text-muted transition-colors hover:text-foreground',
+                          liked && 'text-accent',
+                        )}
+                      >
+                        <Heart size={14} fill={liked ? 'currentColor' : 'none'} />
+                        {likeCount > 0 && <span>{likeCount}</span>}
+                      </button>
                     </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </section>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted">No check-ins yet.</p>
+            )}
+
+            {commentRows.length > 0 && (
+              <ul className="space-y-2 pt-1">
+                {commentRows.map((c) => (
+                  <li
+                    key={c.id}
+                    className="flex items-start justify-between gap-2 rounded-lg bg-surface-raised/60 px-2.5 py-2 text-xs"
+                  >
+                    <div className="flex min-w-0 items-start gap-2">
+                      <Avatar
+                        src={c.author.avatarUrl}
+                        name={c.author.displayName}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">
+                          {c.author.displayName}{' '}
+                          <span className="font-normal text-muted">
+                            · {formatRelativeTime(c.createdAt)}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 break-words text-foreground/90">
+                          {c.body}
+                        </p>
+                      </div>
+                    </div>
+                    {c.canDelete && (
+                      <button
+                        type="button"
+                        aria-label="Delete comment"
+                        disabled={!online || deleteComment.isPending}
+                        onClick={() => deleteComment.mutate(c.id)}
+                        className="shrink-0 p-1 text-muted hover:text-danger"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
       </div>
 
       {/* Bottom Composer (when sharing in a Group) */}
