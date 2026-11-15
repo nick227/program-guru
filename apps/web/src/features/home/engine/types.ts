@@ -24,7 +24,8 @@ export type PresentationMode = 'for_you' | 'happening_now' | 'popular' | 'follow
 
 export type PreviewTarget =
   | { kind: 'program'; id: string }
-  | { kind: 'activity'; id: string }
+  /** From the Home surfer, the gathering it showed (03-UX §2a): its people and Join come along. */
+  | { kind: 'activity'; id: string; gatheringId?: string | null; calendarItemId?: string | null }
   | { kind: 'creator'; handle: string }
   | { kind: 'group'; id: string }
   | { kind: 'session'; id: string; title: string; subtitle: string }
@@ -35,6 +36,8 @@ export type CardAction =
   | { type: 'open_occurrence'; itemId: string }
   | { type: 'navigate_occurrence'; itemId: string }
   | { type: 'open_activity'; activityId: string }
+  /** Add to Schedule: pick a date (and time) in a dialog, staying on Home (03-UX §2a). */
+  | { type: 'schedule_activity'; activityId: string; title: string }
   | { type: 'navigate_activity'; activityId: string }
   | { type: 'open_program'; programId: string }
   | { type: 'open_group'; groupId: string }

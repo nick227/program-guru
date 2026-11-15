@@ -334,6 +334,15 @@ function resolveNowResult(
         },
       },
       {
+        id: 'schedule-activity',
+        label: 'Add to Schedule',
+        variant: 'secondary',
+        effect: {
+          type: 'execute',
+          action: { type: 'schedule_activity', activityId: activity.id, title: activity.title },
+        },
+      },
+      {
         id: 'shorter',
         label: 'Shorter',
         variant: 'secondary',
@@ -877,6 +886,15 @@ function resolveExploreResult(
             effect: {
               type: 'execute',
               action: { type: 'open_activity', activityId: activity.id },
+            },
+          },
+          {
+            id: 'schedule-activity',
+            label: 'Add to Schedule',
+            variant: 'secondary',
+            effect: {
+              type: 'execute',
+              action: { type: 'schedule_activity', activityId: activity.id, title: activity.title },
             },
           },
           {

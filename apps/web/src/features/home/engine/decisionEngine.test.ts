@@ -234,6 +234,22 @@ describe('resolveTurn', () => {
     expect(turn.contextLine).toContain('10 minutes')
   })
 
+  it('offers Add to Schedule beside Start on every Activity suggestion (03-UX §2a)', () => {
+    const turns = [
+      resolveTurn('now_result', { maxMinutes: 10, excludedIds: [] }, makeBaseSignals()),
+      resolveTurn('explore_result', { exploreKind: 'ACTIVITY', excludedIds: [] }, makeBaseSignals()),
+    ]
+    for (const turn of turns) {
+      expect(turn.card?.kind).toBe('activity')
+      const schedule = turn.choices.find((c) => c.id === 'schedule-activity')
+      expect(schedule?.label).toBe('Add to Schedule')
+      expect(schedule?.effect).toEqual({
+        type: 'execute',
+        action: { type: 'schedule_activity', activityId: turn.card!.id, title: turn.card!.title },
+      })
+    }
+  })
+
   it('skips excluded items when user asks for a different suggestion', () => {
     const first = resolveTurn(
       'now_result',

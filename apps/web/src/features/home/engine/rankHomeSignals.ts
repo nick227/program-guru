@@ -362,6 +362,15 @@ export function rankHomeSignals(
           },
         },
         {
+          id: 'schedule-activity',
+          label: 'Add to Schedule',
+          variant: 'secondary',
+          effect: {
+            type: 'execute',
+            action: { type: 'schedule_activity', activityId: activity.activity.id, title: activity.activity.title },
+          },
+        },
+        {
           id: 'something-else',
           label: 'Something else',
           variant: 'secondary',

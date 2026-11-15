@@ -17,6 +17,8 @@ interface TurnStageProps {
   executionItemId: string | null
   isSignedIn: boolean
   todayIso: string
+  /** Home's opening turn above the Activity surfer: same content, less height (03-UX §2a). */
+  compact?: boolean
   canGoBack: boolean
   loading?: boolean
   actionPending?: boolean
@@ -45,6 +47,7 @@ export function TurnStage({
   executionItemId,
   isSignedIn,
   todayIso,
+  compact = false,
   canGoBack,
   loading,
   actionPending,
@@ -143,7 +146,7 @@ export function TurnStage({
   return (
     <section
       aria-label="Conversation"
-      className="mx-auto flex w-full max-w-[620px] flex-col items-center px-6 py-8 text-center"
+      className={`mx-auto flex w-full max-w-[620px] flex-col items-center px-6 text-center ${compact ? 'pb-5 pt-6' : 'py-8'}`}
     >
       <div
         key={`${turn.nodeId}:${turn.card?.id ?? ''}`}
@@ -166,7 +169,7 @@ export function TurnStage({
           </div>
         )}
         <div className="space-y-2.5">
-          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h1 className={`font-display font-semibold tracking-tight ${compact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'}`}>
             {turn.question}
           </h1>
           {turn.contextLine && (
