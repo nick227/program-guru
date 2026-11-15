@@ -1,17 +1,8 @@
 import type { FastifyReply } from 'fastify'
 import { clearSessionCookie, requireUser, resolveViewer } from '../lib/auth'
 import * as auth from '../domains/users/auth.service'
-import * as profiles from '../domains/users/profile.service'
 import * as directory from '../domains/users/directory.service'
 import * as follows from '../domains/users/follow.service'
-
-export async function updateMyProfile(request: any) {
-  return { data: await profiles.updateProfile(requireUser(request).id, request.body) }
-}
-
-export async function updateMyPreferences(request: any) {
-  return { data: await profiles.updatePreferences(requireUser(request).id, request.body) }
-}
 
 export async function deactivateMe(request: any, reply: FastifyReply) {
   await auth.deactivate(requireUser(request).id)
@@ -31,14 +22,6 @@ export async function searchUsers(request: any) {
 export async function getUserByHandle(request: any) {
   const viewer = await resolveViewer(request)
   return { data: await directory.byHandle(viewer?.id ?? null, request.params.handle) }
-}
-
-export async function followUser(request: any) {
-  return { data: await follows.follow(requireUser(request).id, request.params.userId) }
-}
-
-export async function unfollowUser(request: any) {
-  return { data: await follows.unfollow(requireUser(request).id, request.params.userId) }
 }
 
 export async function approveFollowRequest(request: any) {

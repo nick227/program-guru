@@ -1,4 +1,4 @@
-import { requireUser, resolveViewer } from '../lib/auth'
+import { resolveViewer } from '../lib/auth'
 import * as catalog from '../domains/catalog/catalog.service'
 
 export async function listCategories() {
@@ -10,17 +10,9 @@ export async function listProgramTypes(request: any) {
   return { data: await catalog.listProgramTypes(viewer?.id ?? null, request.query.categoryId) }
 }
 
-export async function createCustomProgramType(request: any) {
-  return { data: await catalog.createCustomProgramType(requireUser(request).id, request.body) }
-}
-
 export async function listFocuses(request: any) {
   const viewer = await resolveViewer(request)
   return { data: await catalog.listFocuses(viewer?.id ?? null, request.query) }
-}
-
-export async function createCustomFocus(request: any) {
-  return { data: await catalog.createCustomFocus(requireUser(request).id, request.body) }
 }
 
 export async function listMetricDefinitions(request: any) {

@@ -13,21 +13,9 @@ export async function listPlatformMedia(request: any) {
   requireUser(request)
   return media.listPlatform(request.query)
 }
-export async function createMediaUpload(request: any) {
-  return { data: await media.createUpload(uid(request), request.body) }
-}
 export async function uploadMediaContent(request: any) {
   await media.receiveLocalUpload(request.params.uploadId, request.query.token, request.body)
   return { data: { ok: true } }
-}
-export async function completeMediaUpload(request: any) {
-  return { data: await media.completeUpload(uid(request), request.params.uploadId) }
-}
-export async function getMedia(request: any) {
-  return { data: await media.get(uid(request), request.params.mediaId) }
-}
-export async function updateMedia(request: any) {
-  return { data: await media.update(uid(request), request.params.mediaId, request.body) }
 }
 export async function getMediaUrl(request: any) {
   const viewer = await resolveViewer(request)
@@ -68,15 +56,9 @@ export async function deleteMedia(request: any) {
   await media.remove(uid(request), request.params.mediaId)
   return { data: { ok: true } }
 }
-export async function createMediaAttachment(request: any) {
-  return { data: await media.attach(uid(request), request.body) }
-}
 export async function deleteMediaAttachment(request: any) {
   await media.detach(uid(request), request.params.attachmentId)
   return { data: { ok: true } }
-}
-export async function createMediaPublication(request: any) {
-  return { data: await media.publish(uid(request), request.body) }
 }
 export async function revokeMediaPublication(request: any) {
   await media.revoke(uid(request), request.params.publicationId)
@@ -88,9 +70,6 @@ export async function getMediaPublication(request: any) {
 }
 export async function listPendingPublications(request: any) {
   return media.listPending(request.query)
-}
-export async function moderateMediaPublication(request: any) {
-  return { data: await media.moderate(uid(request), request.params.publicationId, request.body) }
 }
 
 export async function listMediaAttachments(request: any) {
