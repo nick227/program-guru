@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Check, Play, X } from 'lucide-react'
+import { Activity, ArrowLeft, Check, X, ExternalLink } from 'lucide-react'
 import type {
   AssistantTurn,
   CardAction,
@@ -9,6 +9,7 @@ import type {
 import { InlineExecution } from './InlineExecution'
 import { InlinePreview } from './InlinePreview'
 import { TurnHero } from './TurnHero'
+import { ActivityParticipation } from '@/components/activity/ActivityParticipation'
 
 interface TurnStageProps {
   turn: AssistantTurn
@@ -176,17 +177,22 @@ export function TurnStage({
           <h1 className={`font-display font-semibold tracking-tight ${compact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'}`}>
             {turn.question}
           </h1>
-          {turn.contextLine && (
-            <p className="mx-auto max-w-md text-sm text-muted sm:text-base">
-              {turn.contextLine}
-            </p>
-          )}
           {showWhy && turn.whyReason && (
             <p className="mx-auto max-w-md rounded-xl border border-border/70 bg-surface-raised/60 px-4 py-2.5 text-xs text-muted sm:text-sm">
               {turn.whyReason}
             </p>
           )}
         </div>
+
+        {/* An Activity suggestion says where it stands for you and who takes part (03-UX §2b). */}
+        {turn.card?.previewTarget.kind === 'activity' && turn.nodeId !== 'day_schedule' && (
+          <ActivityParticipation
+            variant="summary"
+            activity={{ id: turn.card.previewTarget.id, title: turn.card.title }}
+            returnTo="/"
+            className="flex justify-center text-left"
+          />
+        )}
 
         {turn.nodeId === 'day_schedule' && turn.cards && turn.cards.length > 0 && (
           <ul
@@ -239,7 +245,7 @@ export function TurnStage({
                         <span className="text-xs text-muted">Skipped</span>
                       ) : (
                         <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border/70 text-muted transition group-hover:border-accent group-hover:text-accent">
-                          <Play size={11} className="translate-x-0.5 fill-current" aria-hidden />
+                          <ExternalLink size={11} className="translate-x-0.5 fill-current" aria-hidden />
                         </span>
                       )}
                     </span>

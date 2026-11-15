@@ -1,23 +1,18 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ExternalLink, MapPin, Play, X } from 'lucide-react'
-import { AddToScheduleButton } from '@/components/schedule/AddToSchedule'
+import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { ExternalLink, MapPin, X } from 'lucide-react'
+import { ActivityParticipation } from '@/components/activity/ActivityParticipation'
 import {
   useActivity,
   useActivityPublicMedia,
-  useAddCalendarItem,
-  useCurrentUser,
 } from '@project/sdk'
-import { toast } from 'sonner'
 import { Avatar } from '@/components/ui/Avatar'
-import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { RelatedMedia, type RelatedMediaItem } from '@/components/media/RelatedMedia'
 import { formatFrequency } from '@/components/program-authoring/ScheduleControls'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { GroupStatus } from '@/components/social/GroupStatus'
-import { today } from '@/lib/dates'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { activityHero } from '@/lib/hero'
 import { buildProfileUrl } from '@/lib/urls'
@@ -32,11 +27,7 @@ export function ActivityPreviewDrawer({
   currentUrl: string
   onClose: () => void
 }) {
-  const navigate = useNavigate()
-  const me = useCurrentUser()
   const categorySlugOf = useCategorySlugOf()
-  const addCalendarItem = useAddCalendarItem()
-  const [starting, setStarting] = useState(false)
 
   const activity = useActivity(activityId ?? '')
   const publicMedia = useActivityPublicMedia(activityId ?? '')
@@ -46,7 +37,8 @@ export function ActivityPreviewDrawer({
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      // A dialog opened from here (Add to Schedule, Reschedule) owns Escape first.
+      if (event.key === 'Escape' && !document.querySelector('dialog[open]')) onClose()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => {
@@ -58,31 +50,6 @@ export function ActivityPreviewDrawer({
   if (!activityId) return null
 
   const a = activity.data
-  const signedIn = !!me.data
-
-  const handleDoNow = async () => {
-    if (!a || starting) return
-    setStarting(true)
-    try {
-      const result = await addCalendarItem.mutateAsync({
-        activityId: a.id,
-        revisionId: a.revisionId ?? undefined,
-        localDate: today(
-          me.data?.data.preferences.timezone ??
-            Intl.DateTimeFormat().resolvedOptions().timeZone,
-        ),
-        idempotencyKey: crypto.randomUUID(),
-      })
-      onClose()
-      navigate(
-        `/occurrences/${result.item.id}?returnTo=${encodeURIComponent(currentUrl)}`,
-      )
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not start activity')
-    } finally {
-      setStarting(false)
-    }
-  }
 
   const publicMediaItems: RelatedMediaItem[] = (
     publicMedia.data?.pages ?? []
@@ -231,33 +198,7 @@ export function ActivityPreviewDrawer({
                   </p>
                 )}
 
-                <div className="pt-1">
-                  {signedIn ? (
-                    <Button
-                      size="md"
-                      loading={starting}
-                      onClick={() => void handleDoNow()}
-                      className="w-full gap-2"
-                    >
-                      <Play size={15} aria-hidden />
-                      <span>Do Now</span>
-                    </Button>
-                  ) : (
-                    <Link
-                      to={`/activities/${a.id}?returnTo=${encodeURIComponent(currentUrl)}`}
-                      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg transition-colors hover:bg-accent/90"
-                    >
-                      <Play size={15} aria-hidden />
-                      <span>Do Now</span>
-                    </Link>
-                  )}
-                  <AddToScheduleButton
-                    target={{ kind: 'activity', id: a.id, title: a.title }}
-                    signedIn={signedIn}
-                    returnTo={currentUrl}
-                    className="mt-2 w-full rounded-lg"
-                  />
-                </div>
+                <ActivityParticipation activity={{ id: a.id, title: a.title }} returnTo={currentUrl} className="pt-1" />
               </div>
 
               <GroupStatus

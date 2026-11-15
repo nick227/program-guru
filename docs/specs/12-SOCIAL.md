@@ -208,6 +208,18 @@ Endpoints: `GET /discover` (Activity results also filter by `placeId`, `locality
 
 Public counts are coarse aggregated and non-identifying; suppress or round small group statistics where individual inference possible. Personal results stay owner-only unless explicitly shared; never make “community average body measurements / savings amount” a default graph. Creator analytics may include their own content views, adoption, likes and comments, but **not** a list of participants' private completion values. Use per-publication public engagement aggregates and per-program enrollment, completion, and retention aggregates. Completion and retention are computed only as aggregates and suppressed below a minimum sample size.
 
+## 10a. Activity participation (approved 2026-11-15)
+
+**Participant.** A distinct ACTIVE user with at least one Calendar Item of that exact Activity whose status is `PLANNED`, `DONE` or `SKIPPED` (on their Calendar now or in the past; not `CANCELLED`, not `NOT_PARTICIPATING`). People are counted, not occurrences or completions: a recurring entry, a Program run and a gathering of the same Activity count that person once. A customized copy is its own Activity. Deactivated and suspended users are not counted.
+
+**Disclosure of the count** (minimum sample 5, §10): `0` is shown exactly (it identifies no one); `1–4` is shown as **Fewer than 5**, never as a number and never as 0; `5` and above exactly. The same band applies to everyone, signed in or out; a participating viewer additionally sees "including you".
+
+**Avatars are separate from the count**: the viewer (when a participant) and members of gatherings of that Activity the viewer may see (10 §4, §9; public open gatherings, or ones the viewer belongs to), minus blocks, at most 8. Solo participation is never shown as an avatar, and a follow never reveals it (§5c).
+
+**Shared activity** comes only from those gatherings: members with a running or paused session (`doing it now`, never presence) versus members of upcoming gatherings (`going`), with the next one's date, time and Place.
+
+**`GET /activities/participation?ids=`** (optional sign-in, at most 50 ids) returns, for each Activity the viewer may see (others are omitted, never confirmed): `participants {band, count}`, `avatars`, `shared {activeNow, going, nextGathering}`, and for a signed-in viewer `viewer {everAdded, lastAddedAt, completedCount, lastCompletedDate, inProgressItemId, upcoming[≤3] with their recurrence}`. One request serves every Activity rendered together.
+
 ## 11. Tests
 
 - PUBLIC vs UNLISTED vs PRIVATE discovery; direct link still enforces locked preview/media permissions.

@@ -164,11 +164,27 @@ export async function get(viewerId: string | null, groupId: string, invite?: str
 
 /** Upcoming gatherings for an Activity: public open ones and any the viewer belongs to (10 §9.7). */
 export async function listForActivity(viewerId: string | null, activityId: string, now = new Date()) {
+  return (await listForActivities(viewerId, [activityId], now)).get(activityId) ?? []
+}
+
+/**
+ * Upcoming visible gatherings of several Activities in one query (10 §9.7): public open ones and any the
+ * viewer belongs to, not past, soonest first. Shared by the Activity page and participation (12 §10a).
+ */
+export async function listForActivities(
+  viewerId: string | null,
+  activityIds: string[],
+  now = new Date(),
+  /** Also keep started gatherings that someone is doing right now (participation's "doing it now"). */
+  { includeActive = false } = {},
+) {
+  const out = new Map<string, Awaited<ReturnType<typeof toGathering>>[]>()
+  if (!activityIds.length) return out
   const blocked = await blockedIds(viewerId)
   const rows = await db.programGroup.findMany({
     where: {
       kind: 'GATHERING',
-      activityId,
+      activityId: { in: activityIds },
       status: 'ACTIVE',
       startLocalDate: { gte: toDbDate(addDays(todayIn('UTC', now), -1)) },
       ...(blocked.length ? { ownerId: { notIn: blocked } } : {}),
@@ -179,10 +195,20 @@ export async function listForActivity(viewerId: string | null, activityId: strin
     },
     include: gatheringInclude,
     orderBy: [{ startLocalDate: 'asc' }, { startLocalTime: 'asc' }, { id: 'asc' }],
-    take: 50,
+    take: 50 * Math.max(1, Math.min(activityIds.length, 4)),
   })
-  const visible = rows.filter((g) => g.activity && !g.activity.moderatedAt && g.activity.status === 'PUBLISHED' && !isPast(g, now))
-  return Promise.all(visible.map((g) => toGathering(g, viewerId)))
+  const visible = rows.filter(
+    (g) => g.activity && !g.activity.moderatedAt && g.activity.status === 'PUBLISHED' && (includeActive || !isPast(g, now)),
+  )
+  const mapped = await Promise.all(visible.map((g) => toGathering(g, viewerId)))
+  visible.forEach((g, i) => {
+    const gathering = mapped[i]!
+    if (gathering.isPast && gathering.activeCount === 0) return
+    const list = out.get(g.activityId!) ?? []
+    list.push(gathering)
+    out.set(g.activityId!, list)
+  })
+  return out
 }
 
 /**

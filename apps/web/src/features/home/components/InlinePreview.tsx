@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, CalendarDays, CalendarPlus, ExternalLink, MapPin, Play, UserPlus, Users } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CalendarPlus, ExternalLink, MapPin, Play, UserPlus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useFirstScheduledDayUrl } from '@/lib/useFirstScheduledDay'
 import { useQueryClient } from '@tanstack/react-query'
@@ -18,9 +18,9 @@ import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { Avatar } from '@/components/ui/Avatar'
 import { gatheringWhen } from '@/components/activity/ActivityGatherings'
 import { activityHero } from '@/lib/hero'
-import { groupAction } from '@/lib/joinEligibility'
 import { peopleLine } from '@/lib/participation'
 import { AddToScheduleButton } from '@/components/schedule/AddToSchedule'
+import { ActivityParticipation } from '@/components/activity/ActivityParticipation'
 import type { CardAction, PreviewTarget } from '../engine/types'
 import { TransitionSurface } from './TransitionSurface'
 
@@ -51,7 +51,7 @@ function PreviewShell({
     <div className="mx-auto flex w-full max-w-[620px] flex-col items-center gap-5 px-6 py-8 text-center animate-in fade-in duration-200">
       {media}
       <div className="space-y-2.5">
-        <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="font-display text-2xl font-semibold tracking-tight">
           {title}
         </h1>
         {subtitle && (
@@ -271,7 +271,6 @@ function ActivityPreviewBody({
 
   // A gathering is a way to do this Activity with others: its real people, then Join (12 §5a).
   const together = gathering && !gathering.isPast ? gathering : null
-  const action = together ? groupAction(together) : null
   const people = peopleLine(together)
   // The surfer always passes `gatheringId` (null without one) and gets the media-led preview.
   const media = gatheringId !== undefined ? (
@@ -300,9 +299,6 @@ function ActivityPreviewBody({
     </div>
   ) : undefined
 
-  const joinButtonClass =
-    'inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-105'
-
   return (
     <PreviewShell
       title={act.title}
@@ -311,61 +307,16 @@ function ActivityPreviewBody({
       media={media}
       onClose={onClose}
     >
-      {together && !isSignedIn && (
-        <Link to={`/login?returnTo=${encodeURIComponent('/')}`} className={joinButtonClass}>
-          <Users size={14} aria-hidden />
-          <span>Sign in to join</span>
-        </Link>
-      )}
-      {together && isSignedIn && action === 'open' && together.viewerCalendarItemId && (
-        <button
-          type="button"
-          onClick={() => onExecute({ type: 'navigate_occurrence', itemId: together.viewerCalendarItemId! })}
-          className={joinButtonClass}
-        >
-          <Users size={14} aria-hidden />
-          <span>Open</span>
-        </button>
-      )}
-      {together && isSignedIn && action === 'join' && !together.isFull && (
-        <button
-          type="button"
-          onClick={() =>
-            onExecute({ type: 'join_gathering', gatheringId: together.id, calendarItemId: calendarItemId ?? null })
-          }
-          className={joinButtonClass}
-        >
-          <Users size={14} aria-hidden />
-          <span>Join</span>
-        </button>
-      )}
-      {together?.isFull && action === 'join' && (
-        <span className="inline-flex min-h-10 items-center px-2 text-sm text-muted">Full</span>
-      )}
-      <button
-        type="button"
-        onClick={() => onExecute({ type: 'open_activity', activityId })}
-        className={
-          together && action !== 'view'
-            ? 'inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-surface-raised px-5 py-2 text-sm font-medium transition hover:bg-surface-muted'
-            : 'inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-105'
-        }
-      >
-        <Play size={14} className="fill-current" aria-hidden />
-        <span>{together ? 'Start on my own' : 'Start Activity'}</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onExecute({ type: 'navigate_activity', activityId })}
-        className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-surface-raised px-4 py-2 text-xs font-medium text-muted transition hover:text-inherit"
-      >
-        <span>Open Activity Page</span>
-        <ExternalLink size={13} aria-hidden />
-      </button>
-      <AddToScheduleButton
-        target={{ kind: 'activity', id: act.id, title: act.title }}
-        signedIn={isSignedIn}
+      {/* Status, people and actions: the shared participation component (03-UX §2b), with Home's own
+          inline Start, Resume and Join. */}
+      <ActivityParticipation
+        activity={{ id: act.id, title: act.title }}
         returnTo="/"
+        className="w-full max-w-md items-center"
+        onStart={() => onExecute({ type: 'open_activity', activityId })}
+        onResume={(itemId) => onExecute({ type: 'open_occurrence', itemId })}
+        onJoin={(g) => onExecute({ type: 'join_gathering', gatheringId: g.id, calendarItemId: calendarItemId ?? null })}
+        onOpenPage={() => onExecute({ type: 'navigate_activity', activityId })}
       />
     </PreviewShell>
   )

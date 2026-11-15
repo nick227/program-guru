@@ -67,6 +67,8 @@ When enrollment is needed, membership, entitlement, enrollment and calendar item
 | Other member started (in progress) on this occurrence | N/A | If shared (same `sharedCompletionEnabled` setting); means a session was started, never that they are online now | No | No |
 | Other member is participating (avatar on My Programs) | N/A | If shared | No (aggregate counts only) | Aggregate counts only, suppressed below the minimum sample |
 | Other member reps/amounts/notes | N/A | No, unless specifically shared | No | No |
+| An Activity's participant count (12 §10a) | Same band as public | Same band as public | Same band as public | `0` exactly; `Fewer than 5` for 1–4; the exact number from 5 |
+| Who participates in an Activity (avatars) | Self | Members of gatherings of it the viewer may see | Same, never from a follow | Members of public open gatherings only |
 | Completion reactions | Yes | Yes | No | No |
 | Group-shared media and its comments | Yes | Yes | No | No |
 | Program's approved public instruction media | According to policy | According to policy | According to policy | According to visibility |

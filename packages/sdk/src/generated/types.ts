@@ -813,6 +813,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/activities/participation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Participation for several Activities at once
+         * @description One request for every Activity rendered together (03-UX §2b, 12 §10a). Participant counts are banded (0 exact, 1-4 FEW, 5+ exact); avatars only from the viewer and gatherings the viewer may see. Activities the viewer may not see are omitted. `viewer` is null when signed out.
+         */
+        get: operations["listActivityParticipation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/activities/{activityId}/gatherings": {
         parameters: {
             query?: never;
@@ -3351,6 +3371,61 @@ export interface components {
         Opportunities: {
             recommendations: components["schemas"]["Opportunity"][];
             needsPeople: components["schemas"]["NeedsPeople"][];
+        };
+        /** @description 12 §10a. People are distinct users; a recurring entry counts its person once. */
+        ActivityParticipation: {
+            /** Format: uuid */
+            activityId: string;
+            participants: {
+                /**
+                 * @description NONE is zero people; FEW is 1-4 (count withheld); COUNT is 5 or more.
+                 * @enum {string}
+                 */
+                band: "NONE" | "FEW" | "COUNT";
+                /** @description 0 for NONE, the number for COUNT, null for FEW. */
+                count: number | null;
+                includesViewer?: boolean;
+            };
+            avatars: components["schemas"]["UserSummary"][];
+            shared: {
+                /** @description Members of visible gatherings with a running or paused session. */
+                activeNow: number;
+                /** @description Members of visible upcoming gatherings. */
+                going: number;
+                nextGathering: components["schemas"]["Gathering"] | null;
+            };
+            viewer: components["schemas"]["ActivityParticipationViewer"] | null;
+        };
+        ActivityParticipationViewer: {
+            everAdded: boolean;
+            /** Format: date-time */
+            lastAddedAt: string | null;
+            completedCount: number;
+            /** Format: date */
+            lastCompletedDate: string | null;
+            /** Format: uuid */
+            inProgressItemId: string | null;
+            upcoming: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                /** Format: date */
+                localDate: string;
+                localTime: string | null;
+                /** Format: uuid */
+                recurrenceId: string | null;
+                /** Format: uuid */
+                gatheringId: string | null;
+                /** Format: uuid */
+                enrollmentId: string | null;
+                /** Format: date-time */
+                updatedAt: string;
+                recurrence: {
+                    rule: components["schemas"]["RecurrenceRule"];
+                    /** Format: date */
+                    untilDate: string | null;
+                } | null;
+            }[];
         };
         Opportunity: {
             gathering: components["schemas"]["Gathering"];
@@ -6902,6 +6977,32 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listActivityParticipation: {
+        parameters: {
+            query: {
+                /** @description Comma-separated Activity ids, at most 50. */
+                ids: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ActivityParticipation"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
         };
     };
     listActivityGatherings: {

@@ -1789,6 +1789,42 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /activities/participation:
+    get:
+      operationId: listActivityParticipation
+      summary: Participation for several Activities at once
+      tags:
+      - activities
+      description: >-
+        One request for every Activity rendered together (03-UX §2b, 12 §10a). Participant counts are
+        banded (0 exact, 1-4 FEW, 5+ exact); avatars only from the viewer and gatherings the viewer may
+        see. Activities the viewer may not see are omitted. `viewer` is null when signed out.
+      security: []
+      parameters:
+      - in: query
+        name: ids
+        required: true
+        description: Comma-separated Activity ids, at most 50.
+        schema:
+          type: string
+          minLength: 36
+          maxLength: 1900
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActivityParticipation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /activities/{activityId}/gatherings:
     get:
       operationId: listActivityGatherings
@@ -8426,6 +8462,74 @@ components:
         needsPeople:
           type: array
           items: {$ref: '#/components/schemas/NeedsPeople'}
+    ActivityParticipation:
+      type: object
+      description: 12 §10a. People are distinct users; a recurring entry counts its person once.
+      required: [activityId, participants, avatars, shared, viewer]
+      properties:
+        activityId: {type: string, format: uuid}
+        participants:
+          type: object
+          required: [band, count]
+          properties:
+            band:
+              type: string
+              enum: [NONE, FEW, COUNT]
+              description: NONE is zero people; FEW is 1-4 (count withheld); COUNT is 5 or more.
+            count:
+              type: [integer, 'null']
+              description: 0 for NONE, the number for COUNT, null for FEW.
+            includesViewer: {type: boolean}
+        avatars:
+          type: array
+          maxItems: 8
+          items: {$ref: '#/components/schemas/UserSummary'}
+        shared:
+          type: object
+          required: [activeNow, going, nextGathering]
+          properties:
+            activeNow: {type: integer, description: Members of visible gatherings with a running or paused session.}
+            going: {type: integer, description: Members of visible upcoming gatherings.}
+            nextGathering:
+              anyOf:
+              - $ref: '#/components/schemas/Gathering'
+              - type: 'null'
+        viewer:
+          anyOf:
+          - $ref: '#/components/schemas/ActivityParticipationViewer'
+          - type: 'null'
+    ActivityParticipationViewer:
+      type: object
+      required: [everAdded, lastAddedAt, completedCount, lastCompletedDate, inProgressItemId, upcoming]
+      properties:
+        everAdded: {type: boolean}
+        lastAddedAt: {type: [string, 'null'], format: date-time}
+        completedCount: {type: integer}
+        lastCompletedDate: {type: [string, 'null'], format: date}
+        inProgressItemId: {type: [string, 'null'], format: uuid}
+        upcoming:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            required: [id, title, localDate, localTime, recurrenceId, gatheringId, enrollmentId, updatedAt, recurrence]
+            properties:
+              id: {type: string, format: uuid}
+              title: {type: string}
+              localDate: {type: string, format: date}
+              localTime: {type: [string, 'null']}
+              recurrenceId: {type: [string, 'null'], format: uuid}
+              gatheringId: {type: [string, 'null'], format: uuid}
+              enrollmentId: {type: [string, 'null'], format: uuid}
+              updatedAt: {type: string, format: date-time}
+              recurrence:
+                anyOf:
+                - type: object
+                  required: [rule, untilDate]
+                  properties:
+                    rule: {$ref: '#/components/schemas/RecurrenceRule'}
+                    untilDate: {type: [string, 'null'], format: date}
+                - type: 'null'
     Opportunity:
       type: object
       required: [gathering, reasons, fitsSchedule, calendarItemId]

@@ -54,15 +54,28 @@ const ordinal = (n: number) => {
   return `${n}${s}`
 }
 
+/** One rule in words, from its start date: "Every week on Mon, Wed". Shared by the dialog and status lines. */
+export function ruleLabel(rule: RecurrenceRule, anchorDate: string): string {
+  switch (rule.kind) {
+    case 'DAILY':
+      return 'Every day'
+    case 'WEEKDAYS':
+      return 'Every weekday'
+    case 'WEEKLY':
+      return `Every week on ${(rule.weekdays?.length ? rule.weekdays : [weekdayOf(anchorDate)]).map((d) => SHORT_DAYS[d]).join(', ')}`
+    case 'EVERY_N_DAYS':
+      return `Every ${rule.n ?? 2} days`
+    case 'MONTHLY':
+      return `Every month on the ${ordinal(Number(anchorDate.slice(8, 10)))}`
+  }
+}
+
+export const untilLabel = (untilDate: string | null) =>
+  untilDate ? `until ${dateLabel(untilDate, { month: 'short', day: 'numeric' })}` : 'ongoing'
+
 /** "Every week on Mon, Wed · until Dec 14" — what Save will do, in words. */
 export function recurrenceSummary(choice: RecurrenceChoice): string {
   if (choice.repeat === 'ONCE') return 'Once'
   const { recurrence, untilDate } = buildRecurrence(choice)
-  const rule =
-    choice.repeat === 'DAILY'
-      ? 'Every day'
-      : choice.repeat === 'WEEKLY'
-        ? `Every week on ${(recurrence?.weekdays ?? []).map((d) => SHORT_DAYS[d]).join(', ')}`
-        : `Every month on the ${ordinal(Number(choice.startDate.slice(8, 10)))}`
-  return `${rule} · ${untilDate ? `until ${dateLabel(untilDate, { month: 'short', day: 'numeric' })}` : 'ongoing'}`
+  return `${ruleLabel(recurrence!, choice.startDate)} · ${untilLabel(untilDate)}`
 }

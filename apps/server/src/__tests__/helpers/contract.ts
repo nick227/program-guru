@@ -282,6 +282,7 @@ export const cases: Record<string, Case> = {
   // ── catalog
   listCategories: { as: 'anon', request: async (w) => (await w.cat(), { method: 'GET', url: '/catalog/categories' }) },
   // ── gatherings (10 §9)
+  listActivityParticipation: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/activities/participation?ids=${(await w.gathering()).activityId}` }) },
   listActivityGatherings: { as: 'anon', request: async (w) => ({ method: 'GET', url: `/activities/${(await w.gathering()).activityId}/gatherings` }) },
   createGathering: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: `/activities/${(await w.cat()).squats.activity.id}/gatherings`, payload: { localDate: '2027-04-01', idempotencyKey: 'contract-create-gathering' } }) },
   listGatherings: { as: 'anon', request: async (w) => (await w.gathering(), { method: 'GET', url: '/gatherings?when=UPCOMING' }) },
