@@ -321,12 +321,16 @@ function WorkspaceLibraryBrowser({
   return <LoadedWorkspaceLibraryBrowser ws={workspace.data} returnTo={returnTo} />
 }
 
-function LoadedWorkspaceLibraryBrowser({
+/** The Activity library as a picker for one Program draft; also embedded in Home's builder (03-UX §2a). */
+export function LoadedWorkspaceLibraryBrowser({
   ws,
   returnTo,
+  onDone,
 }: {
   ws: Workspace
   returnTo: string
+  /** Instead of navigating to `returnTo` after adding (Home stays in place). */
+  onDone?: () => void
 }) {
   const navigate = useNavigate()
   const addExisting = useAddExistingActivity(ws)
@@ -343,7 +347,8 @@ function LoadedWorkspaceLibraryBrowser({
             .run(activity)
             .then(() => {
               toast.success('Activity added')
-              navigate(returnTo)
+              if (onDone) onDone()
+              else navigate(returnTo)
             })
             .catch((error: unknown) =>
               toast.error(

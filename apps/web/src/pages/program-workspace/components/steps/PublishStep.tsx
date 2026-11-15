@@ -23,9 +23,12 @@ import type { Workspace } from '@/components/program-authoring/types'
 export function PublishStep({
   ws,
   onBack,
+  onPublished,
 }: {
   ws: Workspace
   onBack: () => void
+  /** Instead of opening the Program page after publishing (Home's builder). */
+  onPublished?: () => void
 }) {
   const check = usePublishCheck(ws.id)
   const publish = usePublishProgram(ws.id)
@@ -74,7 +77,8 @@ export function PublishStep({
           ? 'Program published and added to your calendar'
           : 'Program published',
       )
-      navigate(buildProgramUrl({ id: ws.id, title: ws.title }))
+      if (onPublished) onPublished()
+      else navigate(buildProgramUrl({ id: ws.id, title: ws.title }))
     } catch {
       /* show validation */
     }

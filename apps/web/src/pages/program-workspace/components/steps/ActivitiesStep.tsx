@@ -11,12 +11,18 @@ export function ActivitiesStep({
   ws,
   onBack,
   onContinue,
+  onBrowseLibrary,
+  returnTo,
 }: {
   ws: Workspace
   onBack: () => void
   onContinue: () => void
+  /** Open the library in place (Home's builder) instead of the picker page. */
+  onBrowseLibrary?: () => void
+  /** Where Activity rows' editor links return; defaults to this step. */
+  returnTo?: string
 }) {
-  const base = `/programs/${ws.id}/workspace?step=activities`
+  const base = returnTo ?? `/programs/${ws.id}/workspace?step=activities`
   const browseHref = buildBrowseUrl({
     kind: 'activities',
     programId: ws.id,
@@ -34,12 +40,18 @@ export function ActivitiesStep({
             {formatProgramDuration(ws.durationDays)}
           </span>
         </div>
-        <Link
-          to={browseHref}
-          className="btn btn--outline btn--sm h-9 px-4 font-semibold"
-        >
-          Browse Library
-        </Link>
+        {onBrowseLibrary ? (
+          <Button variant="outline" size="sm" className="h-9 px-4 font-semibold" onClick={onBrowseLibrary}>
+            Browse Library
+          </Button>
+        ) : (
+          <Link
+            to={browseHref}
+            className="btn btn--outline btn--sm h-9 px-4 font-semibold"
+          >
+            Browse Library
+          </Link>
+        )}
       </Row>
 
       {/* Compact Activity Rows */}
