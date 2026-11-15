@@ -183,3 +183,14 @@ export function mapOpportunityToCard(o: S['Opportunity'], when: string): Assista
     primaryAction: { type: 'join_gathering', gatheringId: g.id, calendarItemId: o.calendarItemId },
   }
 }
+
+/** Truthful reason first (12 §5c), then the card's own details. */
+export function withReason(card: AssistantCard, reason: { label: string } | null | undefined): AssistantCard {
+  return reason ? { ...card, subtitle: [reason.label, card.subtitle].filter(Boolean).join(' · ') } : card
+}
+
+/** "From Maya, who you follow": for Programs that came from the Following scope. */
+export function followedReason(item: S['DiscoverItem']): { label: string } | null {
+  const name = item.program?.creator?.displayName
+  return name ? { label: `From ${name}, who you follow` } : null
+}

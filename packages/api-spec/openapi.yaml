@@ -6209,8 +6209,8 @@ paths:
       summary: Discover
       tags:
       - social
-      description: PUBLISHED, PUBLIC, not moderated. Seeded Programs lead for new users; Programs rank by relevance,
-        completion, and retention.
+      description: PUBLISHED, PUBLIC, not moderated. RELEVANT ranks Programs by completion and retention, then recency, with no
+        platform-first term; FOR_YOU adds one truthful reason per item (12-SOCIAL §5c).
       security: []
       parameters:
       - $ref: '#/components/parameters/Cursor'
@@ -6258,6 +6258,14 @@ paths:
         description: ACTIVITY results that suggest an active Place.
         schema:
           type: boolean
+      - in: query
+        name: creatorScope
+        description: FOLLOWING limits PROGRAM and CREATOR results to creators the viewer follows (12-SOCIAL §5c).
+        schema:
+          type: string
+          enum:
+          - ALL
+          - FOLLOWING
       - in: query
         name: hasOpenGathering
         description: ACTIVITY results with an upcoming public, open gathering ("With others", 10 §9.7).
@@ -8025,6 +8033,7 @@ components:
       - RELEVANT
       - NEW
       - POPULAR
+      - FOR_YOU
     DiscoverTiming:
       type: string
       enum:
@@ -12817,6 +12826,15 @@ components:
         creator:
           anyOf:
           - $ref: '#/components/schemas/UserSummary'
+          - type: 'null'
+        reason:
+          description: Set only for sort=FOR_YOU (12-SOCIAL §5c). One truthful reason per item.
+          anyOf:
+          - type: object
+            required: [kind, label]
+            properties:
+              kind: {type: string, enum: [FOLLOWING, YOUR_INTERESTS, EXPLORE]}
+              label: {type: string}
           - type: 'null'
         featuredGroup:
           anyOf:

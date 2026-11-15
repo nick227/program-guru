@@ -71,13 +71,15 @@ function pickActivity(state: DiscoveryState, signals: HomeSignals) {
 
 function pickProgram(state: DiscoveryState, signals: HomeSignals) {
   const excluded = new Set(state.excludedIds)
-  const pool = [...signals.popularPrograms, ...signals.newPrograms]
+  // Personalized first (12 §5c), then today's popular and new pools; the user's answers still filter.
+  const pool = [...(signals.forYouPrograms ?? []), ...signals.popularPrograms, ...signals.newPrograms]
   const seen = new Set<string>()
   const candidates = pool
     .map((i) => ({
       program: i.program,
       count: i.participantCount,
       featuredGroup: i.featuredGroup,
+      reason: i.reason ?? null,
     }))
     .filter(
       (
@@ -86,6 +88,7 @@ function pickProgram(state: DiscoveryState, signals: HomeSignals) {
         program: NonNullable<typeof entry.program>
         count: number | null | undefined
         featuredGroup: typeof entry.featuredGroup
+        reason: typeof entry.reason
       } => {
         if (
           !entry.program ||
@@ -499,8 +502,9 @@ function resolveProgramResult(
   return {
     nodeId: 'program_result',
     question: voice.question,
-    contextLine: voice.contextLine,
-    whyReason: voice.whyReason,
+    // The For You reason, when there is one, is the truthful explanation (12 §5c).
+    contextLine: match.reason?.label ?? voice.contextLine,
+    whyReason: match.reason?.label ?? voice.whyReason,
     showMeSubject: {
       kind: 'program',
       id: match.program.id,

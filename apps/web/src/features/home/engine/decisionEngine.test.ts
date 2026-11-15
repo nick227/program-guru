@@ -446,3 +446,51 @@ describe('Opportunity Radar in "Do something together" (12 §5b)', () => {
     expect(resolveTurn('together_result', { excludedIds: [] }, makeBaseSignals()).choices.some((c) => c.id === 'join-gathering')).toBe(false)
   })
 })
+
+describe('discovery quality on Home (12 §5c)', () => {
+  const base = makeBaseSignals({ isSignedIn: true })
+  const programItem = (id: string, title: string, extra: Record<string, unknown> = {}) =>
+    ({
+      ...base.popularPrograms[0]!,
+      program: { ...base.popularPrograms[0]!.program!, id, title, creator: { id: 'u-maya', handle: 'maya', displayName: 'Maya', avatarUrl: null } },
+      ...extra,
+    }) as HomeSignals['popularPrograms'][number]
+
+  it('the opening leads with a followed creator and says so truthfully', () => {
+    const turn = rankHomeSignals({ ...base, followedPrograms: [programItem('p-follow', 'Morning Pages')], newPrograms: [programItem('p-new', 'Brand New')] })
+    expect(turn.card?.id).toBe('p-follow')
+    expect(turn.contextLine).toBe('From Maya, who you follow')
+  })
+
+  it('without follows, a personalized reason leads; Explore-only cold start keeps the plain new-Program fallback', () => {
+    const interest = programItem('p-int', 'Sketch Daily', { reason: { kind: 'YOUR_INTERESTS', label: 'Matches your Sketching Activities' } })
+    expect(rankHomeSignals({ ...base, forYouPrograms: [interest] }).contextLine).toBe('Matches your Sketching Activities')
+    const explore = programItem('p-exp', 'Explore Me', { reason: { kind: 'EXPLORE', label: 'Explore Fitness' } })
+    const cold = rankHomeSignals({ ...base, forYouPrograms: [explore], newPrograms: [programItem('p-new', 'Brand New')] })
+    expect(cold.card?.id).toBe('p-new')
+    expect(cold.question).toBe('New: Brand New')
+  })
+
+  it('"Start a Program" picks For You first and shows its reason; already-known Programs are skipped', () => {
+    const signals = {
+      ...base,
+      knownProgramIds: ['p-known'],
+      forYouPrograms: [
+        programItem('p-known', 'Known', { reason: { kind: 'YOUR_INTERESTS', label: 'x' } }),
+        programItem('p-fy', 'For You', { reason: { kind: 'EXPLORE', label: 'Explore Fitness' } }),
+      ],
+    }
+    const turn = resolveTurn('program_result', { excludedIds: [] }, signals)
+    expect(turn.card?.id).toBe('p-fy')
+    expect(turn.contextLine).toBe('Explore Fitness')
+  })
+
+  it('Following mode shows only actual follows, never creators in general', () => {
+    const generic = { kind: 'CREATOR', program: null, activity: null, creator: { id: 'u-gen', handle: 'gen', displayName: 'Generic', avatarUrl: null } } as HomeSignals['creators'][number]
+    const followedCreator = { ...generic, creator: { ...generic.creator!, id: 'u-maya', handle: 'maya', displayName: 'Maya' } }
+    const items = buildPresentationItems('following', { ...base, creators: [generic], followedCreators: [followedCreator], followedPrograms: [programItem('p-follow', 'Morning Pages')] })
+    expect(items.map((i) => i.id)).toEqual(['p-follow', 'u-maya'])
+    expect(items[0]!.subtitle).toMatch(/^From Maya, who you follow/)
+    expect(buildPresentationItems('following', { ...base, creators: [generic] })).toEqual([])
+  })
+})

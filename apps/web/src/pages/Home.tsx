@@ -153,6 +153,11 @@ export function HomePage() {
     enabled: Boolean(state.categoryId),
   })
   const creators = useDiscoverCreators({ enabled: true })
+  // Discovery quality (12 §5c): personalized Programs with reasons (the Agent's picked Domain counts),
+  // and Following as actual follows.
+  const forYouPrograms = useDiscoverPrograms({ sort: 'FOR_YOU', categoryId: state.categoryId, limit: 12, enabled: isSignedIn })
+  const followedPrograms = useDiscoverPrograms({ creatorScope: 'FOLLOWING', sort: 'NEW', limit: 12, enabled: isSignedIn })
+  const followedCreators = useDiscoverCreators({ creatorScope: 'FOLLOWING', enabled: isSignedIn })
   // Opportunity Radar (12 §5b): one result set for the Agent and the rail.
   const radar = useMyOpportunities(isSignedIn)
   const joinGathering = useJoinGathering()
@@ -204,6 +209,9 @@ export function HomePage() {
         })),
       liveSessions: liveSessions.data?.pages.flatMap((p) => p.data) ?? [],
       opportunities: radar.data?.recommendations ?? [],
+      forYouPrograms: forYouPrograms.data?.pages.flatMap((p) => p.data) ?? [],
+      followedPrograms: followedPrograms.data?.pages.flatMap((p) => p.data) ?? [],
+      followedCreators: followedCreators.data?.pages.flatMap((p) => p.data) ?? [],
       popularPrograms: popularPrograms.data?.pages.flatMap((p) => p.data) ?? [],
       newPrograms: newPrograms.data?.pages.flatMap((p) => p.data) ?? [],
       activities: mergedActivities,
@@ -220,6 +228,9 @@ export function HomePage() {
       library.data,
       liveSessions.data,
       radar.data,
+      forYouPrograms.data,
+      followedPrograms.data,
+      followedCreators.data,
       popularPrograms.data,
       newPrograms.data,
       mergedActivities,

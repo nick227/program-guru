@@ -9,6 +9,7 @@ type S = components['schemas']
 
 export type DiscoverProgramsOptions = {
   q?: string
+  creatorScope?: 'ALL' | 'FOLLOWING'
   categoryId?: string
   programTypeId?: string
   focusId?: string
@@ -50,6 +51,8 @@ export function useDiscoverPrograms(
   const queryTiming = opts.timing && opts.timing !== 'ALL' ? opts.timing : undefined
   const queryAccessMode = opts.accessMode || undefined
   const queryActivityId = opts.activityId || undefined
+  // FOLLOWING: only creators the viewer follows (12 §5c).
+  const queryCreatorScope = opts.creatorScope === 'FOLLOWING' ? 'FOLLOWING' : undefined
   const queryLimit = opts.limit ?? 20
   const queryEnabled =
     opts.enabled ??
@@ -76,6 +79,7 @@ export function useDiscoverPrograms(
         sort: querySort,
         timing: queryTiming,
         accessMode: queryAccessMode,
+        creatorScope: queryCreatorScope,
         limit: queryLimit,
       },
     ]),
@@ -100,6 +104,7 @@ export function useDiscoverPrograms(
               sort: querySort,
               timing: queryTiming,
               accessMode: queryAccessMode,
+              creatorScope: queryCreatorScope,
               cursor: pageParam,
               limit: queryLimit,
             },

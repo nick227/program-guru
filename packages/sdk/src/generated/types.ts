@@ -2561,7 +2561,7 @@ export interface paths {
         };
         /**
          * Discover
-         * @description PUBLISHED, PUBLIC, not moderated. Seeded Programs lead for new users; Programs rank by relevance, completion, and retention.
+         * @description PUBLISHED, PUBLIC, not moderated. Programs rank by quality and recency (no platform-first term), or FOR_YOU with reasons (12-SOCIAL §5c); completion, and retention.
          */
         get: operations["discover"];
         put?: never;
@@ -3207,7 +3207,7 @@ export interface components {
         /** @enum {string} */
         DiscoverKind: "PROGRAM" | "ACTIVITY" | "CREATOR";
         /** @enum {string} */
-        DiscoverSort: "RELEVANT" | "NEW" | "POPULAR";
+        DiscoverSort: "RELEVANT" | "NEW" | "POPULAR" | "FOR_YOU";
         /** @enum {string} */
         DiscoverTiming: "ALL" | "STARTING_SOON" | "HAPPENING_NOW";
         /** @enum {string} */
@@ -4984,6 +4984,12 @@ export interface components {
             program: components["schemas"]["ProgramSummary"] | null;
             activity: components["schemas"]["ActivitySummary"] | null;
             creator: components["schemas"]["UserSummary"] | null;
+            /** @description Set only for sort=FOR_YOU (12-SOCIAL §5c). One truthful reason per item. */
+            reason?: {
+                /** @enum {string} */
+                kind: "FOLLOWING" | "YOUR_INTERESTS" | "EXPLORE";
+                label: string;
+            } | null;
             featuredGroup?: components["schemas"]["PublicGroupSummary"] | null;
             participantCount?: number | null;
         };
@@ -10459,6 +10465,8 @@ export interface operations {
                 locality?: string;
                 /** @description ACTIVITY results that suggest an active Place. */
                 hasPlace?: boolean;
+                /** @description FOLLOWING limits PROGRAM and CREATOR results to creators the viewer follows (12-SOCIAL §5c). */
+                creatorScope?: "ALL" | "FOLLOWING";
                 /** @description ACTIVITY results with an upcoming public, open gathering ("With others", 10 §9.7). */
                 hasOpenGathering?: boolean;
                 accessMode?: components["schemas"]["AccessMode"];

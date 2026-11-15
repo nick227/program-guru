@@ -25,6 +25,8 @@ type DiscoverFilters = {
   duration?: S['DiscoverDuration']
   frequency?: S['FrequencyKind']
   sort?: S['DiscoverSort']
+  /** Programs and Creators: only creators the viewer follows (12 §5c). */
+  creatorScope?: 'ALL' | 'FOLLOWING'
 }
 
 async function discoverPage(
@@ -51,6 +53,7 @@ async function discoverPage(
           duration: filters.duration || undefined,
           frequency: filters.frequency || undefined,
           sort: filters.sort,
+          creatorScope: filters.creatorScope === 'FOLLOWING' ? 'FOLLOWING' : undefined,
           cursor,
           limit,
         },
@@ -76,7 +79,7 @@ export function useDiscoverActivities(
 
 /** Public creators with at least one discoverable Program. */
 export function useDiscoverCreators(
-  filters: Pick<DiscoverFilters, 'q'> & { enabled?: boolean } = {},
+  filters: Pick<DiscoverFilters, 'q' | 'creatorScope'> & { enabled?: boolean } = {},
 ) {
   const { enabled = true, ...query } = filters
   return useInfiniteQuery({

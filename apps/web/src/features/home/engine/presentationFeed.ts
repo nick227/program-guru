@@ -5,6 +5,8 @@ import {
   mapCalendarItemToCard,
   mapCreatorToCard,
   mapProgramToCard,
+  withReason,
+  followedReason,
   mapSessionToCard,
 } from './cardMappers'
 
@@ -81,19 +83,14 @@ export function buildPresentationItems(
     return out
   }
 
+  // Following means actual follows (12 §5c): their newest Programs, then the creators themselves.
   if (mode === 'following') {
-    for (const item of signals.newPrograms) {
+    for (const item of signals.followedPrograms ?? []) {
       if (item.program && canSuggestNewProgram(item.program, signals)) {
-        push(
-          mapProgramToCard(
-            item.program,
-            item.participantCount,
-            item.featuredGroup,
-          ),
-        )
+        push(withReason(mapProgramToCard(item.program, item.participantCount, item.featuredGroup), followedReason(item)))
       }
     }
-    for (const item of signals.creators) {
+    for (const item of signals.followedCreators ?? []) {
       if (item.creator) {
         push(mapCreatorToCard(item.creator))
       }
@@ -112,6 +109,12 @@ export function buildPresentationItems(
   for (const item of signals.liveSessions) {
     if (item.featuredGroup || (item.program && canSuggestNewProgram(item.program, signals))) {
       push(mapSessionToCard(item))
+    }
+  }
+  // Personalized Programs with their reason, ahead of plain popularity (12 §5c).
+  for (const item of signals.forYouPrograms ?? []) {
+    if (item.program && canSuggestNewProgram(item.program, signals)) {
+      push(withReason(mapProgramToCard(item.program, item.participantCount, item.featuredGroup), item.reason))
     }
   }
   for (const item of signals.popularPrograms) {

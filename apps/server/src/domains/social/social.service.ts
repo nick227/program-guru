@@ -12,6 +12,7 @@ import { programInclude, toProgramSummary } from '../programs/mapper'
 import { participationSummaries } from '../programs/participation.service'
 import { featuredGroupsForPrograms, startingSoonProgramIds } from '../groups/group.service'
 import { canSeePublication } from '../media/media.service'
+import { forYouOrder, type ForYouReason } from './forYou.service'
 import { mediaUrl } from '../media/urls'
 import { toUserSummary } from '../users/mapper'
 import { userIdForHandle } from '../users/directory.service'
@@ -36,7 +37,8 @@ type DiscoverQuery = PageQuery & {
   duration?: 'SHORT' | 'MEDIUM' | 'LONG' | 'ONGOING'
   maxSessionMinutes?: number
   tags?: string
-  sort?: 'RELEVANT' | 'NEW' | 'POPULAR'
+  sort?: 'RELEVANT' | 'NEW' | 'POPULAR' | 'FOR_YOU'
+  creatorScope?: 'ALL' | 'FOLLOWING'
   timing?: 'ALL' | 'STARTING_SOON' | 'HAPPENING_NOW'
 }
 
@@ -52,6 +54,15 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
   const { limit, skip, take } = offsetArgs(query)
   const hidden = await blockedIds(viewerId)
   const q = query.q?.trim()
+  // Following means actual follows (12 §5c); signed out, there is nobody followed.
+  const followedIds =
+    query.creatorScope === 'FOLLOWING'
+      ? viewerId
+        ? (await db.userFollow.findMany({ where: { followerId: viewerId }, select: { followedId: true }, take: 500 }))
+            .map((f) => f.followedId)
+            .filter((id) => !hidden.includes(id))
+        : []
+      : null
 
   if (query.kind === 'PROGRAM') {
     if (query.timing === 'HAPPENING_NOW') {
@@ -92,6 +103,7 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
       ...discoverableProgramWhere,
       ...(startingSoonIds ? { id: { in: startingSoonIds } } : {}),
       ...(hidden.length ? { OR: [{ creatorId: null }, { creatorId: { notIn: hidden } }] } : {}),
+      ...(followedIds ? { creatorId: { in: followedIds } } : {}),
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(query.programTypeId ? { programTypeId: query.programTypeId } : {}),
       ...(query.focusId ? { focusId: query.focusId } : {}),
@@ -104,14 +116,25 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
       ...durationWhere,
       ...(andClauses.length ? { AND: andClauses } : {}),
     }
-    // RELEVANT: seeded Programs lead (12 §5), then completion/retention rank (decision 19), then recency.
-    const orderBy: Prisma.ProgramOrderByWithRelationInput[] =
-      query.sort === 'NEW'
-        ? [{ createdAt: 'desc' }, { id: 'desc' }]
-        : query.sort === 'POPULAR'
-          ? [{ stat: { enrollmentCount: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
-          : [{ creatorId: { sort: 'asc', nulls: 'first' } }, { stat: { rankScore: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
-    const rows = await db.program.findMany({ where, orderBy, skip, take, include: programInclude })
+    // FOR_YOU (12 §5c): tiered order with one truthful reason each; owned and ever-enrolled Programs excluded.
+    let reasons: Map<string, ForYouReason> | null = null
+    let rows: Awaited<ReturnType<typeof db.program.findMany<{ include: typeof programInclude }>>>
+    if (query.sort === 'FOR_YOU' && viewerId) {
+      const order = await forYouOrder(viewerId, where, query.categoryId)
+      reasons = order.reasons
+      const pageIds = order.ids.slice(skip, skip + take)
+      const byId = new Map((await db.program.findMany({ where: { id: { in: pageIds } }, include: programInclude })).map((p) => [p.id, p]))
+      rows = pageIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []))
+    } else {
+      // RELEVANT: completion/retention rank (decision 19), then recency. No platform-first term (12 §5c).
+      const orderBy: Prisma.ProgramOrderByWithRelationInput[] =
+        query.sort === 'NEW'
+          ? [{ createdAt: 'desc' }, { id: 'desc' }]
+          : query.sort === 'POPULAR'
+            ? [{ stat: { enrollmentCount: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
+            : [{ stat: { rankScore: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
+      rows = await db.program.findMany({ where, orderBy, skip, take, include: programInclude })
+    }
     const pageIds = rows.slice(0, limit).map((p) => p.id)
     const [featuredGroups, participation] = await Promise.all([
       featuredGroupsForPrograms(viewerId, pageIds, query.timing),
@@ -124,6 +147,7 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
       creator: null,
       featuredGroup: featuredGroups.get(p.id) ?? null,
       participantCount: participation.get(p.id)?.participantCount ?? null,
+      reason: reasons?.get(p.id) ?? null,
     }))
   }
 
@@ -201,6 +225,7 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
     where: {
       user: { status: 'ACTIVE', programs: { some: discoverableProgramWhere } },
       ...(hidden.length ? { userId: { notIn: hidden } } : {}),
+      ...(followedIds ? { userId: { in: followedIds } } : {}),
       ...(q ? { OR: [{ handle: { startsWith: q.toLowerCase() } }, { displayName: { contains: q } }] } : {}),
     },
     orderBy: [{ handle: 'asc' }],

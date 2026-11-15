@@ -139,6 +139,12 @@ export interface HomeSignals {
   /** All owned or previously joined Programs; null until the personal library resolves. */
   knownProgramIds?: string[] | null
   liveSessions: S['DiscoverItem'][]
+  /** Programs ordered sort=FOR_YOU, each with one truthful reason (12 §5c). */
+  forYouPrograms?: S['DiscoverItem'][]
+  /** Newest Programs from creators the viewer actually follows (12 §5c). */
+  followedPrograms?: S['DiscoverItem'][]
+  /** Creators the viewer actually follows (12 §5c). */
+  followedCreators?: S['DiscoverItem'][]
   /** Opportunity Radar recommendations (12 §5b), best tier first. */
   opportunities?: S['Opportunity'][]
   popularPrograms: S['DiscoverItem'][]

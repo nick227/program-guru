@@ -51,7 +51,7 @@ Consolidated persistence: `packages/db/prisma/schema.prisma`. `entityKind`/`enti
 
 **Entry points:** Calendar `+ Program` → `Browse`, Community (`/browse`), Home and its Home Agent, Program Detail creator/avatar, Activity Picker search, Media Viewer creator tap, user widget → Profile / published content. Home is not an algorithmic feed (§5a).
 
-**Program browse:** the first thing a new user sees after `Browse Programs`, leading with seeded Programs. Focused search input, compact Domain/Type chips, optional Category filter and Free/Approval/Paid, image thumbnail + program title + creator + duration/frequency + access; tap opens safe preview. `Join` appears only when access permitted; otherwise `Request Access` or `Unlock` with clear terms.
+**Program browse:** the first thing a new user sees after `Browse Programs`. Seeded (platform) and creator Programs compete on the same quality and recency ordering (§5c); platform content is never placed first unconditionally. Focused search input, compact Domain/Type chips, optional Category filter and Free/Approval/Paid, image thumbnail + program title + creator + duration/frequency + access; tap opens safe preview. `Join` appears only when access permitted; otherwise `Request Access` or `Unlock` with clear terms.
 
 **Activity browse:** selected program type/focus guides suggested seeded library first; searchable list with thumb/title/instruction count/metrics and `Use` or `Customize Copy`. Avoid displaying hundreds of social likes inside picker rows.
 
@@ -103,6 +103,22 @@ Answers "what's something worthwhile I can actually do, with the right people, a
 **Surfaces.** One primary action each: a recommendation's is **Join** (reusing `calendarItemId` when present, then opening the viewer's occurrence); a needs-people item's is **Share**.
 - **Home Agent:** "Do something together" leads with the top recommendation and its reasons; "See another" moves through the list; with none, the existing Program-session results follow unchanged. No new Agent action.
 - **Home rail:** "Things to do" starts with up to two recommendations, then the existing varied Activities; a needs-people prompt appears above it.
+
+## 5c. Program discovery quality (approved 2026-11-15)
+
+Within the existing UI (no layout changes), `GET /discover?kind=PROGRAM` gains:
+
+- **`creatorScope=FOLLOWING`** (Programs and Creators): only creators the viewer follows, minus blocks. Home's "Following" mode uses it, so Following means actual follows.
+- **`sort=FOR_YOU`** (signed in; otherwise treated as `RELEVANT`): every item carries one truthful `reason` (`kind`, `label`). Owned Programs and any the viewer has ever enrolled in are excluded (they stay in normal browsing). Existing eligibility (published, public, not moderated, not deleted) and block filtering apply. Tiers, best first:
+  1. **Following**: by a creator the viewer follows ("From Maya, who you follow"; "New from Maya, who you follow" when published in the last 60 days).
+  2. **Your interests**: the Program's Category, else Domain, matches Activities the viewer has completed ("Matches your Photography Activities"); or the Domain the viewer picked in the Agent or in Community filters ("In Arts & Creativity, which you picked").
+  3. **Explore**: everything else eligible, interleaved across Domains, established and new alike ("Explore Fitness", or "New in Fitness" only when published in the last 60 days). This is what a cold-start user sees, varied rather than only recent.
+  Within each tier the base order is rank score, then newest; **emerging creators** (no Program with a rank score yet, or a first Program published in the last 60 days) are interleaved so that at most two established Programs precede an eligible emerging one. An emerging Program appears only through a tier it truly qualifies for, never as filler. Platform Programs are never emerging.
+  Participation by people the viewer follows is **not** a reason: a follow alone never reveals someone's enrollment (10 §4); group co-participation only exists for Programs the viewer is in, which For You excludes.
+  Bounded: at most 300 candidates, 500 follows and 500 completed items read per request.
+- **`RELEVANT`** (default): rank score, then newest; the unconditional platform-first term is removed.
+
+**Public outcomes (rule; nothing published yet).** A completion percentage such as "68% finished week 1" may be shown only when enough eligible participants have actually reached the end of that period (the denominator is participants whose week 1 has ended, not sign-ups). Below that threshold, show counts ("8 people finished week 1") only when they meet the privacy minimum (§10); otherwise nothing. Recommendation reasons never cite outcomes.
 
 ## 6. Notifications and reminders
 

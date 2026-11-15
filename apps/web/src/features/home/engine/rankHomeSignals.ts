@@ -1,5 +1,8 @@
 import { groupAction, sessionActionLabel } from '@/lib/joinEligibility'
+import type { components } from '@project/sdk'
 import type { AssistantTurn, HomeSignals } from './types'
+
+type S = components['schemas']
 import { canSuggestNewProgram } from './programEligibility'
 import {
   mapActivityToCard,
@@ -7,6 +10,7 @@ import {
   mapCreatorToCard,
   mapProgramToCard,
   mapSessionToCard,
+  followedReason,
 } from './cardMappers'
 import {
   phraseActivityTurn,
@@ -137,11 +141,15 @@ export function rankHomeSignals(
     }
   }
 
-  // Tier 2: People I follow / New Programs
+  // Tier 2 (12 §5c): a Program from a creator the viewer follows, then a personalized one (Following
+  // or Your interests), then the newest Program. Each says truthfully why it is here.
   if (signals.isSignedIn) {
-    const freshProgram = signals.newPrograms.find(
-      (item) => item.program && !excluded.has(item.program.id) && canSuggestNewProgram(item.program, signals),
-    )
+    const eligible = (item: S['DiscoverItem']) =>
+      !!item.program && !excluded.has(item.program.id) && canSuggestNewProgram(item.program, signals)
+    const followed = (signals.followedPrograms ?? []).find(eligible)
+    const personal = followed ? undefined : (signals.forYouPrograms ?? []).find((i) => eligible(i) && i.reason?.kind !== 'EXPLORE')
+    const freshProgram = followed ?? personal ?? signals.newPrograms.find(eligible)
+    const reason = followed ? followedReason(followed) : personal?.reason ?? null
     if (freshProgram?.program) {
       const voice = phraseProgramTurn(
         freshProgram.program,
@@ -151,11 +159,11 @@ export function rankHomeSignals(
       return {
         nodeId: 'opening',
         question:
-          excludedIds.length === 0
-            ? `New: ${freshProgram.program.title}`
-            : voice.question,
-        contextLine: voice.contextLine,
-        whyReason: voice.whyReason,
+          reason || excludedIds.length > 0
+            ? voice.question
+            : `New: ${freshProgram.program.title}`,
+        contextLine: reason?.label ?? voice.contextLine,
+        whyReason: reason?.label ?? voice.whyReason,
         showMeSubject: {
           kind: 'program',
           id: freshProgram.program.id,
