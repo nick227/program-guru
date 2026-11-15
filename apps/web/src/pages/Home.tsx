@@ -19,7 +19,7 @@ import { useDocumentTitle } from '@/lib/title'
 import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { interleaveUnique, pickAcrossDomains } from '@/lib/activityRange'
 import { NeedsPeoplePrompt } from '@/components/activity/NeedsPeoplePrompt'
-import { ScheduleActivityDialog } from '@/components/calendar/ScheduleActivityDialog'
+import { ScheduleDialog } from '@/components/schedule/AddToSchedule'
 import { ActivitySurfer } from '@/features/home/components/ActivitySurfer'
 import { HomeTopBar } from '@/features/home/components/HomeTopBar'
 import { PresentationSurface } from '@/features/home/components/PresentationSurface'
@@ -713,9 +713,8 @@ export function HomePage() {
         {!todayLeads && presentation}
       </main>
       {scheduleTarget && (
-        <ScheduleActivityDialog
-          activity={scheduleTarget}
-          todayIso={today}
+        <ScheduleDialog
+          target={{ kind: 'activity', ...scheduleTarget }}
           onClose={() => setScheduleTarget(null)}
         />
       )}

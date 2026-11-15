@@ -25,6 +25,7 @@ import { Page, Stage } from '@/components/ui/Layout'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { buildProgramBreadcrumbs } from '@/lib/breadcrumbs'
+import { AddToScheduleButton } from '@/components/schedule/AddToSchedule'
 import { ProgramHero } from '@/components/program/ProgramHero'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
 import { ProgramGroups } from '@/components/program/ProgramGroups'
@@ -499,6 +500,18 @@ export function ProgramPage() {
             primaryDisabled={signedIn && !isDraftOnly && (!canStart || added || join.isPending)}
             primaryLoading={join.isPending}
             primaryDone={added}
+            secondaryAction={
+              // Start on another date (13 §4); a group invitation's start date wins, so not then.
+              canStart && !added && !groupIdParam ? (
+                <AddToScheduleButton
+                  target={{ kind: 'program', id: p.id, title: displayTitle, programVersionId: p.latestVersionId! }}
+                  signedIn
+                  returnTo={currentUrl}
+                  className="min-h-12"
+                  onScheduled={() => setAdded(true)}
+                />
+              ) : null
+            }
             primaryNote={
               (added && firstDayUrl) || runStarts.length > 0 ? (
                 <>

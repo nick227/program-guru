@@ -20,6 +20,7 @@ import { gatheringWhen } from '@/components/activity/ActivityGatherings'
 import { activityHero } from '@/lib/hero'
 import { groupAction } from '@/lib/joinEligibility'
 import { peopleLine } from '../engine/surferDeck'
+import { AddToScheduleButton } from '@/components/schedule/AddToSchedule'
 import type { CardAction, PreviewTarget } from '../engine/types'
 import { TransitionSurface } from './TransitionSurface'
 
@@ -176,6 +177,17 @@ function ProgramPreviewBody({
         >
           <span>{join.isPending ? 'Joining…' : 'Join Program'}</span>
         </button>
+      )}
+      {canJoinInline && prog.latestVersionId && (
+        <AddToScheduleButton
+          target={{ kind: 'program', id: prog.id, title: prog.title, programVersionId: prog.latestVersionId }}
+          signedIn={isSignedIn}
+          returnTo="/"
+          onScheduled={() => {
+            setJoined(true)
+            void queryClient.invalidateQueries()
+          }}
+        />
       )}
       {joined && firstDayUrl ? (
         // Right after starting: go to the Program's first scheduled Activity (item 7).
@@ -350,16 +362,11 @@ function ActivityPreviewBody({
         <span>Open Activity Page</span>
         <ExternalLink size={13} aria-hidden />
       </button>
-      {isSignedIn && (
-        <button
-          type="button"
-          onClick={() => onExecute({ type: 'schedule_activity', activityId: act.id, title: act.title })}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-surface-raised px-4 py-2 text-sm font-medium transition hover:bg-surface-muted"
-        >
-          <CalendarPlus size={14} aria-hidden />
-          <span>Add to Schedule</span>
-        </button>
-      )}
+      <AddToScheduleButton
+        target={{ kind: 'activity', id: act.id, title: act.title }}
+        signedIn={isSignedIn}
+        returnTo="/"
+      />
     </PreviewShell>
   )
 }

@@ -43,6 +43,8 @@ export interface ProgramHeroProps {
   primaryDone?: boolean
   /** Compact content beside the primary action, e.g. previous run dates. */
   primaryNote?: ReactNode
+  /** One secondary action right after the primary, e.g. Add to Schedule (13 §4). */
+  secondaryAction?: ReactNode
   /** Canonical link to share; defaults to the current page. */
   shareUrl?: string
   onShare?: () => void
@@ -80,6 +82,7 @@ export function ProgramHero({
   primaryLoading = false,
   primaryDone = false,
   primaryNote,
+  secondaryAction,
   shareUrl,
   onShare,
   onEditProgram,
@@ -237,6 +240,7 @@ export function ProgramHero({
               <span>{primaryLabel}</span>
             </Button>
           )}
+          {secondaryAction}
           {primaryNote}
         </div>
 

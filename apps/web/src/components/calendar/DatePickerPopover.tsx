@@ -11,7 +11,10 @@ export function DatePickerPopover({
   onSelect,
   onClose,
   inline = false,
+  minDate,
 }: {
+  /** Days before this are shown but cannot be chosen. */
+  minDate?: string
   /** Inside a dialog: laid out in place; the dialog owns Escape and closing. */
   inline?: boolean
   selected: string
@@ -89,6 +92,7 @@ export function DatePickerPopover({
                 year: 'numeric',
               })}
               aria-pressed={isSelected}
+              disabled={!!minDate && day < minDate}
               aria-current={isToday ? 'date' : undefined}
               onClick={() => onSelect(day)}
               className={cn(
