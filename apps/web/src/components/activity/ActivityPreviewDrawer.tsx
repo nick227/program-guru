@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ExternalLink, MapPin, Play, X } from 'lucide-react'
+import { AddToScheduleButton } from '@/components/schedule/AddToSchedule'
 import {
   useActivity,
   useActivityPublicMedia,
@@ -250,6 +251,12 @@ export function ActivityPreviewDrawer({
                       <span>Do Now</span>
                     </Link>
                   )}
+                  <AddToScheduleButton
+                    target={{ kind: 'activity', id: a.id, title: a.title }}
+                    signedIn={signedIn}
+                    returnTo={currentUrl}
+                    className="mt-2 w-full rounded-lg"
+                  />
                 </div>
               </div>
 

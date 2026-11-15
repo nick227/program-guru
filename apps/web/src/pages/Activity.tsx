@@ -12,6 +12,7 @@ import {
   useActivity,
   useActivityPublicMedia,
   useCategories,
+  useCurrentUser,
   useProgramPreview,
 } from '@project/sdk'
 import {
@@ -31,6 +32,8 @@ import { type RiverItem } from '@/components/media/RelatedMedia'
 import { ActivityRelatedMedia } from '@/components/activity/ActivityRelatedMedia'
 import { ActivityHero, type ActivityMeta } from '@/components/activity/ActivityHero'
 import { ActivityGatherings } from '@/components/activity/ActivityGatherings'
+import { AddToScheduleButton } from '@/components/schedule/AddToSchedule'
+import { StartActivityButton } from '@/components/schedule/StartActivityButton'
 import { ActivitySection } from '@/components/activity/ActivitySection'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { ActivityShare } from '@/components/activity/ActivityShare'
@@ -58,6 +61,7 @@ export function ActivityPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const currentUrl = `${location.pathname}${location.search}`
+  const signedIn = Boolean(useCurrentUser().data)
 
   const resolved = useResolveActivityTarget(rawSlugOrId)
   const activity = useActivity(resolved.activityId)
@@ -241,6 +245,17 @@ export function ActivityPage() {
                 }
                 actions={
                   <div className="activity-session__actions">
+                    {/* Start now or Add to Schedule, the same actions as Home (03-UX §2a). */}
+                    {a.status === 'PUBLISHED' || a.canEdit ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StartActivityButton activityId={a.id} signedIn={signedIn} returnTo={currentUrl} />
+                        <AddToScheduleButton
+                          target={{ kind: 'activity', id: a.id, title: a.title }}
+                          signedIn={signedIn}
+                          returnTo={currentUrl}
+                        />
+                      </div>
+                    ) : null}
                     <div className="activity-session__tools ml-auto">
                       {a.canEdit ? (
                         <Button

@@ -34,7 +34,9 @@ import {
   SlidersHorizontal,
   Users,
   X,
+  Eye,
 } from 'lucide-react'
+import { AddToScheduleButton } from '@/components/schedule/AddToSchedule'
 import { toast } from 'sonner'
 import { Page } from '@/components/ui/Layout'
 import { Avatar } from '@/components/ui/Avatar'
@@ -129,6 +131,8 @@ interface BrowseFeedItem {
   liveSession?: S['LiveSessionSummary'] | null
   participantCount?: number | null
   onSelect: () => void
+  /** Explicit quick preview (drawer); selecting the card itself opens the dedicated page. */
+  onPreview?: () => void
 }
 
 interface DurationOption {
@@ -908,6 +912,27 @@ function BrowseFeedTile({
           </div>
         )}
       </div>
+
+      {item.kind === 'activities' && item.onPreview && (
+        <div className="flex shrink-0 items-center gap-1.5">
+          <AddToScheduleButton
+            iconOnly
+            target={{ kind: 'activity', id: item.id, title: item.title }}
+            signedIn={signedIn}
+            returnTo={currentUrl}
+            className="h-9 w-9"
+          />
+          <button
+            type="button"
+            onClick={item.onPreview}
+            aria-label={`Quick preview: ${item.title}`}
+            title="Quick preview"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-raised text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+          >
+            <Eye size={16} aria-hidden />
+          </button>
+        </div>
+      )}
     </div>
   )
 
@@ -1438,9 +1463,11 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
         if (mode.isPicker && mode.onPickActivity && mode.kind === 'activities') {
           mode.onPickActivity(activity)
         } else {
-          setPreviewActivityId(activity.id)
+          // Community Activity cards open the dedicated page (03-UX §2a); the drawer is Preview only.
+          navigate(`/activities/${activity.id}?returnTo=${encodeURIComponent(currentUrl)}`)
         }
       },
+      onPreview: mode.isPicker ? undefined : () => setPreviewActivityId(activity.id),
     }
   }
 
