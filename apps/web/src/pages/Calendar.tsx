@@ -5,8 +5,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Clock3,
-  Filter,
+  SlidersHorizontal,
 } from 'lucide-react'
 import {
   useCalendar,
@@ -76,6 +75,7 @@ export function CalendarPage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
   const datePickerRef = useRef<HTMLDivElement>(null)
+  const viewMenuRef = useRef<HTMLDetailsElement>(null)
   const current = today(timezone)
   const requestedDay = params.get('day') ?? params.get('week')
   const selected = isLocalDate(requestedDay) ? requestedDay : current
@@ -107,6 +107,19 @@ export function CalendarPage() {
     window.addEventListener('mousedown', onPointerDown)
     return () => window.removeEventListener('mousedown', onPointerDown)
   }, [datePickerOpen])
+
+  // The View menu closes on any outside press, like the date picker.
+  useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      const menu = viewMenuRef.current
+      if (menu?.open && !menu.contains(event.target as Node)) menu.open = false
+    }
+    window.addEventListener('mousedown', onPointerDown)
+    return () => window.removeEventListener('mousedown', onPointerDown)
+  }, [])
+  const closeViewMenu = () => {
+    if (viewMenuRef.current) viewMenuRef.current.open = false
+  }
 
   const updateCalendarParams = (nextView: View, nextDay = selected) => {
     const next = new URLSearchParams(params)
@@ -348,129 +361,139 @@ export function CalendarPage() {
           year: 'numeric',
         })
 
+  // Mobile's one-row toolbar uses the short form ("Sun, Nov 15" / "Nov 2026").
+  const shortTitle =
+    view === 'month'
+      ? dateLabel(selected, { month: 'short', year: 'numeric' })
+      : dateLabel(selected, { weekday: 'short', month: 'short', day: 'numeric' })
+
   return (
     <Page className="page--wide">
+      {/* One row at every width (03-UX §5): date, Today, View. Previous/Next are desktop-only. */}
       <div className="calendar-toolbar" aria-label="Calendar controls">
         <div className="calendar-toolbar__row">
-          <div className="calendar-toolbar__nav">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={view === 'month' ? 'Previous month' : 'Previous day'}
-              onClick={() => step(-1)}
-            >
-              <ChevronLeft size={18} />
-            </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="calendar-toolbar__step"
+            aria-label={view === 'month' ? 'Previous month' : 'Previous day'}
+            onClick={() => step(-1)}
+          >
+            <ChevronLeft size={18} />
+          </Button>
 
-            <div className="calendar-toolbar__heading-wrap" ref={datePickerRef}>
-              <button
-                type="button"
-                className="calendar-toolbar__date-btn"
-                aria-expanded={datePickerOpen}
-                aria-haspopup="dialog"
-                aria-label={`Change date, ${title}`}
-                onClick={() => setDatePickerOpen((v) => !v)}
-              >
-                <h1 className="calendar-toolbar__title">{title}</h1>
-                <ChevronDown
-                  size={18}
-                  aria-hidden
-                  className={cn(
-                    'calendar-toolbar__chevron',
-                    datePickerOpen && 'rotate-180',
-                  )}
-                />
-              </button>
-              {datePickerOpen && (
-                <DatePickerPopover
-                  selected={selected}
-                  todayDate={current}
-                  onSelect={(day) => {
-                    setDatePickerOpen(false)
-                    updateCalendarParams(view, day)
-                  }}
-                  onClose={() => setDatePickerOpen(false)}
-                />
-              )}
-            </div>
-
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={view === 'month' ? 'Next month' : 'Next day'}
-              onClick={() => step(1)}
+          <div className="calendar-toolbar__heading-wrap" ref={datePickerRef}>
+            <button
+              type="button"
+              className="calendar-toolbar__date-btn"
+              aria-expanded={datePickerOpen}
+              aria-haspopup="dialog"
+              aria-label={`Change date, ${title}`}
+              onClick={() => setDatePickerOpen((v) => !v)}
             >
-              <ChevronRight size={18} />
-            </Button>
-
-            <Button
-              variant="ghost"
-              className={cn(
-                'calendar-toolbar__today',
-                selected === current && 'calendar-toolbar__today--current',
-              )}
-              onClick={() => updateCalendarParams(view, current)}
-            >
-              Today
-            </Button>
+              <h1 className="calendar-toolbar__title">
+                <span className="calendar-toolbar__title-long">{title}</span>
+                <span className="calendar-toolbar__title-short" aria-hidden>
+                  {shortTitle}
+                </span>
+              </h1>
+              <ChevronDown
+                size={18}
+                aria-hidden
+                className={cn(
+                  'calendar-toolbar__chevron',
+                  datePickerOpen && 'rotate-180',
+                )}
+              />
+            </button>
+            {datePickerOpen && (
+              <DatePickerPopover
+                selected={selected}
+                todayDate={current}
+                onSelect={(day) => {
+                  setDatePickerOpen(false)
+                  updateCalendarParams(view, day)
+                }}
+                onClose={() => setDatePickerOpen(false)}
+              />
+            )}
           </div>
 
-          <div className="calendar-toolbar__controls">
-            <button
-              type="button"
-              aria-pressed={!showAllHours}
-              onClick={() => setShowAllHours(false)}
-              className={cn(
-                'calendar-toolbar__toggle',
-                !showAllHours && 'calendar-toolbar__toggle--active',
-              )}
-              title="Show only Any time and hours with scheduled activities"
-            >
-              <Clock3 size={15} aria-hidden />
-              <span>Focused Hours</span>
-            </button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="calendar-toolbar__step"
+            aria-label={view === 'month' ? 'Next month' : 'Next day'}
+            onClick={() => step(1)}
+          >
+            <ChevronRight size={18} />
+          </Button>
 
-            <button
-              type="button"
-              aria-pressed={showAllHours}
-              onClick={() => setShowAllHours(true)}
-              className={cn(
-                'calendar-toolbar__toggle calendar-toolbar__toggle--secondary',
-                showAllHours && 'calendar-toolbar__toggle--active',
-              )}
-              title="Show all 24 hours"
-            >
-              <Clock3 size={15} aria-hidden />
-              <span>All 24h</span>
-            </button>
+          <Button
+            variant="ghost"
+            className={cn(
+              'calendar-toolbar__today',
+              selected === current && 'calendar-toolbar__today--current',
+            )}
+            onClick={() => updateCalendarParams(view, current)}
+          >
+            Today
+          </Button>
 
-            <button
-              type="button"
-              aria-pressed={view === 'month'}
-              onClick={() =>
-                updateCalendarParams(view === 'month' ? 'day' : 'month')
-              }
-              className={cn(
-                'calendar-toolbar__toggle calendar-toolbar__toggle--secondary',
-                view === 'month' && 'calendar-toolbar__toggle--active',
+          <details className="calendar-filter" ref={viewMenuRef}>
+            <summary className="calendar-filter__trigger" aria-label="View options">
+              <SlidersHorizontal size={15} aria-hidden />
+              <span>View</span>
+              {categoryFilter !== 'all' && (
+                <span className="calendar-filter__active" aria-hidden />
               )}
-            >
-              <CalendarDays size={15} aria-hidden />
-              <span>Month</span>
-            </button>
-
-            <details className="calendar-filter">
-              <summary className="calendar-filter__trigger">
-                <Filter size={15} aria-hidden />
-                <span>Filters</span>
-                {categoryFilter !== 'all' && (
-                  <span className="calendar-filter__active" aria-hidden />
-                )}
-              </summary>
-              <div
-                className="calendar-filter__menu"
-                aria-label="Filter activities"
-              >
+            </summary>
+            <div className="calendar-filter__menu calendar-view-menu">
+              <div role="group" aria-label="Show" className="calendar-view-menu__group">
+                {(['day', 'month'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-pressed={view === v}
+                    onClick={() => {
+                      closeViewMenu()
+                      if (v !== view) updateCalendarParams(v)
+                    }}
+                    className={cn(
+                      'calendar-filter__option',
+                      view === v && 'calendar-filter__option--selected',
+                    )}
+                  >
+                    {v === 'day' ? 'Day' : 'Month'}
+                  </button>
+                ))}
+              </div>
+              {view === 'day' && (
+                <div role="group" aria-label="Hours" className="calendar-view-menu__group">
+                  {[
+                    { all: false, label: 'Focused Hours' },
+                    { all: true, label: 'All 24h' },
+                  ].map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      aria-pressed={showAllHours === option.all}
+                      title={option.all ? 'Show all 24 hours' : 'Show only Any time and hours with scheduled activities'}
+                      onClick={() => {
+                        closeViewMenu()
+                        setShowAllHours(option.all)
+                      }}
+                      className={cn(
+                        'calendar-filter__option',
+                        showAllHours === option.all && 'calendar-filter__option--selected',
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div role="group" aria-label="Filter activities" className="calendar-view-menu__filters">
                 {[
                   { id: 'all', label: 'All Activities' },
                   { id: 'fitness', label: 'Fitness' },
@@ -486,7 +509,10 @@ export function CalendarPage() {
                       key={chip.id}
                       type="button"
                       aria-pressed={isSelected}
-                      onClick={() => setCategoryFilter(chip.id)}
+                      onClick={() => {
+                        closeViewMenu()
+                        setCategoryFilter(chip.id)
+                      }}
                       className={cn(
                         'calendar-filter__option',
                         isSelected && 'calendar-filter__option--selected',
@@ -497,8 +523,8 @@ export function CalendarPage() {
                   )
                 })}
               </div>
-            </details>
-          </div>
+            </div>
+          </details>
         </div>
       </div>
 
