@@ -10,7 +10,7 @@ import { mediaUrl } from '../media/urls'
 import { HORIZON_DAYS, materializeEnrollment } from './materialize'
 import { materializeRecurrence, parseRule, type RecurrenceRule } from './recurrence'
 import { evaluate } from './achievements'
-import { assertActivePlace, toPlace } from '../catalog/catalog.service'
+import { assertActivePlace, projectPlaces } from '../catalog/catalog.service'
 import { itemGroupId } from '../groups/itemGroup'
 import { departInTx } from '../groups/gathering.service'
 import { completionOpensAt } from './completionWindow'
@@ -32,6 +32,7 @@ type ItemRow = Prisma.CalendarItemGetPayload<{ include: typeof itemInclude }>
 /** Projects items for display: titles, thumbnails, conflicts, lock state, group signals. */
 export async function toCalendarItems(userId: string, items: ItemRow[]) {
   const revs = await loadCalendarRevisions(items.map((i) => i.activityRevisionId))
+  const places = await projectPlaces(items.map(i => i.place), userId)
   const ownerTz = await userTimezone(userId)
   // Locked: Program content requires an entitlement the user no longer has (subscription lapsed).
   const lockedProgramIds = new Set(
@@ -122,7 +123,7 @@ export async function toCalendarItems(userId: string, items: ItemRow[]) {
       thumbnailUrl: locked && hasPrivateAttachment ? null : thumbnailUrl,
       participantAvatars: avatars,
       unreadCount: i.groupOccurrenceKey ? unreadByKey.get(i.groupOccurrenceKey) ?? 0 : 0,
-      place: i.place ? toPlace(i.place) : null,
+      place: i.place ? places.get(i.place.id) ?? null : null,
       gatheringId: i.gatheringId,
       completionOpensAt: completionOpensAt(i, ownerTz).toISOString(),
       updatedAt: i.updatedAt.toISOString(),
@@ -245,7 +246,7 @@ export async function add(
     run: async () => {
       const pinned = await pinRevision(userId, input.activityId, input.revisionId)
       const effectiveTime = input.localTime === undefined ? pinned.targetTime : input.localTime
-      const placeId = await scheduledPlace(input.activityId, input.placeId)
+      const placeId = await scheduledPlace(input.activityId, input.placeId, userId)
       const { itemId, recurrenceId, createdCount } = await db.$transaction(async (tx) => {
         if (input.recurrence) {
           const r = await tx.calendarRecurrence.create({
@@ -290,10 +291,10 @@ export async function add(
  * Scheduled place for a new item or recurrence (09 §2): omitted copies the Activity's suggested Place,
  * null means none, and an explicit id must be an active Place.
  */
-async function scheduledPlace(activityId: string, input: string | null | undefined) {
+async function scheduledPlace(activityId: string, input: string | null | undefined, userId: string) {
   if (input === null) return null
   if (input !== undefined) {
-    await assertActivePlace(input)
+    await assertActivePlace(input, userId)
     return input
   }
   return (await db.activity.findUnique({ where: { id: activityId }, select: { placeId: true } }))?.placeId ?? null
@@ -318,7 +319,7 @@ export async function update(
   itemId: string,
   input: { localDate?: string; localTime?: string | null; status?: CalendarItem['status']; targetOverrides?: Record<string, unknown> | null; placeId?: string | null; scope?: 'THIS_ONE' | 'THIS_AND_FUTURE'; expectedUpdatedAt: string },
 ) {
-  await assertActivePlace(input.placeId)
+  await assertActivePlace(input.placeId, userId)
   if (input.status === 'DONE') throw badRequest('Finish the activity to complete it', { status: 'DONE is set by finishing a session' })
   if (input.status === 'NOT_PARTICIPATING') throw badRequest('Not participating is set by the server', { status: 'is set by the server' })
   const tz = await userTimezone(userId)
@@ -485,7 +486,7 @@ export async function updateRecurrence(
   id: string,
   input: { rule?: RecurrenceRule; localTime?: string | null; untilDate?: string | null; placeId?: string | null; effectiveFromDate: string },
 ) {
-  await assertActivePlace(input.placeId)
+  await assertActivePlace(input.placeId, userId)
   const tz = await userTimezone(userId)
   const created = await db.$transaction(async (tx) => {
     const r = await tx.calendarRecurrence.findUnique({ where: { id } })

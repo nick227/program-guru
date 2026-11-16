@@ -173,3 +173,7 @@ Still open, and not blocking implementation:
 - `05-ARCHITECTURE.md`: fetching, caching, error handling, entitlement checks and asset delivery.
 
 This document specifies the **experience and cross-page composition** only. Where an implementation rule overlaps with a domain document, keep the domain document as the authoritative source and link to it rather than duplicating schema definitions.
+
+### Location directory amendment (2026-11-16, PR 2)
+
+Business profile management supports phone, website, and creating/editing/unlinking/deactivating public locations. Activity location links open the accessible associated business profile, otherwise location details. An association never labels unrelated activities as hosted by that business.

@@ -28,12 +28,12 @@ An **Activity** is a reusable, category-agnostic action: Leg Raises, Read, Daily
 
 | Entity | Main fields | Notes |
 |---|---|---|
-| `Place` | id, slug (unique), name, kind (e.g. `park`, `museum`, `pool`, `garden`), addressLine?, locality (city), region, countryCode, sourceUrl, accessNote?, isActive, createdAt, updatedAt | Platform-curated: created by seed or ADMIN only in this epic. No coordinates, hours, hosts, prices or claims yet |
+| `Place` | id, slug (unique), name, kind (e.g. `park`, `museum`, `pool`, `garden`), addressLine?, locality (city), region, countryCode, sourceUrl, accessNote?, isActive, createdAt, updatedAt | Shared directory; see Location directory amendment below. No coordinates, hours, hosts, prices or verified claims yet |
 
 - **`Activity.placeId`** (nullable, `SET NULL` on delete) is the Activity's *suggested* place. It is Activity-level metadata like `categoryId`, not part of the revision snapshot: changing it never alters published revisions or existing Calendar Items. Authors choose from active Places in create and draft-update; most Activities have none.
 - **`accessNote`** holds plain, sourced visitor constraints (admission, permitted materials, closures, permission needed), worded as "check before you go". It never states hours as fact.
 - **Display.** Anywhere a Place appears, it shows name, address and city, the access note, and a link to `sourceUrl`; a directions link may be built from the address. The wording is "Suggested place". It never says "hosted by", "at this event", or shows attendees the Place didn't produce.
-- **Deferred:** coordinates, maps and nearby search (once reliable sourced coordinates exist), user-created Places, Place media, venue claims and verified venue-hosted Activities.
+- **Deferred:** coordinates, maps and nearby search (once reliable sourced coordinates exist), Place media, verified venue claims and verified venue-hosted Activities.
 
 ### Planned duration and default frequency (decided 2026-11-10)
 
@@ -214,3 +214,7 @@ This is the proposed **content backlog**, not a claim that scripts/media are alr
 | Guided Meditation | Prepare; Follow guidance; Finish reflection | Duration, optional private note; Timer | Calm rights-cleared illustration |
 
 Only examples may have instructional parts that differ from standard count; avoid requiring a user to follow these in sequence for completion. Content quality must be reviewed with domain expertise where applicable.
+
+### Location directory amendment (2026-11-16, PR 2)
+
+Extend Place as the shared location directory: user-submitted and imported places coexist with seeds. New submissions require name and addressLine; locality/region/postalCode are optional, countryCode required. sourceUrl is optional and kind defaults to other. PUBLIC locations are searchable; PRIVATE locations are readable/selectable only by their submitter on personal calendar entries. Activity suggestions and gatherings accept PUBLIC locations only. Creation is idempotent, records submitter and provenance, and never implies ownership. Creating a new PUBLIC business location from profile management atomically associates it with the creator. Only ADMIN may associate an existing public location; matching an existing location never claims it. Managed locations may be edited, deactivated or unlinked by their business profile owner. Unlinking/deleting a profile retains the Place and activity references. Search is viewer-scoped, address-aware and paginated (default 10, maximum 25). Stable source namespace/external ID and a duplicate-candidate fingerprint prepare for import. Directory visibility cannot be changed through location edits, preventing historical private addresses becoming public by accident. Locations do not imply hosting.

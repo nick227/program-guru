@@ -182,3 +182,7 @@ Unique `(userId, definitionId, enrollmentId)`, with evaluation idempotent. `Undo
 - Calendar page default opens same selected date after record/upload/editor return.
 - Data isolation: collaborator can see only permitted completion/posted media, not raw personal log.
 - Scheduled place: adding an Activity with a Place copies it; explicit `placeId` and `null` override it; recurrence-generated items carry the recurrence's Place; changing the Activity's Place later leaves existing items unchanged; another user's item is never affected.
+
+### Location action amendment (2026-11-16, PR 1)
+
+Location uses three states: omitted inherits the Activity suggestion for new entries, null explicitly clears, and an ID selects a Place. Start applies an explicit selection to its reused personal item with optimistic concurrency, otherwise preserves its location. Scheduling and recurrence persist the selection. Occurrence edits default to this one, with an explicit This and future choice for recurrence; cancellation saves nothing. Location changes never change Activity visibility or publish a personal calendar.

@@ -545,11 +545,12 @@ export interface paths {
         };
         /**
          * List places
-         * @description Active platform-curated Places (08-ACTIVITIES §2a). A Place is never a host, event or booking.
+         * @description Active public locations and the signed-in submitter’s private locations. Selection never grants business ownership.
          */
         get: operations["listPlaces"];
         put?: never;
-        post?: never;
+        /** Create a location */
+        post: operations["createPlace"];
         delete?: never;
         options?: never;
         head?: never;
@@ -573,7 +574,25 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Manage an owned location */
+        patch: operations["updatePlace"];
+        trace?: never;
+    };
+    "/admin/places/{placeId}/business": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Associate a location with a business profile */
+        patch: operations["associatePlaceBusiness"];
         trace?: never;
     };
     "/activities": {
@@ -3261,6 +3280,9 @@ export interface components {
             followingCount: number;
             publicProgramCount: number;
             focusChips: components["schemas"]["FocusChip"][];
+            businessPhone?: string | null;
+            businessWebsite?: string | null;
+            locations?: components["schemas"]["Place"][];
         };
         NotificationPrefs: {
             inAppReminders: boolean;
@@ -3331,6 +3353,8 @@ export interface components {
             /** Format: uuid */
             coverMediaId?: string | null;
             visibility?: components["schemas"]["ProfileVisibility"];
+            businessPhone?: string | null;
+            businessWebsite?: string | null;
         };
         UpdateNotificationPrefsInput: {
             inAppReminders?: boolean;
@@ -3558,7 +3582,7 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
         };
-        /** @description A real, platform-curated location. Suggested only; never implies a host, hours, booking or endorsement. */
+        /** @description A physical location; business association does not imply hosting or verification. */
         Place: {
             /** Format: uuid */
             id: string;
@@ -3569,8 +3593,16 @@ export interface components {
             locality: string;
             region: string;
             countryCode: string;
-            sourceUrl: string;
+            sourceUrl: string | null;
             accessNote: string | null;
+            postalCode?: string | null;
+            /** @enum {string} */
+            visibility?: "PUBLIC" | "PRIVATE";
+            isActive?: boolean;
+            /** Format: date-time */
+            updatedAt?: string;
+            canManage?: boolean;
+            businessProfile?: components["schemas"]["PlaceBusinessProfile"] | null;
         };
         Category: {
             /** Format: uuid */
@@ -5423,6 +5455,51 @@ export interface components {
             visibility: components["schemas"]["Visibility"];
             expectedRevision: number;
         };
+        PlaceBusinessProfile: {
+            handle: string;
+            displayName: string;
+            profileUrl: string;
+        };
+        CreatePlaceInput: {
+            name: string;
+            addressLine: string;
+            locality?: string;
+            region?: string;
+            countryCode: string;
+            postalCode?: string | null;
+            kind?: string;
+            sourceUrl?: string | null;
+            accessNote?: string | null;
+            /**
+             * @default PUBLIC
+             * @enum {string}
+             */
+            visibility: "PUBLIC" | "PRIVATE";
+            /** @default false */
+            linkToMyBusiness: boolean;
+            idempotencyKey: string;
+        };
+        UpdatePlaceInput: {
+            name?: string;
+            addressLine?: string;
+            locality?: string;
+            region?: string;
+            countryCode?: string;
+            postalCode?: string | null;
+            kind?: string;
+            sourceUrl?: string | null;
+            accessNote?: string | null;
+            /** Format: date-time */
+            expectedUpdatedAt: string;
+            isActive?: boolean;
+            unlinkBusiness?: boolean;
+        };
+        AssociatePlaceBusinessInput: {
+            /** Format: uuid */
+            businessProfileUserId: string | null;
+            /** Format: date-time */
+            expectedUpdatedAt: string;
+        };
     };
     responses: {
         /** @description Validation failed */
@@ -6473,10 +6550,14 @@ export interface operations {
     listPlaces: {
         parameters: {
             query?: {
+                publicOnly?: boolean;
                 /** @description Simple text search within this resource. */
                 q?: components["parameters"]["SearchQuery"];
                 /** @description City name, matched exactly (case-insensitive). */
                 locality?: string;
+                limit?: number;
+                /** @description Opaque cursor returned by the previous page. */
+                cursor?: components["parameters"]["Cursor"];
             };
             header?: never;
             path?: never;
@@ -6492,10 +6573,45 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["Place"][];
+                        meta?: {
+                            hasMore: boolean;
+                            nextCursor: string | null;
+                        };
                     };
                 };
             };
             400: components["responses"]["BadRequest"];
+        };
+    };
+    createPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlaceInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Place"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     getPlace: {
@@ -6522,6 +6638,72 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    updatePlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                placeRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePlaceInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Place"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    associatePlaceBusiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                placeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssociatePlaceBusinessInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Place"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     listActivities: {

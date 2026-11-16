@@ -1,3 +1,4 @@
+import { BusinessLocations } from '@/components/location/BusinessLocations'
 import { InstallApp } from '@/components/account/PwaControls'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -146,6 +147,7 @@ export function SettingsPage() {
           <Back to={buildProfileUrl(profile.handle)}>Profile</Back>
         </Row>
         <h1>Settings</h1>
+        <Panel><BusinessLocations /></Panel>
 
         <Panel id="reminders">
           <Stack>

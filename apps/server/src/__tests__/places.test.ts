@@ -125,6 +125,32 @@ describe('scheduled place on Calendar Items (09 §2)', () => {
     ])
   })
 
+  it('occurrence location edits preserve dates and support this one versus this and future', async () => {
+    const original = await seedPlace()
+    const alternate = await seedPlace('town-lake')
+    const added = await req('POST', '/calendar/items', {
+      activityId: cat.squats.activity.id, localDate: '2026-11-16', localTime: null,
+      placeId: original.id, recurrence: { kind: 'DAILY' }, untilDate: '2026-11-18', idempotencyKey: key(),
+    })
+    expect(added.statusCode).toBe(201)
+    const first = added.json().data.item
+    const single = await req('PATCH', `/calendar-items/${first.id}`, {
+      placeId: alternate.id, scope: 'THIS_ONE', expectedUpdatedAt: first.updatedAt,
+    })
+    expect(single.statusCode).toBe(200)
+    let items = await db.calendarItem.findMany({ where: { ownerId: testUserId, status: 'PLANNED' }, orderBy: { localDate: 'asc' } })
+    expect(items.map(i => i.placeId)).toEqual([alternate.id, original.id, original.id])
+    const second = items[1]!
+    const future = await req('PATCH', `/calendar-items/${second.id}`, {
+      placeId: null, scope: 'THIS_AND_FUTURE', expectedUpdatedAt: second.updatedAt.toISOString(),
+    })
+    expect(future.statusCode).toBe(200)
+    items = await db.calendarItem.findMany({ where: { ownerId: testUserId, status: 'PLANNED' }, orderBy: { localDate: 'asc' } })
+    expect(items.map(i => [i.localDate.toISOString().slice(0, 10), i.localTime, i.placeId])).toEqual([
+      ['2026-11-16', null, alternate.id], ['2026-11-17', null, null], ['2026-11-18', null, null],
+    ])
+  })
+
   it('Program enrollment copies each Activity place onto its items', async () => {
     const barton = await seedPlace()
     await suggest(cat.squats.activity.id, barton.id)

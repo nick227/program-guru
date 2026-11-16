@@ -198,7 +198,7 @@ export function ActivityPreviewDrawer({
                   </p>
                 )}
 
-                <ActivityParticipation activity={{ id: a.id, title: a.title }} returnTo={currentUrl} className="pt-1" />
+                <ActivityParticipation key={a.id} activity={{ id: a.id, title: a.title, place: a.place }} returnTo={currentUrl} className="pt-1" />
               </div>
 
               <GroupStatus

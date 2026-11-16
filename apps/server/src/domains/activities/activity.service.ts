@@ -11,7 +11,7 @@ import { allocateActivitySlug } from '../programs/slug.service'
 import type { Frequency } from '../programs/schedule'
 import { authorFor } from '../admin/authors'
 import { audit } from '../admin/audit'
-import { assertActivePlace } from '../catalog/catalog.service'
+import { assertActivePlace, projectPlaces } from '../catalog/catalog.service'
 import {
   activityInclude,
   loadRevisions,
@@ -55,11 +55,11 @@ async function toDetail(viewerId: string | null, a: ActivityWithCreator, rev: Re
     const src = await db.activity.findUnique({ where: { id: a.sourceActivityId }, include: activityInclude })
     if (src && canUseActivity(src, viewerId)) {
       const srcRev = (await loadRevisions([src.latestPublishedRevisionId ?? ''])).get(src.latestPublishedRevisionId ?? '') ?? null
-      sourceActivity = toActivitySummary(src, srcRev)
+      sourceActivity = toActivitySummary(src, srcRev, await projectPlaces([src.place], viewerId))
     }
   }
   return {
-    ...toActivitySummary(a, rev),
+    ...toActivitySummary(a, rev, await projectPlaces([a.place], viewerId)),
     instructions: rev.instructions.map(toInstruction),
     media: rev.attachments.map((x) => toMediaThumb(x)),
     metrics: rev.metrics.map(toMetricBinding),
@@ -118,9 +118,10 @@ export async function list(
   })
   const revIds = rows.map((a) => (isOwner(a, viewerId) ? a.revisions[0]?.id : a.latestPublishedRevisionId) ?? '')
   const revs = await loadRevisions(revIds)
+  const places = await projectPlaces(rows.map(a => a.place), viewerId)
   return toOffsetPage(rows, limit, skip, (a) => {
     const id = isOwner(a, viewerId) ? a.revisions[0]?.id : a.latestPublishedRevisionId
-    return toActivitySummary(a, id ? revs.get(id) ?? null : null)
+    return toActivitySummary(a, id ? revs.get(id) ?? null : null, places)
   })
 }
 

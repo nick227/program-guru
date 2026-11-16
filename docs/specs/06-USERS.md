@@ -106,3 +106,7 @@ Routes: `POST /auth/register|login|logout|google|verify-email|forgot-password|re
 - `REQUIRE_EMAIL_VERIFICATION=false` (UAT only) relaxes the verification gate on payout onboarding. Absent or any other value keeps them. Verification still works (tokens, emails, endpoints); nobody is marked verified automatically; password reset is unchanged. Matching EMAIL group invitations by address stays verified-only, because it proves ownership of that address. `UserMeDto.emailVerificationRequired` tells clients which state applies.
 - Permissions cover anonymous, signed-in unrelated, accepted follower, pending follower, owner, blocked, suspended.
 - Tests: duplicate/parallel registration; self-follow blocked; private approval; block overrides; privacy toggle; deletion preserves authorized adopted snapshot but removes identity as retention rules require; username changes do not break stable ID references.
+
+### Location directory amendment (2026-11-16, PR 2)
+
+Profiles may publish businessPhone and businessWebsite, using displayName/bio for business identity. A profile has zero or more associated Places. Business contact and associated locations are returned only to the owner or for a PUBLIC profile; blocked/inactive accounts never appear as linked business profiles. Profile association is self-declared, not verification or hosting.

@@ -158,7 +158,7 @@ Check-ins are the core Group collaboration loop (`Complete → Check in → See 
 
 ### 9.1 Journey and rules
 
-**Activity → Join an existing gathering, or Create a time → it is on my Calendar → the existing `/occurrences/:id` room.** No separate event pages, no event-management concepts, no new room, no new execution engine. A Program is never required.
+**Activity → Start, Add to Schedule, or Join an existing gathering → the existing `/occurrences/:id` room.** No separate event pages, no event-management concepts, no new room, no new execution engine. A Program is never required.
 
 1. **Personal scheduling stays independent.** Two people who each schedule chess for Saturday 2 PM are never linked, shown together, or counted together. Only an explicit join connects someone to a gathering.
 2. A **gathering** is one shared occurrence of one Activity: a date, an optional time, the creator's timezone, an optional Place, an optional capacity, and its members. It is not a Program, a recurrence or an event.
@@ -194,9 +194,9 @@ A member's gathering item has `gatheringId = <group>`, `groupOccurrenceKey = 'ga
 
 Every Program-group code path filters `kind: 'PROGRAM'` instead of relying on a join through the Program, and handles the now-optional Program reference explicitly. All existing `/groups/...` operations (detail, update, members, invitations, join, accept, enrollment with a group, starting soon, featured groups, live sessions, participation stats) act on Program groups only: a gathering id returns 404 there. Operations keyed only by group id that work for both kinds: completion shares, reactions, comments, GROUP media, check-ins and presence. One helper resolves an item's group: `item.enrollment?.groupId ?? item.gatheringId`; it is used by the occurrence room, Calendar tiles and session completion sharing.
 
-### 9.4 Create a time
+### 9.4 Gathering creation API
 
-- From the Activity page: date, optional time, optional Place (defaults to the Activity's suggested Place), **Open to others**. Off = an ordinary personal Calendar Item (09 §2). On = a gathering whose owner is its first member.
+- Activity pages use the shared Start and Add to Schedule actions, with Add Location beside them. There is no separate Create a time form or Open to others control. Location selection never creates a gathering or changes visibility. Existing gathering creation APIs and invitations remain supported.
 - **Private and invite-only by default:** `visibility PRIVATE`, `joinPolicy INVITE_ONLY`; members share a link. **List publicly** (`visibility PUBLIC`, `joinPolicy OPEN`) is an explicit second choice, allowed only for PUBLIC Activities. Members may share links (`memberLinkSharingEnabled = true`).
 - Only published PUBLIC or UNLISTED Activities that the creator can read can be gathered around.
 - Capacity is optional; empty means no limit.
@@ -218,7 +218,7 @@ Every Program-group code path filters `kind: 'PROGRAM'` instead of relying on a 
 
 ### 9.7 Discovery and sharing
 
-- **Activity page:** "Upcoming gatherings": public open gatherings and any the viewer belongs to, not past, soonest first, each with date, time, Place and city, real member count, and Join or Open (`joinEligibility`). Below, **Create a time**.
+- **Activity page:** existing shared participation controls provide Join/Open for a visible gathering. Remove the duplicate Do it with others section. Activity visibility and calendar participation remain separate; public Activities never automatically publish personal Calendar Items.
 - **Happening now:** public gatherings with at least one member's Activity session running or paused (authoritative session records) appear first in Community's Happening Now.
 - **With others** shortcut: Activities that have an upcoming public open gathering.
 - **Share link:** `/gatherings/{id}` (with `?invite=<token>` for private ones) shows that exact occurrence and Join or Open. City wording only, never "nearby".
@@ -293,3 +293,7 @@ Discovery-first, not coordination-first: the catalog connects relevant people wi
 
 **Tests:** inherited and additional Categories both match in Community and Radar; additional Categories never change the Activity; duplicates and inherited repeats are rejected; at most 3; the note respects visibility, is reportable, hides on moderation and restores; restricted users cannot set it; joining is unchanged.
 
+
+### Location action amendment (2026-11-16, PR 1)
+
+Remove the standalone Open to others occurrence CTA. Keep existing gatherings, invitations, Join/Open and membership rules. A personal location edit only leaves a gathering when its location actually changes; unchanged selections must not send a location mutation.

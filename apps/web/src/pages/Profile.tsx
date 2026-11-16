@@ -1,3 +1,4 @@
+import { LocationLink } from '@/components/location/LocationLink'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -215,6 +216,13 @@ export function ProfilePage() {
                     {p.bio}
                   </p>
                 )}
+
+                {(p.businessPhone || p.businessWebsite || (p.locations?.length ?? 0) > 0) && <section aria-label="Business information" className="space-y-2 text-sm">
+                  {p.businessPhone && <p>Phone: <a className="text-accent" href={`tel:${p.businessPhone.replace(/[^+0-9]/g, '')}`}>{p.businessPhone}</a></p>}
+                  {p.businessWebsite && <a className="block text-accent" href={p.businessWebsite} target="_blank" rel="noopener noreferrer">Business website</a>}
+                  <ul className="space-y-2">{(p.locations ?? []).filter(place => place.isActive !== false).map(place => <li key={place.id}><LocationLink place={place} /><p className="text-muted">{[place.addressLine, place.locality, place.region, place.postalCode].filter(Boolean).join(', ')}</p></li>)}</ul>
+                </section>}
+                {isOwner && <Link className="text-sm text-accent" to="/settings#business">Manage business information &amp; locations</Link>}
 
                 {/* Creator Metrics & Focus Chips */}
                 <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-medium text-muted sm:gap-4 sm:text-sm">

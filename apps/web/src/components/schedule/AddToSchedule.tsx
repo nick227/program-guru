@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { CalendarPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAddCalendarItem, useJoinProgram, useUpdateCalendarItem } from '@project/sdk'
+import { LocationButton, type LocationSelection } from '@/components/location/LocationPicker'
 import { DatePickerPopover } from '@/components/calendar/DatePickerPopover'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
@@ -33,7 +34,7 @@ const chip = (on: boolean) =>
 
 /** What Add to Schedule places on the Calendar: one Activity, or a Program run from a start date. */
 export type ScheduleTarget =
-  | { kind: 'activity'; id: string; title: string }
+  | { kind: 'activity'; id: string; title: string; place?: LocationSelection; placeId?: string | null }
   | { kind: 'program'; id: string; title: string; programVersionId: string }
   /** Reschedule one existing Calendar item (09 §4.8); a recurring one asks This one / This and future. */
   | {
@@ -75,6 +76,7 @@ export function ScheduleDialog({
     target.kind === 'item' && target.localDate >= todayIso ? target.localDate : todayIso,
   )
   const [localTime, setLocalTime] = useState(() => (target.kind === 'item' ? (target.localTime ?? '') : ''))
+  const [location, setLocation] = useState<LocationSelection>(undefined)
   const [scope, setScope] = useState<'THIS_ONE' | 'THIS_AND_FUTURE'>('THIS_ONE')
   const [repeat, setRepeat] = useState<Repeat>('ONCE')
   const [weekdays, setWeekdays] = useState<number[]>([])
@@ -123,7 +125,8 @@ export function ScheduleDialog({
         await addItem.mutateAsync({
           activityId: target.id,
           localDate,
-          localTime: localTime || undefined,
+          localTime: localTime || null,
+          placeId: location === undefined ? target.placeId : location?.id ?? null,
           ...(recurrence ? { recurrence, untilDate } : {}),
           idempotencyKey,
         })
@@ -278,6 +281,7 @@ export function ScheduleDialog({
             )}
           </>
         )}
+        {target.kind === 'activity' && <LocationButton value={location === undefined ? target.place : location} onChange={setLocation} disabled={pending} />}
         <div className="flex justify-end gap-2">
           <Button variant="outline" disabled={pending} onClick={onClose}>
             Cancel

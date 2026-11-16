@@ -1,66 +1,38 @@
+import { LocationLink } from '@/components/location/LocationLink'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { ExternalLink, MapPin } from 'lucide-react'
-import { usePlaces, useUpdateCalendarItem, type components } from '@project/sdk'
+import { useUpdateCalendarItem, type components } from '@project/sdk'
 import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Select'
+import { LocationPicker } from '@/components/location/LocationPicker'
 
 type Item = components['schemas']['CalendarItem']
 
-/**
- * The scheduled place of one occurrence (09 §2, 03 §6): one quiet line inside the Hero. A Place is a
- * suggestion, never a host or booking. The owner can change or clear it for this occurrence only.
- */
+/** One occurrence's location; never edits its activity definition or publishes its calendar. */
 export function ScheduledPlace({ item }: { item: Item }) {
   const [editing, setEditing] = useState(false)
-  const places = usePlaces({ enabled: editing })
   const update = useUpdateCalendarItem()
+  const navigate = useNavigate()
   const place = item.place
-  if (!place) return null
-
-  const save = (placeId: string | null) => {
-    // A personal change leaves the gathering (10 §9.6).
-    if (item.gatheringId && !window.confirm('Changing the place leaves this gathering. Continue?')) return
-    update.mutate(
-      { itemId: item.id, placeId, expectedUpdatedAt: item.updatedAt },
-      { onSuccess: () => setEditing(false) },
-    )
-  }
-
-  return (
-    <div className="activity-hero__place">
-      <MapPin size={14} aria-hidden />
-      <span>
-        <strong className="font-semibold">{place.name}</strong>, {place.locality}
-      </span>
-      <a href={place.sourceUrl} target="_blank" rel="noopener noreferrer" className="activity-hero__place-link">
-        Visitor info
-        <ExternalLink size={12} aria-hidden />
-      </a>
-      {editing ? (
-        <span className="activity-hero__place-edit">
-          <Select
-            aria-label="Place for this occurrence"
-            value={place.id}
-            disabled={update.isPending || places.isPending}
-            onChange={(e) => save(e.target.value || null)}
-          >
-            <option value="">No place</option>
-            {(places.data ?? [place]).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}, {p.locality}
-              </option>
-            ))}
-          </Select>
-          <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
-            Cancel
-          </Button>
-        </span>
-      ) : (
-        <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-          Change place
-        </Button>
-      )}
-      {place.accessNote && <span className="activity-hero__place-note">{place.accessNote}</span>}
-    </div>
-  )
+  return <div className="activity-hero__place">
+    <MapPin size={14} aria-hidden />
+    {place && <>
+      <span><LocationLink place={place} />, {place.locality}</span>
+      {place.sourceUrl && <a href={place.sourceUrl} target="_blank" rel="noopener noreferrer" className="activity-hero__place-link">Visitor info <ExternalLink size={12} aria-hidden /></a>}
+    </>}
+    <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>{place ? 'Change Location' : 'Add Location'}</Button>
+    {editing && <LocationPicker value={place} recurring={!!item.recurrenceId} gathering={!!item.gatheringId}
+      onClose={() => setEditing(false)} onSave={async (selected, scope) => {
+        const placeId = selected?.id ?? null
+        // No-op must not detach a gathering or split a recurrence.
+        if (placeId === (place?.id ?? null)) return
+        const saved = await update.mutateAsync({ itemId: item.id, placeId, expectedUpdatedAt: item.updatedAt, ...(item.recurrenceId ? { scope } : {}) })
+        if (scope === 'THIS_AND_FUTURE' && saved.status === 'CANCELLED') {
+          toast.success('Location updated for this and future activities')
+          navigate(`/calendar?day=${item.localDate}`)
+        }
+      }} />}
+    {place?.accessNote && <span className="activity-hero__place-note">{place.accessNote}</span>}
+  </div>
 }

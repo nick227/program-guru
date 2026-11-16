@@ -1,5 +1,5 @@
 import { PwaUpdatePrompt } from '@/components/account/PwaControls'
-import { useEffect } from 'react'
+import { useRef, useEffect } from 'react'
 import {
   createBrowserRouter,
   RouterProvider,
@@ -57,6 +57,9 @@ function Root() {
   const online = useOnline()
   const location = useLocation()
   const me = useCurrentUser()
+  const sessionSettled = useRef(false)
+  if (!me.isPending) sessionSettled.current = true
+  const waitForSession = me.isPending && !sessionSettled.current && online && me.fetchStatus !== 'paused'
   const auth = authStateOf(me)
   // A transient /auth/me failure (rate limit, server error) is not a sign-out: keep retrying quietly.
   const authUnavailable = auth === 'unknown' && !me.isPending
@@ -127,8 +130,8 @@ function Root() {
           We could not confirm your sign-in just now. Retrying.
         </p>
       )}
-      {/* Wait for the session check so viewer-scoped queries load once, for the right viewer. */}
-      {me.isPending ? (
+      {/* Gate the first session check only; retries must not unmount offline recovery. */}
+      {waitForSession ? (
         <Page>
           <Loading />
         </Page>

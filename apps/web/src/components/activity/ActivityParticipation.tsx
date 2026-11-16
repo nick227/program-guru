@@ -1,11 +1,13 @@
+import { LocationLink } from '@/components/location/LocationLink'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CalendarCheck, CalendarClock, CalendarPlus, CircleDot, ExternalLink, Play, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useActivityParticipation, useCurrentUser, useJoinGathering, type components } from '@project/sdk'
-import { joinedMessage } from '@/components/activity/ActivityGatherings'
+import { joinedMessage } from '@/lib/gatheringLabels'
 import { AddToScheduleButton, ScheduleDialog, type ScheduleTarget } from '@/components/schedule/AddToSchedule'
 import { StartActivityButton } from '@/components/schedule/StartActivityButton'
+import { LocationButton, type LocationSelection } from '@/components/location/LocationPicker'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { resolveParticipation, type ParticipationView } from '@/lib/activityParticipation'
@@ -30,7 +32,7 @@ export function ActivityParticipation({
   onOpenPage,
   className,
 }: {
-  activity: { id: string; title: string }
+  activity: { id: string; title: string; place?: components['schemas']['Place'] | null }
   /** `people`: only who takes part (and shared activity), where status and schedule show elsewhere. */
   variant?: 'full' | 'compact' | 'summary' | 'people'
   returnTo: string
@@ -42,6 +44,8 @@ export function ActivityParticipation({
   onOpenPage?: () => void
   className?: string
 }) {
+  const [location, setLocation] = useState<LocationSelection>(undefined)
+  const effectiveLocation = location === undefined ? activity.place : location
   const me = useCurrentUser()
   const signedIn = Boolean(me.data)
   const query = useActivityParticipation(activity.id)
@@ -84,7 +88,7 @@ export function ActivityParticipation({
             <CalendarClock size={16} aria-hidden />
           </button>
         ) : (
-          <AddToScheduleButton iconOnly target={{ kind: 'activity', ...activity }} signedIn={signedIn} returnTo={returnTo} className="h-9 w-9" />
+          <AddToScheduleButton iconOnly target={{ kind: 'activity', ...activity, place: effectiveLocation, placeId: location === undefined ? undefined : location?.id ?? null }} signedIn={signedIn} returnTo={returnTo} className="h-9 w-9" />
         )}
         {dialog}
       </div>
@@ -94,6 +98,7 @@ export function ActivityParticipation({
   return (
     <div className={cn('flex flex-col gap-3', className)}>
       {lines}
+      {effectiveLocation && <p className="text-sm"><LocationLink place={effectiveLocation} />{effectiveLocation.locality ? ` · ${effectiveLocation.locality}` : ''}</p>}
       <div className="flex flex-wrap items-center gap-2">
         {view.actions.includes('resume') && view.inProgressItemId && (
           <ResumeButton itemId={view.inProgressItemId} returnTo={returnTo} onResume={onResume} />
@@ -105,12 +110,13 @@ export function ActivityParticipation({
               Start now
             </Button>
           ) : (
-            <StartActivityButton activityId={activity.id} signedIn={signedIn} returnTo={returnTo} />
+            <StartActivityButton placeId={location === undefined ? undefined : location?.id ?? null} activityId={activity.id} signedIn={signedIn} returnTo={returnTo} />
           ))}
         {view.gathering && (view.actions.includes('join') || view.actions.includes('open_gathering')) && (
           <JoinButton gathering={view.gathering} signedIn={signedIn} returnTo={returnTo} onJoin={onJoin} />
         )}
-        <AddToScheduleButton target={{ kind: 'activity', ...activity }} signedIn={signedIn} returnTo={returnTo} />
+        <AddToScheduleButton target={{ kind: 'activity', ...activity, place: effectiveLocation, placeId: location === undefined ? undefined : location?.id ?? null }} signedIn={signedIn} returnTo={returnTo} />
+        {!onStart && <LocationButton value={effectiveLocation} onChange={setLocation} />}
         {view.actions.includes('reschedule') && (
           <button
             type="button"
@@ -132,6 +138,7 @@ export function ActivityParticipation({
           </button>
         )}
       </div>
+      {location !== undefined && <p className="text-xs text-muted">{location ? `${location.name} · ` : 'No location · '}For your next Start or Add to Schedule.</p>}
       {dialog}
     </div>
   )

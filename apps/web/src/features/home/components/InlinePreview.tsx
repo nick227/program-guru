@@ -16,7 +16,7 @@ import {
 import { GroupStageExperience } from '@/pages/Group'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { Avatar } from '@/components/ui/Avatar'
-import { gatheringWhen } from '@/components/activity/ActivityGatherings'
+import { gatheringWhen } from '@/lib/gatheringLabels'
 import { activityHero, programHero } from '@/lib/hero'
 import { dateLabel } from '@/lib/dates'
 import { formatTargetTime } from '@/lib/targetTime'
