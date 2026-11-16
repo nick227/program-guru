@@ -2795,4 +2795,392 @@
   color: hsl(var(--color-muted));
   cursor: pointer;
 }
+
+/* ===== Geometry (2026-11-16, 03-UX §5): spacious, precise scheduling surfaces =====
+   Month: 216px cells, 12px padding, 44px cards (numbers from lib/calendarGeometry via custom
+   properties). Day: 96px hour rows, 80px time column, 44px cards. Sidebar 352px, docked from
+   1440px; 1280–1439px Month uses a drawer so its seven columns are never squeezed. */
+
+.calendar-month-grid {
+  overflow: visible;
+  border: 1px solid hsl(var(--color-border) / 0.8);
+}
+
+.calendar-month-cell {
+  height: var(--month-cell-h, 216px);
+  padding: var(--month-cell-pad, 12px);
+  gap: var(--month-card-gap, 8px);
+  border: 0;
+  border-right: 1px solid hsl(var(--color-border) / 0.6);
+  border-bottom: 1px solid hsl(var(--color-border) / 0.6);
+}
+
+.calendar-month-cell:nth-child(7n) {
+  border-right: 0;
+}
+
+.calendar-month-cell:nth-last-child(-n + 7) {
+  border-bottom: 0;
+}
+
+.calendar-month-cell--selected:not(.calendar-month-cell--today) {
+  background: hsl(var(--color-accent) / 0.035);
+}
+
+/* Whole cells are generous drop targets: a clear fill and a 2px edge, never a reflow. */
+.calendar-month-cell--drop {
+  background: hsl(var(--color-accent) / 0.1);
+  box-shadow: inset 0 0 0 2px hsl(var(--color-accent));
+}
+
+.calendar-month-cell__drop-hint {
+  left: var(--month-cell-pad, 12px);
+  top: auto;
+  bottom: var(--month-cell-pad, 12px);
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+/* Date header: its own row, clearly apart from the cards. */
+.calendar-month-cell__head {
+  display: flex;
+  height: var(--month-cell-header, 28px);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 44px invisible hit area around the 28px date mark (the way into Day view). */
+.calendar-month-cell .calendar-month-cell__date {
+  display: inline-flex;
+  height: 44px;
+  min-height: 44px;
+  min-width: 44px;
+  margin: -8px -8px -8px 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.calendar-month-cell__num {
+  display: inline-flex;
+  height: 28px;
+  min-width: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0 0.4rem;
+  color: hsl(var(--color-muted));
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.calendar-month-cell__date:hover .calendar-month-cell__num {
+  background: hsl(var(--color-surface-muted));
+  color: hsl(var(--color-text));
+}
+
+.calendar-month-cell__date:focus-visible {
+  outline: none;
+}
+
+.calendar-month-cell__date:focus-visible .calendar-month-cell__num {
+  outline: 2px solid hsl(var(--color-accent));
+  outline-offset: 2px;
+}
+
+.calendar-month-cell__date[data-selected] .calendar-month-cell__num {
+  box-shadow: 0 0 0 2px hsl(var(--color-accent));
+  color: hsl(var(--color-text));
+}
+
+.calendar-month-cell__date[data-today] .calendar-month-cell__num,
+.calendar-month-cell__date[data-today]:hover .calendar-month-cell__num {
+  background: hsl(var(--color-accent));
+  color: hsl(var(--color-accent-fg));
+}
+
+.calendar-month-cell__date[data-today][data-selected] .calendar-month-cell__num {
+  box-shadow:
+    0 0 0 2px hsl(var(--color-surface)),
+    0 0 0 4px hsl(var(--color-accent));
+}
+
+.calendar-month-cell--outside .calendar-month-cell__num {
+  color: hsl(var(--color-muted) / 0.65);
+}
+
+.calendar-month-cell .calendar-month-cell__add {
+  height: 28px;
+  width: 28px;
+  min-height: 28px;
+}
+
+/* An empty date says it can take an Activity, quietly, on hover or focus. */
+.calendar-month-cell__empty-hint {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  border: 1px dashed transparent;
+  border-radius: var(--radius-control);
+  color: hsl(var(--color-muted));
+  font-size: 0.8125rem;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.calendar-month-cell--addable:hover .calendar-month-cell__empty-hint {
+  border-color: hsl(var(--color-border));
+  opacity: 1;
+}
+
+.calendar-month-cell .calendar-day-items {
+  gap: var(--month-card-gap, 8px);
+}
+
+/* Month cards: small scheduled cards, one fixed height (inline time + up to two title lines). */
+.calendar-month-cell .calendar-chip,
+.calendar-drag-preview.calendar-chip {
+  height: var(--month-card-h, 44px);
+  min-height: var(--month-card-h, 44px);
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(hsl(var(--tile-category) / 0.07), hsl(var(--tile-category) / 0.07)),
+    hsl(var(--color-surface));
+  box-shadow: 0 0 0 1px hsl(var(--color-border) / 0.7);
+}
+
+.calendar-month-cell .calendar-chip:hover {
+  background:
+    linear-gradient(hsl(var(--tile-category) / 0.13), hsl(var(--tile-category) / 0.13)),
+    hsl(var(--color-surface));
+}
+
+.calendar-month-cell .calendar-chip--selected,
+.calendar-month-cell .calendar-chip--selected:hover {
+  box-shadow: 0 0 0 2px hsl(var(--color-accent));
+}
+
+.calendar-month-cell .calendar-chip--done {
+  background: hsl(var(--color-surface-raised) / 0.7);
+  box-shadow: 0 0 0 1px hsl(var(--color-border) / 0.5);
+}
+
+.calendar-month-cell .calendar-chip--dragging {
+  opacity: 0.35;
+  box-shadow: 0 0 0 1px dashed hsl(var(--color-border));
+}
+
+.calendar-month-cell .calendar-chip__trigger,
+.calendar-drag-preview .calendar-chip__trigger {
+  align-items: center;
+  padding: 0.3rem 0.6rem;
+}
+
+.calendar-month-cell .calendar-chip__text,
+.calendar-drag-preview .calendar-chip__text {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
+.calendar-month-cell .calendar-chip__text,
+.calendar-drag-preview .calendar-chip__text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  overflow: hidden;
+  -webkit-line-clamp: unset;
+}
+
+.calendar-month-cell .calendar-chip__time,
+.calendar-drag-preview .calendar-chip__time {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.calendar-month-cell .calendar-chip__title,
+.calendar-drag-preview .calendar-chip__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+/* Untimed: the title may use both lines. */
+.calendar-month-cell .calendar-chip__text--untimed .calendar-chip__title,
+.calendar-drag-preview .calendar-chip__text--untimed .calendar-chip__title {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.calendar-month-grid .calendar-month-more {
+  min-height: var(--month-more-h, 28px);
+  height: var(--month-more-h, 28px);
+  flex-shrink: 0;
+  padding: 0 0.6rem;
+  font-size: 0.8125rem;
+}
+
+.calendar-month-overflow {
+  min-height: calc(100% + 2px);
+  padding: var(--month-cell-pad, 12px);
+  gap: var(--month-card-gap, 8px);
+}
+
+.calendar-month-overflow__list {
+  gap: var(--month-card-gap, 8px);
+}
+
+.calendar-month-add {
+  inset: calc(var(--month-cell-pad, 12px) + var(--month-cell-header, 28px) + 4px) var(--month-cell-pad, 12px) auto;
+}
+
+/* Day: 96px hour rows, 80px time column, 44px cards. */
+.calendar-day-table__time {
+  width: 5rem;
+  padding: 0.75rem;
+}
+
+.calendar-day-table__items,
+.calendar-day-table__row--populated .calendar-day-table__items {
+  height: 6rem;
+  min-height: 6rem;
+  padding: 0.75rem 1rem;
+}
+
+.calendar-day-table__row--anytime .calendar-day-table__items {
+  height: 4rem;
+  min-height: 4rem;
+}
+
+.calendar-day-table__list {
+  gap: 0.5rem;
+}
+
+.calendar-badge,
+.calendar-badge__trigger {
+  min-height: 2.75rem;
+  height: auto;
+}
+
+.calendar-badge {
+  width: 15rem;
+  border-radius: 0.5rem;
+}
+
+.calendar-badge__trigger {
+  padding: 0.5rem 0.75rem;
+}
+
+.calendar-badge__title {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 639.98px) {
+  .calendar-day-table__time {
+    width: 4.35rem;
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .calendar-day-table__items,
+  .calendar-day-table__row--populated .calendar-day-table__items {
+    height: 5.5rem;
+    min-height: 5.5rem;
+    padding: var(--space-2);
+  }
+}
+
+/* Sidebar: 352px. Day docks it from lg; Month docks it from 1440px. */
+@media (min-width: 1024px) {
+  .calendar-day-layout {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+  }
+}
+
+/* Month, 1280–1439px: the panel is a drawer over the page edge, so the grid keeps its full width. */
+@media (min-width: 1280px) and (max-width: 1439.98px) {
+  .calendar-day-layout--month {
+    display: block;
+  }
+
+  .calendar-day-layout--month > .calendar-panel {
+    position: fixed;
+    top: 5rem;
+    right: 1rem;
+    z-index: 40;
+    width: 22rem;
+    max-height: calc(100vh - 6rem);
+    box-shadow: var(--shadow-lg, 0 12px 32px rgb(0 0 0 / 0.18));
+    transition:
+      opacity var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  .calendar-day-layout--month .calendar-panel__drawer-close {
+    display: inline-flex;
+  }
+
+  /* Collapsed after a successful move (selection kept); a click on an entry opens it again. */
+  .calendar-day-layout--collapsed > .calendar-panel {
+    opacity: 0;
+    transform: translateX(1.5rem);
+    pointer-events: none;
+  }
+}
+
+/* While dragging, nothing covers a drop target: the drawer steps aside and +N more closes. */
+@media (min-width: 1280px) and (max-width: 1439.98px) {
+  :root[data-calendar-dragging] .calendar-day-layout--month > .calendar-panel {
+    opacity: 0;
+    transform: translateX(1.5rem);
+    pointer-events: none;
+  }
+}
+
+:root[data-calendar-dragging] .calendar-month-overflow,
+:root[data-calendar-dragging] .calendar-month-add {
+  display: none;
+}
+
+.calendar-panel__drawer-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  display: none;
+  height: 2rem;
+  width: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  background: hsl(var(--color-surface-raised));
+  color: hsl(var(--color-muted));
+  cursor: pointer;
+}
+
+.calendar-panel__drawer-close:hover {
+  color: hsl(var(--color-text));
+}
 }

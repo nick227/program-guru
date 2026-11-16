@@ -76,12 +76,15 @@ export function CalendarDndProvider({
 
   const end = useCallback(() => {
     setActive(null)
+    delete document.documentElement.dataset.calendarDragging
     suppressClickUntil.current = Date.now() + 50
   }, [])
 
   const onDragStart = (event: DragStartEvent) => {
     const item = (event.active.data.current as DragData | undefined)?.item ?? null
     setActive(item)
+    // Lets the layout step aside while dragging (the Month drawer, +N more), restored on cancel.
+    document.documentElement.dataset.calendarDragging = '1'
     // A short tick confirms the long-press on phones that support it.
     if ('touches' in event.activatorEvent) navigator.vibrate?.(12)
   }
@@ -134,7 +137,7 @@ function DragPreview({ item }: { item: ActivityTileItem }) {
   return (
     <div className="calendar-tile calendar-chip calendar-drag-preview" data-category={category}>
       <span className="calendar-chip__trigger">
-        <span className="calendar-chip__text">
+        <span className={`calendar-chip__text${item.localTime ? '' : ' calendar-chip__text--untimed'}`}>
           {item.localTime && <span className="calendar-chip__time">{formatTargetTime(item.localTime)}</span>}
           <span className="calendar-chip__title">{item.title}</span>
         </span>

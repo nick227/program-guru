@@ -37,7 +37,19 @@ test.describe('desktop mouse', () => {
     test.skip(last.slice(0, 7) === t.slice(0, 7), 'this month fills the grid')
     const once = (await add(acts[0]!, plus(t, 1), '08:00')).item
     await page.goto(`/calendar?view=month&day=${t}`)
-    await mouseDrag(page, chip(page, acts[0]!.title), monthCell(page, last))
+    // The last grid row sits below the fold: holding the drag at the bottom edge auto-scrolls to it.
+    const src = (await chip(page, acts[0]!.title).boundingBox())!
+    const vh = page.viewportSize()!.height
+    await page.mouse.move(src.x + src.width / 2, src.y + src.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(src.x + src.width / 2 + 10, src.y + src.height / 2 + 10, { steps: 3 })
+    await page.mouse.move(src.x + src.width / 2, vh - 4, { steps: 10 })
+    await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 5000 }).toBeGreaterThan(0)
+    await page.waitForTimeout(800)
+    const dst = (await monthCell(page, last).boundingBox())!
+    expect(dst.y + dst.height / 2).toBeLessThan(vh)
+    await page.mouse.move(dst.x + dst.width / 2, dst.y + dst.height / 2, { steps: 8 })
+    await page.mouse.up()
     await expect.poll(async () => (await get(once.id))!.localDate).toBe(last)
     await expect(monthCell(page, last).locator('.calendar-chip').filter({ hasText: acts[0]!.title })).toHaveCount(1)
   })

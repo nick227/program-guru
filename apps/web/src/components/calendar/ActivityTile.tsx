@@ -329,11 +329,16 @@ export function ActivityTile({
         {isDone ? (
           <Check size={12} className="calendar-chip__done" aria-hidden />
         ) : null}
-        <span className="calendar-chip__text">
-          {item.conflict && !isDone && (
-            <AlertTriangle size={11} className="calendar-chip__conflict" aria-hidden />
+        {/* Two rows in 44px: the time (with any overlap mark), then the title; untimed titles get both lines. */}
+        <span className={cn('calendar-chip__text', !timeDisplay && 'calendar-chip__text--untimed')}>
+          {(timeDisplay || (item.conflict && !isDone)) && (
+            <span className="calendar-chip__time">
+              {item.conflict && !isDone && (
+                <AlertTriangle size={11} className="calendar-chip__conflict" aria-hidden />
+              )}
+              {timeDisplay}
+            </span>
           )}
-          {timeDisplay && <span className="calendar-chip__time">{timeDisplay}</span>}
           <span className={cn('calendar-chip__title', isDone && 'calendar-chip__title--done')}>{item.title}</span>
         </span>
         {(item.unreadCount ?? 0) > 0 && <UnreadDot count={item.unreadCount ?? 0} />}

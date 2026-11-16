@@ -876,6 +876,12 @@ export function SelectedActivityPanel(props: SelectedActivityPanelProps) {
         className="calendar-panel hidden lg:flex"
         aria-label="Selected activity details"
       >
+        {itemId && onClose && (
+          // Shown only where the panel is a drawer (Month, 1280–1439px).
+          <button type="button" onClick={onClose} aria-label="Close activity details" className="calendar-panel__drawer-close">
+            <X size={16} aria-hidden />
+          </button>
+        )}
         {itemId ? (
           <PanelBody {...props} />
         ) : emptyContent ? (

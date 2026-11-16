@@ -8,6 +8,7 @@ import { formatHourLabel, formatTargetTime, isValidTargetTime } from '@/lib/targ
 import { cn } from '@/lib/utils'
 import { useCalendarDrop } from '@/components/calendar/CalendarDnd'
 import type { CalendarDropTarget } from '@/lib/calendarMove'
+import { monthCellStyle, monthVisibleCount } from '@/lib/calendarGeometry'
 
 export type { SurfaceItem }
 
@@ -19,7 +20,6 @@ export type CalendarDay = {
   inCurrentMonth?: boolean
 }
 
-const MONTH_VISIBLE = 3
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 /** All 24h opens here unless an Activity or the current hour is earlier. */
 const DAY_START_HOUR = 6
@@ -420,7 +420,7 @@ function MonthCell({
         onAdd(day.id)
       }}
       className={cn(
-        'calendar-month-cell border border-border px-2',
+        'calendar-month-cell',
         !day.inCurrentMonth && 'calendar-month-cell--outside',
         selected && 'calendar-month-cell--selected',
         day.today && 'calendar-month-cell--today',
@@ -435,35 +435,37 @@ function MonthCell({
           Move here{drop.dragging.localTime ? ` · ${formatTargetTime(drop.dragging.localTime)}` : ''}
         </span>
       )}
-      <div className="mb-1 mt-1 flex items-center justify-end gap-1">
-        {canAdd && !adding && (
+      <div className="calendar-month-cell__head">
+        {canAdd && !adding ? (
           <button
             type="button"
             onClick={() => onAdd(day.id)}
             aria-label={`Add an Activity on ${label}`}
             className="calendar-month-cell__add"
           >
-            <Plus size={13} aria-hidden />
+            <Plus size={14} aria-hidden />
           </button>
+        ) : (
+          <span />
         )}
+        {/* The date mark is the way into Day view: a 44px hit area around a 28px mark. */}
         <button
           type="button"
-          aria-label={`${label}${count ? `, ${count} Activities` : ''}`}
-          aria-pressed={selected}
+          aria-label={`Open ${label} in Day view${count ? `, ${count} Activities` : ''}`}
           aria-current={day.today ? 'date' : undefined}
+          data-selected={selected || undefined}
+          data-today={day.today || undefined}
           onClick={() => onSelect(day.id)}
-          // Today is a filled accent circle; the selected day an accent ring (both when they coincide).
-          className={cn(
-            'inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 font-mono text-sm font-semibold transition-colors hover:bg-surface-muted',
-            day.today && 'bg-accent text-white hover:bg-accent',
-            selected && 'ring-2 ring-accent ring-offset-1 ring-offset-surface',
-            !day.today && selected && 'text-foreground',
-            !day.today && !selected && 'text-muted',
-          )}
+          className="calendar-month-cell__date"
         >
-          <span>{day.number}</span>
+          <span className="calendar-month-cell__num">{day.number}</span>
         </button>
       </div>
+      {count === 0 && canAdd && !adding && (
+        <span className="calendar-month-cell__empty-hint" aria-hidden>
+          <Plus size={13} /> Add
+        </span>
+      )}
       {children}
       {adding && (
         <div className="calendar-month-add">
@@ -638,11 +640,13 @@ function DayItems({
   if (density !== 'month') {
     return <div className="calendar-day-items">{entries.map(renderEntry)}</div>
   }
+  // As many cards as the cell's geometry holds, reserving room for +N more (lib/calendarGeometry).
+  const visible = monthVisibleCount(entries.length)
 
   return (
     <div className="calendar-day-items">
-      {entries.slice(0, MONTH_VISIBLE).map(renderEntry)}
-      {entries.length > MONTH_VISIBLE && (
+      {entries.slice(0, visible).map(renderEntry)}
+      {entries.length > visible && (
         // Every entry stays reachable: +N more opens the whole day over its cell, so rows never grow.
         <button
           type="button"
@@ -654,7 +658,7 @@ function DayItems({
             setShowAll(true)
           }}
         >
-          +{entries.length - MONTH_VISIBLE} more
+          +{entries.length - visible} more
         </button>
       )}
       {showAll && (
@@ -754,7 +758,11 @@ export function CalendarSurface({
           ))}
         </div>
 
-        <div className="calendar-month-grid hidden xl:grid" aria-label="Monthly calendar">
+        <div
+          className="calendar-month-grid hidden xl:grid"
+          aria-label="Monthly calendar"
+          style={monthCellStyle() as React.CSSProperties}
+        >
           {days.map((day) => (
             <MonthCell
               key={day.id}

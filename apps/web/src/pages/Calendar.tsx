@@ -122,6 +122,8 @@ export function CalendarPage() {
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null)
   const [rescheduleTarget, setRescheduleTarget] = useState<ScheduleTarget | null>(null)
   const [seriesDialog, setSeriesDialog] = useState<'edit' | 'end' | null>(null)
+  // A successful drop collapses the Month drawer (selection kept); choosing an entry opens it again.
+  const [panelCollapsed, setPanelCollapsed] = useState(false)
   const openSlot = useMoveCalendarItemToOpenSlot()
   const recurrences = useCalendarRecurrences(true)
   const completionKeys = useRef(new Map<string, string>())
@@ -291,6 +293,7 @@ export function CalendarPage() {
   const requestMove = (itemId: string, target: CalendarDropTarget) => {
     const item = rawItems.find((row) => row.id === itemId)
     if (!item) return
+    setPanelCollapsed(true)
     const entry = { day: item.localDate, localTime: item.localTime, status: item.status, locked: item.locked }
     if (!canDropOnTarget(entry, target, current)) {
       if (!canMoveCalendarEntry(entry)) {
@@ -577,6 +580,7 @@ export function CalendarPage() {
   // Month: selecting an entry also moves the selected day to it, so switching to Day keeps it.
   const selectItem = (itemId: string) => {
     setSelectedItemId(itemId)
+    setPanelCollapsed(false)
     const day = filteredItems.find((it) => it.id === itemId)?.day
     if (view === 'month' && day && day !== selected) {
       const next = new URLSearchParams(params)
@@ -956,7 +960,12 @@ export function CalendarPage() {
         ) : (
           <>
             {/* Month: the same Selected Activity panel, beside the grid once an entry is selected. */}
-            <div className={cn(selectedItemId && 'calendar-day-layout calendar-day-layout--month')}>
+            <div
+              className={cn(
+                selectedItemId && 'calendar-day-layout calendar-day-layout--month',
+                selectedItemId && panelCollapsed && 'calendar-day-layout--collapsed',
+              )}
+            >
               <div className="calendar-day-layout__timeline">
                 <CalendarSurface
                   days={days}
