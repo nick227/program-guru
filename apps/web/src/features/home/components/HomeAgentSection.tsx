@@ -87,7 +87,8 @@ export function HomeAgentSection({
   showReset,
 }: HomeAgentSectionProps) {
   // ── Compact Starting State ─────────────────────────────────
-  if (!expanded) {
+  // An open preview or execution always shows (Start now on a Home card opens the stage here).
+  if (!expanded && !previewTarget && !executionItemId) {
     return (
       <section
         aria-labelledby="home-agent-title"
