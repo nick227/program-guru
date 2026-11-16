@@ -67,57 +67,37 @@ for (const usage of ['available', 'zero', 'unavailable']) {
       }),
     )
     await page.goto('/@author')
-    await page
-      .getByRole('region', { name: 'Creator programs' })
-      .scrollIntoViewIfNeeded()
+    // The final Profile design: one list of offerings, each Program a horizontal ProgramCard.
     const card = page
       .getByRole('article')
       .filter({ has: page.getByRole('heading', { name: 'Everyday movement' }) })
+    await card.scrollIntoViewIfNeeded()
+    await expect(card).toBeVisible()
+
+    // Usage: shown when known (including zero); absent, never a placeholder, when unavailable.
     if (usage !== 'unavailable') {
-      await expect(
-        card.getByText(available ? '128' : '0', { exact: true }).first(),
-      ).toBeVisible()
-      await expect(
-        card.getByText(available ? '75%' : '0%', { exact: true }),
-      ).toBeVisible()
+      await expect(card.getByText(available ? '128' : '0', { exact: true }).first()).toBeVisible()
+      await expect(card.getByText('Enrolled', { exact: true })).toBeVisible()
+      await expect(card.getByText(available ? '75%' : '0%', { exact: true })).toBeVisible()
+      await expect(card.getByText('Completed', { exact: true })).toBeVisible()
     } else {
       await expect(card.getByText('Enrolled', { exact: true })).toHaveCount(0)
+      await expect(card.getByText('Completed', { exact: true })).toHaveCount(0)
     }
     await expect(card.getByText('—', { exact: true })).toHaveCount(0)
-    const gallery = card.getByRole('region', {
-      name: 'Everyday movement media',
-    })
-    await expect(gallery.getByRole('button')).toHaveCount(1)
-    await expect(gallery.getByText('Media · 1')).toBeVisible()
-    await expect(card.getByText('Movement 5', { exact: true })).toHaveCount(0)
-    await card.getByRole('button', { name: 'Show all 6 activities' }).click()
-    await expect(
-      card
-        .getByRole('region', { name: 'Everyday movement activities' })
-        .getByText('Movement 6', { exact: true }),
-    ).toBeVisible()
-    await card.getByRole('button', { name: 'Show fewer activities' }).click()
-    await gallery
-      .getByRole('button', { name: 'Movement 2', exact: true })
-      .click()
-    await expect(page.getByRole('dialog')).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(page.getByRole('dialog')).toHaveCount(0)
-    await expect(
-      card.getByRole('link', { name: 'Open Everyday movement' }),
-    ).toHaveAttribute(
+
+    // Commitment and description from the Program.
+    for (const fact of ['2 weeks', 'Daily', '6 activities', '20m/session'])
+      await expect(card.getByText(fact, { exact: true })).toBeVisible()
+    await expect(card.getByText('A little strength, a little mobility, and a routine you can make your own.')).toBeVisible()
+
+    // The title opens the Program within the creator's profile, returning here (at every width; the
+    // extra chevron link is desktop-only).
+    await expect(card.getByRole('heading', { name: 'Everyday movement' }).getByRole('link')).toHaveAttribute(
       'href',
       '/@author/everyday-movement?returnTo=%2F%40author',
     )
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true)
-    if (testInfo.project.name === 'desktop') {
-      const box = await card.boundingBox()
-      expect(box!.height).toBeLessThan(180)
-    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     await card.screenshot({ path: testInfo.outputPath('program-overview.png') })
   })
 }
