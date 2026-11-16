@@ -28,6 +28,8 @@ import { SelectedActivityPanel } from '@/components/calendar/SelectedActivityPan
 import { MoveEntryDialog, type MoveTarget } from '@/components/calendar/MoveEntryDialog'
 import { ScheduleDialog, type ScheduleTarget } from '@/components/schedule/AddToSchedule'
 import { canMoveCalendarEntry } from '@/lib/calendarGrouping'
+import { canDropOnTarget, resolveDrop, type CalendarDropTarget } from '@/lib/calendarMove'
+import { CalendarDndProvider, targetLabel } from '@/components/calendar/CalendarDnd'
 import { CalendarDiscoveryRail } from '@/components/calendar/CalendarDiscoveryRail'
 import {
   RemoveFromCalendarDialog,
@@ -40,7 +42,6 @@ import {
   addMonths,
   dateLabel,
   isLocalDate,
-  monthBounds,
   monthGrid,
   today,
 } from '@/lib/dates'
@@ -100,9 +101,10 @@ export function CalendarPage() {
   const requestedDay = params.get('day') ?? params.get('week')
   const selected = isLocalDate(requestedDay) ? requestedDay : current
   const view: View = resolveCalendarView(params.get('view'), calendarPrefs)
-  const monthRange = monthBounds(selected)
+  // Month loads the whole visible grid, so adjacent-month days show and accept drops (42 days).
+  const grid = monthGrid(selected)
   const range =
-    view === 'day' ? { start: selected, end: selected } : monthRange
+    view === 'day' ? { start: selected, end: selected } : { start: grid[0]!, end: grid[grid.length - 1]! }
   const calendar = useCalendar(range.start, range.end, true)
   const undo = useUndoCompletion()
   const quickComplete = useQuickCompleteCalendarItem()
@@ -277,88 +279,108 @@ export function CalendarPage() {
     }
   }
 
-  const whenLabel = (localDate: string, localTime: string | null | undefined) =>
-    [dateLabel(localDate, { weekday: 'short', month: 'short', day: 'numeric' }), formatTargetTime(localTime ?? null) ?? 'Any time'].join(' · ')
-
-  // Month drag (03-UX §5): the date changes, the time stays. A recurring or gathering entry confirms
-  // first; a single move happens at once with Undo. Same update operation as Reschedule (09 §4.8).
-  const requestMoveItem = (itemId: string, toDay: string) => {
+  // Direct manipulation (03-UX §5): a Month drop changes the date and keeps the time; a Day drop
+  // changes the time. A recurring or gathering entry confirms first; a single move happens at once,
+  // shows at its new place immediately and offers Undo. Same update operation as Reschedule (09 §4.8).
+  const requestMove = (itemId: string, target: CalendarDropTarget) => {
     const item = rawItems.find((row) => row.id === itemId)
-    if (!item || item.localDate === toDay) return
-    if (!canMoveCalendarEntry({ status: item.status, locked: item.locked })) {
-      toast.error(item.status === 'DONE' ? 'Completed entries keep their date' : "This entry can't be moved")
+    if (!item) return
+    const entry = { day: item.localDate, localTime: item.localTime, status: item.status, locked: item.locked }
+    if (!canDropOnTarget(entry, target, current)) {
+      if (!canMoveCalendarEntry(entry)) {
+        toast.error(item.status === 'DONE' ? 'Completed entries keep their date' : "This entry can't be moved")
+      }
       return
     }
     if (item.recurrenceId || item.gatheringId) {
       setMoveTarget({
         id: item.id,
         title: item.title,
-        toDay,
-        toLabel: whenLabel(toDay, item.localTime),
+        target,
+        sameDay: target.date === item.localDate,
+        toLabel: targetLabel(target, item.localTime),
         recurring: Boolean(item.recurrenceId),
         inGathering: Boolean(item.gatheringId),
       })
       return
     }
-    void moveItem(itemId, toDay, 'THIS_ONE')
+    void moveItem(itemId, target, 'THIS_ONE')
   }
 
-  const clearPendingDate = (itemId: string) =>
+  const setPending = (itemId: string, place: { localDate: string; localTime: string | null } | null) => {
     setPendingDates((prev) => {
       const next = { ...prev }
-      delete next[itemId]
+      if (place) next[itemId] = place.localDate
+      else delete next[itemId]
       return next
     })
+    setPendingTimes((prev) => {
+      const next = { ...prev }
+      if (place) next[itemId] = place.localTime
+      else delete next[itemId]
+      return next
+    })
+  }
 
-  const moveItem = async (itemId: string, toDay: string, scope: RemoveScope) => {
+  const moveItem = async (itemId: string, target: CalendarDropTarget, scope: RemoveScope) => {
     const item = rawItems.find((row) => row.id === itemId)
     if (!item) return
-    const fromDay = item.localDate
+    const from = { localDate: item.localDate, localTime: item.localTime ?? null }
+    const to = resolveDrop({ day: item.localDate, localTime: item.localTime }, target)
     const series = scope === 'THIS_AND_FUTURE' && Boolean(item.recurrenceId)
-    setPendingDates((prev) => ({ ...prev, [itemId]: toDay }))
+    const body = {
+      ...(to.localDate !== from.localDate ? { localDate: to.localDate } : {}),
+      ...(to.localTime !== from.localTime ? { localTime: to.localTime } : {}),
+    }
+    setPending(itemId, to)
     try {
       const updated = await updateItem.mutateAsync({
         itemId,
-        localDate: toDay,
+        ...body,
         ...(item.recurrenceId ? { scope } : {}),
         expectedUpdatedAt: item.updatedAt ?? new Date().toISOString(),
       })
       setMoveTarget(null)
-      const to = dateLabel(toDay, { weekday: 'short', month: 'short', day: 'numeric' })
+      const where = targetLabel({ date: to.localDate, time: to.localTime })
       if (series) {
         // A series move re-creates the later entries, so there is no single entry to put back.
-        toast.success(`Moved ${item.title} and the ones after it to start ${to}`)
+        toast.success(`Moved ${item.title} and the ones after it to ${where}`)
         return
       }
-      toast.success(`Moved ${item.title} to ${to}`, {
+      toast.success(`Moved ${item.title} to ${where}`, {
         action: {
           label: 'Undo',
           onClick: () => {
-            setPendingDates((prev) => ({ ...prev, [itemId]: fromDay }))
+            setPending(itemId, from)
             updateItem
               .mutateAsync({
                 itemId,
-                localDate: fromDay,
+                ...(body.localDate ? { localDate: from.localDate } : {}),
+                ...('localTime' in body ? { localTime: from.localTime } : {}),
                 ...(item.recurrenceId ? { scope: 'THIS_ONE' as const } : {}),
                 expectedUpdatedAt: updated.updatedAt,
               })
-              .then(() => toast.success(`${item.title} is back on ${dateLabel(fromDay, { weekday: 'short', month: 'short', day: 'numeric' })}`))
+              .then(() => toast.success(`${item.title} is back on ${targetLabel({ date: from.localDate, time: from.localTime })}`))
               .catch((err: unknown) => toast.error(err instanceof Error ? err.message : 'Could not undo the move'))
-              .finally(() => clearPendingDate(itemId))
+              .finally(() => setPending(itemId, null))
           },
         },
       })
     } catch (err) {
       setMoveTarget(null)
+      // The entry goes back to where it was (pending cleared below) and the toast says why; the
+      // Calendar reloads its latest version, so the page banner's "Reload" is not needed too.
+      updateItem.reset()
+      void calendar.refetch()
       toast.error(
         err instanceof Error && /changed|conflict|version/i.test(err.message)
-          ? `${item.title} changed elsewhere, so it stays on ${dateLabel(fromDay, { weekday: 'short', month: 'short', day: 'numeric' })}`
+          ? `${item.title} changed elsewhere, so it stays on ${targetLabel({ date: from.localDate, time: from.localTime })}`
           : err instanceof Error
             ? `Could not move ${item.title}: ${err.message}`
             : `Could not move ${item.title}`,
       )
     } finally {
-      clearPendingDate(itemId)
+      setPending(itemId, null)
     }
   }
 
@@ -807,6 +829,7 @@ export function CalendarPage() {
           retry={calendar.error ? () => void calendar.refetch() : undefined}
         />
 
+        <CalendarDndProvider enabled={online && !calendar.isPending} todayIso={current} onMove={requestMove}>
         {calendar.isPending ? (
           <Loading />
         ) : view === 'day' ? (
@@ -869,7 +892,6 @@ export function CalendarPage() {
                   nextItemId={dayContext?.nextItem?.id ?? null}
                   selectedItemId={selectedItemId}
                   onSelectItem={selectItem}
-                  onMoveItem={online ? requestMoveItem : undefined}
                   todayIso={current}
                   onItemScheduled={(itemId) => setSelectedItemId(itemId)}
                   onComplete={(itemId) => void completeItem(itemId)}
@@ -903,12 +925,13 @@ export function CalendarPage() {
             )}
           </>
         )}
+        </CalendarDndProvider>
         {moveTarget && (
           <MoveEntryDialog
-            key={`${moveTarget.id}-${moveTarget.toDay}`}
+            key={`${moveTarget.id}-${moveTarget.target.date}-${moveTarget.target.time}`}
             target={moveTarget}
             pending={updateItem.isPending}
-            onConfirm={(scope) => void moveItem(moveTarget.id, moveTarget.toDay, scope)}
+            onConfirm={(scope) => void moveItem(moveTarget.id, moveTarget.target, scope)}
             onClose={() => {
               if (!updateItem.isPending) setMoveTarget(null)
             }}

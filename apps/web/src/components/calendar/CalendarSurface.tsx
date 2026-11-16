@@ -6,6 +6,8 @@ import { WorkoutGroupTile } from '@/components/calendar/WorkoutGroupTile'
 import { groupCalendarEntries, type CalendarRenderEntry, type SurfaceItem } from '@/lib/calendarGrouping'
 import { formatHourLabel, formatTargetTime, isValidTargetTime } from '@/lib/targetTime'
 import { cn } from '@/lib/utils'
+import { useCalendarDrop } from '@/components/calendar/CalendarDnd'
+import type { CalendarDropTarget } from '@/lib/calendarMove'
 
 export type { SurfaceItem }
 
@@ -76,12 +78,9 @@ function DayHourlyTable({
   onChangeTime?: (itemId: string, localTime: string | null) => void
   completing?: boolean
 }) {
-  const [draggingId, setDraggingId] = useState<string | null>(null)
-  const [dropSlot, setDropSlot] = useState<string | null>(null)
   const [addingSlot, setAddingSlot] = useState<string | null>(null)
   const [showEarlyHours, setShowEarlyHours] = useState(false)
   const [now, setNow] = useState(() => getCurrentTimeInZone(timezone))
-  const draggingIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     setAddingSlot(null)
@@ -132,58 +131,6 @@ function DayHourlyTable({
 
   const showAnyTimeRow = true
 
-  const handleDragStart = (event: React.DragEvent<HTMLElement>, item: SurfaceItem) => {
-    draggingIdRef.current = item.id
-    event.dataTransfer.clearData()
-    event.dataTransfer.setData('text/plain', item.id)
-    event.dataTransfer.effectAllowed = 'move'
-    window.requestAnimationFrame(() => {
-      if (draggingIdRef.current === item.id) setDraggingId(item.id)
-    })
-  }
-
-  const handleDragEnd = () => {
-    draggingIdRef.current = null
-    setDraggingId(null)
-    setDropSlot(null)
-  }
-
-  const handleDragOver = (event: React.DragEvent<HTMLTableRowElement>, slotKey: string) => {
-    if (!onChangeTime) return
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
-    if (dropSlot !== slotKey) setDropSlot(slotKey)
-  }
-
-  const handleDragLeave = (event: React.DragEvent<HTMLTableRowElement>, slotKey: string) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-      setDropSlot((prev) => (prev === slotKey ? null : prev))
-    }
-  }
-
-  const handleDrop = (
-    event: React.DragEvent<HTMLTableRowElement>,
-    slotKey: string,
-    targetTime: string | null,
-  ) => {
-    event.preventDefault()
-    const id = event.dataTransfer.getData('text/plain') || draggingIdRef.current || draggingId
-    draggingIdRef.current = null
-    setDraggingId(null)
-    setDropSlot(null)
-    if (!id || !onChangeTime) return
-    const dragged = dayItems.find((it) => it.id === id)
-    if (!dragged || dragged.locked || dragged.status === 'CANCELLED') return
-    if (slotKey === 'anytime') {
-      if (dragged.localTime) onChangeTime(id, null)
-      return
-    }
-    const currentHour = isValidTargetTime(dragged.localTime) ? dragged.localTime.slice(0, 2) : null
-    if (currentHour !== slotKey && targetTime) {
-      onChangeTime(id, targetTime)
-    }
-  }
-
   const renderDayEntry = (entry: CalendarRenderEntry) =>
     entry.kind === 'group' ? (
       <WorkoutGroupTile
@@ -196,9 +143,6 @@ function DayHourlyTable({
         onComplete={onComplete}
         onChangeTime={onChangeTime}
         draggable={Boolean(onChangeTime)}
-        draggingId={draggingId}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
         completing={completing}
       />
     ) : (
@@ -212,9 +156,6 @@ function DayHourlyTable({
         onComplete={onComplete}
         onChangeTime={onChangeTime}
         draggable={Boolean(onChangeTime)}
-        isDragging={draggingId === entry.item.id}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
         completing={completing}
       />
     )
@@ -224,19 +165,14 @@ function DayHourlyTable({
       <table className="calendar-day-table" aria-label="Day schedule">
         <tbody>
           {showAnyTimeRow && (
-            <tr
+            <DropRow
+              dropId={`slot:${day.id}:anytime`}
+              target={{ date: day.id, time: null }}
               data-slot="anytime"
-              onDragEnter={(event) => handleDragOver(event, 'anytime')}
-              onDragOver={(event) => handleDragOver(event, 'anytime')}
-              onDragLeave={(event) => handleDragLeave(event, 'anytime')}
-              onDrop={(event) => handleDrop(event, 'anytime', null)}
-              onClick={() => {
-                if (!draggingId) setAddingSlot('anytime')
-              }}
+              onClick={() => setAddingSlot('anytime')}
               className={cn(
                 'calendar-day-table__row calendar-day-table__row--anytime calendar-day-table__row--interactive',
                 untimedEntries.length > 0 && 'calendar-day-table__row--populated',
-                dropSlot === 'anytime' && 'calendar-day-table__row--drop',
                 addingSlot === 'anytime' && 'calendar-day-table__row--adding',
               )}
             >
@@ -268,7 +204,7 @@ function DayHourlyTable({
                   )}
                 </div>
               </td>
-            </tr>
+            </DropRow>
           )}
 
           {foldEarly && (
@@ -322,22 +258,17 @@ function DayHourlyTable({
                     </td>
                   </tr>
                 )}
-                <tr
+                <DropRow
+                  dropId={`slot:${day.id}:${hourKey}`}
+                  target={{ date: day.id, time: slotTime }}
                   data-slot={hourKey}
                   data-hour={hour}
-                  onDragEnter={(event) => handleDragOver(event, hourKey)}
-                  onDragOver={(event) => handleDragOver(event, hourKey)}
-                  onDragLeave={(event) => handleDragLeave(event, hourKey)}
-                  onDrop={(event) => handleDrop(event, hourKey, slotTime)}
-                  onClick={() => {
-                    if (!draggingId) setAddingSlot(hourKey)
-                  }}
+                  onClick={() => setAddingSlot(hourKey)}
                   className={cn(
                     'calendar-day-table__row calendar-day-table__row--interactive',
                     hourEntries.length > 0 && 'calendar-day-table__row--populated',
                     isNowHour && 'calendar-day-table__row--now',
                     hasSelected && 'calendar-day-table__row--selected',
-                    dropSlot === hourKey && 'calendar-day-table__row--drop',
                     addingSlot === hourKey && 'calendar-day-table__row--adding',
                   )}
                 >
@@ -386,7 +317,7 @@ function DayHourlyTable({
                       )}
                     </div>
                   </td>
-                </tr>
+                </DropRow>
               </React.Fragment>
             )
           })}
@@ -422,6 +353,177 @@ function DayHourlyTable({
   )
 }
 
+/** An hour (or Any time) row that accepts a dragged entry: drop sets that time (03-UX §5). */
+function DropRow({
+  dropId,
+  target,
+  className,
+  children,
+  ...rest
+}: {
+  dropId: string
+  target: CalendarDropTarget
+  className?: string
+  children: React.ReactNode
+} & Omit<React.HTMLAttributes<HTMLTableRowElement>, 'className' | 'children'> & Record<`data-${string}`, unknown>) {
+  const drop = useCalendarDrop(dropId, target)
+  return (
+    <tr
+      ref={drop.setNodeRef}
+      {...rest}
+      className={cn(
+        className,
+        drop.valid && 'calendar-day-table__row--drop',
+        drop.refused && 'calendar-day-table__row--no-drop',
+      )}
+    >
+      {children}
+    </tr>
+  )
+}
+
+/** A Month grid date: selects, quick-adds on an empty spot, and accepts a dragged entry (keeps its time). */
+function MonthCell({
+  day,
+  items,
+  selected,
+  canAdd,
+  adding,
+  onAdd,
+  onCloseAdd,
+  onSelect,
+  onItemScheduled,
+  children,
+}: {
+  day: CalendarDay
+  items: SurfaceItem[]
+  selected: boolean
+  canAdd: boolean
+  adding: boolean
+  onAdd: (day: string) => void
+  onCloseAdd: () => void
+  onSelect: (day: string) => void
+  onItemScheduled?: (itemId: string) => void
+  children: React.ReactNode
+}) {
+  const drop = useCalendarDrop(`date:${day.id}`, { date: day.id })
+  const count = items.filter((item) => item.day === day.id).length
+  const label = `${day.label} ${day.number}`
+  return (
+    <section
+      ref={drop.setNodeRef}
+      aria-label={label}
+      onClick={(event) => {
+        // An empty spot adds an Activity on this date; entries, buttons and open layers keep their own clicks.
+        if (!canAdd || adding) return
+        if ((event.target as HTMLElement).closest('button, a, input, .calendar-chip, .calendar-month-overflow, .calendar-inline-picker')) return
+        onAdd(day.id)
+      }}
+      className={cn(
+        'calendar-month-cell border border-border px-2',
+        !day.inCurrentMonth && 'calendar-month-cell--outside',
+        selected && 'calendar-month-cell--selected',
+        day.today && 'calendar-month-cell--today',
+        canAdd && 'calendar-month-cell--addable',
+        drop.valid && 'calendar-month-cell--drop',
+        drop.refused && 'calendar-month-cell--no-drop',
+      )}
+    >
+      {drop.valid && drop.dragging && (
+        // Where it lands: the date and its time, overlaid so the grid never reflows.
+        <span className="calendar-month-cell__drop-hint" aria-hidden>
+          Move here{drop.dragging.localTime ? ` · ${formatTargetTime(drop.dragging.localTime)}` : ''}
+        </span>
+      )}
+      <div className="mb-1 mt-1 flex items-center justify-end gap-1">
+        {canAdd && !adding && (
+          <button
+            type="button"
+            onClick={() => onAdd(day.id)}
+            aria-label={`Add an Activity on ${label}`}
+            className="calendar-month-cell__add"
+          >
+            <Plus size={13} aria-hidden />
+          </button>
+        )}
+        <button
+          type="button"
+          aria-label={`${label}${count ? `, ${count} Activities` : ''}`}
+          aria-pressed={selected}
+          aria-current={day.today ? 'date' : undefined}
+          onClick={() => onSelect(day.id)}
+          // Today is a filled accent circle; the selected day an accent ring (both when they coincide).
+          className={cn(
+            'inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 font-mono text-sm font-semibold transition-colors hover:bg-surface-muted',
+            day.today && 'bg-accent text-white hover:bg-accent',
+            selected && 'ring-2 ring-accent ring-offset-1 ring-offset-surface',
+            !day.today && selected && 'text-foreground',
+            !day.today && !selected && 'text-muted',
+          )}
+        >
+          <span>{day.number}</span>
+        </button>
+      </div>
+      {children}
+      {adding && (
+        <div className="calendar-month-add">
+          <InlineActivityPicker
+            day={day.id}
+            localTime={null}
+            onScheduled={(itemId) => {
+              onCloseAdd()
+              onItemScheduled?.(itemId)
+            }}
+            onClose={onCloseAdd}
+          />
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** A date in the phone/tablet strip: selects the day, and is a drop target for a long-pressed entry. */
+function PickerDate({
+  day,
+  items,
+  selected,
+  onSelect,
+}: {
+  day: CalendarDay
+  items: SurfaceItem[]
+  selected: boolean
+  onSelect: (day: string) => void
+}) {
+  const drop = useCalendarDrop(`pick:${day.id}`, { date: day.id })
+  const dayItems = items.filter((item) => item.day === day.id)
+  const count = dayItems.length
+  const isCompleted = count > 0 && dayItems.every((it) => it.done || it.status === 'DONE')
+  return (
+    <button
+      ref={drop.setNodeRef}
+      type="button"
+      aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
+      aria-pressed={selected}
+      aria-current={day.today ? 'date' : undefined}
+      onClick={() => onSelect(day.id)}
+      className={cn(
+        'calendar-month-date',
+        !day.inCurrentMonth && 'calendar-month-date--outside',
+        selected && 'calendar-month-date--selected',
+        day.today && 'calendar-month-date--today',
+        count > 0 && 'calendar-month-date--active',
+        drop.valid && 'calendar-month-date--drop',
+        drop.refused && 'calendar-month-date--no-drop',
+      )}
+    >
+      <span>{day.number}</span>
+      {count > 0 && (
+        <span className={cn('calendar-month-count', isCompleted && 'text-success font-bold')}>{count}</span>
+      )}
+    </button>
+  )
+}
+
 function DayItems({
   day,
   items,
@@ -432,7 +534,7 @@ function DayItems({
   showEmpty = true,
   selectedItemId = null,
   onSelectItem,
-  drag,
+  draggable = false,
 }: {
   day: CalendarDay
   items: SurfaceItem[]
@@ -444,12 +546,8 @@ function DayItems({
   selectedItemId?: string | null
   /** Month: a tile opens the Selected Activity panel instead of navigating. */
   onSelectItem?: (itemId: string) => void
-  /** Month: open entries drag to another date. */
-  drag?: {
-    draggingId: string | null
-    onDragStart: (event: React.DragEvent<HTMLElement>, item: SurfaceItem) => void
-    onDragEnd: () => void
-  }
+  /** Month: open entries drag to another date (CalendarDnd). */
+  draggable?: boolean
 }) {
   const [showAll, setShowAll] = useState(false)
   const overflowRef = useRef<HTMLDivElement>(null)
@@ -497,10 +595,7 @@ function DayItems({
         onSelect={onSelectItem ? () => onSelectItem(entry.item.id) : undefined}
         onComplete={onComplete}
         completing={completing}
-        draggable={Boolean(drag)}
-        isDragging={drag?.draggingId === entry.item.id}
-        onDragStart={drag ? (event) => drag.onDragStart(event, entry.item) : undefined}
-        onDragEnd={drag?.onDragEnd}
+        draggable={draggable}
       />
     )
 
@@ -610,16 +705,13 @@ export function CalendarSurface({
   onItemScheduled,
   onComplete,
   onChangeTime,
-  onMoveItem,
   todayIso,
   completing = false,
 }: {
   days: CalendarDay[]
   selected: string
   onSelect: (day: string) => void
-  /** Month: an open entry dropped on another date (03-UX §5). */
-  onMoveItem?: (itemId: string, toDay: string) => void
-  /** Drops onto earlier dates are refused, like the Reschedule date picker. */
+  /** Quick-add opens on today or later (drops follow the same rule, lib/calendarMove). */
   todayIso?: string
   items: SurfaceItem[]
   view?: 'day' | 'month'
@@ -635,29 +727,8 @@ export function CalendarSurface({
   completing?: boolean
 }) {
   const selectedDay = days.find((day) => day.id === selected) ?? days[0]
-  const [dragging, setDragging] = useState<SurfaceItem | null>(null)
-  const [dropDay, setDropDay] = useState<string | null>(null)
+  const [addingDay, setAddingDay] = useState<string | null>(null)
   if (!selectedDay) return null
-
-  const canDropOn = (day: CalendarDay) =>
-    Boolean(dragging) &&
-    Boolean(day.inCurrentMonth) &&
-    day.id !== dragging!.day &&
-    (!todayIso || day.id >= todayIso)
-  const monthDrag = onMoveItem
-    ? {
-        draggingId: dragging?.id ?? null,
-        onDragStart: (event: React.DragEvent<HTMLElement>, item: SurfaceItem) => {
-          event.dataTransfer.effectAllowed = 'move'
-          event.dataTransfer.setData('text/plain', item.id)
-          setDragging(item)
-        },
-        onDragEnd: () => {
-          setDragging(null)
-          setDropDay(null)
-        },
-      }
-    : undefined
 
   if (view === 'month') {
     return (
@@ -670,125 +741,47 @@ export function CalendarSurface({
           ))}
         </div>
 
+        {/* Phones and tablets: the date strip is also where a long-pressed entry is dropped on a new date. */}
         <div className="calendar-month-picker xl:hidden" aria-label="Select a day">
-          {days.map((day) => {
-            const dayItems = items.filter((item) => item.day === day.id)
-            const count = dayItems.length
-            const isCompleted =
-              count > 0 && dayItems.every((it) => it.done || it.status === 'DONE')
-
-            return (
-              <button
-                key={day.id}
-                type="button"
-                aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
-                aria-pressed={selected === day.id}
-                aria-current={day.today ? 'date' : undefined}
-                disabled={!day.inCurrentMonth}
-                onClick={() => onSelect(day.id)}
-                className={cn(
-                  'calendar-month-date',
-                  selected === day.id && 'calendar-month-date--selected',
-                  day.today && 'calendar-month-date--today',
-                  count > 0 && 'calendar-month-date--active',
-                )}
-              >
-                <span>{day.number}</span>
-                {count > 0 && (
-                  <span
-                    className={cn(
-                      'calendar-month-count',
-                      isCompleted && 'text-success font-bold',
-                    )}
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
-            )
-          })}
+          {days.map((day) => (
+            <PickerDate
+              key={day.id}
+              day={day}
+              items={items}
+              selected={selected === day.id}
+              onSelect={onSelect}
+            />
+          ))}
         </div>
 
         <div className="calendar-month-grid hidden xl:grid" aria-label="Monthly calendar">
-          {days.map((day) => {
-            const dayItems = items.filter((item) => item.day === day.id)
-            const count = dayItems.length
-            const isSelected = selected === day.id
-
-            return (
-              <section
-                key={day.id}
-                aria-label={`${day.label} ${day.number}`}
-                onDragOver={(event) => {
-                  if (!canDropOn(day)) return
-                  event.preventDefault()
-                  event.dataTransfer.dropEffect = 'move'
-                  if (dropDay !== day.id) setDropDay(day.id)
-                }}
-                onDragLeave={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget as Node | null) && dropDay === day.id) {
-                    setDropDay(null)
-                  }
-                }}
-                onDrop={(event) => {
-                  event.preventDefault()
-                  const itemId = event.dataTransfer.getData('text/plain') || dragging?.id
-                  const ok = canDropOn(day)
-                  setDragging(null)
-                  setDropDay(null)
-                  if (itemId && ok) onMoveItem?.(itemId, day.id)
-                }}
-                className={cn(
-                  'calendar-month-cell border border-border px-2',
-                  !day.inCurrentMonth && 'calendar-month-cell--outside opacity-40',
-                  isSelected && 'calendar-month-cell--selected',
-                  day.today && 'calendar-month-cell--today',
-                  dragging && !canDropOn(day) && day.id !== dragging.day && 'calendar-month-cell--no-drop',
-                  dropDay === day.id && 'calendar-month-cell--drop',
-                )}
-              >
-                {dropDay === day.id && dragging && (
-                  // Where it lands: the date and its time, overlaid so the grid never reflows.
-                  <span className="calendar-month-cell__drop-hint" aria-hidden>
-                    Move here{dragging.localTime ? ` · ${formatTargetTime(dragging.localTime)}` : ''}
-                  </span>
-                )}
-                <div className="mb-1 mt-1 flex items-center justify-end">
-                  <button
-                    type="button"
-                    disabled={!day.inCurrentMonth}
-                    aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
-                    aria-pressed={isSelected}
-                    aria-current={day.today ? 'date' : undefined}
-                    onClick={() => onSelect(day.id)}
-                    // Today is a filled accent circle; the selected day an accent ring (both when they coincide).
-                    className={cn(
-                      'inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 font-mono text-sm font-semibold transition-colors hover:bg-surface-muted',
-                      day.today && 'bg-accent text-white hover:bg-accent',
-                      isSelected && 'ring-2 ring-accent ring-offset-1 ring-offset-surface',
-                      !day.today && isSelected && 'text-foreground',
-                      !day.today && !isSelected && 'text-muted',
-                    )}
-                  >
-                    <span>{day.number}</span>
-                  </button>
-                </div>
-
-                <DayItems
-                  day={day}
-                  items={items}
-                  density="month"
-                  showTimeInMonth={showAllHours}
-                  selectedItemId={selectedItemId}
-                  onSelectItem={onSelectItem}
-                  drag={monthDrag}
-                  onComplete={onComplete}
-                  completing={completing}
-                  showEmpty={false}
-                />
-              </section>
-            )
-          })}
+          {days.map((day) => (
+            <MonthCell
+              key={day.id}
+              day={day}
+              items={items}
+              selected={selected === day.id}
+              canAdd={!todayIso || day.id >= todayIso}
+              adding={addingDay === day.id}
+              onAdd={(id) => setAddingDay(id)}
+              onCloseAdd={() => setAddingDay(null)}
+              onSelect={onSelect}
+              onItemScheduled={onItemScheduled}
+            >
+              <DayItems
+                day={day}
+                items={items}
+                density="month"
+                showTimeInMonth={showAllHours}
+                selectedItemId={selectedItemId}
+                onSelectItem={onSelectItem}
+                draggable
+                onComplete={onComplete}
+                completing={completing}
+                showEmpty={false}
+              />
+            </MonthCell>
+          ))}
         </div>
 
         <section className="calendar-selected-day calendar-selected-day--mobile-only mt-6 pt-4">

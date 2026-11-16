@@ -17,9 +17,6 @@ export function WorkoutGroupTile({
   onComplete,
   onChangeTime,
   draggable = false,
-  draggingId = null,
-  onDragStart,
-  onDragEnd,
   completing = false,
 }: {
   group: GroupEntry
@@ -30,9 +27,6 @@ export function WorkoutGroupTile({
   onComplete?: (itemId: string) => void
   onChangeTime?: (itemId: string, localTime: string | null) => void
   draggable?: boolean
-  draggingId?: string | null
-  onDragStart?: (event: React.DragEvent<HTMLElement>, item: SurfaceItem) => void
-  onDragEnd?: () => void
   completing?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -161,9 +155,6 @@ export function WorkoutGroupTile({
                 onComplete={onComplete}
                 onChangeTime={onChangeTime}
                 draggable={draggable}
-                isDragging={draggingId === item.id}
-                onDragStart={onDragStart}
-                onDragEnd={onDragEnd}
                 completing={completing}
               />
             ))}
@@ -252,9 +243,6 @@ export function WorkoutGroupTile({
               onComplete={onComplete}
               onChangeTime={onChangeTime}
               draggable={draggable}
-              isDragging={draggingId === item.id}
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
               completing={completing}
             />
           ))}

@@ -4,13 +4,16 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 import type { RemoveScope } from '@/components/calendar/RemoveFromCalendarDialog'
+import type { CalendarDropTarget } from '@/lib/calendarMove'
 
 export type MoveTarget = {
   id: string
   title: string
   /** "Tue, Nov 18 · 7:30 AM" */
   toLabel: string
-  toDay: string
+  target: CalendarDropTarget
+  /** The date stays (a time drop in Day view). */
+  sameDay: boolean
   recurring: boolean
   inGathering: boolean
 }
@@ -22,7 +25,8 @@ const chip = (on: boolean) =>
   )
 
 /**
- * Confirms a Month drop that affects more than one entry or a shared gathering (03-UX §5, 09 §4.8):
+ * Confirms a drop (Month date or Day time) that affects more than one entry or a shared gathering
+ * (03-UX §5, 09 §4.8):
  * a recurring entry chooses This one (default) / This and future, so a single drag never silently
  * shifts a series; a gathering entry says that moving leaves the gathering (10 §9.6).
  */
@@ -83,8 +87,12 @@ export function MoveEntryDialog({
 
         <p className="text-xs leading-relaxed text-muted">
           {target.recurring
-            ? 'This and future moves every later entry of this series by the same number of days.'
-            : 'Its time stays the same.'}
+            ? target.sameDay
+              ? 'This and future gives every later entry of this series the new time.'
+              : 'This and future moves every later entry of this series by the same number of days.'
+            : target.target.time === undefined
+              ? 'Its time stays the same.'
+              : 'Only its time changes.'}
           {target.inGathering ? ' Moving leaves the gathering.' : ''}
         </p>
 

@@ -16,7 +16,7 @@ import { resolveActivityCategory, type ActivityCategory } from '@/lib/activityCa
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
 import { cn } from '@/lib/utils'
 import { completionOpen } from '@/lib/completionWindow'
-import { canMoveCalendarEntry } from '@/lib/calendarGrouping'
+import { useCalendarDraggable } from '@/components/calendar/CalendarDnd'
 
 export type ActivityTileDensity = 'pill' | 'card' | 'timeblock' | 'month' | 'day'
 
@@ -58,10 +58,8 @@ export type ActivityTileProps = {
   onSelect?: () => void
   onComplete?: (itemId: string) => void
   onChangeTime?: (itemId: string, localTime: string | null) => void
+  /** Inside a CalendarDndProvider: an open entry drags (mouse) or long-press drags (touch). */
   draggable?: boolean
-  isDragging?: boolean
-  onDragStart?: (event: React.DragEvent<HTMLElement>, item: ActivityTileItem) => void
-  onDragEnd?: (event: React.DragEvent<HTMLElement>) => void
   completing?: boolean
 }
 
@@ -76,12 +74,11 @@ export function ActivityTile({
   onComplete,
   onChangeTime,
   draggable = false,
-  isDragging = false,
-  onDragStart,
-  onDragEnd,
   completing = false,
 }: ActivityTileProps) {
   const [failedImage, setFailedImage] = useState<string | null>(null)
+  const drag = useCalendarDraggable(item, draggable)
+  const isDragging = drag.isDragging
   const [editingTime, setEditingTime] = useState(false)
   const timeControlRef = useRef<HTMLDivElement>(null)
   const compact = density === 'day' || density === 'month' || density === 'pill'
@@ -229,7 +226,7 @@ export function ActivityTile({
   const content = (
     <>
       <div className="calendar-tile__main">
-        {draggable && canAdjustTime && (
+        {drag.movable && density === 'day' && (
           <span
             className="calendar-tile__drag-handle"
             aria-hidden
@@ -326,7 +323,7 @@ export function ActivityTile({
   if (density === 'month') {
     // Month (03-UX §5): one readable row per entry. A quiet category edge, the time, the title on up to
     // two lines; completed entries keep their title with a check. Open entries drag to another date.
-    const movable = draggable && canMoveCalendarEntry(item)
+    const movable = drag.movable
     const monthContent = (
       <>
         {isDone ? (
@@ -343,10 +340,9 @@ export function ActivityTile({
       <article
         data-category={category}
         data-item-id={item.id}
-        draggable={movable}
+        ref={drag.setNodeRef}
+        {...drag.listeners}
         title={draggable && !movable ? `${item.title} · ${statusLabel}, can't be moved` : undefined}
-        onDragStart={movable ? (event) => onDragStart?.(event, item) : undefined}
-        onDragEnd={movable ? onDragEnd : undefined}
         className={cn(
           'calendar-tile calendar-chip',
           isDone && 'calendar-chip--done',
@@ -429,15 +425,11 @@ export function ActivityTile({
       <article
         data-category={category}
         data-item-id={item.id}
-        draggable={draggable && canAdjustTime}
-        onDragStart={
-          draggable && canAdjustTime
-            ? (event) => onDragStart?.(event, item)
-            : undefined
-        }
-        onDragEnd={draggable && canAdjustTime ? onDragEnd : undefined}
+        ref={drag.setNodeRef}
+        {...drag.listeners}
         className={cn(
           'calendar-tile calendar-tile--day calendar-badge',
+          drag.movable && 'calendar-badge--movable',
           isDone && 'calendar-tile--complete',
           selected && 'calendar-badge--selected',
           isDragging && 'calendar-tile--dragging',
@@ -476,13 +468,8 @@ export function ActivityTile({
     <article
       data-category={category}
       data-item-id={item.id}
-      draggable={draggable && canAdjustTime}
-      onDragStart={
-        draggable && canAdjustTime
-          ? (event) => onDragStart?.(event, item)
-          : undefined
-      }
-      onDragEnd={draggable && canAdjustTime ? onDragEnd : undefined}
+      ref={drag.setNodeRef}
+      {...drag.listeners}
       className={cn(
         'calendar-tile',
         {
