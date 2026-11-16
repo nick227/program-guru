@@ -60,10 +60,12 @@ export function CalendarDndProvider({
   const [active, setActive] = useState<ActivityTileItem | null>(null)
   const suppressClickUntil = useRef(0)
 
-  // The click that ends a mouse drag lands on whatever is under the pointer; swallow it once.
+  // The click a mouse drop generates (on whatever is under the pointer) is swallowed, once and only
+  // within a moment of the drop; a deliberate click right after (Cancel, Remove) still works.
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
       if (Date.now() < suppressClickUntil.current) {
+        suppressClickUntil.current = 0
         event.stopPropagation()
         event.preventDefault()
       }
@@ -74,7 +76,7 @@ export function CalendarDndProvider({
 
   const end = useCallback(() => {
     setActive(null)
-    suppressClickUntil.current = Date.now() + 300
+    suppressClickUntil.current = Date.now() + 50
   }, [])
 
   const onDragStart = (event: DragStartEvent) => {
