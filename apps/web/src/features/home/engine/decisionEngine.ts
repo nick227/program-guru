@@ -314,33 +314,12 @@ function resolveNowResult(
   const categoryName = categoryNameFor(signals, activity.categoryId)
   const voice = phraseActivityTurn(activity, categoryName, state)
 
-  const matchingExtras = signals.activities
-    .map((i) => i.activity)
-    .filter(
-      (a): a is NonNullable<typeof a> =>
-        Boolean(
-          a &&
-            a.id !== activity.id &&
-            (!state.categoryId || a.categoryId === state.categoryId) &&
-            (!state.maxMinutes ||
-              state.maxMinutes >= 999 ||
-              !a.durationMinutes ||
-              a.durationMinutes <= state.maxMinutes),
-        ),
-    )
-    .slice(0, 3)
-    .map((a) => mapActivityToCard(a, categoryNameFor(signals, a.categoryId)))
-
   return {
     nodeId: 'now_result',
     question: voice.question,
     contextLine: voice.contextLine,
     whyReason: voice.whyReason,
     card: mapActivityToCard(activity, categoryName),
-    presentationHint:
-      matchingExtras.length > 0
-        ? { label: 'Results', items: matchingExtras }
-        : undefined,
     choices: [
       {
         id: 'start-activity',
@@ -567,9 +546,6 @@ function resolveProgramResult(
       title: match.program.title,
     },
     card: mapProgramToCard(match.program, match.count, match.featuredGroup),
-    presentationHint: state.preferPopular
-      ? { mode: 'popular', label: 'Popular' }
-      : undefined,
     choices: [
       {
         id: 'open-program',
@@ -708,7 +684,6 @@ function resolveTogetherResult(
         }
       : undefined,
     card,
-    presentationHint: { mode: 'happening_now', label: 'Happening now' },
     choices: [
       {
         id: 'join-session',

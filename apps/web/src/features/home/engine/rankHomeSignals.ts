@@ -248,7 +248,6 @@ export function rankHomeSignals(
             }
           : undefined,
         card,
-        presentationHint: { mode: 'happening_now', label: 'Happening now' },
         choices: [
           {
             id: 'join-session',

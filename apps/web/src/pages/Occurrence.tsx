@@ -41,7 +41,6 @@ import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { activityHero } from '@/lib/hero'
 import { Button } from '@/components/ui/Button'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { buildOccurrenceBreadcrumbs } from '@/lib/breadcrumbs'
 import { MetricInput } from '@/components/activity/MetricInput'
 import { ActivityTogether } from '@/components/activity/ActivityTogether'
 import { ActivityHero, type ActivityMeta } from '@/components/activity/ActivityHero'
@@ -64,8 +63,6 @@ type S = components['schemas']
 export function OccurrencePage() {
   const { id = '' } = useParams()
   const [params] = useSearchParams()
-  const location = useLocation()
-  const currentUrl = `${location.pathname}${location.search}`
   const occurrence = useOccurrence(id)
   useDocumentTitle(
     occurrence.data
@@ -82,11 +79,6 @@ export function OccurrencePage() {
     params.get('returnTo'),
     o ? calendarUrl(o.item.localDate) : '/calendar',
   )
-  const occurrenceNav = buildOccurrenceBreadcrumbs({
-    title: o?.item.title ?? 'Activity',
-    programTitle: o?.item.programTitle,
-    returnTo: params.get('returnTo') ? origin : null,
-  })
 
   return (
     <Page className="page--wide pb-20">
@@ -129,7 +121,6 @@ function OccurrenceContent({
   occurrence: S['ActivityOccurrence']
   refresh: () => void
 }) {
-  const [params] = useSearchParams()
   const online = useOnline()
   // Session behavior is the shared controller (lib/activitySession); this page adds its layout,
   // per-button progress, toasts, media and leave-page protection.

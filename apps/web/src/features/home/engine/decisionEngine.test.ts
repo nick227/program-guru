@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { resolveTurn } from './decisionEngine'
-import { buildPresentationItems } from './presentationFeed'
 import { rankHomeSignals } from './rankHomeSignals'
 import type { HomeSignals } from './types'
 
@@ -130,7 +129,6 @@ describe('Home program eligibility', () => {
     })
     expect(rankHomeSignals(signals).card?.id).toBe('prog-1')
     expect(resolveTurn('program_result', { excludedIds: [] }, signals).card?.id).toBe('prog-1')
-    expect(buildPresentationItems('popular', signals).some((card) => card.id === 'pump-it-up')).toBe(false)
   })
 
   it('excludes prior member Programs regardless of active, paused, or completed run state', () => {
@@ -146,7 +144,6 @@ describe('Home program eligibility', () => {
         popularPrograms: [prior, ...base.popularPrograms],
       })
       expect(resolveTurn('program_result', { excludedIds: [] }, signals).card?.id, status).toBe('prog-1')
-      expect(buildPresentationItems('for_you', signals).some((card) => card.id === 'previous-program')).toBe(false)
     }
   })
 
@@ -495,13 +492,6 @@ describe('resolveTurn', () => {
       "I'm done",
     ])
   })
-
-  it('builds Presentation items excluding the active conversation card', () => {
-    const items = buildPresentationItems('popular', makeBaseSignals(), 'prog-1')
-    expect(items.some((i) => i.id === 'prog-1')).toBe(false)
-    expect(items.length).toBeGreaterThan(0)
-    expect(items.length).toBeLessThanOrEqual(4)
-  })
 })
 
 
@@ -593,14 +583,5 @@ describe('discovery quality on Home (12 §5c)', () => {
     const turn = resolveTurn('program_result', { excludedIds: [] }, signals)
     expect(turn.card?.id).toBe('p-fy')
     expect(turn.contextLine).toBe('Explore Fitness')
-  })
-
-  it('Following mode shows only actual follows, never creators in general', () => {
-    const generic = { kind: 'CREATOR', program: null, activity: null, creator: { id: 'u-gen', handle: 'gen', displayName: 'Generic', avatarUrl: null } } as HomeSignals['creators'][number]
-    const followedCreator = { ...generic, creator: { ...generic.creator!, id: 'u-maya', handle: 'maya', displayName: 'Maya' } }
-    const items = buildPresentationItems('following', { ...base, creators: [generic], followedCreators: [followedCreator], followedPrograms: [programItem('p-follow', 'Morning Pages')] })
-    expect(items.map((i) => i.id)).toEqual(['p-follow', 'u-maya'])
-    expect(items[0]!.subtitle).toMatch(/^From Maya, who you follow/)
-    expect(buildPresentationItems('following', { ...base, creators: [generic] })).toEqual([])
   })
 })

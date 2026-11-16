@@ -23,7 +23,6 @@ export type FlowNodeId =
   | 'create_program'
   | 'continue_editing'
 
-export type PresentationMode = 'for_you' | 'happening_now' | 'popular' | 'following'
 
 export type PreviewTarget =
   | { kind: 'program'; id: string }
@@ -128,11 +127,6 @@ export interface AssistantTurn {
   showMeSubject?: ShowMeSubject
   card?: AssistantCard
   cards?: AssistantCard[]
-  presentationHint?: {
-    mode?: PresentationMode
-    label?: string
-    items?: AssistantCard[]
-  }
   choices: ChoiceButton[]
 }
 
