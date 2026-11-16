@@ -31,6 +31,8 @@ export default defineConfig({
     { name: 'home-execution-touch-live', testMatch: 'home-execution.live.ts', grep: /@touch/, use: { ...client('198.51.100.21'), hasTouch: true, isMobile: true } },
     // The shared Activity preview controller on Calendar, Community and Home (MR 3).
     { name: 'activity-preview-live', testMatch: 'activity-preview.live.ts', use: { ...client('198.51.100.22'), viewport: { width: 1280, height: 900 } } },
+    // Start now's one rule on Community and Home (MR 5).
+    { name: 'start-today-live', testMatch: 'start-today.live.ts', use: { ...client('198.51.100.23'), viewport: { width: 1280, height: 900 } } },
   ],
   webServer: {
     command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,

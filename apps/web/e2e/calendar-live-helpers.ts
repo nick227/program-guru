@@ -20,7 +20,7 @@ export const gridStart = (d: string) => {
 }
 export const dayIndex = (from: string, to: string) => Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000)
 
-export type Item = { id: string; localDate: string; localTime: string | null; status: string; recurrenceId: string | null; updatedAt: string; title: string }
+export type Item = { id: string; localDate: string; localTime: string | null; status: string; activityId: string | null; recurrenceId: string | null; updatedAt: string; title: string }
 
 export async function setup(page: Page) {
   if (!/^http:\/\/(localhost|127\.0\.0\.1):/.test(api)) throw new Error('HISTORY_TEST_API must name a local API.')

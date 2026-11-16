@@ -6,7 +6,6 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import {
-  useAddCalendarItem,
   useCategories,
   useCurrentUser,
   useDiscoverActivities,
@@ -70,7 +69,8 @@ import {
   type BrowseDuration,
   type BrowseKind,
 } from '@/lib/browse'
-import { dateLabel, formatRelativeTime, safeReturn, today } from '@/lib/dates'
+import { dateLabel, formatRelativeTime, safeReturn } from '@/lib/dates'
+import { useStartToday } from '@/lib/startToday'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { activityHero, programHero, toHeroCategory, type Hero } from '@/lib/hero'
 import { useDocumentTitle } from '@/lib/title'
@@ -1126,32 +1126,22 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const me = useCurrentUser()
   const myGroups = useMyGroups(!!me.data && !mode.isPicker && mode.kind === 'programs')
   const joinGroup = useJoinPublicGroupById()
-  const addCalendarItem = useAddCalendarItem()
+  const startToday = useStartToday()
   const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(() => new Set())
   const [joiningGroupId, setJoiningGroupId] = useState<string | null>(null)
   const [addedActivityIds, setAddedActivityIds] = useState<Set<string>>(() => new Set())
-  const [addingActivityId, setAddingActivityId] = useState<string | null>(null)
+  const addingActivityId = startToday.pendingId
 
+  // Start now: the shared rule (lib/startToday) reuses today's entry instead of adding another.
   const handleDoNow = async (item: BrowseFeedItem) => {
-    if (addingActivityId) return
-    setAddingActivityId(item.id)
     try {
-      const result = await addCalendarItem.mutateAsync({
-        activityId: item.id,
-        revisionId: item.revisionId ?? undefined,
-        localDate: today(
-          me.data?.data.preferences.timezone ??
-            Intl.DateTimeFormat().resolvedOptions().timeZone,
-        ),
-        idempotencyKey: crypto.randomUUID(),
-      })
+      const itemId = await startToday.start(item.id, { revisionId: item.revisionId })
+      if (!itemId) return
       setAddedActivityIds((prev) => new Set(prev).add(item.id))
       saveBrowseScroll(currentUrl)
-      navigate(`/occurrences/${result.item.id}?returnTo=${encodeURIComponent(currentUrl)}`)
+      navigate(`/occurrences/${itemId}?returnTo=${encodeURIComponent(currentUrl)}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not start activity')
-    } finally {
-      setAddingActivityId(null)
     }
   }
 
