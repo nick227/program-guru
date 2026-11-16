@@ -1,8 +1,29 @@
 import { test, expect } from '@playwright/test'
 import { mockApi } from './fixtures'
 
-test('day view renders full-width 12am-12am hourly table with unknown times at top and drag-drop time adjustment', async ({ page }) => {
-  const { requests } = await mockApi(page)
+const plusDays = (n: number) => {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Mouse drag through real pointer moves (the Calendar's drag starts after 6px; 03-UX §5). */
+async function mouseDrag(page: import('@playwright/test').Page, from: import('@playwright/test').Locator, to: import('@playwright/test').Locator) {
+  await from.scrollIntoViewIfNeeded()
+  const a = (await from.boundingBox())!
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(a.x + a.width / 2 + 10, a.y + a.height / 2 + 10, { steps: 3 })
+  await to.scrollIntoViewIfNeeded()
+  const b = (await to.boundingBox())!
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 10 })
+  await page.mouse.up()
+}
+
+test('day view: Any time first, focused and all 24 hours, drag to an hour and back to Any time, select without navigating', async ({ page }, info) => {
+  await mockApi(page)
+  // A future date: drops are refused on past dates (03-UX §5).
+  const day = plusDays(3)
   const rows = [
     { id: 'late', title: 'Evening walk', localTime: '18:30', status: 'PLANNED' },
     { id: 'any', title: 'Read a chapter', localTime: null, status: 'PLANNED' },
@@ -11,13 +32,16 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
     { id: 'midnight', title: 'Night journal', localTime: '00:00', status: 'PLANNED' },
   ].map((item) => ({
     ...item,
-    localDate: '2026-11-09',
+    localDate: day,
     programTitle: 'Daily routine',
     participantAvatars: [],
     unreadCount: 0,
     locked: false,
+    recurrenceId: null,
+    gatheringId: null,
     updatedAt: '2026-11-09T06:00:00Z',
   }))
+  const patches: { id: string; body: Record<string, unknown> }[] = []
 
   await page.route('**/calendar/items?*', (route) => route.fulfill({ json: { data: rows } }))
   await page.route('**/calendar-items/*', async (route) => {
@@ -25,6 +49,7 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
     if (req.method() !== 'PATCH') return route.fallback()
     const id = req.url().split('/').pop()!
     const body = req.postDataJSON() as { localTime?: string | null }
+    patches.push({ id, body })
     const target = rows.find((r) => r.id === id)
     if (target && body.localTime !== undefined) {
       target.localTime = body.localTime
@@ -37,87 +62,72 @@ test('day view renders full-width 12am-12am hourly table with unknown times at t
   await page.getByLabel('Email', { exact: true }).fill('author@test.local')
   await page.getByLabel('Password', { exact: true }).fill('password')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'All hours', exact: true })).toBeVisible()
-  await page.goto('/calendar?view=day&day=2026-11-09')
+  await page.waitForURL((url) => !url.pathname.startsWith('/login'))
+  await page.goto(`/calendar?view=day&day=${day}`)
 
   const table = page.getByRole('table', { name: 'Day schedule' })
   await expect(table).toBeVisible()
-
-  // Table is full width of its container
-  const [tableBox, containerBox] = await Promise.all([
-    table.boundingBox(),
-    page.locator('.calendar-selected-day').boundingBox(),
-  ])
+  const [tableBox, containerBox] = await Promise.all([table.boundingBox(), page.locator('.calendar-selected-day').boundingBox()])
   expect(tableBox!.width).toBeGreaterThanOrEqual(containerBox!.width - 2)
 
-  // Daily context strip summarizes progress and highlights Next activity
-  const context = page.getByLabel('Daily summary')
-  await expect(context).toContainText('1 of 5 completed')
-  await expect(context).toContainText('Next')
-  await expect(context).toContainText('Night journal')
-
-  // Focused default hides empty hours (only Any time + populated hours 00, 07, 18)
+  // Focused (default): Any time plus the populated hours 00, 07 and 18.
   await expect(table.locator('tbody tr[data-slot]')).toHaveCount(4)
 
-  // Single toggle switches to all 24 hours (Any time + 12:00 AM to 11:00 PM)
-  await page.getByRole('button', { name: 'All hours', exact: true }).click()
+  // All 24h from the View menu: the day starts at its earliest entry (midnight here), so 25 slots.
+  await page.getByLabel('View options').click()
+  await page.getByRole('button', { name: 'All 24h', exact: true }).click()
   const slots = table.locator('tbody tr[data-slot]')
   await expect(slots).toHaveCount(25)
   await expect(slots.nth(0)).toHaveAttribute('data-slot', 'anytime')
   await expect(slots.nth(0).locator('.calendar-day-table__time')).toHaveText('Any time')
   await expect(slots.nth(1)).toHaveAttribute('data-slot', '00')
-  await expect(slots.nth(1).locator('.calendar-day-table__time')).toHaveText('12:00 AM')
+  await expect(slots.nth(1).locator('.calendar-day-table__time')).toContainText('12:00 AM')
   await expect(slots.nth(24)).toHaveAttribute('data-slot', '23')
-  await expect(slots.nth(24).locator('.calendar-day-table__time')).toHaveText('11:00 PM')
 
-  // Untimed item is at the top in Any time; timed items sit in their respective hour rows
-  await expect(slots.nth(0).locator('.calendar-tile')).toHaveCount(1)
-  await expect(slots.nth(0)).toContainText('Read a chapter')
-  await expect(table.locator('tr[data-slot="00"] .calendar-tile')).toHaveCount(1)
-  await expect(table.locator('tr[data-slot="07"] .calendar-tile')).toHaveCount(2)
-  await expect(table.locator('tr[data-slot="18"] .calendar-tile')).toHaveCount(1)
-  await expect(table.locator('.calendar-tile--compact')).toHaveCount(5)
-
-  // Tiles stay visually quiet (no overflow menus or status badges); only PLANNED items show quick-complete
+  // Entries sit in their rows; cards stay quiet (no overflow menus or status badges).
+  await expect(slots.nth(0).locator('article[data-item-id="any"]')).toHaveCount(1)
+  await expect(table.locator('tr[data-slot="00"] article[data-item-id]')).toHaveCount(1)
+  await expect(table.locator('tr[data-slot="07"] article[data-item-id]')).toHaveCount(2)
+  await expect(table.locator('tr[data-slot="18"] article[data-item-id]')).toHaveCount(1)
   await expect(table.getByRole('button', { name: /More actions/ })).toHaveCount(0)
   await expect(table.locator('.calendar-tile__status')).toHaveCount(0)
-  await expect(table.getByRole('button', { name: /^Mark .* complete$/ })).toHaveCount(3)
-  await expect(table.getByRole('button', { name: 'Mark Morning stretch complete' })).toHaveCount(0)
-  await expect(table.getByRole('button', { name: 'Mark Team check-in complete' })).toHaveCount(0)
-  await expect(table.getByRole('button', { name: 'Mark Evening walk complete' })).toBeVisible()
-  await expect(table.getByRole('button', { name: 'Adjust time for Evening walk' })).toContainText('6:30 PM')
+  // Generous geometry: 44px cards, 88px+ hour rows (03-UX §5).
+  expect(Math.round((await table.locator('article[data-item-id="late"]').boundingBox())!.height)).toBeGreaterThanOrEqual(44)
+  expect(Math.round((await table.locator('tr[data-slot="05"]').boundingBox())!.height)).toBeGreaterThanOrEqual(88)
 
-  // Drag "Read a chapter" from Any time to 2:00 AM row
-  const readTile = table.locator('article[data-item-id="any"]')
-  const twoAmRow = table.locator('tr[data-slot="02"]')
-  await readTile.dragTo(twoAmRow)
-  await expect(twoAmRow.locator('article[data-item-id="any"]')).toBeVisible()
-  await expect(slots.nth(0).locator('article[data-item-id="any"]')).toHaveCount(0)
+  if (info.project.name === 'desktop') {
+    // Drag "Read a chapter" from Any time to 2 AM, then back to Any time (mouse; touch is in the live suite).
+    await mouseDrag(page, table.locator('article[data-item-id="any"]'), table.locator('tr[data-slot="02"]'))
+    await expect(table.locator('tr[data-slot="02"] article[data-item-id="any"]')).toBeVisible()
+    expect(patches.at(-1)).toEqual({ id: 'any', body: expect.objectContaining({ localTime: '02:00' }) })
+    await mouseDrag(page, table.locator('article[data-item-id="any"]'), slots.nth(0))
+    await expect(slots.nth(0).locator('article[data-item-id="any"]')).toBeVisible()
+    expect(patches.at(-1)).toEqual({ id: 'any', body: expect.objectContaining({ localTime: null }) })
+    // A completed entry does not move.
+    const before = patches.length
+    await mouseDrag(page, table.locator('article[data-item-id="early"]'), table.locator('tr[data-slot="09"]'))
+    await page.waitForTimeout(300)
+    expect(patches.length).toBe(before)
+  }
 
-  // Click inline time toggle button to adjust exact time of day (02:45 -> stays in 2 AM row, shows 2:45 AM)
-  await page.getByRole('button', { name: 'Adjust time for Read a chapter' }).click()
-  const timeInput = page.getByLabel('Time of day for Read a chapter')
-  await timeInput.fill('02:45')
-  await expect(twoAmRow.locator('article[data-item-id="any"]')).toContainText('2:45 AM')
+  // Clicking an entry selects it (opens its details) and never navigates.
+  const url = page.url()
+  await table.locator('article[data-item-id="late"] button').first().click()
+  await expect(table.locator('article[data-item-id="late"]')).toHaveClass(/calendar-badge--selected/)
+  expect(page.url()).toBe(url)
+  // Phones show the details as a sheet; close it before using the toolbar.
+  if (info.project.name !== 'desktop') await page.locator('.calendar-sheet').getByRole('button', { name: 'Close activity details' }).click()
 
-  // Clear time moves it back to Any time at the top
-  await page.getByRole('button', { name: 'Clear time for Read a chapter' }).click()
-  await expect(slots.nth(0).locator('article[data-item-id="any"]')).toBeVisible()
-
-  // Clickable date heading opens compact date picker and switches day
-  await page.getByRole('button', { name: /Change date, Monday, November 9, 2026/ }).click()
+  // The date heading opens the date picker and switches day.
+  const next = plusDays(4)
+  const nextLabel = new Date(`${next}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  await page.getByRole('button', { name: /^Change date/ }).click()
   const picker = page.getByRole('dialog', { name: 'Choose a date' })
   await expect(picker).toBeVisible()
-  await picker.getByRole('button', { name: 'Tuesday, November 10, 2026' }).click()
-  await expect(page).toHaveURL(/day=2026-11-10/)
-
+  if (next.slice(0, 7) !== day.slice(0, 7)) await picker.getByRole('button', { name: /Next month/ }).click()
+  await picker.getByRole('button', { name: nextLabel }).click()
+  await expect(page).toHaveURL(new RegExp(`day=${next}`))
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-
-  // Return to Nov 9 and click tile to open Occurrence page
-  await page.goto('/calendar?view=day&day=2026-11-09')
-  await table.getByRole('link', { name: /Evening walk/ }).click()
-  await expect(page).toHaveURL(/\/occurrences\/late/)
-  expect(requests.length).toBeGreaterThanOrEqual(0)
 })
 
 test('activity target time is displayed on Activity and can be set by user', async ({ page }) => {
@@ -131,7 +141,7 @@ test('activity target time is displayed on Activity and can be set by user', asy
   await page.goto('/add-activity?day=2026-11-09')
   await page.getByLabel('Activity title').fill('Morning Mobility')
   await page.getByLabel('Target time (optional)').fill('07:30')
-  await page.getByLabel('Category').selectOption('00000000-0000-4000-8000-000000000003')
+  await page.getByLabel('Domain').selectOption('00000000-0000-4000-8000-000000000003')
   await page.getByRole('button', { name: 'Create Activity' }).click()
   await expect(page.getByRole('button', { name: 'Add to Calendar' })).toBeVisible()
 
@@ -202,16 +212,37 @@ test('grouped workout renders one expandable tile while separate programs stay i
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await page.goto('/calendar?view=day&day=2026-11-10')
 
+  // Day: one expandable card for the GROUPED workout; the SEPARATE Program stays its own card.
   const groupTile = page.locator('[data-workout-group="enroll-fitness"]')
   await expect(groupTile).toHaveCount(1)
   await expect(groupTile).toContainText('Beginner Core & Strength')
-  await expect(groupTile).toContainText('6 exercises · 40 min')
-  await expect(groupTile).toContainText('0/6 done')
-  await expect(page.getByText('Morning Routine')).toBeVisible()
-  await expect(page.getByText('Squats')).toHaveCount(0)
-
-  await groupTile.getByRole('button', { name: 'Show workout' }).click()
+  await expect(groupTile).toContainText('0/6')
+  const dayTable = page.getByRole('table', { name: 'Day schedule' })
+  await expect(dayTable.getByText('Morning Routine')).toBeVisible()
+  await expect(dayTable.getByText('Squats')).toHaveCount(0)
+  await groupTile.locator('button[aria-expanded]').first().click()
   await expect(groupTile.getByText('Warm-up')).toBeVisible()
   await expect(groupTile.getByText('Squats')).toBeVisible()
   await expect(groupTile.getByText('Cool-down')).toBeVisible()
+
+  // Month (desktop grid): the workout is one 44px card; its exercises open over the cell, which
+  // keeps its fixed height (03-UX §5).
+  if (test.info().project.name === 'desktop') {
+    await page.goto('/calendar?view=month&day=2026-11-10')
+    const grid = page.locator('.calendar-month-grid')
+    await expect(grid).toBeVisible()
+    const card = grid.locator('[data-workout-group="enroll-fitness"]')
+    await expect(card).toHaveCount(1)
+    expect(Math.round((await card.boundingBox())!.height)).toBe(44)
+    const cell = grid.locator('section').filter({ has: page.locator('[data-workout-group="enroll-fitness"]') })
+    const heights = () => grid.evaluate((g) => [...new Set([...g.querySelectorAll('section')].map((c) => Math.round(c.getBoundingClientRect().height)))])
+    expect(await heights()).toEqual([216])
+    await card.getByRole('button', { name: /Beginner Core & Strength/ }).click()
+    const overlay = cell.getByRole('dialog', { name: /Beginner Core & Strength, 6 exercises/ })
+    await expect(overlay).toBeVisible()
+    await expect(overlay.locator('.calendar-chip')).toHaveCount(6)
+    expect(await heights()).toEqual([216])
+    await page.keyboard.press('Escape')
+    await expect(overlay).toHaveCount(0)
+  }
 })
