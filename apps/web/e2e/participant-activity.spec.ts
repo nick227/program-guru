@@ -182,6 +182,7 @@ test('gathering invitation, joining, and session use one activity page with shar
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
   await expect(page.locator('[data-participation-status]')).toHaveCount(1)
   await expect(page.locator('#related-media')).toHaveCount(1)
+  await expect(page.getByText('Looking for: Practice together', { exact: true })).toHaveCount(1)
   await expect(page.getByRole('button', { name: 'Open', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Start', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()

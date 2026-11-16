@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { MapPin, Users } from 'lucide-react'
 import type { components } from '@project/sdk'
 import { Avatar } from '@/components/ui/Avatar'
@@ -6,10 +7,10 @@ import { lookingForText } from '@/lib/lookingFor'
 
 type Gathering = components['schemas']['Gathering']
 
-export function GatheringDetails({ gathering: g }: { gathering: Gathering }) {
+export function GatheringDetails({ gathering: g, children, showPlace = true }: { gathering: Gathering; children?: ReactNode; showPlace?: boolean }) {
   return <section className="activity-card space-y-3" aria-label="Gathering details">
     <h2 className="font-display text-xl font-semibold">{gatheringWhen(g)}</h2>
-    {g.place && (
+    {showPlace && g.place && (
       <p className="flex items-center gap-1.5 text-sm text-muted">
         <MapPin size={15} aria-hidden />
         Suggested place: {g.place.name}, {g.place.locality}
@@ -40,6 +41,8 @@ export function GatheringDetails({ gathering: g }: { gathering: Gathering }) {
       </ul>
     )}
 
+    <p className="text-xs text-muted">{g.visibility === 'PUBLIC' ? 'Listed publicly' : 'Invite only'}{g.completedCount > 0 ? ` · ${g.completedCount} finished` : ''}</p>
+    {children}
     {g.status !== 'ACTIVE' && <p className="text-sm text-muted">This gathering was cancelled.</p>}
   </section>
 }

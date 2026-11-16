@@ -346,7 +346,7 @@ function OccurrenceControls({
       </div>
       {showTimer && session && <SessionElapsed session={session} />}
       <ScheduledPlace item={o.item} />
-      {!o.item.locked && <OccurrenceGathering item={o.item} activity={activity} phase={heroPhase} sharedCount={o.sharedMedia.length} />}
+      {!o.item.locked && !o.item.gatheringId && <OccurrenceGathering item={o.item} activity={activity} phase={heroPhase} sharedCount={o.sharedMedia.length} />}
 
         <>
           {!!error && (

@@ -101,7 +101,7 @@ export function ActivityParticipation({
   return (
     <div className={cn('flex flex-col gap-3', className)}>
       {lines}
-      {effectiveLocation && <p className="text-sm"><LocationLink place={effectiveLocation} />{effectiveLocation.locality ? ` · ${effectiveLocation.locality}` : ''}</p>}
+      {!contextual && effectiveLocation && <p className="text-sm"><LocationLink place={effectiveLocation} />{effectiveLocation.locality ? ` · ${effectiveLocation.locality}` : ''}</p>}
       <div className="flex flex-wrap items-center gap-2">
         {contextActions}
         {!contextual && view.actions.includes('resume') && view.inProgressItemId && (
@@ -120,7 +120,7 @@ export function ActivityParticipation({
           <JoinButton gathering={view.gathering} signedIn={signedIn} returnTo={returnTo} onJoin={onJoin} />
         )}
         <AddToScheduleButton target={{ kind: 'activity', ...activity, place: effectiveLocation, placeId: location === undefined ? undefined : location?.id ?? null }} signedIn={signedIn} returnTo={returnTo} />
-        {!onStart && <LocationButton value={effectiveLocation} onChange={setLocation} />}
+        {!onStart && !contextual && <LocationButton value={effectiveLocation} onChange={setLocation} />}
         {!contextual && view.actions.includes('reschedule') && (
           <button
             type="button"

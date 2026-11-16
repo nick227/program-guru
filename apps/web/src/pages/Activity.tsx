@@ -1,3 +1,5 @@
+import { OccurrenceGathering } from '@/components/activity/OccurrenceGathering'
+import { entryPhase } from '@/lib/activitySession'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { formatTargetTime } from '@/lib/targetTime'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -281,14 +283,22 @@ export function ActivityPage({ activityId, gathering, occurrence: providedOccurr
                 <ActivityDetailsEditor activity={a} onDone={() => setEditing(false)} />
               )}
 
-              {a && <GroupStatus
+              {a && !occurrence?.collaborators && <GroupStatus
                 activityId={targetId}
                 activityTitle={identity.title}
                 programId={parentTarget ? resolvedParent.programId : undefined}
                 returnTo={currentUrl}
               />}
 
-              {activeGathering && <GatheringDetails gathering={activeGathering} />}
+              {activeGathering && <GatheringDetails gathering={activeGathering} showPlace={!occurrence || activeGathering.place?.id !== occurrence.item.place?.id}>
+                {occurrence && !occurrence.item.locked && <OccurrenceGathering
+                  item={occurrence.item}
+                  activity={a}
+                  gathering={activeGathering}
+                  phase={entryPhase(occurrence.item.status, occurrence.session?.status) === 'completed' ? 'after' : occurrence.session?.status === 'ACTIVE' || occurrence.session?.status === 'PAUSED' ? 'during' : 'before'}
+                  sharedCount={occurrence.sharedMedia.length}
+                />}
+              </GatheringDetails>}
               {(sessionPending || (!!ownItemId && ownOccurrence.isPending)) && <Loading />}
               <ErrorMessage error={sessionError ?? ownOccurrence.error} retry={refreshOccurrence} />
               {occurrence && <ActivitySessionContent key={occurrence.item.id} occurrence={occurrence} refresh={refreshOccurrence ?? (() => {})} />}

@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { lookingForText } from '@/lib/lookingFor'
-import { Image as ImageIcon, Users } from 'lucide-react'
+import { Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useCreateGatheringLink,
@@ -9,7 +8,6 @@ import {
   useUpdateGathering,
   type components,
 } from '@project/sdk'
-import { Avatar } from '@/components/ui/Avatar'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { ShareLinkField } from '@/components/social/ShareLink'
@@ -29,13 +27,15 @@ export function OccurrenceGathering({
   activity,
   phase,
   sharedCount,
+  gathering: suppliedGathering,
 }: {
   item: S['CalendarItem']
   activity?: S['ActivityDetail']
   phase: HeroPhase
   sharedCount: number
+  gathering?: S['Gathering']
 }) {
-  const gathering = useGathering(item.gatheringId)
+  const gathering = useGathering(suppliedGathering ? null : item.gatheringId)
   const link = useCreateGatheringLink()
   const leave = useLeaveGathering()
   const update = useUpdateGathering()
@@ -43,19 +43,9 @@ export function OccurrenceGathering({
   const [editing, setEditing] = useState(false)
 
   if (item.gatheringId) {
-    const g = gathering.data
+    const g = suppliedGathering ?? gathering.data
     if (!g) return null
-    const line = (
-      <p className="activity-hero__gathering-line">
-        <Users size={14} aria-hidden />
-        <span>
-          {g.memberCount} {g.memberCount === 1 ? 'person' : 'people'}
-          {g.capacity ? ` of ${g.capacity}` : ''}
-          {phase === 'after' ? ` · ${g.completedCount} finished` : ` · ${g.visibility === 'PUBLIC' ? 'listed publicly' : 'invite only'}`}
-        </span>
-      </p>
-    )
-    if (phase === 'during') return <div className="activity-hero__gathering">{line}</div>
+    if (phase === 'during') return null
     if (phase === 'after') {
       return (
         <div className="activity-hero__gathering">
@@ -63,7 +53,6 @@ export function OccurrenceGathering({
             <ImageIcon size={14} aria-hidden />
             {sharedCount > 0 ? `${sharedCount} shared ${sharedCount === 1 ? 'photo or video' : 'photos and videos'} · View` : 'Share a photo or video from this time'}
           </a>
-          {line}
           {g.viewerIsMember && <DoItAgain gathering={g} />}
         </div>
       )
@@ -94,15 +83,6 @@ export function OccurrenceGathering({
     }
     return (
       <div className="activity-hero__gathering">
-        {line}
-        {g.lookingFor && <p className="activity-gatherings__looking">{lookingForText(g.lookingFor)}</p>}
-        {g.members.length > 1 && (
-          <span className="activity-hero__gathering-people" aria-label={g.members.map((m) => m.displayName).join(', ')}>
-            {g.members.slice(0, 6).map((m) => (
-              <Avatar key={m.id} src={m.avatarUrl} name={m.displayName} size="sm" className="h-7 w-7 ring-2 ring-surface" />
-            ))}
-          </span>
-        )}
         <div className="activity-hero__gathering-actions">
           {g.status === 'ACTIVE' && !g.isPast && !url && (
             <Button size="sm" variant="outline" loading={link.isPending} onClick={() => void onLink()}>
