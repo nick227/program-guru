@@ -1,12 +1,10 @@
 import { useState } from 'react'
-import { ArrowLeft, CalendarDays, CalendarPlus, ExternalLink, MapPin, Play, UserPlus } from 'lucide-react'
+import { ArrowLeft, CalendarDays, ExternalLink, MapPin, Play, UserPlus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useFirstScheduledDayUrl } from '@/lib/useFirstScheduledDay'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  getApiClient,
-  useActivity,
   useGathering,
   useJoinProgram,
   useProgramLibrary,
@@ -17,7 +15,8 @@ import { GroupStageExperience } from '@/pages/Group'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import { Avatar } from '@/components/ui/Avatar'
 import { gatheringWhen } from '@/lib/gatheringLabels'
-import { activityHero, programHero } from '@/lib/hero'
+import { programHero } from '@/lib/hero'
+import { useActivityPreview } from '@/lib/activityPreview'
 import { dateLabel } from '@/lib/dates'
 import { formatTargetTime } from '@/lib/targetTime'
 import { buildOccurrenceUrl } from '@/lib/urls'
@@ -386,9 +385,10 @@ function ActivityPreviewBody({
   onClose: () => void
   onExecute: (action: CardAction) => void
 }) {
-  const query = useActivity(activityId)
+  // Data, image, summary and Manage come from the shared preview controller (lib/activityPreview).
+  const preview = useActivityPreview(activityId, { returnTo: '/' })
+  const query = preview.query
   const gathering = useGathering(gatheringId).data ?? null
-  const categorySlugOf = useCategorySlugOf()
 
   if (query.isPending) {
     return <TransitionSurface ready={false}>{null}</TransitionSurface>
@@ -424,7 +424,7 @@ function ActivityPreviewBody({
   // The surfer always passes `gatheringId` (null without one) and gets the media-led preview.
   const media = gatheringId !== undefined ? (
     <div className="flex w-full flex-col gap-3">
-      <EntityHero hero={activityHero(act, categorySlugOf)} size="banner" interactive={false} className="aspect-[16/9] w-full" />
+      {preview.hero && <EntityHero hero={preview.hero} size="banner" interactive={false} className="aspect-[16/9] w-full" />}
       {together && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-sm">
           {together.members.length > 0 && (
@@ -452,7 +452,7 @@ function ActivityPreviewBody({
     <PreviewShell
       title={act.title}
       subtitle={meta}
-      body={act.summary}
+      body={preview.summary}
       media={media}
       onClose={onClose}
     >
@@ -466,6 +466,7 @@ function ActivityPreviewBody({
         onResume={(itemId) => onExecute({ type: 'open_occurrence', itemId })}
         onJoin={(g) => onExecute({ type: 'join_gathering', gatheringId: g.id, calendarItemId: calendarItemId ?? null })}
         onOpenPage={() => onExecute({ type: 'navigate_activity', activityId })}
+        manageHref={preview.manageHref}
       />
     </PreviewShell>
   )

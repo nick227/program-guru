@@ -29,6 +29,8 @@ export default defineConfig({
     // Home's inline execution (the same shared ActivityExecution, stage layout).
     { name: 'home-execution-live', testMatch: 'home-execution.live.ts', grepInvert: /@touch/, use: { ...client('198.51.100.20'), viewport: { width: 1280, height: 900 } } },
     { name: 'home-execution-touch-live', testMatch: 'home-execution.live.ts', grep: /@touch/, use: { ...client('198.51.100.21'), hasTouch: true, isMobile: true } },
+    // The shared Activity preview controller on Calendar, Community and Home (MR 3).
+    { name: 'activity-preview-live', testMatch: 'activity-preview.live.ts', use: { ...client('198.51.100.22'), viewport: { width: 1280, height: 900 } } },
   ],
   webServer: {
     command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,

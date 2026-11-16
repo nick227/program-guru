@@ -2,19 +2,16 @@ import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, MapPin, X } from 'lucide-react'
 import { ActivityParticipation } from '@/components/activity/ActivityParticipation'
-import {
-  useActivity,
-  useActivityPublicMedia,
-} from '@project/sdk'
+import { useActivityPublicMedia } from '@project/sdk'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { RelatedMedia, type RelatedMediaItem } from '@/components/media/RelatedMedia'
 import { formatFrequency } from '@/components/program-authoring/ScheduleControls'
-import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
+import { EntityHero } from '@/components/shared/EntityHero'
 import { GroupStatus } from '@/components/social/GroupStatus'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
-import { activityHero } from '@/lib/hero'
+import { useActivityPreview } from '@/lib/activityPreview'
 import { buildProfileUrl } from '@/lib/urls'
 
 /** Reusable inline Activity preview drawer for Community, Calendar, and Program pages. */
@@ -27,9 +24,9 @@ export function ActivityPreviewDrawer({
   currentUrl: string
   onClose: () => void
 }) {
-  const categorySlugOf = useCategorySlugOf()
-
-  const activity = useActivity(activityId ?? '')
+  // Data, image, summary, steps and Manage come from the shared preview controller (lib/activityPreview).
+  const preview = useActivityPreview(activityId, { returnTo: currentUrl })
+  const activity = preview.query
   const publicMedia = useActivityPublicMedia(activityId ?? '')
 
   useEffect(() => {
@@ -139,7 +136,7 @@ export function ActivityPreviewDrawer({
             <>
               <div className="overflow-hidden rounded-xl bg-surface-muted">
                 <EntityHero
-                  hero={activityHero(a, categorySlugOf)}
+                  hero={preview.hero!}
                   size="card"
                   interactive={false}
                   showVideoBadge={false}
@@ -181,9 +178,9 @@ export function ActivityPreviewDrawer({
                   )}
                 </div>
 
-                {a.summary && (
+                {preview.summary && (
                   <p className="text-[15px] leading-relaxed text-foreground/85">
-                    {a.summary}
+                    {preview.summary}
                   </p>
                 )}
 
@@ -198,7 +195,13 @@ export function ActivityPreviewDrawer({
                   </p>
                 )}
 
-                <ActivityParticipation key={a.id} activity={{ id: a.id, title: a.title, place: a.place }} returnTo={currentUrl} className="pt-1" />
+                <ActivityParticipation
+                  key={a.id}
+                  activity={{ id: a.id, title: a.title, place: a.place }}
+                  returnTo={currentUrl}
+                  manageHref={preview.manageHref}
+                  className="pt-1"
+                />
               </div>
 
               <GroupStatus
@@ -212,7 +215,7 @@ export function ActivityPreviewDrawer({
                   Instructions
                 </h3>
                 <ActivityInstructions
-                  instructions={a.instructions}
+                  instructions={preview.steps}
                   empty="No step-by-step instructions provided for this Activity."
                 />
               </section>

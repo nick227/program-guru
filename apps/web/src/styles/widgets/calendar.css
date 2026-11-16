@@ -3567,4 +3567,16 @@
   height: 1.5rem;
   background: hsl(var(--color-border));
 }
+
+/* The owner's Manage (MR 3, shared preview controller). */
+.calendar-panel__manage {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--color-accent));
+  text-decoration: none;
+}
+
+.calendar-panel__manage:hover {
+  text-decoration: underline;
+}
 }

@@ -1,7 +1,7 @@
 import { LocationLink } from '@/components/location/LocationLink'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CalendarCheck, CalendarClock, CalendarPlus, CircleDot, ExternalLink, Play, Users } from 'lucide-react'
+import { CalendarCheck, CalendarClock, CalendarPlus, CircleDot, ExternalLink, Play, Settings2, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useActivityParticipation, useCurrentUser, useJoinGathering, type components } from '@project/sdk'
 import { joinedMessage } from '@/lib/gatheringLabels'
@@ -30,6 +30,7 @@ export function ActivityParticipation({
   onResume,
   onJoin,
   onOpenPage,
+  manageHref,
   className,
 }: {
   activity: { id: string; title: string; place?: components['schemas']['Place'] | null }
@@ -42,6 +43,8 @@ export function ActivityParticipation({
   onJoin?: (gathering: Gathering) => void
   /** Shows the secondary Open Activity Page action. */
   onOpenPage?: () => void
+  /** The owner's Manage (the Activity page's editor), from useActivityPreview; omitted for others. */
+  manageHref?: string | null
   className?: string
 }) {
   const [location, setLocation] = useState<LocationSelection>(undefined)
@@ -126,6 +129,15 @@ export function ActivityParticipation({
             <CalendarClock size={14} aria-hidden />
             Reschedule
           </button>
+        )}
+        {manageHref && (
+          <Link
+            to={manageHref}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-semibold transition hover:bg-surface-muted"
+          >
+            <Settings2 size={13} aria-hidden />
+            Manage
+          </Link>
         )}
         {onOpenPage && (
           <button

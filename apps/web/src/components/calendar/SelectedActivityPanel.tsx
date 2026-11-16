@@ -16,7 +16,6 @@ import {
   X,
 } from 'lucide-react'
 import {
-  useActivity,
   useActivityGroups,
   useAddCompletionComment,
   useAddCompletionReaction,
@@ -50,6 +49,7 @@ import { cn } from '@/lib/utils'
 import { canMoveCalendarEntry, type SurfaceItem } from '@/lib/calendarGrouping'
 import { ruleLabel, untilLabel } from '@/components/schedule/recurrencePlan'
 import { useEnrollmentProgress } from '@/lib/useEnrollmentProgress'
+import { useActivityPreview } from '@/lib/activityPreview'
 
 type S = components['schemas']
 
@@ -143,7 +143,14 @@ function PanelBody({
   }, [editingTime])
 
   const activityId = item?.locked ? '' : (item?.activityId ?? '')
-  const activityQuery = useActivity(activityId)
+  // Data, image, summary, steps and Manage come from the shared preview controller (lib/activityPreview).
+  const preview = useActivityPreview(item?.activityId, {
+    locked: Boolean(item?.locked ?? calendarItem?.locked),
+    instructions: occurrence?.instructions,
+    fallbackImageUrl: item?.thumbnailUrl ?? calendarItem?.thumbnailUrl,
+    returnTo: '/calendar',
+  })
+  const activityQuery = preview.query
   const activityGroups = useActivityGroups(activityId, {
     enabled: Boolean(activityId && !occurrence?.collaborators),
   })
@@ -271,12 +278,7 @@ function PanelBody({
         })
       : `/occurrences/${itemId}`
 
-  const thumbUrl =
-    (!thumbFailed &&
-      (item?.thumbnailUrl ||
-        calendarItem?.thumbnailUrl ||
-        mediaRailItems[0]?.thumbnailUrl)) ||
-    null
+  const thumbUrl = (!thumbFailed && (preview.hero?.src || mediaRailItems[0]?.thumbnailUrl)) || null
   // The one image opens the viewer at itself when it is part of the media set.
   const heroViewerIndex = Math.max(
     0,
@@ -287,17 +289,8 @@ function PanelBody({
     ? dateLabel(localDate, { weekday: 'short', month: 'short', day: 'numeric' })
     : null
 
-  const description = !isLocked ? (activityQuery.data?.summary?.trim() || null) : null
-  const distinctInstructions = isLocked
-    ? []
-    : (occurrence?.instructions ?? []).filter((step) => {
-        const stepText = [step.title, step.body].filter(Boolean).join(' ').trim()
-        if (!stepText) return false
-        if (description && stepText.toLowerCase() === description.toLowerCase()) {
-          return false
-        }
-        return true
-      })
+  const description = preview.summary
+  const distinctInstructions = preview.steps
 
   const collab = occurrence?.collaborators ?? null
 
@@ -385,6 +378,11 @@ function PanelBody({
             <span>{title}</span>
             <ArrowUpRight size={15} className="calendar-panel__title-arrow" aria-hidden />
           </Link>
+          {preview.manageHref && (
+            <Link to={preview.manageHref} className="calendar-panel__manage">
+              Manage Activity
+            </Link>
+          )}
           {programTitle && (
             <div className="calendar-panel__program">
               <p className="calendar-panel__subtitle">
