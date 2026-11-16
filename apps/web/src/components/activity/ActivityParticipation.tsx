@@ -1,17 +1,16 @@
 import { LocationLink } from '@/components/location/LocationLink'
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CalendarCheck, CalendarClock, CalendarPlus, CircleDot, ExternalLink, Play, Settings2, Users } from 'lucide-react'
+import { CalendarClock, ExternalLink, Play, Settings2, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { useActivityParticipation, useCurrentUser, useJoinGathering, type components } from '@project/sdk'
+import { useJoinGathering, type components } from '@project/sdk'
 import { joinedMessage } from '@/lib/gatheringLabels'
 import { AddToScheduleButton, ScheduleDialog, type ScheduleTarget } from '@/components/schedule/AddToSchedule'
 import { StartActivityButton } from '@/components/schedule/StartActivityButton'
 import { LocationButton, type LocationSelection } from '@/components/location/LocationPicker'
-import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
-import { resolveParticipation, type ParticipationView } from '@/lib/activityParticipation'
-import { today } from '@/lib/dates'
+import { useParticipationView } from '@/lib/useParticipationView'
+import { ParticipationLines } from './ActivityParticipationSummary'
 import { cn } from '@/lib/utils'
 
 type Gathering = components['schemas']['Gathering']
@@ -54,11 +53,7 @@ export function ActivityParticipation({
 }) {
   const [location, setLocation] = useState<LocationSelection>(undefined)
   const effectiveLocation = location === undefined ? activity.place : location
-  const me = useCurrentUser()
-  const signedIn = Boolean(me.data)
-  const query = useActivityParticipation(activity.id)
-  const [todayIso] = useState(() => today(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'))
-  const view = resolveParticipation(query.data, { signedIn, todayIso })
+  const { view, signedIn } = useParticipationView(activity.id)
   const [rescheduling, setRescheduling] = useState(false)
 
   const rescheduleTarget: ScheduleTarget | null = view.next
@@ -162,37 +157,6 @@ export function ActivityParticipation({
   )
 }
 
-/** Status, people and shared lines; always shows the people line, including zero. */
-function ParticipationLines({ view, compact, peopleOnly = false }: { view: ParticipationView; compact: boolean; peopleOnly?: boolean }) {
-  const StatusIcon =
-    view.status === 'IN_PROGRESS' ? CircleDot : view.status === 'SCHEDULED' ? CalendarCheck : view.status === 'COMPLETED' ? CalendarCheck : CalendarPlus
-  return (
-    <div className={cn('flex min-w-0 flex-col', compact ? 'gap-1 text-xs' : 'gap-1.5 text-sm')} data-participation-status={view.status}>
-      {!peopleOnly && view.statusLabel && (
-        <p className={cn('flex min-w-0 items-center gap-1.5', view.status === 'SCHEDULED' || view.status === 'IN_PROGRESS' ? 'font-semibold text-accent' : 'text-muted')}>
-          <StatusIcon size={compact ? 13 : 15} aria-hidden className="shrink-0" />
-          <span className="truncate">{view.statusLabel}</span>
-        </p>
-      )}
-      {!peopleOnly && view.detail && <p className={cn('truncate text-muted', compact ? 'pl-[19px]' : 'pl-[21px]')}>{view.detail}</p>}
-      <p className="flex min-w-0 items-center gap-1.5 text-muted" aria-label={view.peopleLabel}>
-        {view.avatars.length > 0 ? (
-          <span className="flex shrink-0 -space-x-1.5" aria-hidden>
-            {view.avatars.slice(0, compact ? 3 : 5).map((u) => (
-              <Avatar key={u.id} src={u.avatarUrl} name={u.displayName} size="sm" className={cn('ring-2 ring-surface', compact && 'h-5 w-5 text-[9px]')} />
-            ))}
-          </span>
-        ) : (
-          <Users size={compact ? 13 : 15} aria-hidden className="shrink-0" />
-        )}
-        <span className="truncate" aria-hidden>
-          {view.peopleLabel}
-        </span>
-      </p>
-      {view.sharedLabel && <p className={cn('truncate font-medium', compact ? 'pl-[19px]' : 'pl-[21px]')}>{view.sharedLabel}</p>}
-    </div>
-  )
-}
 
 function ResumeButton({ itemId, returnTo, onResume }: { itemId: string; returnTo: string; onResume?: (itemId: string) => void }) {
   if (onResume) {

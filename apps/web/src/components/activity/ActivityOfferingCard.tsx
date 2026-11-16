@@ -1,21 +1,19 @@
+import { useParticipationView } from '@/lib/useParticipationView'
+import { ParticipationLines } from './ActivityParticipationSummary'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Calendar,
   ChevronRight,
   Clock,
-  Flame,
   MapPin,
   Repeat,
 } from 'lucide-react'
 import {
-  useActivityParticipation,
   type components,
 } from '@project/sdk'
-import { Avatar } from '@/components/ui/Avatar'
 import { EntityHero } from '@/components/shared/EntityHero'
 import { dateLabel } from '@/lib/dates'
-import { buildProfileUrl } from '@/lib/urls'
 import type { Hero } from '@/lib/hero'
 import { cn } from '@/lib/utils'
 
@@ -39,22 +37,9 @@ export function ActivityOfferingCard({
   actions,
   className,
 }: ActivityOfferingCardProps) {
-  const participationQuery = useActivityParticipation(activity.id)
-  const participation = participationQuery.data
-
-  const nextGathering = participation?.shared?.nextGathering
-  const nextDateFormatted = nextGathering?.localDate
-    ? dateLabel(nextGathering.localDate)
-    : null
-
-  const attendeesCount =
-    participation?.shared?.going ||
-    (participation?.participants.count != null
-      ? participation.participants.count
-      : null)
-
-  const activeNow = participation?.shared?.activeNow ?? 0
-  const attendeeAvatars = participation?.avatars ?? []
+  const { view } = useParticipationView(activity.id)
+  const nextGathering = view.gathering
+  const nextDateFormatted = nextGathering?.localDate ? dateLabel(nextGathering.localDate) : null
 
   return (
     <article
@@ -92,12 +77,7 @@ export function ActivityOfferingCard({
                 <span>Recurring</span>
               </span>
             )}
-            {activeNow > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-950/85 px-2.5 py-1 text-xs font-semibold text-emerald-300 backdrop-blur-md shadow-xs">
-                <Flame size={12} aria-hidden />
-                <span>{activeNow} active now</span>
-              </span>
-            )}
+
           </div>
         </div>
 
@@ -180,40 +160,7 @@ export function ActivityOfferingCard({
 
             {/* Participants & Action Link */}
             <div className="flex items-center justify-between sm:justify-end gap-3 min-w-0">
-              {attendeesCount != null && attendeesCount > 0 ? (
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {attendeeAvatars.length > 0 && (
-                    <div className="flex items-center -space-x-1.5 shrink-0" aria-label="Recent attendees">
-                      {attendeeAvatars.slice(0, 4).map((user) => (
-                        <Link
-                          key={user.id}
-                          to={buildProfileUrl(user.handle)}
-                          aria-label={user.displayName || user.handle}
-                          title={user.displayName || user.handle}
-                          className="transition-transform hover:scale-110 hover:z-10"
-                        >
-                          <Avatar
-                            src={user.avatarUrl}
-                            name={user.displayName || user.handle}
-                            size="sm"
-                            className="h-7 w-7 ring-2 ring-surface text-xs"
-                          />
-                        </Link>
-                      ))}
-                      {attendeeAvatars.length > 4 && (
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-muted text-[10px] font-semibold text-muted ring-2 ring-surface">
-                          +{attendeeAvatars.length - 4}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <span className="text-xs font-semibold tabular-nums text-foreground truncate">
-                    {attendeesCount} {attendeesCount === 1 ? 'participant' : 'participants'}
-                  </span>
-                </div>
-              ) : (
-                <span className="text-xs text-muted">Be the first to join</span>
-              )}
+              <ParticipationLines view={view} compact />
 
               {href && (
                 <Link

@@ -1,3 +1,4 @@
+import { ActivityParticipationSummary } from './ActivityParticipationSummary'
 /**
  * Doing an Activity in place (03-UX §5, Calendar inline experience): Preview → Start/Resume →
  * Active (live timer, steps, media, metrics, people) → Complete → Next, on the canonical
@@ -22,12 +23,10 @@ import {
 import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { MetricInput } from '@/components/activity/MetricInput'
-import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { cn } from '@/lib/utils'
 import { useEnrollmentProgress } from '@/lib/useEnrollmentProgress'
 import { ENTRY_PHASE_LABEL, entryPhase, formatElapsed, metricKey, useActivitySession, useElapsedSeconds } from '@/lib/activitySession'
-import { summarizeCollaborators } from '@/lib/together'
 
 type S = components['schemas']
 
@@ -91,8 +90,6 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
     }, [hasDirty])
 
     const instructions = o.instructions?.length ? o.instructions : (activity.data?.instructions ?? [])
-    const together = summarizeCollaborators(o.collaborators)
-    const people = [...together.doingNow, ...together.waiting, ...together.finished].map((m) => m.user).slice(0, 5)
 
     const invalidate = () =>
       Promise.all(
@@ -218,24 +215,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
           </div>
         )}
 
-        {people.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="flex -space-x-2">
-              {people.map((person) => (
-                <button
-                  key={person.id}
-                  type="button"
-                  onClick={() => onOpenPerson?.(person.handle)}
-                  aria-label={person.displayName}
-                  className="rounded-full ring-2 ring-surface"
-                >
-                  <Avatar src={person.avatarUrl} name={person.displayName} size="sm" />
-                </button>
-              ))}
-            </div>
-            <span className="text-xs text-muted">{together.activityLabel}</span>
-          </div>
-        )}
+        {!o.item.locked && <ActivityParticipationSummary activityId={o.item.activityId} />}
 
         <ErrorMessage error={failure || undo.error} />
 

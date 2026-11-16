@@ -557,34 +557,8 @@ function PanelBody({
         {/* 4. Who takes part: one quiet line (status and schedule already show above, 03-UX §2b). */}
         {(activityId || collab) && (
           <div className="calendar-panel__people">
-            {collab && (
-              <p className="flex min-w-0 items-center gap-2 text-xs text-muted">
-                {collab.members.length > 0 && (
-                  <span className="flex shrink-0 -space-x-1.5" aria-hidden>
-                    {collab.members.slice(0, 4).map((m) => (
-                      <Avatar
-                        key={m.user.id}
-                        src={m.user.avatarUrl}
-                        name={m.user.displayName}
-                        size="sm"
-                        className="h-5 w-5 text-[9px] ring-2 ring-surface"
-                      />
-                    ))}
-                  </span>
-                )}
-                <span className="truncate">
-                  {summarizeCollaborators(collab).sessionLabel}
-                </span>
-                {groupId && (
-                  <Link to={occurrenceHref} className="ml-auto shrink-0 font-semibold text-accent hover:underline">
-                    Open session
-                  </Link>
-                )}
-              </p>
-            )}
-            {activityId && !collab && (
-              <ActivityParticipation activity={{ id: activityId, title }} variant="people" returnTo={occurrenceHref} />
-            )}
+            {activityId && <ActivityParticipation activity={{ id: activityId, title }} variant="summary" returnTo={occurrenceHref} />}
+            {collab && <Link to={occurrenceHref} className="ml-auto shrink-0 font-semibold text-accent hover:underline">Open session</Link>}
           </div>
         )}
 

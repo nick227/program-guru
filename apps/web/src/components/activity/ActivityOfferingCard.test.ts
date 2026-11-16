@@ -6,6 +6,7 @@ import { ActivityOfferingCard } from './ActivityOfferingCard'
 import type { components } from '@project/sdk'
 
 vi.mock('@project/sdk', () => ({
+  useCurrentUser: () => ({ data: null }),
   useActivityParticipation: (id: string) => ({
     data: id
       ? {
@@ -121,8 +122,9 @@ describe('ActivityOfferingCard', () => {
       hero: baseHero,
     })
 
-    expect(html).toContain('14 participants')
-    expect(html).toContain('2 active now')
-    expect(html).toContain('href="/@sarah"')
+    expect(html).toContain('18 participants')
+    expect(html).toContain('14 going')
+    expect(html).toContain('2 doing it now')
+    expect(html).toContain('Sarah Connor')
   })
 })
