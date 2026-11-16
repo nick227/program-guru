@@ -379,11 +379,6 @@ function PanelBody({
             <span>{title}</span>
             <ArrowUpRight size={15} className="calendar-panel__title-arrow" aria-hidden />
           </Link>
-          {preview.manageHref && (
-            <Link to={preview.manageHref} className="calendar-panel__manage">
-              Manage Activity
-            </Link>
-          )}
           {programTitle && (
             <div className="calendar-panel__program">
               <p className="calendar-panel__subtitle">

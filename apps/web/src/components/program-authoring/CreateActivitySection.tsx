@@ -87,14 +87,14 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
   return (
     <Panel className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-4">
       <details>
-      <summary className="flex cursor-pointer list-none items-center justify-between [&::-webkit-details-marker]:hidden pb-4">
+      <summary className="flex cursor-pointer list-none items-center justify-between">
   <h3 className="text-base font-bold text-foreground">
     New Activity
   </h3>
   <ChevronDown size={20} className="text-muted group-open:hidden" />
   <ChevronUp size={20} className="hidden text-muted group-open:block" />
 </summary>
-      <Stack className="gap-4">
+      <Stack className="gap-4 pt-4">
         <ErrorMessage error={create.error || add.error || mediaError} />
         <label className="space-y-1">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted">

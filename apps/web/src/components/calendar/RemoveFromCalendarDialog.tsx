@@ -54,11 +54,11 @@ export function RemoveFromCalendarDialog({
       >
         <div className="space-y-1">
           <h2 id="remove-from-calendar-title" className="font-display text-lg font-semibold">
-            Remove from Calendar?
+            Edit Calendar
           </h2>
           <p className="break-words text-sm text-foreground">
             <strong className="font-semibold">{target.title}</strong>
-            <span className="text-muted"> · {target.whenLabel}</span>
+            <br /><span className="text-muted">{target.whenLabel}</span>
           </p>
         </div>
 
@@ -83,11 +83,6 @@ export function RemoveFromCalendarDialog({
             ))}
           </div>
         )}
-
-        <p className="text-xs leading-relaxed text-muted">
-          The Activity stays in your library and isn&apos;t marked complete.
-          {target.inGathering ? ' This also leaves the gathering.' : ''}
-        </p>
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>

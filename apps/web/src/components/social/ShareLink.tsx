@@ -13,6 +13,7 @@ export interface ShareLinkFieldProps {
   inputLabel?: string
   copyLabel?: string
   className?: string
+  disabled?: boolean
 }
 
 /**
@@ -25,6 +26,7 @@ export function ShareLinkField({
   inputLabel = 'Share link',
   copyLabel = 'Copy link',
   className,
+  disabled = false,
 }: ShareLinkFieldProps) {
   const [copied, setCopied] = useState(false)
   const timerRef = useRef<number | null>(null)
@@ -36,6 +38,7 @@ export function ShareLinkField({
   }, [])
 
   const handleCopy = async () => {
+    if (disabled) return
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
@@ -50,6 +53,7 @@ export function ShareLinkField({
   const canShare =
     typeof navigator !== 'undefined' && typeof navigator.share === 'function'
   const handleNativeShare = async () => {
+    if (disabled) return
     try {
       await navigator.share({ title: shareTitle, url })
     } catch {
@@ -62,16 +66,21 @@ export function ShareLinkField({
       <div className="min-w-0 flex-1">
         <Input
           readOnly
+          disabled={disabled}
           value={url}
           aria-label={inputLabel}
-          className="h-11 sm:h-9 w-full font-mono text-base sm:text-xs select-all bg-surface-muted text-foreground"
-          onFocus={(e) => e.target.select()}
+          className={cn(
+            'h-11 sm:h-9 w-full font-mono text-base sm:text-xs select-all bg-surface-muted text-foreground',
+            disabled && 'opacity-60 cursor-not-allowed select-none bg-surface-muted/50',
+          )}
+          onFocus={(e) => !disabled && e.target.select()}
         />
       </div>
       <Button
         type="button"
         size="sm"
         variant="outline"
+        disabled={disabled}
         className="h-11 sm:h-9 shrink-0 gap-1.5 px-3.5 text-xs font-semibold"
         onClick={() => void handleCopy()}
       >
@@ -87,6 +96,7 @@ export function ShareLinkField({
           type="button"
           size="sm"
           variant="outline"
+          disabled={disabled}
           className="h-11 w-11 sm:h-9 sm:w-9 shrink-0 p-0 text-muted hover:text-foreground"
           aria-label="Share via device"
           onClick={() => void handleNativeShare()}

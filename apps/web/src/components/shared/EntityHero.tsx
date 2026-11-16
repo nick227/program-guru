@@ -9,11 +9,11 @@ import { CategoryIcon } from '@/components/shared/CategoryIcon'
 const SIZES = {
   /** list rows, rails */
   thumb: 'h-12 w-12 rounded-lg',
-  row: 'h-16 w-20 rounded-lg sm:w-24',
+  row: 'h-16 w-20 rounded-lg',
   /** browser and storefront cards */
   card: 'aspect-video w-full rounded-lg',
   /** compact Workspace/editor header */
-  header: 'h-20 w-20 rounded-xl sm:h-24 sm:w-24',
+  header: 'h-20 w-20 rounded-xl sm:h-24',
   /** Program storefront */
   banner: 'aspect-[2/1] w-full rounded-xl',
 } as const
@@ -65,7 +65,7 @@ export function EntityHero({
       data-hero-category={hero.category}
       data-hero-fallback={showImage ? undefined : 'true'}
       className={cn(
-        'relative isolate flex shrink-0 items-center justify-center overflow-hidden',
+        'relative isolate flex shrink-0 items-center min-w-[120px] justify-center overflow-hidden',
         SIZES[size],
         className,
       )}

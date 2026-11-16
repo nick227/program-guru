@@ -18,7 +18,7 @@ export function HomeTopBar({ onReset, showReset }: HomeTopBarProps) {
 
   return (
     <header className="sticky top-0 z-30 w-full border-b border-border/30 bg-surface/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto flex h-14 w-full max-w-md sm:max-w-2xl lg:max-w-4xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
+      <div className="mx-auto flex h-14 w-full page--wide items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
         <Link
           to="/"
           onClick={() => {

@@ -162,27 +162,8 @@ export function HomeAgentSection({
     return (
       <section
         aria-labelledby="home-agent-title"
-        className="rounded-2xl border border-border/60 bg-surface p-4 sm:p-6"
+        className="p-4 sm:p-6"
       >
-        <div className="flex w-full items-center justify-between gap-4 border-b border-border/40 pb-3 mb-4">
-          <div className="flex min-w-0 items-baseline gap-2.5">
-            <h2 id="home-agent-title" className="truncate font-display text-sm sm:text-base font-semibold text-foreground">
-              {turn.question}
-            </h2>
-            {turn.contextLine && (
-              <p className="hidden truncate text-xs text-muted sm:inline">
-                {turn.contextLine}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClosePreview}
-            className="shrink-0 rounded-full border border-border/70 px-3 py-1 text-xs font-medium text-muted transition hover:border-border hover:text-foreground"
-          >
-            Back
-          </button>
-        </div>
         <div className="flex w-full flex-col">
           <InlinePreview
             target={previewTarget}
@@ -247,53 +228,13 @@ export function HomeAgentSection({
   return (
     <section
       aria-labelledby="home-agent-title"
-      className="rounded-2xl border border-border/60 bg-surface-raised/40 p-4 sm:p-6 transition-all"
+      className="transition-all"
     >
-      {/* Header bar of expanded agent */}
-      <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-3 mb-5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10 text-accent">
-            <Sparkles size={15} aria-hidden />
-          </div>
-          <div>
-            <h2
-              id="home-agent-title"
-              className="font-display text-sm sm:text-base font-semibold text-foreground"
-            >
-              Home Agent
-            </h2>
-            <p className="text-xs text-muted">Focused assistance</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {showReset && (
-            <button
-              type="button"
-              onClick={onReset}
-              aria-label="Start over"
-              title="Start over"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/70 text-muted transition hover:border-accent hover:text-foreground text-xs"
-            >
-              <RotateCcw size={14} aria-hidden />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onToggleExpanded}
-            title="Minimize"
-            className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-surface px-2.5 py-1 text-xs font-medium text-muted transition hover:border-border hover:text-foreground"
-          >
-            <span>Minimize</span>
-            <ChevronUp size={14} aria-hidden />
-          </button>
-        </div>
-      </div>
 
       {/* Main turn content */}
       <div
         key={`${turn.nodeId}:${turn.card?.id ?? ''}`}
-        className="mx-auto flex w-full max-w-lg flex-col items-center gap-4 text-center animate-in fade-in duration-200"
+        className="mx-auto min-h-[90vh] flex w-full max-w-lg justify-center flex-col items-center gap-4 text-center animate-in fade-in duration-200"
       >
         {memoryChips.length > 0 && turn.nodeId !== 'opening' && (
           <div className="flex flex-wrap items-center justify-center gap-1.5">

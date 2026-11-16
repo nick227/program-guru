@@ -44,14 +44,14 @@ export function ProgramWorkspacePage() {
         {/* Navigation header: Back + View Program Link */}
         <WorkspaceHeader ws={ws} panelParam={panelParam} />
 
-        {/* Title header with autosave & version CAS across all tabs */}
-        <TitleEditor key={ws.id} ws={ws} />
-
         {/* Persistent 3-step stepper */}
         <ProgramStepper
           currentStep={currentStep}
           onSelectStep={setStep}
         />
+
+        {/* Title header with autosave & version CAS across all tabs */}
+        <TitleEditor key={ws.id} ws={ws} />
 
         <ErrorMessage error={workspace.error} />
 

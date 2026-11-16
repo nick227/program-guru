@@ -134,6 +134,8 @@ export function ProgramCreateForm({
 
   return (
     <>
+    <ProgramStepper currentStep="details" onSelectStep={() => {}} disabled />
+      
     <ProgramHeader
       title={title}
       onTitleChange={typeId ? setTitle : undefined}
@@ -142,7 +144,6 @@ export function ProgramCreateForm({
       label={type?.label}
       onConfirm={() => void continueToWorkspace()}
     />
-    <ProgramStepper currentStep="details" onSelectStep={() => {}} disabled />
 
     <ErrorMessage
       error={error}
@@ -206,7 +207,7 @@ export function ProgramCreateForm({
           />
         </label>
 
-        <div className="add-program mb-8">
+        <div className="add-program mb-8 w-full flex items-center justify-end">
           <Button
             size="lg"
             className="h-11 px-8 font-semibold rounded-lg"

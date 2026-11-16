@@ -26,21 +26,6 @@ export function TitleEditor({ ws }: { ws: Workspace }) {
         title={draft.value}
         onTitleChange={draft.setValue}
       />
-      <p role="status" className="text-xs text-muted">
-        {draft.pending
-          ? 'Saving…'
-          : !online && draft.dirty
-            ? 'Offline · changes have not been saved'
-            : draft.error
-              ? 'Not saved'
-              : !draft.value.trim()
-                ? 'Enter a title to save'
-                : draft.dirty
-                  ? online
-                    ? 'Unsaved changes'
-                    : 'Offline · changes have not been saved'
-                  : 'Saved'}
-      </p>
       <ErrorMessage
         error={draft.error}
         retry={conflict ? undefined : draft.retry}

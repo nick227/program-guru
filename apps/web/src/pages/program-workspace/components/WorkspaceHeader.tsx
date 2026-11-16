@@ -19,13 +19,6 @@ export function WorkspaceHeader({
       <Back to={panelParam ? base : '/library'}>
         {panelParam ? 'Workspace' : 'My Programs'}
       </Back>
-      <Link
-        to={buildProgramUrl({ id: ws.id, title: ws.title })}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:opacity-90"
-      >
-        <ExternalLink size={13} />
-        <span>View Program Page</span>
-      </Link>
     </Row>
   )
 }

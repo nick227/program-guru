@@ -11,7 +11,7 @@ export const PROGRAM_STEPS: {
 }[] = [
   { id: 'details', number: 1, label: 'Details', shortLabel: 'Details' },
   { id: 'activities', number: 2, label: 'Activities', shortLabel: 'Activities' },
-  { id: 'publish', number: 3, label: 'Publish & Share', shortLabel: 'Publish' },
+  { id: 'publish', number: 3, label: 'Publish', shortLabel: 'Publish' },
 ]
 
 export function ProgramStepper({

@@ -832,7 +832,7 @@ export function HomePage() {
 
       <main
         id="main"
-        className="mx-auto flex w-full max-w-md sm:max-w-2xl lg:max-w-4xl flex-1 flex-col px-4 sm:px-6 pt-3 sm:pt-6 pb-24 sm:pb-12 space-y-7 sm:space-y-8"
+        className="mx-auto flex w-full page--wide flex-1 flex-col px-4 sm:px-6 pt-3 sm:pt-6 pb-24 sm:pb-12 space-y-7 sm:space-y-8"
       >
         {building ? (
           <InlineProgramBuilder
@@ -846,26 +846,6 @@ export function HomePage() {
           />
         ) : (
           <>
-            {/* ── Hero / Introduction ────────────────────────────── */}
-            <section className="relative overflow-hidden pt-2 pb-1">
-              <div className="relative z-10 max-w-[62%] sm:max-w-[65%]">
-                <h1 className="font-display text-[30px] sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground leading-[1.12]">
-                  Find something<br />
-                  worth doing.
-                </h1>
-                <p className="mt-2.5 text-xs sm:text-sm text-muted leading-relaxed max-w-[280px] sm:max-w-md">
-                  Discover activities, join people doing them, or follow programs to make progress over time.
-                </p>
-              </div>
-              <div className="absolute top-0 right-0 h-full w-[46%] pointer-events-none overflow-hidden rounded-2xl">
-                <img
-                  src="/assets/hero-outdoor.jpg"
-                  alt="Hikers exploring mountain trails"
-                  className="h-full w-full object-cover object-[70%_25%]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/40 to-transparent" />
-              </div>
-            </section>
 
             {/* ── Inline Progressive Home Agent ──────────────────── */}
             <HomeAgentSection
@@ -914,24 +894,10 @@ export function HomePage() {
 
             {/* ── "For you" Section ──────────────────────────────── */}
             <section aria-labelledby="for-you-heading" className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2
-                  id="for-you-heading"
-                  className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground"
-                >
-                  For you
-                </h2>
-                <Link
-                  to="/browse?kind=activities"
-                  className="inline-flex items-center gap-0.5 text-xs sm:text-sm font-semibold text-accent hover:underline"
-                >
-                  <span>See all</span>
-                  <ChevronRight size={14} aria-hidden />
-                </Link>
-              </div>
 
-              <article className="group relative flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 sm:gap-4 rounded-3xl border border-border/50 bg-surface p-3.5 sm:p-4 shadow-xs transition-all hover:border-accent/40 hover:shadow-sm">
-                <div className="relative aspect-[4/3] w-full sm:w-44 shrink-0 overflow-hidden rounded-2xl bg-surface-muted">
+              <article className="group relative grid grid-cols-4 items-stretch sm:items-center gap-3.5 sm:gap-4 bg-surface p-3.5 sm:p-4 shadow-xs transition-all">
+                <div className="flex flex-col sm:flex-row items-stretch gap-3 bg-surface p-2 border border-border/40">
+                  <div className="relative aspect-[4/3] w-full sm:w-44 shrink-0 overflow-hidden rounded-2xl bg-surface-muted">
                   <Link to={forYouItem.href} className="block h-full w-full">
                     <img
                       src={forYouItem.imageSrc}
@@ -988,28 +954,14 @@ export function HomePage() {
                     </div>
                   </div>
                 </div>
+                </div>
               </article>
             </section>
 
             {/* ── "Explore activities" Section ────────────────────── */}
             <section aria-labelledby="activities-heading" className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2
-                  id="activities-heading"
-                  className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground"
-                >
-                  Explore activities
-                </h2>
-                <Link
-                  to="/browse?kind=activities"
-                  className="inline-flex items-center gap-0.5 text-xs sm:text-sm font-semibold text-accent hover:underline"
-                >
-                  <span>See all</span>
-                  <ChevronRight size={14} aria-hidden />
-                </Link>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-4 gap-3 sm:gap-4">
                 <Link
                   to="/browse?kind=activities"
                   className="group flex flex-col overflow-hidden rounded-2xl border border-border/40 bg-surface p-2.5 sm:p-3 transition-all hover:border-accent/40 hover:shadow-xs"
@@ -1074,7 +1026,7 @@ export function HomePage() {
 
               <Link
                 to={programItem.href}
-                className="group flex items-center justify-between gap-3.5 sm:gap-4 rounded-3xl border border-border/50 bg-surface p-3.5 sm:p-4 shadow-xs transition-all hover:border-accent/40 hover:shadow-sm"
+                className="group flex items-center justify-between gap-3.5 sm:gap-4 bg-surface p-3.5 sm:p-4 shadow-xs transition-all"
               >
                 <div className="relative aspect-[4/3] w-24 sm:w-32 shrink-0 overflow-hidden rounded-2xl bg-surface-muted">
                   <img
