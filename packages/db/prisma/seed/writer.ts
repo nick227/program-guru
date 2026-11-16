@@ -49,6 +49,22 @@ async function upsertPlatformPhoto(prisma: PrismaClient, key: string, photo: Pla
   return id
 }
 
+/** Locations retain identity and owner edits across every deployment/bootstrap. */
+export async function seedPlaces(prisma: PrismaClient = db) {
+  const placeBySlug = new Map<string, string>()
+  for (const place of STARTER_PLACES) {
+    const { slug, ...fields } = place
+    const row = await prisma.place.upsert({
+      where: { slug },
+      create: { id: deterministicUuid(`place:${slug}`), slug, ...fields },
+      // A seed is an initial directory entry, not authority over later business edits.
+      update: {},
+    })
+    placeBySlug.set(slug, row.id)
+  }
+  return placeBySlug
+}
+
 export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: PlatformMediaSink } = {}) {
   assertValidSeedPack()
 
@@ -231,17 +247,8 @@ export async function seedDatabase(prisma: PrismaClient = db, opts: { sink?: Pla
     })
   }
 
-  // 6a. Platform-curated Places (08 §2a): upserted by slug; never deleted, so scheduled items keep theirs.
-  const placeBySlug = new Map<string, string>()
-  for (const place of STARTER_PLACES) {
-    const { slug, ...fields } = place
-    const row = await prisma.place.upsert({
-      where: { slug },
-      create: { id: deterministicUuid(`place:${slug}`), slug, ...fields },
-      update: fields,
-    })
-    placeBySlug.set(slug, row.id)
-  }
+  // Add missing directory entries without overwriting user/business edits or deactivations.
+  const placeBySlug = await seedPlaces(prisma)
 
   // 7. Curated Seeded Activities with rights-cleared MediaAssets, Revisions, Instructions, Metrics, and Tools
   const activityBySlug = new Map<string, { activityId: string; revisionId: string }>()

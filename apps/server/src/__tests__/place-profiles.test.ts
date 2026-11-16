@@ -1,3 +1,4 @@
+import { seedPlaces } from '../../../../packages/db/prisma/seed/writer'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '@project/db'
 import { asAuth, buildTestApp, rootAdminId, seedUser, testOtherUserId, testUserId, validateResponse } from './helpers'
@@ -117,6 +118,16 @@ describe('location directory and profile associations', () => {
     await db.userProfile.delete({ where: { userId: testUserId } })
     const retained = await db.place.findUniqueOrThrow({ where: { id: p.id } })
     expect(retained.businessProfileUserId).toBeNull(); expect(retained.name).toBe('Alice Studio')
+  })
+
+  it('deployment bootstrap preserves edited/deactivated seeded locations after a business is unlinked', async () => {
+    const ids = await seedPlaces(db)
+    const id = [...ids.values()][0]!
+    await db.place.update({ where: { id }, data: { name: 'Owner corrected name', addressLine: '999 Corrected Road', isActive: false, businessProfileUserId: testUserId } })
+    await db.place.update({ where: { id }, data: { businessProfileUserId: null } })
+    await seedPlaces(db)
+    expect(await db.place.findUniqueOrThrow({ where: { id } })).toMatchObject({ name: 'Owner corrected name', addressLine: '999 Corrected Road', isActive: false, businessProfileUserId: null })
+    expect(await db.place.count()).toBe(ids.size)
   })
 
   it('search pages public results without leaking private matches and rejects unsafe websites and blank names', async () => {
