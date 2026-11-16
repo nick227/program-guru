@@ -1,7 +1,7 @@
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { formatTargetTime } from '@/lib/targetTime'
 import { usePwaReloadBlocker } from '@/lib/pwaSafety'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Link,
   useBeforeUnload,
@@ -11,13 +11,10 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import {
-  useCreateSession,
   useCurrentUser,
   useAttachSessionMedia,
   getOrCreateSessionResultEntry,
   useOccurrence,
-  useSaveResults,
-  useSessionAction,
   useUndoCompletion,
   useActivity,
   type components,
@@ -60,21 +57,9 @@ import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { cn } from '@/lib/utils'
+import { formatElapsed, metricKey, useActivitySession, useElapsedSeconds } from '@/lib/activitySession'
 
 type S = components['schemas']
-
-const metricKey = (m: S['MetricInput']) =>
-  `${m.instructionId ?? ''}:${m.metricDefinitionId}`
-
-function formatElapsed(totalSeconds: number) {
-  const seconds = Math.max(0, Math.floor(totalSeconds))
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const remainder = seconds % 60
-  if (hours) return `${hours}h ${minutes}m`
-  if (minutes) return `${minutes}m ${remainder}s`
-  return `${remainder}s`
-}
 
 export function OccurrencePage() {
   const { id = '' } = useParams()
@@ -146,25 +131,17 @@ function OccurrenceContent({
 }) {
   const [params] = useSearchParams()
   const online = useOnline()
-  const create = useCreateSession(o.item.id)
-  const action = useSessionAction(o.item.id)
-  const save = useSaveResults(o.item.id)
+  // Session behavior is the shared controller (lib/activitySession); this page adds its layout,
+  // per-button progress, toasts, media and leave-page protection.
+  const controller = useActivitySession(o)
+  const { session, resultInputs, dirty, unsaved, busy, failure, getSession, exclusive } = controller
   const undo = useUndoCompletion()
   const attach = useAttachSessionMedia()
   const me = useCurrentUser()
   const activity = useActivity(o.item.locked ? '' : o.item.activityId)
 
-  const [dirty, setDirty] = useState<Record<string, string | number | boolean>>(
-    {},
-  )
-  const [busy, setBusy] = useState(false)
   const [pendingButton, setPendingButton] = useState<PendingButton>(null)
-  const [failure, setFailure] = useState<unknown>(null)
-  const working = useRef(false)
-  const createKey = useRef(crypto.randomUUID())
-  const created = useRef<S['ActivitySession'] | null>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
-  const unsaved = Object.keys(dirty).length > 0
 
   usePwaReloadBlocker(unsaved || busy)
   const blocker = useBlocker(() => unsaved || busy)
@@ -175,131 +152,40 @@ function OccurrenceContent({
     }
   })
 
-  const session = o.session
   const status = session?.status ?? 'READY'
   const disabled = busy || !online
-  const resultInputs = o.resultInputs.filter(
-    (metric) => metric.valueType !== 'DURATION',
-  )
 
-  async function getSession() {
-    if (session && !['FINISHED', 'ABANDONED'].includes(session.status))
-      return session
-    if (created.current && created.current.id !== session?.id)
-      return created.current
-    const next = await create.mutateAsync({
-      calendarItemId: o.item.id,
-      idempotencyKey: createKey.current,
-    })
-    created.current = next
-    return next
-  }
+  /** Media goes to the current attempt (an unstarted one is created if needed). */
+  const mediaSession = () => (o.session && o.session.status !== 'ABANDONED' ? Promise.resolve(o.session) : getSession())
 
-  /** Personal media goes to the current attempt, creating an unstarted one if needed. */
   async function attachToSession(mediaId: string) {
     if (!online) throw new Error('Connect to attach media.')
-    if (working.current) throw new Error('Wait for the current save to finish.')
-    working.current = true
-    setBusy(true)
-    try {
-      const current =
-        o.session && o.session.status !== 'ABANDONED'
-          ? o.session
-          : await getSession()
+    await exclusive(async () => {
+      const current = await mediaSession()
       await attach.mutateAsync({ mediaId, sessionId: current.id })
-    } finally {
-      working.current = false
-      setBusy(false)
-    }
+    }, { throwIfBusy: true })
   }
 
   async function prepareMediaUpload(): Promise<S['AttachmentTarget']> {
     if (!online) throw new Error('Connect to upload media.')
-    if (working.current) throw new Error('Wait for the current save to finish.')
-    working.current = true
-    setBusy(true)
-    try {
-      const current =
-        o.session && o.session.status !== 'ABANDONED'
-          ? o.session
-          : await getSession()
-      return {
-        kind: 'RESULT_ENTRY',
-        id: await getOrCreateSessionResultEntry(current.id),
-      }
-    } finally {
-      working.current = false
-      setBusy(false)
-    }
+    const target = await exclusive(async () => {
+      const current = await mediaSession()
+      return { kind: 'RESULT_ENTRY' as const, id: await getOrCreateSessionResultEntry(current.id) }
+    }, { throwIfBusy: true })
+    return target!
   }
 
-  async function perform(
-    nextAction?: S['SessionAction'],
-    button: PendingButton = null,
-  ) {
-    if (working.current) return
-    working.current = true
-    setBusy(true)
+  async function perform(nextAction?: S['SessionAction'], button: PendingButton = null) {
+    if (busy) return
     setPendingButton(button)
-    setFailure(null)
-    try {
-      const current = await getSession()
-      // Only user-entered values are written. Targets never become recorded results implicitly.
-      const groups = new Map<string, S['MetricInput'][]>()
-      for (const m of resultInputs)
-        if (dirty[metricKey(m)] !== undefined) {
-          const k = m.instructionId ?? ''
-          groups.set(k, [...(groups.get(k) ?? []), m])
-        }
-      for (const [instructionId, metrics] of groups) {
-        await save.mutateAsync({
-          sessionId: current.id,
-          instructionId: instructionId || null,
-          values: metrics.map((m) => ({
-            metricDefinitionId: m.metricDefinitionId,
-            value: dirty[metricKey(m)]!,
-            ...(m.unit ? { unit: m.unit } : {}),
-          })),
-        })
-        setDirty((prev) => {
-          const copy = { ...prev }
-          metrics.forEach((m) => delete copy[metricKey(m)])
-          return copy
-        })
-      }
-      if (nextAction) {
-        await action.mutateAsync({
-          sessionId: current.id,
-          action: nextAction,
-          expectedRevision: current.revision,
-        })
-        if (nextAction === 'FINISH') {
-          createKey.current = crypto.randomUUID()
-          created.current = null
-          toast.success('Activity finished')
-        }
-      } else toast.success('Results saved')
-    } catch (error) {
-      setFailure(error)
-    } finally {
-      working.current = false
-      setBusy(false)
-      setPendingButton(null)
-    }
+    const ok = await controller.perform(nextAction)
+    setPendingButton(null)
+    if (!ok) return
+    if (nextAction === 'FINISH') toast.success('Activity finished')
+    else if (!nextAction) toast.success('Results saved')
   }
 
-  function handleMetricChange(metric: S['MetricInput'], val: string | number | boolean) {
-    const key = metricKey(metric)
-    setDirty((prev) => {
-      const next = { ...prev }
-      if (val === '' && metric.valueType !== 'TEXT') {
-        delete next[key]
-      } else {
-        next[key] = val
-      }
-      return next
-    })
-  }
+  const handleMetricChange = controller.setMetric
 
   function triggerMediaUpload() {
     const input = uploadInputRef.current
@@ -482,20 +368,7 @@ const PHASE_LABEL: Record<Phase, string> = {
 }
 
 function SessionElapsed({ session }: { session: S['ActivitySession'] }) {
-  const [seconds, setSeconds] = useState(session.activeSeconds)
-  useEffect(() => {
-    setSeconds(session.activeSeconds)
-    if (session.status !== 'ACTIVE') return
-    const receivedAt = Date.now()
-    const timer = window.setInterval(
-      () =>
-        setSeconds(
-          session.activeSeconds + Math.floor((Date.now() - receivedAt) / 1000),
-        ),
-      1000,
-    )
-    return () => window.clearInterval(timer)
-  }, [session.id, session.status, session.activeSeconds, session.revision])
+  const seconds = useElapsedSeconds(session)
   return (
     <p className="activity-timer">
       <span>{session.status === 'PAUSED' ? 'Paused' : 'Active time'}</span>

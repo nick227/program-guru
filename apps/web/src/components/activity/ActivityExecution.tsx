@@ -15,10 +15,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   useActivity,
-  useCreateSession,
   useOccurrence,
-  useSaveResults,
-  useSessionAction,
   useUndoCompletion,
   type components,
 } from '@project/sdk'
@@ -29,6 +26,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { cn } from '@/lib/utils'
 import { useEnrollmentProgress } from '@/lib/useEnrollmentProgress'
+import { formatElapsed, metricKey, useActivitySession, useElapsedSeconds } from '@/lib/activitySession'
 
 type S = components['schemas']
 
@@ -56,63 +54,30 @@ export type ActivityExecutionProps = {
   className?: string
 }
 
-const metricKey = (m: S['MetricInput']) => `${m.instructionId ?? ''}:${m.metricDefinitionId}`
-
-export function formatElapsed(totalSeconds: number) {
-  const seconds = Math.max(0, Math.floor(totalSeconds))
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const remainder = seconds % 60
-  if (hours) return `${hours}h ${minutes}m`
-  if (minutes) return `${minutes}m ${remainder}s`
-  return `${remainder}s`
-}
-
 const primaryBtn =
   'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-105 disabled:opacity-50'
 const secondaryBtn =
   'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-raised px-4 py-2 text-sm font-medium transition hover:bg-surface-muted disabled:opacity-50'
 
-type Dirty = Record<string, string | number | boolean>
-
 const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occurrence: S['ActivityOccurrence'] }>(
   function Body({ occurrence: o, autoStart, onClose, onCompleted, onNext, nextLabel, onOpenFullPage, onOpenPerson, layout = 'panel', className }, ref) {
     const queryClient = useQueryClient()
-    const create = useCreateSession(o.item.id)
-    const action = useSessionAction(o.item.id)
-    const save = useSaveResults(o.item.id)
+    // Session behavior is the shared controller (lib/activitySession), same as the Occurrence page.
+    const controller = useActivitySession(o)
+    const { session, resultInputs, busy, failure, setFailure } = controller
+    const hasDirty = controller.unsaved
     const undo = useUndoCompletion()
     const activity = useActivity(o.item.locked ? '' : o.item.activityId)
 
-    const [dirty, setDirty] = useState<Dirty>({})
-    const [busy, setBusy] = useState(false)
-    const [failure, setFailure] = useState<unknown>(null)
     const [confirmingClose, setConfirmingClose] = useState(false)
     const [step, setStep] = useState(0)
     const progress = useEnrollmentProgress(o.item.enrollmentId)
-    const working = useRef(false)
-    const createKey = useRef(crypto.randomUUID())
-    const created = useRef<S['ActivitySession'] | null>(null)
     const autoStarted = useRef(false)
 
-    const session = o.session
     const status = session?.status ?? 'READY'
     const itemDone = o.item.status === 'DONE'
     const phase = status === 'ACTIVE' ? 'active' : status === 'PAUSED' ? 'paused' : itemDone ? 'completed' : 'ready'
-    const hasDirty = Object.keys(dirty).length > 0
-
-    const [nowMs, setNowMs] = useState(() => Date.now())
-    useEffect(() => {
-      if (phase !== 'active') return
-      const timer = window.setInterval(() => setNowMs(Date.now()), 1000)
-      return () => window.clearInterval(timer)
-    }, [phase])
-    const elapsed = session
-      ? session.activeSeconds +
-        (session.status === 'ACTIVE' && session.startedAt
-          ? Math.max(0, Math.floor((nowMs - new Date(session.startedAt).getTime()) / 1000))
-          : 0)
-      : 0
+    const elapsed = useElapsedSeconds(session)
 
     // Leaving the page with unsaved results asks the browser to confirm too.
     useEffect(() => {
@@ -124,7 +89,6 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
       return () => window.removeEventListener('beforeunload', onBeforeUnload)
     }, [hasDirty])
 
-    const resultInputs = o.resultInputs.filter((m) => m.valueType !== 'DURATION')
     const instructions = o.instructions?.length ? o.instructions : (activity.data?.instructions ?? [])
     const members = o.collaborators?.members ?? []
     const activeNow = members.filter((m) => m.status === 'IN_PROGRESS').map((m) => m.user)
@@ -137,62 +101,16 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
         [['calendar'], ['programs'], ['enrollments'], ['occurrences']].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
       )
 
-    async function getSession() {
-      if (session && !['FINISHED', 'ABANDONED'].includes(session.status)) return session
-      if (created.current && created.current.id !== session?.id) return created.current
-      const next = await create.mutateAsync({ calendarItemId: o.item.id, idempotencyKey: createKey.current })
-      created.current = next
-      return next
-    }
-
-    async function saveDirty(current: S['ActivitySession']) {
-      const groups = new Map<string, S['MetricInput'][]>()
-      for (const m of resultInputs) {
-        if (dirty[metricKey(m)] !== undefined) {
-          const k = m.instructionId ?? ''
-          groups.set(k, [...(groups.get(k) ?? []), m])
-        }
-      }
-      for (const [instructionId, metrics] of groups) {
-        await save.mutateAsync({
-          sessionId: current.id,
-          instructionId: instructionId || null,
-          values: metrics.map((m) => ({ metricDefinitionId: m.metricDefinitionId, value: dirty[metricKey(m)]!, ...(m.unit ? { unit: m.unit } : {}) })),
-        })
-        setDirty((prev) => {
-          const copy = { ...prev }
-          metrics.forEach((m) => delete copy[metricKey(m)])
-          return copy
-        })
-      }
-    }
-
+    /** The controller's perform, plus this surface's toast, completion callback and refresh. */
     async function perform(nextAction?: S['SessionAction']) {
-      if (working.current) return false
-      working.current = true
-      setBusy(true)
-      setFailure(null)
-      try {
-        const current = await getSession()
-        await saveDirty(current)
-        if (nextAction) {
-          await action.mutateAsync({ sessionId: current.id, action: nextAction, expectedRevision: current.revision })
-          if (nextAction === 'FINISH') {
-            createKey.current = crypto.randomUUID()
-            created.current = null
-            toast.success('Activity completed')
-            onCompleted?.(o.item.title)
-          }
-        }
-        await invalidate()
-        return true
-      } catch (error) {
-        setFailure(error)
-        return false
-      } finally {
-        working.current = false
-        setBusy(false)
+      const ok = await controller.perform(nextAction)
+      if (!ok) return false
+      if (nextAction === 'FINISH') {
+        toast.success('Activity completed')
+        onCompleted?.(o.item.title)
       }
+      await invalidate()
+      return true
     }
 
     // Start right away when the host's Start opened this (Preview → Start without a second tap).
@@ -220,15 +138,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
       }
     }
 
-    const setMetric = (metric: S['MetricInput'], val: string | number | boolean) => {
-      const key = metricKey(metric)
-      setDirty((prev) => {
-        const next = { ...prev }
-        if (val === '' && metric.valueType !== 'TEXT') delete next[key]
-        else next[key] = val
-        return next
-      })
-    }
+    const setMetric = controller.setMetric
 
     const programLine = o.item.programTitle
       ? `${o.item.programTitle}${o.item.programDayIndex != null ? ` · Day ${o.item.programDayIndex + 1}` : ''}`
@@ -276,7 +186,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
                 type="button"
                 className={secondaryBtn}
                 onClick={() => {
-                  setDirty({})
+                  controller.discard()
                   setConfirmingClose(false)
                   onClose()
                 }}
@@ -387,7 +297,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
                 <MetricInput
                   key={key}
                   metric={metric}
-                  value={dirty[key] !== undefined ? dirty[key] : (metric.recorded ?? null)}
+                  value={controller.valueOf(metric)}
                   disabled={busy}
                   onChange={(v) => setMetric(metric, v)}
                 />
