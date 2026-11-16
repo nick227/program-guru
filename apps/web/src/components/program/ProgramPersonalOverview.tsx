@@ -5,6 +5,7 @@ import { StatusText, libraryStatusTone, type ParticipationStatus } from '@/compo
 import { dateLabel } from '@/lib/dates'
 import { buildOccurrenceUrl } from '@/lib/urls'
 import type { PersonalProgram } from '@/lib/programLibrary'
+import { runProgress } from '@/lib/useEnrollmentProgress'
 
 type Run = PersonalProgram['runs'][number]
 
@@ -54,10 +55,7 @@ export function ProgramPersonalOverview({
   const r = selectedRun
   const statusTone = entry ? libraryStatusTone(entry.status) : enrolledStatus.status
   const statusLabel = entry ? entry.status : enrolledStatus.label
-  const completionPercent =
-    r?.planned && r.planned > 0
-      ? Math.min(100, Math.round((r.completed / r.planned) * 100))
-      : 0
+  const completionPercent = runProgress(r)?.percent ?? 0
 
   const nextUpcoming = r?.upcoming?.[0]
 

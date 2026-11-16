@@ -205,7 +205,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
         <div className="activity-exec__title">
           <h2 className={cn('font-display font-semibold tracking-tight', layout === 'stage' ? 'text-2xl' : 'text-xl')}>{o.item.title}</h2>
           <p className="text-sm text-muted">
-            {[o.item.durationMinutes ? `${o.item.durationMinutes} min` : null, programLine, progress ? `${progress.completed} of ${progress.planned} done` : null]
+            {[o.item.durationMinutes ? `${o.item.durationMinutes} min` : null, programLine, progress?.label]
               .filter(Boolean)
               .join(' · ')}
           </p>

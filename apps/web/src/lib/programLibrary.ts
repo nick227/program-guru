@@ -1,4 +1,5 @@
 import type { components } from '@project/sdk'
+import { runProgress } from './useEnrollmentProgress'
 export type PersonalProgram = components['schemas']['PersonalProgram']
 export const statuses = [
   'All',
@@ -28,10 +29,8 @@ export function selectPrograms(
       if (sort === 'name') return a.program.title.localeCompare(b.program.title)
       if (sort === 'progress')
         return (
-          (b.current?.planned ? b.current.completed / b.current.planned : -1) -
-            (a.current?.planned
-              ? a.current.completed / a.current.planned
-              : -1) || a.program.title.localeCompare(b.program.title)
+          (runProgress(b.current)?.ratio ?? -1) - (runProgress(a.current)?.ratio ?? -1) ||
+          a.program.title.localeCompare(b.program.title)
         )
       return (
         (b.current?.lastParticipation ?? '').localeCompare(

@@ -17,6 +17,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { gatheringWhen } from '@/lib/gatheringLabels'
 import { programHero } from '@/lib/hero'
 import { useActivityPreview } from '@/lib/activityPreview'
+import { runProgress } from '@/lib/useEnrollmentProgress'
 import { dateLabel } from '@/lib/dates'
 import { formatTargetTime } from '@/lib/targetTime'
 import { buildOccurrenceUrl } from '@/lib/urls'
@@ -244,10 +245,10 @@ function ProgramPreviewBody({
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="font-semibold">{completed ? 'Completed' : status === 'Paused' ? 'Paused' : `Week ${run.week}`}</span>
               <span className="text-xs text-muted tabular-nums">
-                {run.planned ? `${run.completed} of ${run.planned} done` : 'Nothing scheduled yet'}
+                {runProgress(run)?.label ?? 'Nothing scheduled yet'}
               </span>
             </div>
-            {run.planned > 0 && (
+            {runProgress(run) && (
               <div
                 className="h-2 w-full overflow-hidden rounded-full bg-surface-muted"
                 role="progressbar"
@@ -256,7 +257,7 @@ function ProgramPreviewBody({
                 aria-valuemax={run.planned}
                 aria-valuenow={run.completed}
               >
-                <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round((run.completed / run.planned) * 100)}%` }} />
+                <div className="h-full rounded-full bg-accent" style={{ width: `${runProgress(run)!.percent}%` }} />
               </div>
             )}
             {enrolled && run.upcoming.length > 0 && (
