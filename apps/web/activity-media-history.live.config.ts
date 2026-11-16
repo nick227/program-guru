@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
-// Live specs needing only a running local API (HISTORY_TEST_API): Activity history, account switch, and
-// the author → publish → join → Finish/Undo journey. Run them with scripts/history-live.ts, which provides
+// Live specs needing only a running local API (HISTORY_TEST_API): Activity history, account switch,
+// the author → publish → join → Finish/Undo journey, and Calendar direct scheduling. Run them with scripts/history-live.ts, which provides
 // an isolated API and worker on a dedicated database.
 //
 // Each spec is its own client: a distinct X-Real-IP per project, which the runner's API trusts from
@@ -19,6 +19,9 @@ export default defineConfig({
     { name: 'history-live', testMatch: 'activity-media-history.live.ts', use: client('198.51.100.11') },
     { name: 'account-switch-live', testMatch: 'account-switch.live.ts', use: client('198.51.100.12') },
     { name: 'journey-live', testMatch: 'live.spec.ts', use: client('198.51.100.13') },
+    // Calendar direct scheduling (03-UX §5): mouse on a tall desktop (whole Month grid in view), touch on phone and tablet.
+    { name: 'calendar-live', testMatch: 'calendar-direct.live.ts', use: { ...client('198.51.100.14'), viewport: { width: 1440, height: 1400 } } },
+    { name: 'calendar-touch-live', testMatch: 'calendar-touch.live.ts', use: { ...client('198.51.100.15'), hasTouch: true, isMobile: true } },
   ],
   webServer: {
     command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,
