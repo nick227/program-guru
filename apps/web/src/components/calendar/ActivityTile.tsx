@@ -330,6 +330,9 @@ export function ActivityTile({
           <Check size={12} className="calendar-chip__done" aria-hidden />
         ) : null}
         <span className="calendar-chip__text">
+          {item.conflict && !isDone && (
+            <AlertTriangle size={11} className="calendar-chip__conflict" aria-hidden />
+          )}
           {timeDisplay && <span className="calendar-chip__time">{timeDisplay}</span>}
           <span className={cn('calendar-chip__title', isDone && 'calendar-chip__title--done')}>{item.title}</span>
         </span>
@@ -345,6 +348,7 @@ export function ActivityTile({
         title={draggable && !movable ? `${item.title} · ${statusLabel}, can't be moved` : undefined}
         className={cn(
           'calendar-tile calendar-chip',
+          item.conflict && !isDone && 'calendar-chip--conflict',
           isDone && 'calendar-chip--done',
           movable && 'calendar-chip--movable',
           selected && 'calendar-chip--selected',
@@ -360,7 +364,7 @@ export function ActivityTile({
               onSelect()
             }}
             aria-pressed={selected}
-            aria-label={`${item.title}, ${timeDisplay ?? 'Any time'}, ${statusLabel}`}
+            aria-label={`${item.title}, ${timeDisplay ?? 'Any time'}, ${statusLabel}${item.conflict && !isDone ? ', overlaps another Activity' : ''}`}
             className="calendar-chip__trigger"
           >
             {monthContent}
@@ -395,6 +399,7 @@ export function ActivityTile({
       <>
         <span className="calendar-badge__dot" aria-hidden>
           {isDone && <Check size={12} className="text-success" />}
+          {!isDone && item.conflict && <AlertTriangle size={12} className="calendar-chip__conflict" />}
         </span>
         <span
           className={cn(
@@ -444,7 +449,7 @@ export function ActivityTile({
               onSelect()
             }}
             aria-pressed={selected}
-            aria-label={`${item.title}, ${statusLabel}`}
+            aria-label={`${item.title}, ${statusLabel}${item.conflict && !isDone ? ', overlaps another Activity' : ''}`}
             className="calendar-badge__trigger"
           >
             {dayBadgeContent}

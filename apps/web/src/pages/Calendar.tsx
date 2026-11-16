@@ -10,6 +10,7 @@ import {
 import {
   useCalendar,
   useCalendarRecurrences,
+  useMoveCalendarItemToOpenSlot,
   useCancelCalendarItem,
   useCurrentUser,
   useQuickCompleteCalendarItem,
@@ -121,6 +122,7 @@ export function CalendarPage() {
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null)
   const [rescheduleTarget, setRescheduleTarget] = useState<ScheduleTarget | null>(null)
   const [seriesDialog, setSeriesDialog] = useState<'edit' | 'end' | null>(null)
+  const openSlot = useMoveCalendarItemToOpenSlot()
   const recurrences = useCalendarRecurrences(true)
   const completionKeys = useRef(new Map<string, string>())
   const origin = `/calendar?${new URLSearchParams({
@@ -388,6 +390,42 @@ export function CalendarPage() {
     }
   }
 
+  // Conflict fix (03-UX §5): the server picks the next free half hour that day, else the next day.
+  // Only this entry moves (also for a series); a gathering entry confirms leaving first; Undo restores.
+  const moveToOpenSlot = async (itemId: string) => {
+    const item = rawItems.find((row) => row.id === itemId)
+    if (!item) return
+    if (item.gatheringId && !window.confirm('Moving leaves this gathering. Continue?')) return
+    const from = { localDate: item.localDate, localTime: item.localTime ?? null }
+    try {
+      const moved = await openSlot.mutateAsync({ itemId })
+      const where = targetLabel({ date: moved.localDate, time: moved.localTime ?? null })
+      toast.success(`Moved ${item.title} to ${where}`, {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            updateItem
+              .mutateAsync({
+                itemId,
+                localDate: from.localDate,
+                localTime: from.localTime,
+                ...(item.recurrenceId ? { scope: 'THIS_ONE' as const } : {}),
+                expectedUpdatedAt: moved.updatedAt,
+              })
+              .then(() => toast.success(`${item.title} is back on ${targetLabel({ date: from.localDate, time: from.localTime })}`))
+              .catch((err: unknown) => {
+                updateItem.reset()
+                toast.error(err instanceof Error ? err.message : 'Could not undo the move')
+              })
+          },
+        },
+      })
+    } catch (err) {
+      openSlot.reset()
+      toast.error(err instanceof Error ? `Could not move ${item.title}: ${err.message}` : `Could not move ${item.title}`)
+    }
+  }
+
   // Move to date from the panel (phones and keyboard): the shared Reschedule dialog, unchanged.
   const requestReschedule = (itemId: string) => {
     const item = rawItems.find((row) => row.id === itemId)
@@ -566,6 +604,8 @@ export function CalendarPage() {
       recurrence={selectedRecurrence}
       onEditSeries={() => setSeriesDialog('edit')}
       onEndSeries={() => setSeriesDialog('end')}
+      onMoveToOpenSlot={(itemId) => void moveToOpenSlot(itemId)}
+      movingToSlot={openSlot.isPending}
       completing={quickComplete.isPending}
       undoing={undo.isPending}
       removing={cancelItem.isPending}

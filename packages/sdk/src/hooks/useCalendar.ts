@@ -219,3 +219,16 @@ export function useEndCalendarRecurrence() {
     [keys.calendar, keys.occurrences],
   )
 }
+/** One-tap fix for a conflict: the next free half hour that day (until 22:00), else the next day. */
+export function useMoveCalendarItemToOpenSlot() {
+  return useApiMutation(
+    async ({ itemId }: { itemId: string }) =>
+      apiData(
+        await getApiClient().POST('/calendar-items/{itemId}/move-to-open-slot', {
+          params: { path: { itemId } },
+        }),
+      ).data,
+    // Moving a gathering item leaves the gathering (10 §9.6).
+    [keys.calendar, keys.occurrences, keys.gatherings],
+  )
+}

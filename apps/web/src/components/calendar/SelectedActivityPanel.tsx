@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  AlertTriangle,
   ArrowUpRight,
   CalendarDays,
   Check,
@@ -68,6 +69,9 @@ export interface SelectedActivityPanelProps {
   recurrence?: S['CalendarRecurrence'] | null
   onEditSeries?: () => void
   onEndSeries?: () => void
+  /** The entry overlaps another timed one: the server's one-tap Move to next open slot. */
+  onMoveToOpenSlot?: (itemId: string) => void
+  movingToSlot?: boolean
   completing?: boolean
   undoing?: boolean
   removing?: boolean
@@ -85,6 +89,8 @@ function PanelBody({
   recurrence = null,
   onEditSeries,
   onEndSeries,
+  onMoveToOpenSlot,
+  movingToSlot = false,
   completing = false,
   undoing = false,
   removing = false,
@@ -576,6 +582,22 @@ function PanelBody({
               />
             )}
           </section>
+        )}
+
+        {/* An overlap with another timed entry, and the one-tap fix (03-UX §5). */}
+        {calendarItem?.conflict && !isDone && canReschedule && onMoveToOpenSlot && (
+          <div className="calendar-panel__conflict" role="status">
+            <AlertTriangle size={14} aria-hidden />
+            <span className="min-w-0 flex-1">Overlaps another Activity at {timeDisplay ?? 'this time'}</span>
+            <button
+              type="button"
+              disabled={!online || movingToSlot}
+              onClick={() => onMoveToOpenSlot(itemId)}
+              className="calendar-panel__series-btn"
+            >
+              {movingToSlot ? 'Moving…' : 'Move to next open slot'}
+            </button>
+          </div>
         )}
 
         {/* 5. Actions: Complete / Undo, Start or Resume, Remove from Calendar. */}
