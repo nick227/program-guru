@@ -1,6 +1,8 @@
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { formatTargetTime } from '@/lib/targetTime'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { ActivitySessionContent } from '@/components/activity/ActivitySessionContent'
+import { GatheringDetails } from '@/components/activity/GatheringDetails'
 import {
   Link,
   useLocation,
@@ -9,10 +11,13 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import {
+  type components,
+  useGathering,
+  useOccurrence,
+  useActivityParticipation,
   useActivity,
   useActivityPublicMedia,
   useCategories,
-  useProgramPreview,
 } from '@project/sdk'
 import {
   Clock,
@@ -38,7 +43,6 @@ import { ActivityDetailsEditor } from '@/components/activity/ActivityDetailsEdit
 import { GroupStatus } from '@/components/social/GroupStatus'
 import { formatFrequency } from '@/components/program-authoring/ScheduleControls'
 import {
-  buildActivityBreadcrumbs,
   extractProgramTargetFromPath,
 } from '@/lib/breadcrumbs'
 import { safeReturn } from '@/lib/dates'
@@ -51,22 +55,47 @@ import {
 import { buildActivityUrl } from '@/lib/urls'
 import { cn } from '@/lib/utils'
 
-/** Reusable Activity definition page (`/activities/:id`). */
-export function ActivityPage() {
+/** One Activity page for definitions, gathering invitations, and personal scheduled sessions. */
+export function ActivityPage({ activityId, gathering, occurrence: providedOccurrence, refreshOccurrence: providedRefresh, gatheringAction, sessionPending, sessionError }: {
+  activityId?: string
+  gathering?: components['schemas']['Gathering']
+  occurrence?: components['schemas']['ActivityOccurrence']
+  refreshOccurrence?: () => void
+  gatheringAction?: ReactNode
+  sessionPending?: boolean
+  sessionError?: unknown
+} = {}) {
   const { id: rawSlugOrId = '' } = useParams()
   const [params] = useSearchParams()
   const location = useLocation()
   const navigate = useNavigate()
   const currentUrl = `${location.pathname}${location.search}`
 
-  const resolved = useResolveActivityTarget(rawSlugOrId)
-  const activity = useActivity(resolved.activityId)
+  const resolved = useResolveActivityTarget(activityId ? '' : rawSlugOrId)
+  const targetId = activityId ?? resolved.activityId
+  const participation = useActivityParticipation(!activityId ? targetId : '')
+  const suggestedItemId = participation.data?.viewer?.inProgressItemId ?? participation.data?.viewer?.upcoming[0]?.id
+  // Keep the chosen session visible after completion removes it from upcoming participation.
+  const [selectedSession, setSelectedSession] = useState<{ activityId: string; itemId: string } | null>(null)
+  const ownItemId = selectedSession?.activityId === targetId ? selectedSession.itemId : suggestedItemId
+  useEffect(() => {
+    if (!activityId && ownItemId && selectedSession?.activityId !== targetId) {
+      setSelectedSession({ activityId: targetId, itemId: ownItemId })
+    }
+  }, [activityId, ownItemId, selectedSession?.activityId, targetId])
+  const ownOccurrence = useOccurrence(!activityId ? ownItemId ?? '' : '')
+  const occurrence = providedOccurrence ?? ownOccurrence.data
+  const refreshOccurrence = providedRefresh ?? (() => void ownOccurrence.refetch())
+  const activity = useActivity(occurrence?.item.locked ? '' : targetId)
+  const occurrenceGathering = useGathering(gathering ? null : occurrence?.item.gatheringId)
+  const activeGathering = gathering ?? occurrenceGathering.data
+  const contextual = !!(gathering || occurrence || sessionPending || ownItemId)
   const categories = useCategories()
   const categorySlugOf = useCategorySlugOf()
   const publicMedia = useActivityPublicMedia(
-    resolved.activityId,
+    targetId,
     undefined,
-    !resolved.notFound && !!resolved.activityId,
+    !!targetId && !occurrence?.item.locked,
   )
   const [editing, setEditing] = useState(params.get('edit') === '1')
 
@@ -79,12 +108,9 @@ export function ActivityPage() {
     parentTarget?.slugOrId ?? '',
     parentTarget?.handle ?? null,
   )
-  const parentProgram = useProgramPreview(
-    parentTarget ? resolvedParent.programId : '',
-  )
 
   useDocumentTitle(
-    activity.data?.title ??
+    activity.data?.title ?? gathering?.activity.title ?? occurrence?.item.title ??
       (resolved.isLoading || activity.isPending
         ? 'Activity'
         : resolved.notFound
@@ -93,32 +119,20 @@ export function ActivityPage() {
   )
 
   useEffect(() => {
-    if (resolved.isAlias && resolved.canonicalUrl) {
+    if (!activityId && resolved.isAlias && resolved.canonicalUrl) {
       const qs = params.toString()
       navigate(`${resolved.canonicalUrl}${qs ? `?${qs}` : ''}`, { replace: true })
     }
-  }, [resolved.isAlias, resolved.canonicalUrl, params, navigate])
+  }, [activityId, resolved.isAlias, resolved.canonicalUrl, params, navigate])
 
-  const a = activity.data
+  const a = occurrence?.item.locked ? undefined : activity.data
+  const identity = a ?? gathering?.activity ?? occurrence?.item
   const category = a
     ? categories.data?.find((c) => c.id === a.categoryId) ?? null
     : null
 
-  const activityNav = buildActivityBreadcrumbs({
-    title: a?.title ?? (resolved.notFound ? 'Activity not found' : 'Activity'),
-    category: category ? { id: category.id, label: category.label } : null,
-    parentProgram:
-      parentTarget && explicitReturnTo
-        ? {
-            title: parentProgram.data?.title ?? 'Program',
-            href: explicitReturnTo,
-            nestedReturnTo: parentTarget.nestedReturnTo,
-          }
-        : null,
-    returnTo: explicitReturnTo,
-  })
 
-  if (resolved.notFound) {
+  if (!activityId && resolved.notFound) {
     return (
       <Page className="page--wide">
         <Stage className="max-w-3xl mx-auto py-12">
@@ -162,7 +176,7 @@ export function ActivityPage() {
     new Map(rawRiverItems.map((item) => [item.id, item])).values(),
   )
 
-  const hero = a ? activityHero(a, categorySlugOf) : null
+  const hero = identity ? activityHero(identity, categorySlugOf) : null
   const frequencyText = a ? formatFrequency(a.frequency) : null
   const durationText = a ? formatDurationMinutes(a.durationMinutes) : null
   const targetTimeText = a?.targetTime ? formatTargetTime(a.targetTime) : null
@@ -186,25 +200,25 @@ export function ActivityPage() {
 
       <div className="mx-auto mt-6 w-full max-w-content">
         <ErrorMessage
-          error={activity.error}
+          error={identity ? null : activity.error}
           retry={() => void activity.refetch()}
         />
 
-        {resolved.isLoading || activity.isPending ? (
+        {!identity && (resolved.isLoading || activity.isPending) ? (
           <Loading />
         ) : (
-          a &&
+          identity &&
           hero && (
             <div className="activity-page">
               <ActivityHero
                 hero={hero}
                 context={
-                  [category?.label, a.isPlatform ? 'Platform Activity' : null]
+                  [category?.label, a?.isPlatform ? 'Platform Activity' : null]
                     .filter(Boolean)
                     .join(' · ') || 'Activity'
                 }
                 status={
-                  a.canEdit && (
+                  a?.canEdit && (
                     <>
                       {a.status === 'DRAFT' && (
                         <span className="activity-status-pill" data-status="paused">
@@ -221,13 +235,13 @@ export function ActivityPage() {
                     </>
                   )
                 }
-                title={a.title}
-                summary={a.summary}
-                creator={a.creator}
+                title={identity.title}
+                summary={a?.summary ?? gathering?.activity.summary}
+                creator={a?.creator}
                 returnTo={currentUrl}
                 meta={meta}
                 footnote={
-                  a.sourceActivity && (
+                  a?.sourceActivity && (
                     <p className="text-xs text-muted">
                       Based on{' '}
                       <Link
@@ -242,11 +256,11 @@ export function ActivityPage() {
                 actions={
                   <div className="activity-session__actions">
                     {/* Your status, people and actions: the shared participation component (03-UX §2b). */}
-                    {a.status === 'PUBLISHED' || a.canEdit ? (
-                      <ActivityParticipation key={a.id} activity={{ id: a.id, title: a.title, place: a.place }} returnTo={currentUrl} />
+                    {!occurrence?.item.locked && (contextual || a?.status === 'PUBLISHED' || a?.canEdit) ? (
+                      <ActivityParticipation key={targetId} activity={{ id: targetId, title: identity.title, place: activeGathering?.place ?? a?.place }} returnTo={currentUrl} contextual={contextual} contextActions={gatheringAction} />
                     ) : null}
                     <div className="activity-session__tools ml-auto">
-                      {a.canEdit ? (
+                      {a?.canEdit ? (
                         <Button
                           variant={editing ? 'default' : 'outline'}
                           aria-pressed={editing}
@@ -256,38 +270,53 @@ export function ActivityPage() {
                           Edit Activity
                         </Button>
                       ) : (
-                        <ReportButton target={{ type: 'ACTIVITY', id: a.id }} />
+                        <ReportButton target={{ type: 'ACTIVITY', id: targetId }} />
                       )}
                     </div>
                   </div>
                 }
               />
 
-              {editing && a.canEdit && (
+              {editing && a?.canEdit && (
                 <ActivityDetailsEditor activity={a} onDone={() => setEditing(false)} />
               )}
 
-              <GroupStatus
-                activityId={a.id}
-                activityTitle={a.title}
+              {a && <GroupStatus
+                activityId={targetId}
+                activityTitle={identity.title}
                 programId={parentTarget ? resolvedParent.programId : undefined}
                 returnTo={currentUrl}
-              />
+              />}
+
+              {activeGathering && <GatheringDetails gathering={activeGathering} />}
+              {(sessionPending || (!!ownItemId && ownOccurrence.isPending)) && <Loading />}
+              <ErrorMessage error={sessionError ?? ownOccurrence.error} retry={refreshOccurrence} />
+              {occurrence && <ActivitySessionContent key={occurrence.item.id} occurrence={occurrence} refresh={refreshOccurrence ?? (() => {})} />}
 
               <div
                 className={cn(
                   'activity-layout',
-                  (metrics.length > 0 || a.tools.length > 0) && 'activity-layout--definition',
+                  (metrics.length > 0 || (a?.tools.length ?? 0) > 0) && 'activity-layout--definition',
                 )}
               >
                 <ActivitySection icon={ListOrdered} title="Instructions">
-                  <ActivityInstructions
-                    instructions={a.instructions}
+                  {!occurrence && !a && activity.isPending ? <Loading /> : !occurrence && !a && activity.error ? (
+                    <ErrorMessage error={activity.error} retry={() => void activity.refetch()} />
+                  ) : <ActivityInstructions
+                    instructions={occurrence?.instructions ?? a?.instructions ?? []}
+                    locked={occurrence?.item.locked}
                     empty="No step-by-step instructions provided for this Activity."
-                  />
+                  />}
                 </ActivitySection>
 
-                <ActivitySection
+                {a && (metrics.length > 0 || a.tools.length > 0) && (
+                  <ActivitySection icon={Target} title="Tracks and uses">
+                    {metrics.length > 0 && <p className="text-sm">Tracks: {metrics.join(', ')}</p>}
+                    {a.tools.length > 0 && <p className="text-sm">Uses: {a.tools.map((tool) => tool.label).join(', ')}</p>}
+                  </ActivitySection>
+                )}
+
+                {!occurrence && a && <ActivitySection
                   as="div"
                   id="related-media"
                   icon={ImageIcon}
@@ -296,13 +325,13 @@ export function ActivityPage() {
                   className="activity-gallery activity-related scroll-mt-20 activity-card"
                 >
                   <ActivityRelatedMedia
-                    activityId={a.id}
-                    revisionId={a.canEdit ? a.revisionId : null}
+                    activityId={targetId}
+                    revisionId={a?.canEdit ? a.revisionId : null}
                     items={riverItems}
                   />
-                </ActivitySection>
+                </ActivitySection>}
 
-                <ActivityShare activity={a} />
+                <ActivityShare activity={a} locked={occurrence?.item.locked} />
               </div>
             </div>
           )

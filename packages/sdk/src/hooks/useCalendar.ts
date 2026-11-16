@@ -52,6 +52,7 @@ export function useCalendarYear(year: number, enabled = true) {
 export function useOccurrence(itemId: string) {
   return useQuery({
     queryKey: useViewerKey(keys.occurrence(itemId)),
+    enabled: !!itemId,
     queryFn: async ({ signal }) =>
       apiData(
         await getApiClient().GET('/calendar-items/{itemId}/occurrence', {

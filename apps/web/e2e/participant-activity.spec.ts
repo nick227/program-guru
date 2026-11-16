@@ -4,7 +4,7 @@ import { itemId, groupId } from './fixtures'
 
 test('simple completion and undo preserve a single valid action and omit empty sections', async ({ page }) => {
   const state = await setup(page, { simple: true })
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Results' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'My Metrics' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Together' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Start|Resume|Undo/ })).toHaveCount(0)
@@ -141,4 +141,73 @@ test('saving state shows inside the clicked button only and keeps user on page t
   await expect(page.getByText('Processing…', { exact: true })).toBeVisible()
   state.ready()
   await expect(page.getByRole('button', { name: 'Uploaded photo', exact: true })).toBeVisible()
+})
+
+test('gathering invitation, joining, and session use one activity page with shared participation', async ({ page }) => {
+  const { o } = await setup(page, { timed: true })
+  const gatheringId = '00000000-0000-4000-8000-000000000099'
+  const g = {
+    id: gatheringId,
+    activity: { id: o.item.activityId, title: o.item.title, summary: 'A controlled squat.', categoryId: '', thumbnailUrl: null },
+    localDate: o.item.localDate, localTime: '18:00', timezone: 'America/Chicago',
+    place: null, capacity: 8, visibility: 'PRIVATE', joinPolicy: 'INVITE_ONLY', status: 'ACTIVE',
+    owner: { id: 'host', displayName: 'Gathering Host', handle: 'host', avatarUrl: null },
+    members: [], categories: [], lookingFor: 'Practice together', memberCount: 1,
+    scheduledCount: 1, activeCount: 0, completedCount: 0, isFull: false, isPast: false,
+    viewerIsMember: false, viewerIsOwner: false, viewerCalendarItemId: null as string | null,
+  }
+  await page.route(`http://localhost:3001/activities/${o.item.activityId}`, route => route.fulfill({ json: { data: {
+    ...g.activity, status: 'PUBLISHED', visibility: 'PUBLIC', canEdit: false,
+    instructions: o.instructions, metricLabels: [], metrics: [], tools: [], media: [],
+  } } }))
+  const joins: unknown[] = []
+  await page.route(`http://localhost:3001/gatherings/${gatheringId}*`, route => route.fulfill({ json: { data: g } }))
+  await page.route(`http://localhost:3001/gatherings/${gatheringId}/join`, async route => {
+    joins.push(route.request().postDataJSON())
+    g.viewerIsMember = true
+    g.viewerCalendarItemId = itemId
+    o.item.gatheringId = gatheringId
+    await route.fulfill({ json: { data: { calendarItemId: itemId, outcome: 'JOINED' } } })
+  })
+  await page.goto(`/gatherings/${gatheringId}?invite=exact-invitation`)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+  await expect(page.getByText('Sit back and stand tall.', { exact: true })).toBeVisible()
+  await expect(page.locator('[data-participation-status]')).toHaveCount(1)
+  await expect(page.getByText('Gathering Host', { exact: false })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'About this Activity' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Join and add to Calendar' }).click()
+  await expect(page.getByRole('region', { name: 'Your session', exact: true })).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/gatherings/${gatheringId}\\?invite=exact-invitation`))
+  expect(joins).toEqual([expect.objectContaining({ invite: 'exact-invitation', idempotencyKey: expect.any(String) })])
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+  await expect(page.locator('[data-participation-status]')).toHaveCount(1)
+  await expect(page.locator('#related-media')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Open', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Start', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Join and add to Calendar' })).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: test.info().outputPath('unified-activity.png'), fullPage: true })
+})
+
+test('main activity page includes the current session and keeps it after completion', async ({ page }) => {
+  const { o } = await setup(page, { simple: true })
+  await page.route('http://localhost:3001/activities/participation*', route => route.fulfill({ json: { data: [{
+    activityId: o.item.activityId,
+    participants: { band: 'COUNT', count: 8, includesViewer: true }, avatars: [],
+    shared: { activeNow: 0, going: 0, nextGathering: null },
+    viewer: { inProgressItemId: null, upcoming: o.item.status === 'DONE' ? [] : [o.item], completedCount: o.item.status === 'DONE' ? 1 : 0, everAdded: true },
+  }] } }))
+  await page.goto(`/activities/${o.item.activityId}`)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+  await expect(page.getByLabel('8 participants · including you', { exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Your session', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start now', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Mark as Complete', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Completed' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Undo completion', exact: true })).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/activities/${o.item.activityId}`))
+  await expect(page.locator('#related-media')).toHaveCount(1)
 })

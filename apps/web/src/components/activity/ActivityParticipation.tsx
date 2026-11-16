@@ -1,5 +1,5 @@
 import { LocationLink } from '@/components/location/LocationLink'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CalendarCheck, CalendarClock, CalendarPlus, CircleDot, ExternalLink, Play, Settings2, Users } from 'lucide-react'
 import { toast } from 'sonner'
@@ -32,6 +32,8 @@ export function ActivityParticipation({
   onOpenPage,
   manageHref,
   className,
+  contextual = false,
+  contextActions,
 }: {
   activity: { id: string; title: string; place?: components['schemas']['Place'] | null }
   /** `people`: only who takes part (and shared activity), where status and schedule show elsewhere. */
@@ -46,6 +48,9 @@ export function ActivityParticipation({
   /** The owner's Manage (the Activity page's editor), from useActivityPreview; omitted for others. */
   manageHref?: string | null
   className?: string
+  /** Exact gathering/session is already on the page; do not offer a different occurrence. */
+  contextual?: boolean
+  contextActions?: ReactNode
 }) {
   const [location, setLocation] = useState<LocationSelection>(undefined)
   const effectiveLocation = location === undefined ? activity.place : location
@@ -103,10 +108,11 @@ export function ActivityParticipation({
       {lines}
       {effectiveLocation && <p className="text-sm"><LocationLink place={effectiveLocation} />{effectiveLocation.locality ? ` · ${effectiveLocation.locality}` : ''}</p>}
       <div className="flex flex-wrap items-center gap-2">
-        {view.actions.includes('resume') && view.inProgressItemId && (
+        {contextActions}
+        {!contextual && view.actions.includes('resume') && view.inProgressItemId && (
           <ResumeButton itemId={view.inProgressItemId} returnTo={returnTo} onResume={onResume} />
         )}
-        {view.actions.includes('start') &&
+        {!contextual && view.actions.includes('start') &&
           (onStart ? (
             <Button onClick={onStart}>
               <Play size={15} className="fill-current" aria-hidden />
@@ -115,12 +121,12 @@ export function ActivityParticipation({
           ) : (
             <StartActivityButton placeId={location === undefined ? undefined : location?.id ?? null} activityId={activity.id} signedIn={signedIn} returnTo={returnTo} />
           ))}
-        {view.gathering && (view.actions.includes('join') || view.actions.includes('open_gathering')) && (
+        {!contextual && view.gathering && (view.actions.includes('join') || view.actions.includes('open_gathering')) && (
           <JoinButton gathering={view.gathering} signedIn={signedIn} returnTo={returnTo} onJoin={onJoin} />
         )}
         <AddToScheduleButton target={{ kind: 'activity', ...activity, place: effectiveLocation, placeId: location === undefined ? undefined : location?.id ?? null }} signedIn={signedIn} returnTo={returnTo} />
         {!onStart && <LocationButton value={effectiveLocation} onChange={setLocation} />}
-        {view.actions.includes('reschedule') && (
+        {!contextual && view.actions.includes('reschedule') && (
           <button
             type="button"
             onClick={() => setRescheduling(true)}
