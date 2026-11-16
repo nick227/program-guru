@@ -1018,9 +1018,7 @@
   border: 1px solid hsl(var(--color-border));
   border-left: 3px solid hsl(var(--tile-category));
   border-radius: var(--radius-control);
-  background:
-    linear-gradient(hsl(var(--tile-category) / 0.05), hsl(var(--tile-category) / 0.05)),
-    hsl(var(--color-surface-raised) / 0.7);
+  background: hsl(var(--color-surface));
   padding: var(--space-3);
   transition:
     border-color var(--duration-fast) var(--ease-out),
@@ -1031,9 +1029,7 @@
 .calendar-tile:hover {
   border-color: hsl(var(--color-accent) / 0.45);
   border-left-color: hsl(var(--tile-category));
-  background:
-    linear-gradient(hsl(var(--tile-category) / 0.09), hsl(var(--tile-category) / 0.09)),
-    hsl(var(--color-surface-raised));
+  background: hsl(var(--color-surface-raised));
 }
 
 .calendar-tile--next {

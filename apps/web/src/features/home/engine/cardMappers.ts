@@ -19,8 +19,18 @@ export function programCardHero(p: S['ProgramSummary']): CardHero {
  * first at all. Its cover becomes the creator card's image; nothing is fetched.
  */
 export function leadProgramFor(creatorId: string, lists: (S['DiscoverItem'][] | undefined)[]): S['ProgramSummary'] | null {
-  const mine = lists.flatMap((l) => l ?? []).flatMap((i) => (i.program?.creator?.id === creatorId ? [i.program] : []))
-  return mine.find((p) => coverOf(p) || p.coverUrl) ?? mine[0] ?? null
+  let fallback: S['ProgramSummary'] | null = null
+  for (const list of lists) {
+    if (!list) continue
+    for (const item of list) {
+      const p = item.program
+      if (p?.creator?.id === creatorId) {
+        if (coverOf(p) || p.coverUrl) return p
+        if (!fallback) fallback = p
+      }
+    }
+  }
+  return fallback
 }
 
 function formatMinutes(minutes: number | null | undefined): string | null {

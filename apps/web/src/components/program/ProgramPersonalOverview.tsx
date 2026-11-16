@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, Calendar, CheckCircle2, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { StatusText, libraryStatusTone, type ParticipationStatus } from '@/components/ui/StatusText'
 import { dateLabel } from '@/lib/dates'
@@ -54,108 +54,162 @@ export function ProgramPersonalOverview({
   const r = selectedRun
   const statusTone = entry ? libraryStatusTone(entry.status) : enrolledStatus.status
   const statusLabel = entry ? entry.status : enrolledStatus.label
+  const completionPercent =
+    r?.planned && r.planned > 0
+      ? Math.min(100, Math.round((r.completed / r.planned) * 100))
+      : 0
+
+  const nextUpcoming = r?.upcoming?.[0]
 
   return (
-    <section
-      aria-label="Your progress and participation"
-      className="rounded-2xl border border-border/70 bg-surface p-5 sm:p-6 space-y-5"
-    >
+    <section aria-label="Your progress and participation" className="space-y-4">
+      {/* Title outside the container */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-foreground">Overview</h2>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl sm:text-2xl font-bold font-display tracking-tight text-foreground">
+            Overview
+          </h2>
           <StatusText status={statusTone}>{statusLabel}</StatusText>
-          {r ? (
-            <span className="text-xs text-muted">
-              Started {dateLabel(r.startDate)} · Week {r.week}
-            </span>
-          ) : participationStartDate ? (
-            <span className="text-xs text-muted">
-              Joined {dateLabel(participationStartDate)}
-            </span>
-          ) : null}
         </div>
+        {r ? (
+          <span className="text-xs text-muted">
+            Started {dateLabel(r.startDate)} · Week {r.week}
+          </span>
+        ) : participationStartDate ? (
+          <span className="text-xs text-muted">
+            Joined {dateLabel(participationStartDate)}
+          </span>
+        ) : null}
       </div>
 
-      {entry && (
-        <div className="grid grid-cols-2 gap-4 border-t border-border pt-4 lg:grid-cols-4">
-          <div className="space-y-1.5">
-            <span className="block text-xs font-medium text-muted">Completion</span>
-            {r?.planned ? (
-              <div className="library-progress space-y-1">
-                <span className="text-xs font-semibold tabular-nums text-foreground">
-                  {r.completed} / {r.planned} sessions
-                </span>
+      {/* Surface container */}
+      <div className="rounded-2xl border border-border/70 bg-surface p-5 sm:p-6 space-y-6">
+        {/* 01 — Visual Progress Bar */}
+        {r?.planned ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-semibold text-foreground">
+                <strong className="tabular-nums font-bold">{r.completed}</strong> of{' '}
+                <strong className="tabular-nums font-bold">{r.planned}</strong> sessions completed
+              </span>
+              <span className="font-bold tabular-nums text-foreground">
+                {completionPercent}%
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
+              <div
+                className="h-full bg-accent transition-all duration-300 rounded-full"
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {/* 02 — Organized, Clean Metrics Row (No "Unavailable" labels) */}
+        {entry && (
+          <div className="grid grid-cols-2 gap-4 border-t border-border/50 pt-4 sm:grid-cols-3">
+            <div className="space-y-0.5">
+              <span className="text-xs text-muted">This Week</span>
+              <p className="text-base font-semibold tabular-nums text-foreground">
+                {r?.due
+                  ? `${r.dueCompleted} of ${r.due} completed`
+                  : 'On track'}
+              </p>
+            </div>
+
+            <div className="space-y-0.5">
+              <span className="text-xs text-muted">Last Active</span>
+              <p className="text-base font-semibold text-foreground">
+                {r?.lastParticipation
+                  ? dateLabel(r.lastParticipation)
+                  : 'None recorded yet'}
+              </p>
+            </div>
+
+            {r?.activeSeconds != null && r.activeSeconds > 0 ? (
+              <div className="space-y-0.5">
+                <span className="text-xs text-muted">Total Active Time</span>
+                <p className="text-base font-semibold tabular-nums text-foreground">
+                  {Math.floor(r.activeSeconds / 60)} min
+                </p>
               </div>
             ) : (
-              <span className="block text-sm font-medium text-muted">
-                {r ? 'No eligible occurrences' : 'Not scheduled'}
-              </span>
+              <div className="space-y-0.5">
+                <span className="text-xs text-muted">Current Pace</span>
+                <p className="text-base font-semibold text-foreground">
+                  Week {r?.week ?? 1}
+                </p>
+              </div>
             )}
           </div>
+        )}
 
-          <div className="space-y-1">
-            <span className="block text-xs font-medium text-muted">Due so far</span>
-            <strong className="block text-base font-semibold tabular-nums text-foreground">
-              {r?.due ? `${r.dueCompleted} / ${r.due}` : 'Unavailable'}
-            </strong>
-          </div>
-
-          <div className="space-y-1">
-            <span className="block text-xs font-medium text-muted">Active time</span>
-            <strong className="block text-base font-semibold tabular-nums text-foreground">
-              {r?.activeSeconds != null
-                ? `${Math.floor(r.activeSeconds / 60)} min`
-                : 'Unavailable'}
-            </strong>
-          </div>
-
-          <div className="space-y-1">
-            <span className="block text-xs font-medium text-muted">
-              Last participation
+        {/* 03 — Seamless Up Next Focus Card */}
+        {nextUpcoming && entry?.status !== 'Paused' && (
+          <div className="border-t border-border/50 pt-4 space-y-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Up Next
             </span>
-            <strong className="block text-base font-semibold text-foreground">
-              {r?.lastParticipation
-                ? new Date(r.lastParticipation).toLocaleDateString()
-                : 'No recorded participation'}
-            </strong>
+            <Link
+              to={buildOccurrenceUrl(nextUpcoming.id, { returnTo: currentUrl })}
+              className="group flex items-center justify-between gap-4 rounded-xl border border-border/60 bg-surface-muted/30 p-3.5 transition-colors hover:border-accent hover:bg-surface-muted/60"
+            >
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground group-hover:text-accent transition-colors truncate">
+                  {nextUpcoming.title}
+                </p>
+                <p className="text-xs text-muted mt-0.5">
+                  {dateLabel(nextUpcoming.date)}
+                  {nextUpcoming.time ? ` at ${nextUpcoming.time}` : ''}
+                  {nextUpcoming.adjusted ? ' · Rescheduled by you' : ''}
+                </p>
+              </div>
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface border border-border/60 text-muted transition-colors group-hover:border-accent group-hover:text-accent">
+                <ArrowUpRight size={16} />
+              </div>
+            </Link>
           </div>
-        </div>
-      )}
+        )}
 
-      {pendingUpdate && (
-        <div className="space-y-2 rounded-xl border border-accent/30 bg-accent/5 p-4">
-          <h3 className="text-sm font-semibold text-foreground">
-            A creator update is available
-          </h3>
-          <p className="text-xs text-muted">
-            Your current run remains on its pinned version. Accept to adopt the new
-            version while preserving your past logs.
-          </p>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Button
-              size="sm"
-              disabled={!online || !canAcceptUpdate}
-              loading={acceptingUpdate}
-              onClick={() => void onAcceptUpdate()}
-            >
-              Accept update
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!online || !canAcceptUpdate}
-              loading={dismissingUpdate}
-              onClick={() => void onDismissUpdate()}
-            >
-              Dismiss
-            </Button>
+        {/* 04 — Creator Update Notice */}
+        {pendingUpdate && (
+          <div className="space-y-2 rounded-xl border border-accent/30 bg-accent/5 p-4">
+            <h3 className="text-sm font-semibold text-foreground">
+              A creator update is available
+            </h3>
+            <p className="text-xs text-muted">
+              Your current run remains on its pinned version. Accept to adopt the new
+              version while preserving your past logs.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
+                size="sm"
+                disabled={!online || !canAcceptUpdate}
+                loading={acceptingUpdate}
+                onClick={() => void onAcceptUpdate()}
+              >
+                Accept update
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!online || !canAcceptUpdate}
+                loading={dismissingUpdate}
+                onClick={() => void onDismissUpdate()}
+              >
+                Dismiss
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   )
 }
 
+/**
+ * Kept for backwards compatibility; now integrated cleanly into ProgramPersonalOverview.
+ */
 export function ProgramPersonalDetailsGrid({
   entry,
   selectedRun,
@@ -167,55 +221,5 @@ export function ProgramPersonalDetailsGrid({
   currentUrl: string
   onSetupSchedule?: () => void
 }) {
-  const r = selectedRun
-  const p = entry.program
-
-  if (!r && entry.runs.length === 0 && !entry.sourceLabel) {
-    return null
-  }
-
-  return (
-    <section
-      aria-label="Personal schedule and history"
-      className="rounded-2xl border border-border/70 bg-surface p-5 sm:p-6 space-y-3"
-    >
-      <h3 className="text-base font-semibold text-foreground">Upcoming Activity</h3>
-      {r?.upcoming.length && entry.status !== 'Paused' ? (
-        <div className="divide-y divide-border/60">
-          {r.upcoming.slice(0, 1).map((a) => (
-            <Link
-              key={a.id}
-              to={buildOccurrenceUrl(a.id, { returnTo: currentUrl })}
-              className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-accent"
-            >
-              <span className="min-w-0">
-                <strong className="block truncate font-medium text-foreground">
-                  {a.title}
-                </strong>
-                <small className="block text-xs text-muted">
-                  {a.date}
-                  {a.time ? ` · ${a.time}` : ''}
-                  {a.adjusted ? ' · Rescheduled by you' : ''}
-                </small>
-              </span>
-              <ArrowUpRight size={16} className="shrink-0 text-muted" />
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-sm text-muted">
-            {entry.status === 'Paused'
-              ? 'Your schedule is paused. Resume to restore future Activities.'
-              : 'No upcoming Activities.'}
-          </p>
-          {!r && onSetupSchedule && entry.publicationStatus === 'PUBLISHED' && (
-            <Button variant="outline" size="sm" onClick={onSetupSchedule}>
-              Set up your schedule
-            </Button>
-          )}
-        </div>
-      )}
-    </section>
-  )
+  return null
 }

@@ -1045,10 +1045,20 @@ function resolveDaySchedule(signals: HomeSignals): AssistantTurn {
     }
   }
 
-  const nextPending = activeToday.find((i) => i.status === 'PLANNED')
-  const doneCount = activeToday.filter((i) => i.status === 'DONE').length
-  const remainingCount = activeToday.filter((i) => i.status === 'PLANNED').length
-  const cards = activeToday.map(mapCalendarItemToCard)
+  let nextPending: (typeof activeToday)[number] | undefined
+  let doneCount = 0
+  let remainingCount = 0
+  const cards: ReturnType<typeof mapCalendarItemToCard>[] = new Array(activeToday.length)
+  for (let i = 0; i < activeToday.length; i++) {
+    const item = activeToday[i]!
+    if (item.status === 'DONE') {
+      doneCount++
+    } else if (item.status === 'PLANNED') {
+      remainingCount++
+      if (!nextPending) nextPending = item
+    }
+    cards[i] = mapCalendarItemToCard(item)
+  }
 
   const contextLine =
     doneCount > 0 && remainingCount > 0

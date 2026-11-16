@@ -29,17 +29,13 @@ import { AddToScheduleButton } from '@/components/schedule/AddToSchedule'
 import { ProgramHero } from '@/components/program/ProgramHero'
 import { ProgramActivityCard } from '@/components/program/ProgramActivityCard'
 import { ProgramGroups } from '@/components/program/ProgramGroups'
-import { ShareLinkCard } from '@/components/social/ShareLink'
 import {
   formatProgramDuration,
   programPublishInput,
   programVisibilityLabel,
   type ProgramVisibility,
 } from '@/components/program-authoring/programFields'
-import {
-  ProgramPersonalDetailsGrid,
-  ProgramPersonalOverview,
-} from '@/components/program/ProgramPersonalOverview'
+import { ProgramPersonalOverview } from '@/components/program/ProgramPersonalOverview'
 import {
   ProgramOwnerBanner,
   ProgramOwnerEditPanel,
@@ -481,7 +477,7 @@ export function ProgramPage() {
 
   return (
     <Page className="page--wide pb-20">
-      <div className="mx-auto mt-6 max-w-[72rem] space-y-10 sm:mt-8">
+      <div className="mx-auto mt-6 max-w-4xl space-y-12 sm:mt-8 sm:space-y-14">
         {/* 01 — Program Hero */}
         <div ref={startRef} className="scroll-mt-20">
           <ProgramHero
@@ -489,6 +485,11 @@ export function ProgramPage() {
             description={displayDescription}
             hero={displayHero}
             categoryLabel={p.type.label}
+            categoryHref={buildBrowseUrl({
+              kind: 'programs',
+              category: p.type.categoryId || undefined,
+              type: p.type.id || undefined,
+            })}
             creator={p.creator}
             creatorReturnTo={currentUrl}
             isPlatform={p.isPlatform}
@@ -595,185 +596,161 @@ export function ProgramPage() {
           </div>
         )}
 
-        {/* 02 — Two-column main content: Overview, Activities & Next Activity | Community & Share */}
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-10">
-          <div className="min-w-0 space-y-10">
-            <ProgramPersonalOverview
-              entry={entry}
-              selectedRun={selectedRun}
-              onSelectRunId={setRunId}
-              isEnrolled={isEnrolled}
-              enrolledStatus={enrolledStatus}
-              participationStartDate={enrollment.data?.participationStartDate}
-              groupId={groupId}
-              pendingUpdate={pendingUpdate}
-              canAcceptUpdate={canAcceptUpdate}
-              online={online}
-              acceptingUpdate={acceptUpdate.isPending}
-              dismissingUpdate={dismissUpdate.isPending}
-              onAcceptUpdate={async () => {
-                try {
-                  await acceptUpdate.mutateAsync()
-                  toast.success('Program updated to latest version')
-                } catch {
-                  // shown in ErrorMessage
-                }
-              }}
-              onDismissUpdate={async () => {
-                try {
-                  await dismissUpdate.mutateAsync()
-                  toast.success('Update dismissed')
-                } catch {
-                  // shown in ErrorMessage
-                }
-              }}
-              onResume={handleResume}
-              resuming={enrollmentAction.isPending}
-              currentUrl={currentUrl}
-              onRemoved={() => {
-                if (backTo.startsWith('/library')) navigate(backTo)
-                else if (!isOwner && (p.visibility === 'PRIVATE' || p.accessMode !== 'OPEN')) {
-                  navigate('/library')
-                }
-              }}
-              onDeleted={() => navigate(backTo.startsWith('/library') ? backTo : '/library')}
-            />
+        {/* 02 — Main content: Overview, Activities & Community (1-column flow) */}
+        <div className="space-y-12 sm:space-y-14">
+          <ProgramPersonalOverview
+            entry={entry}
+            selectedRun={selectedRun}
+            onSelectRunId={setRunId}
+            isEnrolled={isEnrolled}
+            enrolledStatus={enrolledStatus}
+            participationStartDate={enrollment.data?.participationStartDate}
+            groupId={groupId}
+            pendingUpdate={pendingUpdate}
+            canAcceptUpdate={canAcceptUpdate}
+            online={online}
+            acceptingUpdate={acceptUpdate.isPending}
+            dismissingUpdate={dismissUpdate.isPending}
+            onAcceptUpdate={async () => {
+              try {
+                await acceptUpdate.mutateAsync()
+                toast.success('Program updated to latest version')
+              } catch {
+                // shown in ErrorMessage
+              }
+            }}
+            onDismissUpdate={async () => {
+              try {
+                await dismissUpdate.mutateAsync()
+                toast.success('Update dismissed')
+              } catch {
+                // shown in ErrorMessage
+              }
+            }}
+            onResume={handleResume}
+            resuming={enrollmentAction.isPending}
+            currentUrl={currentUrl}
+            onRemoved={() => {
+              if (backTo.startsWith('/library')) navigate(backTo)
+              else if (!isOwner && (p.visibility === 'PRIVATE' || p.accessMode !== 'OPEN')) {
+                navigate('/library')
+              }
+            }}
+            onDeleted={() => navigate(backTo.startsWith('/library') ? backTo : '/library')}
+          />
 
-            <section aria-label="Program activities" className="space-y-4">
-              <SectionHeader
-                title="Activities"
-                action={
-                  isOwner && ws ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        variant={editingActivities ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setEditingActivities((prev) => !prev)}
-                      >
-                        {editingActivities ? 'Done editing' : 'Edit Activities'}
-                      </Button>
-                      <Link
-                        to={buildWorkspaceUrl(ws.id, { step: 'activities' })}
-                        className="btn btn--outline btn--sm"
-                      >
-                        Schedule Editor
-                      </Link>
-                    </div>
-                  ) : undefined
-                }
-              />
-              {editingActivities && isOwner && ws ? (
-                <div className="space-y-4 rounded-2xl border border-accent/30 bg-surface p-5 sm:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs text-muted">
-                      Edit activity details, frequency, or add new activities directly to this program.
-                    </p>
+          <section aria-label="Program activities" className="space-y-4">
+            <SectionHeader
+              title="Activities"
+              action={
+                isOwner && ws ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant={editingActivities ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setEditingActivities((prev) => !prev)}
+                    >
+                      {editingActivities ? 'Done editing' : 'Edit Activities'}
+                    </Button>
                     <Link
-                      to={buildBrowseUrl({
-                        kind: 'activities',
-                        programId: ws.id,
-                        category: ws.type.categoryId || undefined,
-                        returnTo: currentUrl,
-                      })}
+                      to={buildWorkspaceUrl(ws.id, { step: 'activities' })}
                       className="btn btn--outline btn--sm"
                     >
-                      Browse Library
+                      Schedule Editor
                     </Link>
                   </div>
-                  {ws.activities.length > 0 ? (
-                    <div className="space-y-3">
-                      {ws.activities.map((a) => (
-                        <WorkspaceActivityRow
-                          key={a.activityId}
-                          activity={a}
-                          ws={ws}
-                          returnTo={currentUrl}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-6 text-center text-sm text-muted">
-                      No activities yet. Create one below or browse the library to add existing ones.
-                    </div>
-                  )}
-                  <CreateActivitySection ws={ws} />
-                </div>
-              ) : activityItems.length > 0 ? (
-                <div className="divide-y divide-border/60 border-y border-border/60">
-                  {activityItems.map((item) => (
-                    <ProgramActivityCard
-                      key={item.key}
-                      variant="row"
-                      title={item.title}
-                      description={item.description}
-                      href={item.href}
-                      hero={item.hero}
-                      meta={item.meta}
-                    />
-                  ))}
-                </div>
-              ) : isOwner && ws && isDraftOnly ? (
-                <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-8 text-center text-sm text-muted space-y-3">
-                  <p>No activities added yet.</p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setEditingActivities(true)}
-                  >
-                    Add Activities
-                  </Button>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-8 text-center text-sm text-muted">
-                  Activity outline available after starting the program.
-                </div>
-              )}
-            </section>
-
-            {entry && (
-              <ProgramPersonalDetailsGrid
-                entry={entry}
-                selectedRun={selectedRun}
-                currentUrl={currentUrl}
-                onSetupSchedule={() =>
-                  startRef.current?.scrollIntoView({ behavior: 'smooth' })
-                }
-              />
-            )}
-          </div>
-
-          <aside aria-label="Program community and sharing" className="space-y-6 lg:sticky lg:top-6">
-            <ProgramGroups
-              programId={id}
-              versionId={p.latestVersionId}
-              enrollmentId={enrollmentId || null}
-              isProgramOwner={isOwner}
-              isPublicProgram={p.visibility === 'PUBLIC' && !isDraftOnly}
-              timezone={tz}
-              signedIn={signedIn}
-              participantCount={participantCount}
-              completionRate={p.completionRate}
-              activityOptions={
-                isOwner && ws?.activities.length
-                  ? ws.activities.map((a) => ({ id: a.activityId, title: a.title }))
-                  : programVersion.data?.activities.map((a) => ({ id: a.id, title: a.title }))
+                ) : undefined
               }
-              returnTo={currentUrl}
             />
+            {editingActivities && isOwner && ws ? (
+              <div className="space-y-4 rounded-2xl border border-accent/30 bg-surface p-5 sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-muted">
+                    Edit activity details, frequency, or add new activities directly to this program.
+                  </p>
+                  <Link
+                    to={buildBrowseUrl({
+                      kind: 'activities',
+                      programId: ws.id,
+                      category: ws.type.categoryId || undefined,
+                      returnTo: currentUrl,
+                    })}
+                    className="btn btn--outline btn--sm"
+                  >
+                    Browse Library
+                  </Link>
+                </div>
+                {ws.activities.length > 0 ? (
+                  <div className="space-y-3">
+                    {ws.activities.map((a) => (
+                      <WorkspaceActivityRow
+                        key={a.activityId}
+                        activity={a}
+                        ws={ws}
+                        returnTo={currentUrl}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-6 text-center text-sm text-muted">
+                    No activities yet. Create one below or browse the library to add existing ones.
+                  </div>
+                )}
+                <CreateActivitySection ws={ws} />
+              </div>
+            ) : activityItems.length > 0 ? (
+              <div className="rounded-2xl border border-border/70 bg-surface overflow-hidden divide-y divide-border/60">
+                {activityItems.map((item) => (
+                  <ProgramActivityCard
+                    key={item.key}
+                    variant="row"
+                    title={item.title}
+                    description={item.description}
+                    href={item.href}
+                    hero={item.hero}
+                    meta={item.meta}
+                  />
+                ))}
+              </div>
+            ) : isOwner && ws && isDraftOnly ? (
+              <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-8 text-center text-sm text-muted space-y-3">
+                <p>No activities added yet.</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditingActivities(true)}
+                >
+                  Add Activities
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-8 text-center text-sm text-muted">
+                Activity outline available after starting the program.
+              </div>
+            )}
+          </section>
 
-            <ShareLinkCard
-              title="Share Program"
-              ariaLabel="Share Program"
-              url={publicUrl}
-              shareTitle="Join me on this Program"
-              copiedMessage="Program link copied"
-              inputLabel="Program link"
-            />
+          <ProgramGroups
+            programId={id}
+            versionId={p.latestVersionId}
+            enrollmentId={enrollmentId || null}
+            isProgramOwner={isOwner}
+            isPublicProgram={p.visibility === 'PUBLIC' && !isDraftOnly}
+            timezone={tz}
+            signedIn={signedIn}
+            participantCount={participantCount}
+            completionRate={p.completionRate}
+            activityOptions={
+              isOwner && ws?.activities.length
+                ? ws.activities.map((a) => ({ id: a.activityId, title: a.title }))
+                : programVersion.data?.activities.map((a) => ({ id: a.id, title: a.title }))
+            }
+            returnTo={currentUrl}
+          />
 
-            <div className="flex justify-end">
-              <ReportButton target={{ type: 'PROGRAM', id: p.id }} ownerId={p.creator?.id} />
-            </div>
-          </aside>
+          <div className="flex justify-end pt-4 border-t border-border/40">
+            <ReportButton target={{ type: 'PROGRAM', id: p.id }} ownerId={p.creator?.id} />
+          </div>
         </div>
       </div>
     </Page>

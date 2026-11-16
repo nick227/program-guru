@@ -78,7 +78,7 @@ export function ProgramCreatePage() {
 
   return (
     <Page>
-      <Stage className="w-full">
+      <Stage className="w-full max-w-5xl">
         <Back to={backTo}>{resolveCreateBackLabel(backTo)}</Back>
         <ProgramCreateForm
           typeId={typeId}

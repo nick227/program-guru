@@ -3,7 +3,7 @@ import { forwardRef } from 'react'
 import { Spinner } from './Spinner'
 import { cn } from '@/lib/utils'
 
-const buttonVariants = cva('btn', {
+export const buttonVariants = cva('btn', {
   variants: {
     variant: {
       default: 'btn--primary',

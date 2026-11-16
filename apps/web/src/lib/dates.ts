@@ -53,10 +53,24 @@ export function dateLabel(
   date: string,
   options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' },
 ) {
-  return new Intl.DateTimeFormat('en-US', {
-    ...options,
-    timeZone: 'UTC',
-  }).format(new Date(`${date}T12:00:00Z`))
+  if (!date) return ''
+  const dateStr = date.includes('T') ? date.slice(0, 10) : date
+  const parsed = isLocalDate(dateStr)
+    ? new Date(`${dateStr}T12:00:00Z`)
+    : new Date(date)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date
+  }
+
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      ...options,
+      timeZone: 'UTC',
+    }).format(parsed)
+  } catch {
+    return date
+  }
 }
 export function calendarUrl(day: string, _week?: string) {
   return `/calendar?view=day&day=${day}`

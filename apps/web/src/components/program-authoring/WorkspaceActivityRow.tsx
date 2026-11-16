@@ -72,10 +72,10 @@ export function WorkspaceActivityRow({
   const displayTargetTime = formatTargetTime(detail.data ? detail.data.targetTime : activity.targetTime)
 
   return (
-    <article className="rounded-2xl border border-border bg-surface p-4 transition-all hover:border-accent hover:shadow-sm space-y-3">
-      <Row className="items-center justify-between gap-4">
-        <Row className="items-center gap-4 min-w-0 flex-1">
-          <div className="w-24 shrink-0 sm:w-28">
+    <article className="rounded-xl border border-border/70 bg-surface p-3 transition-colors hover:border-border">
+      <Row className="items-center justify-between gap-3">
+        <Row className="items-center gap-3 min-w-0 flex-1">
+          <div className="h-11 w-16 shrink-0 overflow-hidden rounded-md border border-border/50 bg-surface-muted">
             <EntityHero
               hero={activityHero(
                 {
@@ -85,14 +85,15 @@ export function WorkspaceActivityRow({
                 },
                 categorySlugOf,
               )}
-              size="card"
-              className="aspect-preview rounded-[var(--radius-media)]"
+              size="row"
+              interactive={false}
+              className="h-full w-full object-cover"
             />
           </div>
           <div className="min-w-0 flex-1">
             <Link
               to={`/activities/${activity.activityId}?returnTo=${encodeURIComponent(returnTo)}`}
-              className="font-semibold truncate block hover:text-accent transition-colors text-sm sm:text-base leading-snug"
+              className="font-medium truncate block hover:text-accent transition-colors text-sm sm:text-base leading-snug"
             >
               {activity.title}
             </Link>
@@ -101,7 +102,7 @@ export function WorkspaceActivityRow({
                 {detail.data.summary}
               </p>
             )}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted mt-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted mt-0.5">
               {displayDuration && (
                 <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
                   <Clock size={12} aria-hidden />
@@ -128,11 +129,11 @@ export function WorkspaceActivityRow({
             </div>
           </div>
         </Row>
-        <Row className="gap-2 shrink-0">
+        <Row className="gap-1.5 shrink-0">
           <Button
             variant="outline"
             size="sm"
-            className="h-8 px-3 text-xs"
+            className="h-7 px-2.5 text-xs"
             onClick={() => setEditing(!editing)}
           >
             {editing ? 'Close' : 'Edit'}
@@ -140,7 +141,7 @@ export function WorkspaceActivityRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 px-3 text-xs text-muted hover:text-danger"
+            className="h-7 px-2 text-xs text-muted hover:text-danger"
             disabled={!online || removeActivity.isPending}
             loading={removeActivity.isPending}
             onClick={async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Link,
   useLocation,
@@ -1019,9 +1019,78 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const timing = scope === 'STARTING_SOON' ? 'STARTING_SOON' : 'ALL'
   const isMyGroups = scope === 'MY_GROUPS'
 
-  const categoryId = filters.category
-  const programTypeId = filters.type
-  const focusId = filters.focus
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const isUuid = (val: string): boolean => UUID_REGEX.test(val)
+
+  const rawCategory = filters.category?.trim() ?? ''
+  const rawType = filters.type?.trim() ?? ''
+  const rawFocus = filters.focus?.trim() ?? ''
+
+  const matchedCategory = rawCategory
+    ? isUuid(rawCategory)
+      ? categories.data?.find((c) => c.id === rawCategory)
+      : categories.data?.find(
+          (c) =>
+            c.slug.toLowerCase() === rawCategory.toLowerCase() ||
+            c.label.toLowerCase() === rawCategory.toLowerCase(),
+        )
+    : null
+
+  const matchedTypeFromCat =
+    !matchedCategory && rawCategory && !isUuid(rawCategory)
+      ? types.data?.find(
+          (t) =>
+            t.slug.toLowerCase() === rawCategory.toLowerCase() ||
+            t.label.toLowerCase() === rawCategory.toLowerCase(),
+        )
+      : null
+
+  const matchedType = rawType
+    ? isUuid(rawType)
+      ? types.data?.find((t) => t.id === rawType)
+      : types.data?.find(
+          (t) =>
+            t.slug.toLowerCase() === rawType.toLowerCase() ||
+            t.label.toLowerCase() === rawType.toLowerCase(),
+        )
+    : (matchedTypeFromCat ?? null)
+
+  const categoryId = matchedCategory?.id
+    ? matchedCategory.id
+    : isUuid(rawCategory)
+      ? rawCategory
+      : matchedType?.categoryId
+        ? matchedType.categoryId
+        : ''
+
+  const programTypeId = matchedType?.id
+    ? matchedType.id
+    : isUuid(rawType)
+      ? rawType
+      : ''
+
+  const focuses = useFocuses({
+    categoryId: categoryId || undefined,
+    programTypeId: programTypeId || undefined,
+    enabled: true,
+  })
+
+  const matchedFocus = rawFocus
+    ? isUuid(rawFocus)
+      ? focuses.data?.find((f) => f.id === rawFocus)
+      : focuses.data?.find(
+          (f) =>
+            f.slug.toLowerCase() === rawFocus.toLowerCase() ||
+            f.label.toLowerCase() === rawFocus.toLowerCase(),
+        )
+    : null
+
+  const focusId = matchedFocus?.id
+    ? matchedFocus.id
+    : isUuid(rawFocus)
+      ? rawFocus
+      : ''
+
   const level = filters.level
   const maxSessionMinutes = filters.maxSessionMinutes
   const selectedTags = filters.tags
@@ -1036,11 +1105,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const cities = [...new Set((placesCatalog.data ?? []).map((p) => p.locality))].sort()
   const [previewPlaceId, setPreviewPlaceId] = useState<string | null>(null)
 
-  const focuses = useFocuses({
-    categoryId: categoryId || undefined,
-    programTypeId: programTypeId || undefined,
-    enabled: true,
-  })
   const visibleTypes = categoryId
     ? (types.data ?? []).filter((t) => t.categoryId === categoryId)
     : (types.data ?? [])
@@ -1476,43 +1540,42 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     }
   }
 
-  const programItems: BrowseFeedItem[] = (programs.data?.pages ?? [])
-    .flatMap((page) =>
-      page.data.flatMap((d) =>
-        d.program
-          ? [
-              {
-                program: d.program,
-                featuredGroup: d.featuredGroup ?? null,
-                participantCount: d.participantCount ?? null,
-              },
-            ]
-          : [],
-      ),
-    )
-    .filter(({ program }) => keep(program))
-    .map(({ program, featuredGroup, participantCount }) =>
-      mapProgramItem(program, featuredGroup, participantCount),
-    )
+  const programItems: BrowseFeedItem[] = useMemo(() => {
+    const items: BrowseFeedItem[] = []
+    for (const page of programs.data?.pages ?? []) {
+      for (const d of page.data) {
+        if (d.program && keep(d.program)) {
+          items.push(
+            mapProgramItem(
+              d.program,
+              d.featuredGroup ?? null,
+              d.participantCount ?? null,
+            ),
+          )
+        }
+      }
+    }
+    return items
+  }, [programs.data?.pages, keep, categorySlugOf, currentUrl, mode])
 
-  const activityItems: BrowseFeedItem[] = (activities.data?.pages ?? [])
-    .flatMap((page) =>
-      page.data.flatMap((d) =>
-        d.activity
-          ? [
-              {
-                activity: d.activity,
-                featuredGroup: d.featuredGroup ?? null,
-                participantCount: d.participantCount ?? null,
-              },
-            ]
-          : [],
-      ),
-    )
-    .filter(({ activity }) => (mode.kind === 'activities' ? keep(activity) : true))
-    .map(({ activity, featuredGroup, participantCount }) =>
-      mapActivityItem(activity, featuredGroup, participantCount),
-    )
+  const activityItems: BrowseFeedItem[] = useMemo(() => {
+    const items: BrowseFeedItem[] = []
+    const isActMode = mode.kind === 'activities'
+    for (const page of activities.data?.pages ?? []) {
+      for (const d of page.data) {
+        if (d.activity && (!isActMode || keep(d.activity))) {
+          items.push(
+            mapActivityItem(
+              d.activity,
+              d.featuredGroup ?? null,
+              d.participantCount ?? null,
+            ),
+          )
+        }
+      }
+    }
+    return items
+  }, [activities.data?.pages, keep, categorySlugOf, currentUrl, mode])
 
   const liveSessionItems: BrowseFeedItem[] = (liveSessions.data ?? [])
     .slice(0, 4)
@@ -2378,7 +2441,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                           {dateLabel(g.localDate)}
                           {g.place ? ` · ${g.place.name}, ${g.place.locality}` : ''} · {g.memberCount} going
                         </span>
-                        {g.lookingFor && <span className="mt-1 block truncate text-sm italic text-foreground/80">{g.lookingFor}</span>}
                         <span className="mt-1 block text-sm font-semibold text-accent">{groupAction(g) === 'open' ? 'Open' : 'Join'}</span>
                       </Link>
                     </li>

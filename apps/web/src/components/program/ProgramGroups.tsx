@@ -179,20 +179,23 @@ export function ProgramGroups({
   }
 
   return (
-    <section
-      aria-labelledby="program-community"
-      className="space-y-4 rounded-2xl border border-border/70 bg-surface p-5 sm:p-6"
-    >
-      <div className="space-y-1">
-        <h2 id="program-community" className="text-xl font-semibold">
-          Community
-        </h2>
-        {summaryBits.length > 0 && (
-          <p className="text-sm text-muted">{summaryBits.join(' · ')}</p>
-        )}
+    <section aria-labelledby="program-community" className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <h2
+            id="program-community"
+            className="text-xl sm:text-2xl font-bold font-display tracking-tight text-foreground"
+          >
+            Community
+          </h2>
+          {summaryBits.length > 0 && (
+            <p className="text-xs sm:text-sm text-muted">{summaryBits.join(' · ')}</p>
+          )}
+        </div>
       </div>
 
-      {signedIn && (
+      <div className="space-y-4 rounded-2xl border border-border/70 bg-surface p-5 sm:p-6">
+        {signedIn && (
         <ErrorMessage
           error={groups.error || invitations.error}
           retry={() => {
@@ -304,6 +307,7 @@ export function ProgramGroups({
       {signedIn && !statusItems.length && !canCreate && !enrollmentId && !isProgramOwner && (
         <p className="text-sm text-muted">Start the Program to create a group.</p>
       )}
+      </div>
     </section>
   )
 }

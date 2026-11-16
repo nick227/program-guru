@@ -15,11 +15,9 @@ import { Button } from '@/components/ui/Button'
 import { ProgramHeader } from '@/components/program/ProgramHeader'
 import { ProgramStepper } from '@/components/program/ProgramStepper'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
-import { SuggestionRail } from '@/components/shared/SuggestionRail'
 import { MediaTray } from '@/components/media/MediaTray'
 import { useDraftMedia } from '@/lib/useEntityMedia'
 import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
-import { programCard } from '@/lib/discoveryCards'
 import { programHero } from '@/lib/hero'
 import { useOnline } from '@/lib/useOnline'
 
@@ -222,36 +220,6 @@ export function ProgramCreateForm({
           </Button>
         </div>
 
-        <SuggestionRail
-          title="Suggested"
-          actionLabel="Use as starting point"
-          items={suggestions.items.map((program) =>
-            programCard(program, categorySlugOf),
-          )}
-          loading={suggestions.isPending}
-          error={suggestions.error}
-          retry={() => void suggestions.refetch()}
-          selectedId={startingPoint?.id}
-          disabled={!!createdDraft}
-          onPick={(id) => {
-            const program = suggestions.items.find((p) => p.id === id)
-            if (program) chooseStartingPoint(program)
-          }}
-          footer={
-            onBrowse && (
-              <Button
-                type="button"
-                variant="outline"
-                className="self-start"
-                disabled={!!createdDraft}
-                aria-label="Browse Program Library"
-                onClick={() => onBrowse({ typeId, title, description, startingPoint })}
-              >
-                Browse
-              </Button>
-            )
-          }
-        />
         {startingPoint && (
           <Row className="justify-between gap-3 rounded-lg border border-border p-3">
             <Row className="min-w-0 flex-1 flex-nowrap gap-3">

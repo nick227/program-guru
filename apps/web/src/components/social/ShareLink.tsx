@@ -117,17 +117,19 @@ export function ShareLinkCard({
   ...fieldProps
 }: ShareLinkCardProps) {
   return (
+    <>
+      <SectionHeader title={title} description={description} className="pb-4" />
     <section
       aria-label={ariaLabel}
       className={cn(
-        'rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-5',
+        'rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-5 w-full',
         className,
       )}
     >
-      <SectionHeader title={title} description={description} className="pb-0" />
       {children}
       <ShareLinkField {...fieldProps} />
     </section>
+    </>
   )
 }
 

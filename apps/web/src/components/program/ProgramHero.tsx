@@ -21,6 +21,7 @@ export interface ProgramHeroProps {
   /** Identity image, resolved through `programHero` so the fallback chain stays shared. */
   hero: Hero
   categoryLabel?: string | null
+  categoryHref?: string | null
   creator?: {
     handle?: string | null
     displayName?: string | null
@@ -62,14 +63,21 @@ export interface ProgramHeroProps {
 }
 
 /**
- * Program Storefront hero (13 §4): cover on the left; kicker, title, summary, creator and real
- * participation on the right, then the one primary action. Nothing is drawn over the media.
+ * Clean, spacious Program Hero with consistent editorial hierarchy:
+ * 1. Category kicker
+ * 2. Bold title
+ * 3. Creator attribution + structured specs line
+ * 4. Readable description
+ * 5. Dominant primary CTAs
+ * 6. Quiet past runs note
+ * 7. Dedicated owner & utility toolbar along bottom hairline
  */
 export function ProgramHero({
   title,
   description,
   hero,
   categoryLabel,
+  categoryHref,
   creator,
   creatorReturnTo,
   isPlatform = false,
@@ -115,7 +123,7 @@ export function ProgramHero({
     <section
       aria-label={`${title} hero`}
       className={cn(
-        'grid grid-cols-1 items-start gap-6 sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] sm:gap-8 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-10',
+        'grid grid-cols-1 items-start gap-8 sm:grid-cols-[18rem_minmax(0,1fr)] lg:grid-cols-[22rem_minmax(0,1fr)] lg:gap-12',
         className,
       )}
     >
@@ -124,67 +132,36 @@ export function ProgramHero({
         size="card"
         interactive={false}
         showVideoBadge={false}
-        className="aspect-[4/3] w-full max-w-none rounded-2xl border border-border/50 bg-surface-muted sm:aspect-square"
+        className="aspect-[4/3] w-full max-w-none rounded-2xl border border-border/60 bg-surface-muted overflow-hidden shadow-xs"
       />
 
       <div className="min-w-0 space-y-5">
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
-              {categoryLabel ? `Program · ${categoryLabel}` : 'Program'}
-            </p>
-            {isOwner && ownerVisibility && (
-              <div className="flex flex-wrap items-center gap-2">
-                {ownerVisibility.status !== 'PUBLISHED' && (
-                  <span className="rounded-full border border-border bg-surface-muted px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
-                    {ownerVisibility.status === 'DRAFT' ? 'Draft' : 'Archived'}
-                  </span>
-                )}
-                <div
-                  role="group"
-                  aria-label="Program visibility"
-                  className="inline-flex items-center rounded-full border border-border/80 bg-surface p-0.5"
-                >
-                  {PROGRAM_VISIBILITIES.map((v) => {
-                    const active = ownerVisibility.value === v
-                    const Icon = v === 'PUBLIC' ? Globe : v === 'UNLISTED' ? Link2 : Lock
-                    return (
-                      <button
-                        key={v}
-                        type="button"
-                        aria-pressed={active}
-                        disabled={ownerVisibility.disabled || ownerVisibility.pending}
-                        onClick={() => {
-                          if (!active) ownerVisibility.onChange(v)
-                        }}
-                        className={cn(
-                          'inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-60 sm:min-h-0 sm:py-1',
-                          active
-                            ? 'bg-accent text-accent-foreground shadow-sm'
-                            : 'text-muted hover:text-foreground',
-                        )}
-                      >
-                        <Icon size={12} aria-hidden />
-                        <span>{programVisibilityLabel(v)}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+        <div className="space-y-2.5">
+          {/* Category Kicker */}
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
+            {categoryHref ? (
+              <Link to={categoryHref} className="transition-opacity hover:opacity-80">
+                {categoryLabel ? `Program · ${categoryLabel}` : 'Program'}
+              </Link>
+            ) : (
+              <span>{categoryLabel ? `Program · ${categoryLabel}` : 'Program'}</span>
             )}
-          </div>
-          <h1 className="font-display text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          </p>
+
+          {/* Title */}
+          <h1 className="font-display text-3xl font-bold leading-[1.08] tracking-tight text-foreground sm:text-4xl lg:text-5xl">
             {title}
           </h1>
+
+          {/* Subtitle / Description */}
           {description && (
-            <p className="max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
+            <p className="max-w-2xl text-base sm:text-lg leading-relaxed text-muted">
               {description}
             </p>
           )}
-        </div>
 
-        {(creator || isPlatform || participantCount != null) && (
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          {/* Attribution & Core Specs Line */}
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-sm text-muted pt-1">
             {creator ? (
               <Link
                 to={
@@ -192,86 +169,144 @@ export function ProgramHero({
                     ? `${buildProfileUrl(creator.handle ?? '')}?returnTo=${encodeURIComponent(creatorReturnTo)}`
                     : buildProfileUrl(creator.handle ?? '')
                 }
-                className="inline-flex items-center gap-2 font-medium text-foreground transition-colors hover:text-accent"
+                className="inline-flex items-center gap-1.5 font-medium text-foreground transition-colors hover:text-accent"
               >
                 <Avatar
                   src={creator.avatarUrl}
                   name={creator.displayName ?? 'Creator'}
                   size="sm"
-                  className="h-6 w-6"
+                  className="h-5 w-5"
                 />
                 <span>{creator.displayName}</span>
               </Link>
             ) : isPlatform ? (
               <span className="font-medium text-muted">Program Guru</span>
             ) : null}
+
+            {metaItems.map((item, idx) => (
+              <span key={idx} className="inline-flex items-center gap-2">
+                <span className="text-muted/40" aria-hidden>·</span>
+                <span>{item}</span>
+              </span>
+            ))}
+
             {participantCount != null && (
-              <span className="text-muted">
-                <strong className="font-semibold tabular-nums text-foreground">
-                  {participantCount.toLocaleString()}
-                </strong>{' '}
-                {participantCount === 1 ? 'participant' : 'participants'}
+              <span className="inline-flex items-center gap-2">
+                <span className="text-muted/40" aria-hidden>·</span>
+                <span>
+                  <strong className="font-semibold tabular-nums text-foreground">
+                    {participantCount.toLocaleString()}
+                  </strong>{' '}
+                  {participantCount === 1 ? 'participant' : 'participants'}
+                </span>
               </span>
             )}
           </div>
-        )}
-
-        {metaItems.length > 0 && (
-          <p className="text-sm text-muted">
-            {metaItems.join(' · ')}
-          </p>
-        )}
-
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-1">
-          {primaryLabel && onPrimary && (
-            <Button
-              size="lg"
-              onClick={onPrimary}
-              disabled={primaryDisabled}
-              loading={primaryLoading}
-              className="w-full gap-2 px-7 text-base font-semibold sm:w-auto"
-            >
-              {!primaryLoading &&
-                (primaryDone ? (
-                  <Check size={18} strokeWidth={2.5} aria-hidden />
-                ) : (
-                  <Play size={16} className="translate-x-0.5 fill-current" aria-hidden />
-                ))}
-              <span>{primaryLabel}</span>
-            </Button>
-          )}
-          {secondaryAction}
-          {primaryNote}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1 text-sm">
-          {hero.media?.type === 'VIDEO' && (
-            <Button variant="ghost" size="sm" onClick={() => setWatching(true)} className="gap-1.5 text-muted">
-              <Play size={14} className="fill-current" aria-hidden />
-              Watch preview
-            </Button>
+        {/* Action Row */}
+        <div className="space-y-3 pt-1">
+          <div className="flex flex-wrap items-center gap-3">
+            {primaryLabel && onPrimary && (
+              <Button
+                size="lg"
+                onClick={onPrimary}
+                disabled={primaryDisabled}
+                loading={primaryLoading}
+                className="w-full gap-2 px-7 text-base font-semibold sm:w-auto"
+              >
+                {!primaryLoading &&
+                  (primaryDone ? (
+                    <Check size={18} strokeWidth={2.5} aria-hidden />
+                  ) : (
+                    <Play size={16} className="translate-x-0.5 fill-current" aria-hidden />
+                  ))}
+                <span>{primaryLabel}</span>
+              </Button>
+            )}
+            {secondaryAction}
+          </div>
+
+          {/* Previous runs / note */}
+          {primaryNote && (
+            <div className="pt-0.5 text-xs">
+              {primaryNote}
+            </div>
           )}
-          {isOwner && onEditProgram && (
+        </div>
+
+        {/* Contextual Owner & Utility Toolbar along subtle bottom separator */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/50 pt-4 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            {hero.media?.type === 'VIDEO' && (
+              <Button variant="ghost" size="sm" onClick={() => setWatching(true)} className="gap-1.5 text-muted">
+                <Play size={14} className="fill-current" aria-hidden />
+                Watch preview
+              </Button>
+            )}
+            {isOwner && onEditProgram && (
+              <Button
+                variant="outline"
+                size="sm"
+                aria-expanded={editExpanded}
+                onClick={onEditProgram}
+                className="gap-1.5"
+              >
+                <Pencil size={14} aria-hidden />
+                {editLabel}
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
-              aria-expanded={editExpanded}
-              onClick={onEditProgram}
-              className="gap-1.5 text-muted"
+              onClick={() => void handleShare()}
+              className="gap-1.5 text-muted hover:text-foreground"
             >
-              <Pencil size={14} aria-hidden />
-              {editLabel}
+              <Share2 size={14} aria-hidden />
+              Share
             </Button>
+          </div>
+
+          {/* Owner Visibility Segmented Control */}
+          {isOwner && ownerVisibility && (
+            <div className="flex items-center gap-2">
+              {ownerVisibility.status !== 'PUBLISHED' && (
+                <span className="rounded-full border border-border bg-surface-muted px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                  {ownerVisibility.status === 'DRAFT' ? 'Draft' : 'Archived'}
+                </span>
+              )}
+              <div
+                role="group"
+                aria-label="Program visibility"
+                className="inline-flex items-center rounded-full border border-border/80 bg-surface p-0.5"
+              >
+                {PROGRAM_VISIBILITIES.map((v) => {
+                  const active = ownerVisibility.value === v
+                  const Icon = v === 'PUBLIC' ? Globe : v === 'UNLISTED' ? Link2 : Lock
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={active}
+                      disabled={ownerVisibility.disabled || ownerVisibility.pending}
+                      onClick={() => {
+                        if (!active) ownerVisibility.onChange(v)
+                      }}
+                      className={cn(
+                        'inline-flex min-h-8 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60',
+                        active
+                          ? 'bg-accent text-accent-foreground shadow-sm'
+                          : 'text-muted hover:text-foreground',
+                      )}
+                    >
+                      <Icon size={12} aria-hidden />
+                      <span>{programVisibilityLabel(v)}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => void handleShare()}
-            className="gap-1.5 text-muted"
-          >
-            <Share2 size={14} aria-hidden />
-            Share
-          </Button>
         </div>
       </div>
 

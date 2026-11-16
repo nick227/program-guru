@@ -287,39 +287,13 @@ export function ActivityPage() {
                   />
                 </ActivitySection>
 
-                {(metrics.length > 0 || a.tools.length > 0) && (
-                  <ActivitySection icon={Target} title="Tracks and uses">
-                    {metrics.length > 0 && (
-                      <div className="space-y-1.5">
-                        <h3 className="activity-card__label">Tracked metrics</h3>
-                        <p className="text-sm text-foreground">{metrics.join(' · ')}</p>
-                      </div>
-                    )}
-                    {a.tools.length > 0 && (
-                      <div className="space-y-1.5">
-                        <h3 className="activity-card__label">Tools</h3>
-                        <div className="flex flex-wrap gap-1.5">
-                          {a.tools.map((tool) => (
-                            <span
-                              key={tool.id}
-                              className="inline-flex items-center rounded-md bg-surface-muted px-2.5 py-1 text-xs font-medium text-foreground"
-                            >
-                              {tool.label}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </ActivitySection>
-                )}
-
                 <ActivitySection
                   as="div"
                   id="related-media"
                   icon={ImageIcon}
                   title="Related Media"
-                  description="Demonstrations and public photos and videos for this Activity."
-                  className="activity-gallery activity-related scroll-mt-20"
+                  description="Photos and video guides for this Activity."
+                  className="activity-gallery activity-related scroll-mt-20 activity-card"
                 >
                   <ActivityRelatedMedia
                     activityId={a.id}
