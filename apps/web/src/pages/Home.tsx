@@ -22,6 +22,7 @@ import { InlineProgramBuilder } from '@/features/home/components/InlineProgramBu
 import { ShowMeView } from '@/features/home/components/ShowMeView'
 import { TransitionSurface } from '@/features/home/components/TransitionSurface'
 import { TurnStage } from '@/features/home/components/TurnStage'
+import type { ActivityExecutionHandle } from '@/components/activity/ActivityExecution'
 import { cardHeroSrc } from '@/features/home/components/TurnHero'
 import { resolveTurn } from '@/features/home/engine/decisionEngine'
 import { reusableTodayItem } from '@/lib/participation'
@@ -246,6 +247,16 @@ export function HomePage() {
     if (src) new Image().src = src
   }, [nextCard])
 
+  // Leaving a running Activity (reset, Back) goes through its unsaved-results guard first.
+  const executionRef = useRef<ActivityExecutionHandle>(null)
+  const afterExecutionClose = useRef<(() => void) | null>(null)
+  const leaveExecutionThen = (then: () => void) => {
+    if (executionItemId && executionRef.current) {
+      afterExecutionClose.current = then
+      executionRef.current.requestClose()
+    } else then()
+  }
+
   const handleReset = useCallback(() => {
     setPreviewTarget(null)
     setExecutionItemId(null)
@@ -263,7 +274,7 @@ export function HomePage() {
       return
     }
     if (executionItemId) {
-      setExecutionItemId(null)
+      executionRef.current ? executionRef.current.requestClose() : setExecutionItemId(null)
       return
     }
     const prev = history[history.length - 1]
@@ -545,7 +556,7 @@ export function HomePage() {
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
       <HomeTopBar
-        onReset={handleReset}
+        onReset={() => leaveExecutionThen(handleReset)}
         showReset={
           nodeId !== 'opening' ||
           state.excludedIds.length > 0 ||
@@ -600,7 +611,13 @@ export function HomePage() {
             onClearFilter={handleClearFilter}
             onPreview={setPreviewTarget}
             onClosePreview={() => setPreviewTarget(null)}
-            onCloseExecution={handleCloseExecution}
+            onCloseExecution={() => {
+              handleCloseExecution()
+              const then = afterExecutionClose.current
+              afterExecutionClose.current = null
+              then?.()
+            }}
+            executionRef={executionRef}
             onExecutionCompleted={(title) => setCompletedInSession(title)}
             onNextAfterExecution={handleNextAfterExecution}
             onOpenOccurrencePage={(itemId) => navigate(`/occurrences/${itemId}`)}

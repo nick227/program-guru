@@ -6,7 +6,8 @@ import type {
   DiscoveryState,
   PreviewTarget,
 } from '../engine/types'
-import { InlineExecution } from './InlineExecution'
+import type { Ref } from 'react'
+import { ActivityExecution, type ActivityExecutionHandle } from '@/components/activity/ActivityExecution'
 import { InlinePreview } from './InlinePreview'
 import { TurnHero } from './TurnHero'
 import { ActivityParticipation } from '@/components/activity/ActivityParticipation'
@@ -32,6 +33,8 @@ interface TurnStageProps {
   onExecutionCompleted: (title: string) => void
   onNextAfterExecution: () => void
   onOpenOccurrencePage: (itemId: string) => void
+  /** The running execution's guard handle (Home's reset and Back close through it). */
+  executionRef?: Ref<ActivityExecutionHandle>
   onCardAction: (action: CardAction) => void
   onBack: () => void
 }
@@ -61,6 +64,7 @@ export function TurnStage({
   onExecutionCompleted,
   onNextAfterExecution,
   onOpenOccurrencePage,
+  executionRef,
   onCardAction,
   onBack,
 }: TurnStageProps) {
@@ -119,13 +123,17 @@ export function TurnStage({
   if (executionItemId) {
     return (
       <section className="flex w-full flex-col items-center text-center">
-        <InlineExecution
+        {/* The shared execution (same as Calendar), in Home's stage presentation. */}
+        <ActivityExecution
+          ref={executionRef}
+          layout="stage"
           itemId={executionItemId}
           onClose={onCloseExecution}
           onCompleted={onExecutionCompleted}
-          onNextSuggestion={onNextAfterExecution}
+          onNext={onNextAfterExecution}
+          nextLabel="Next suggestion"
           onOpenFullPage={onOpenOccurrencePage}
-          onPreviewCreator={onPreview}
+          onOpenPerson={(handle) => onPreview({ kind: 'creator', handle })}
         />
       </section>
     )

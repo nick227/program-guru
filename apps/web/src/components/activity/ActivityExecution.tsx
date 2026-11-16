@@ -48,6 +48,11 @@ export type ActivityExecutionProps = {
   nextLabel?: string
   onOpenFullPage: (itemId: string) => void
   onOpenPerson?: (handle: string) => void
+  /**
+   * `panel` (Calendar): fills the side panel or sheet. `stage` (Home): a centered 620px stage with a
+   * full-width hero and a larger title, Home's own presentation of the same execution.
+   */
+  layout?: 'panel' | 'stage'
   className?: string
 }
 
@@ -71,7 +76,7 @@ const secondaryBtn =
 type Dirty = Record<string, string | number | boolean>
 
 const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occurrence: S['ActivityOccurrence'] }>(
-  function Body({ occurrence: o, autoStart, onClose, onCompleted, onNext, nextLabel, onOpenFullPage, onOpenPerson }, ref) {
+  function Body({ occurrence: o, autoStart, onClose, onCompleted, onNext, nextLabel, onOpenFullPage, onOpenPerson, layout = 'panel', className }, ref) {
     const queryClient = useQueryClient()
     const create = useCreateSession(o.item.id)
     const action = useSessionAction(o.item.id)
@@ -235,7 +240,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
     const running = phase === 'active' || phase === 'paused'
 
     return (
-      <div className="activity-exec">
+      <div className={cn('activity-exec', layout === 'stage' && 'activity-exec--stage', className)}>
         <div className="activity-exec__head">
           <button type="button" onClick={requestClose} className="activity-exec__back">
             <ArrowLeft size={16} aria-hidden />
@@ -290,7 +295,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
         )}
 
         <div className="activity-exec__title">
-          <h2 className="font-display text-xl font-semibold tracking-tight">{o.item.title}</h2>
+          <h2 className={cn('font-display font-semibold tracking-tight', layout === 'stage' ? 'text-2xl' : 'text-xl')}>{o.item.title}</h2>
           <p className="text-sm text-muted">
             {[o.item.durationMinutes ? `${o.item.durationMinutes} min` : null, programLine, progress ? `${progress.completed} of ${progress.planned} done` : null]
               .filter(Boolean)
@@ -467,10 +472,11 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
 /** Loads the occurrence and renders the execution body (or its error with Back). */
 export const ActivityExecution = forwardRef<ActivityExecutionHandle, ActivityExecutionProps>(function ActivityExecution(props, ref) {
   const occurrence = useOccurrence(props.itemId)
-  if (occurrence.isPending) return <div className="activity-exec activity-exec--loading"><Loading /></div>
+  const stage = props.layout === 'stage' && 'activity-exec--stage'
+  if (occurrence.isPending) return <div className={cn('activity-exec activity-exec--loading', stage)}><Loading /></div>
   if (!occurrence.data)
     return (
-      <div className="activity-exec">
+      <div className={cn('activity-exec', stage)}>
         <ErrorMessage error={occurrence.error} retry={() => void occurrence.refetch()} />
         <button type="button" onClick={props.onClose} className="activity-exec__back">
           <ArrowLeft size={14} aria-hidden />
