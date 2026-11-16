@@ -3543,4 +3543,300 @@
   color: hsl(var(--color-text));
   text-decoration: underline;
 }
+
+/* ===== Visual polish (2026-11-16, 03-UX §5): one card language, one primary action, 8px rhythm ===== */
+
+/* Day cards share the Month card's two rows: a small time line (with done/overlap marks), then the title. */
+.calendar-badge__text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+
+.calendar-badge__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: hsl(var(--color-muted));
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.calendar-badge .calendar-badge__title {
+  line-height: 1.25;
+}
+
+/* One card height everywhere: 44px, like a Month card. */
+.calendar-badge .calendar-badge__trigger {
+  min-height: 2.75rem;
+  padding: 0.3rem 0.75rem;
+}
+
+.calendar-badge__dot:empty {
+  display: none;
+}
+
+/* Panel: 16px between blocks, 8px within; borders only where they separate meaning. */
+.calendar-panel__content {
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.calendar-panel__header {
+  gap: 0.25rem;
+}
+
+.calendar-panel__program {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+}
+
+.calendar-panel__program .calendar-panel__subtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.calendar-panel__progress {
+  display: block;
+  height: 4px;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: hsl(var(--color-surface-muted));
+}
+
+.calendar-panel__progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: hsl(var(--color-accent));
+}
+
+.calendar-panel__people {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* One primary (Start/Resume or Undo), then an even row of quiet secondary actions. */
+.calendar-panel__complete-btn {
+  min-height: 2.75rem;
+  text-decoration: none;
+}
+
+.calendar-panel__secondary-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+.calendar-panel__secondary-btn,
+.calendar-panel__remove-btn {
+  min-height: 2.75rem;
+  justify-content: center;
+  margin: 0;
+  border: 1px solid hsl(var(--color-border) / 0.8);
+  background: hsl(var(--color-surface));
+  padding: 0 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.calendar-panel__secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.calendar-panel__remove-btn {
+  color: hsl(var(--color-muted));
+}
+
+.calendar-panel__hint {
+  margin: 0;
+  color: hsl(var(--color-muted));
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+/* While doing an Activity the execution header has its own Close. */
+.calendar-panel--executing .calendar-panel__drawer-close {
+  display: none !important;
+}
+
+/* Execution: header, timer, the current step, results and a sticky action bar. */
+.activity-exec {
+  gap: 1rem;
+  padding: 0 1.25rem 0;
+}
+
+.activity-exec__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  margin: 0 -1.25rem;
+  border-bottom: 1px solid hsl(var(--color-border) / 0.6);
+  background: hsl(var(--color-surface));
+  padding: 0.5rem 0.75rem;
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+.activity-exec__back {
+  justify-self: start;
+  margin-left: 0;
+}
+
+.activity-exec__status {
+  justify-self: center;
+}
+
+.activity-exec__status--paused {
+  background: hsl(var(--color-attention) / 0.15);
+  color: hsl(var(--color-text));
+}
+
+.activity-exec__status--idle {
+  background: hsl(var(--color-surface-muted));
+  color: hsl(var(--color-muted));
+}
+
+.activity-exec__close {
+  display: inline-flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  justify-self: end;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: hsl(var(--color-muted));
+  cursor: pointer;
+}
+
+.activity-exec__close:hover {
+  background: hsl(var(--color-surface-muted));
+  color: hsl(var(--color-text));
+}
+
+.activity-exec__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.activity-exec__timer {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-control);
+  background: hsl(var(--color-surface-raised));
+  padding: 1rem;
+}
+
+.activity-exec__timer-value {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.activity-exec__timer-of {
+  color: hsl(var(--color-muted));
+  font-size: 0.875rem;
+}
+
+.activity-exec__step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid hsl(var(--color-border) / 0.8);
+  border-radius: var(--radius-control);
+  padding: 1rem;
+}
+
+.activity-exec__step-count {
+  margin: 0;
+  color: hsl(var(--color-accent));
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.activity-exec__media {
+  max-height: 14rem;
+}
+
+.activity-exec__step-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.activity-exec__results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.activity-exec__actions {
+  margin: 0 -1.25rem;
+  border-top: 1px solid hsl(var(--color-border) / 0.6);
+  padding: 0.75rem 1.25rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.activity-exec__actions--running > :first-child {
+  flex: 1 1 auto;
+}
+
+.activity-exec__full {
+  margin-bottom: 1rem;
+}
+
+/* Bulk bar: count on the left; Select day and Cancel quiet; Move and Remove as equal outlined actions. */
+.calendar-bulk-bar {
+  gap: 0.5rem;
+  padding: 0.375rem 0.375rem 0.375rem 1.25rem;
+}
+
+.calendar-bulk-bar__actions {
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.calendar-bulk-bar__btn {
+  border: 1px solid transparent;
+}
+
+.calendar-bulk-bar__btn:not(.calendar-bulk-bar__btn--quiet) {
+  border-color: hsl(var(--color-border));
+}
+
+.calendar-bulk-bar__btn--danger:not(:disabled) {
+  border-color: hsl(var(--color-danger) / 0.35);
+}
+
+.calendar-bulk-bar__divider {
+  width: 1px;
+  height: 1.5rem;
+  background: hsl(var(--color-border));
+}
 }

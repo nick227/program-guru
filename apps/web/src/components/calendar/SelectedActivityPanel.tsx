@@ -49,6 +49,7 @@ import { useOnline } from '@/lib/useOnline'
 import { cn } from '@/lib/utils'
 import { canMoveCalendarEntry, type SurfaceItem } from '@/lib/calendarGrouping'
 import { ruleLabel, untilLabel } from '@/components/schedule/recurrencePlan'
+import { useEnrollmentProgress } from '@/lib/useEnrollmentProgress'
 
 type S = components['schemas']
 
@@ -107,6 +108,8 @@ function PanelBody({
   const occurrenceQuery = useOccurrence(itemId ?? '')
   const occurrence = occurrenceQuery.data
   const item = occurrence?.item
+  // Program progress for this entry's run (before any early return: hooks keep their order).
+  const progress = useEnrollmentProgress(item?.enrollmentId ?? calendarItem?.enrollmentId)
 
   const [editingTime, setEditingTime] = useState(false)
   const [checkInOpen, setCheckInOpen] = useState(false)
@@ -382,7 +385,26 @@ function PanelBody({
             <span>{title}</span>
             <ArrowUpRight size={15} className="calendar-panel__title-arrow" aria-hidden />
           </Link>
-          {programTitle && <p className="calendar-panel__subtitle">{programTitle}</p>}
+          {programTitle && (
+            <div className="calendar-panel__program">
+              <p className="calendar-panel__subtitle">
+                {programTitle}
+                {progress ? ` · ${progress.completed} of ${progress.planned} done` : ''}
+              </p>
+              {progress && (
+                <span
+                  className="calendar-panel__progress"
+                  role="progressbar"
+                  aria-label={`${programTitle} progress`}
+                  aria-valuemin={0}
+                  aria-valuemax={progress.planned}
+                  aria-valuenow={progress.completed}
+                >
+                  <span style={{ width: `${Math.round((progress.completed / progress.planned) * 100)}%` }} />
+                </span>
+              )}
+            </div>
+          )}
           <div ref={timeWrapRef} className="calendar-panel__when">
             {dateDisplay && (
               <span className="inline-flex items-center gap-1">
@@ -543,22 +565,11 @@ function PanelBody({
         {/* Real gatherings of this Activity that day; joining reuses this item (10 §9.11). */}
         {item && <GatheringSuggestion item={item} className="calendar-panel__gathering" />}
 
-        {/* 4. Participation: the shared component (03-UX §2b), plus this session's own count. */}
+        {/* 4. Who takes part: one quiet line (status and schedule already show above, 03-UX §2b). */}
         {(activityId || collab) && (
-          <section className="calendar-panel__section" aria-label="Participation">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="calendar-panel__together-title">Participation</h3>
-              {groupId && (
-                <Link
-                  to={buildGroupUrl(groupId)}
-                  className="text-xs font-semibold text-accent hover:underline"
-                >
-                  Open session →
-                </Link>
-              )}
-            </div>
+          <div className="calendar-panel__people">
             {collab && (
-              <div className="flex min-w-0 items-center gap-2 text-xs text-muted">
+              <p className="flex min-w-0 items-center gap-2 text-xs text-muted">
                 {collab.members.length > 0 && (
                   <span className="flex shrink-0 -space-x-1.5" aria-hidden>
                     {collab.members.slice(0, 4).map((m) => (
@@ -577,16 +588,17 @@ function PanelBody({
                     ? `${collab.finishedCount} of ${collab.totalCount} finished in this session`
                     : `${collab.totalCount} in this session`}
                 </span>
-              </div>
+                {groupId && (
+                  <Link to={buildGroupUrl(groupId)} className="ml-auto shrink-0 font-semibold text-accent hover:underline">
+                    Open session
+                  </Link>
+                )}
+              </p>
             )}
-            {activityId && (
-              <ActivityParticipation
-                activity={{ id: activityId, title }}
-                variant="summary"
-                returnTo={occurrenceHref}
-              />
+            {activityId && !collab && (
+              <ActivityParticipation activity={{ id: activityId, title }} variant="people" returnTo={occurrenceHref} />
             )}
-          </section>
+          </div>
         )}
 
         {/* An overlap with another timed entry, and the one-tap fix (03-UX §5). */}
@@ -605,13 +617,10 @@ function PanelBody({
           </div>
         )}
 
-        {/* 5. Actions: Complete / Undo, Start or Resume, Remove from Calendar. */}
+        {/* 5. Actions: one primary (Start or Resume; Undo when done), then the rest in one quiet row. */}
         <div className="calendar-panel__actions">
           {isLocked ? (
-            <Link
-              to={`/occurrences/${itemId}`}
-              className="btn btn--outline w-full justify-center"
-            >
+            <Link to={`/occurrences/${itemId}`} className="btn btn--outline w-full justify-center">
               Open Activity
             </Link>
           ) : isDone ? (
@@ -624,6 +633,23 @@ function PanelBody({
               <Check size={15} className="text-success" aria-hidden />
               <span>{undoing ? 'Undoing...' : 'Completed · Undo'}</span>
             </button>
+          ) : isOpenEntry ? (
+            onStart ? (
+              <button
+                type="button"
+                disabled={!online}
+                onClick={() => onStart(itemId, resumable)}
+                className="calendar-panel__complete-btn"
+              >
+                <Play size={15} className="fill-current" aria-hidden />
+                <span>{resumable ? 'Resume' : 'Start'}</span>
+              </button>
+            ) : (
+              <Link to={occurrenceHref} className="calendar-panel__complete-btn">
+                <Play size={15} className="fill-current" aria-hidden />
+                <span>{resumable ? 'Resume' : 'Start'}</span>
+              </Link>
+            )
           ) : (
             <button
               type="button"
@@ -632,37 +658,32 @@ function PanelBody({
               className="calendar-panel__complete-btn"
             >
               <Check size={16} aria-hidden />
-              <span>{completing ? 'Saving...' : opensLabel ?? 'Mark as Complete'}</span>
+              <span>{completing ? 'Saving...' : (opensLabel ?? 'Mark as Complete')}</span>
             </button>
           )}
-          {(isOpenEntry || canRemove || canReschedule) && (
+          {isOpenEntry && (
             <div className="calendar-panel__secondary-actions">
-              {isOpenEntry &&
-                (onStart ? (
-                  <button
-                    type="button"
-                    disabled={!online}
-                    onClick={() => onStart(itemId, resumable)}
-                    className="calendar-panel__secondary-btn"
-                  >
-                    <Play size={13} className="fill-current" aria-hidden />
-                    {resumable ? 'Resume' : 'Start'}
-                  </button>
-                ) : (
-                  <Link to={occurrenceHref} className="calendar-panel__secondary-btn">
-                    <Play size={13} className="fill-current" aria-hidden />
-                    {resumable ? 'Resume' : 'Start'}
-                  </Link>
-                ))}
+              <button
+                type="button"
+                disabled={!online || !canComplete || completing}
+                title={opensLabel ?? undefined}
+                aria-label="Mark complete"
+                onClick={() => void onComplete(itemId)}
+                className="calendar-panel__secondary-btn"
+              >
+                <Check size={14} aria-hidden />
+                {completing ? 'Saving…' : 'Complete'}
+              </button>
               {canReschedule && (
                 <button
                   type="button"
                   disabled={!online}
                   onClick={() => onReschedule?.(itemId)}
+                  aria-label="Move to date"
                   className="calendar-panel__secondary-btn"
                 >
-                  <CalendarDays size={13} aria-hidden />
-                  Move to date
+                  <CalendarDays size={14} aria-hidden />
+                  Move
                 </button>
               )}
               {canRemove && (
@@ -670,14 +691,16 @@ function PanelBody({
                   type="button"
                   disabled={!online || removing}
                   onClick={() => onRemove?.(itemId)}
+                  aria-label="Remove from Calendar"
                   className="calendar-panel__remove-btn"
                 >
-                  <Trash2 size={13} aria-hidden />
-                  Remove from Calendar
+                  <Trash2 size={14} aria-hidden />
+                  Remove
                 </button>
               )}
             </div>
           )}
+          {isOpenEntry && opensLabel && !canComplete && <p className="calendar-panel__hint">{opensLabel}</p>}
         </div>
 
         <ErrorMessage

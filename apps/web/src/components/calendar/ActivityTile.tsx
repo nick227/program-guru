@@ -415,17 +415,16 @@ export function ActivityTile({
   if (density === 'day') {
     const dayBadgeContent = (
       <>
-        <span className="calendar-badge__dot" aria-hidden>
-          {isDone && <Check size={12} className="text-success" />}
-          {!isDone && item.conflict && <AlertTriangle size={12} className="calendar-chip__conflict" />}
-        </span>
-        <span
-          className={cn(
-            'calendar-badge__title',
-            isDone && 'calendar-badge__title--done',
+        {/* Same two rows as a Month card: time (with completed/overlap marks), then the title. */}
+        <span className="calendar-badge__text">
+          {(timeDisplay || isDone || item.conflict) && (
+            <span className="calendar-badge__time">
+              {isDone && <Check size={11} className="text-success" aria-hidden />}
+              {!isDone && item.conflict && <AlertTriangle size={11} className="calendar-chip__conflict" aria-hidden />}
+              {timeDisplay ?? (isDone ? 'Done' : '')}
+            </span>
           )}
-        >
-          {item.title}
+          <span className={cn('calendar-badge__title', isDone && 'calendar-badge__title--done')}>{item.title}</span>
         </span>
         {isGroup && (item.avatarUrls?.length ?? 0) > 0 && (
           <AvatarStack

@@ -42,6 +42,12 @@ test.describe('inline @mouse', () => {
     await exec(page).getByRole('button', { name: 'Back' }).click()
     await expect(guard).toBeVisible()
     await guard.getByRole('button', { name: 'Keep editing' }).click()
+    // The header's Close (44px) goes through the same guard.
+    const close = exec(page).getByRole('button', { name: 'Close', exact: true })
+    expect(Math.round((await close.boundingBox())!.height)).toBeGreaterThanOrEqual(44)
+    await close.click()
+    await expect(guard).toBeVisible()
+    await guard.getByRole('button', { name: 'Keep editing' }).click()
     await page.keyboard.press('Escape')
     await expect(guard).toBeVisible()
     await guard.getByRole('button', { name: 'Keep editing' }).click()
@@ -99,7 +105,8 @@ test.describe('inline @touch', () => {
     await expect(exec(page)).toHaveCount(1)
     await expect.poll(async () => (await occurrence(second.id)).session?.status).toBe('ACTIVE')
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
-    await exec(page).getByRole('button', { name: 'Back' }).tap()
+    // The sheet's header Close leaves it (no unsaved results here).
+    await exec(page).getByRole('button', { name: 'Close', exact: true }).tap()
     await expect(exec(page)).toHaveCount(0)
   })
 })

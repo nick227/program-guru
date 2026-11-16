@@ -10,7 +10,7 @@
  * running on the server; reopening resumes it.
  */
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { ArrowLeft, Check, ExternalLink, Pause, Play, RotateCcw, SkipForward } from 'lucide-react'
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Pause, Play, RotateCcw, SkipForward, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -28,6 +28,7 @@ import { MetricInput } from '@/components/activity/MetricInput'
 import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { cn } from '@/lib/utils'
+import { useEnrollmentProgress } from '@/lib/useEnrollmentProgress'
 
 type S = components['schemas']
 
@@ -82,6 +83,8 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
     const [busy, setBusy] = useState(false)
     const [failure, setFailure] = useState<unknown>(null)
     const [confirmingClose, setConfirmingClose] = useState(false)
+    const [step, setStep] = useState(0)
+    const progress = useEnrollmentProgress(o.item.enrollmentId)
     const working = useRef(false)
     const createKey = useRef(crypto.randomUUID())
     const created = useRef<S['ActivitySession'] | null>(null)
@@ -235,14 +238,16 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
       <div className="activity-exec">
         <div className="activity-exec__head">
           <button type="button" onClick={requestClose} className="activity-exec__back">
-            <ArrowLeft size={14} aria-hidden />
+            <ArrowLeft size={16} aria-hidden />
             <span>Back</span>
           </button>
-          {running && (
-            <span className="activity-exec__status" aria-live="polite">
-              {phase === 'paused' ? 'Paused' : 'In progress'}
-            </span>
-          )}
+          <span className={cn('activity-exec__status', phase === 'paused' && 'activity-exec__status--paused', !running && 'activity-exec__status--idle')} aria-live="polite">
+            {phase === 'paused' ? 'Paused' : running ? 'In progress' : phase === 'completed' ? 'Completed' : 'Ready'}
+          </span>
+          {/* Close goes through the same unsaved-results guard as Back. */}
+          <button type="button" onClick={requestClose} aria-label="Close" className="activity-exec__close">
+            <X size={18} aria-hidden />
+          </button>
         </div>
 
         {confirmingClose && (
@@ -280,22 +285,25 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
           </div>
         )}
 
-        {running && (
-          <div className="activity-exec__timer">
-            <p className="font-display text-4xl font-semibold tabular-nums tracking-tight">{formatElapsed(elapsed)}</p>
-          </div>
-        )}
-
         {!running && heroImageUrl && (
           <img src={heroImageUrl} alt={primaryMedia?.alt || o.item.title} className="activity-exec__hero" />
         )}
 
-        <div className="space-y-1">
+        <div className="activity-exec__title">
           <h2 className="font-display text-xl font-semibold tracking-tight">{o.item.title}</h2>
           <p className="text-sm text-muted">
-            {[o.item.durationMinutes ? `${o.item.durationMinutes} min` : null, programLine].filter(Boolean).join(' · ')}
+            {[o.item.durationMinutes ? `${o.item.durationMinutes} min` : null, programLine, progress ? `${progress.completed} of ${progress.planned} done` : null]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
         </div>
+
+        {running && (
+          <div className="activity-exec__timer" aria-label={`Elapsed ${formatElapsed(elapsed)}`}>
+            <span className="activity-exec__timer-value">{formatElapsed(elapsed)}</span>
+            {o.item.durationMinutes ? <span className="activity-exec__timer-of">of {o.item.durationMinutes} min</span> : null}
+          </div>
+        )}
 
         {people.length > 0 && (
           <div className="flex flex-wrap items-center gap-2.5">
@@ -328,17 +336,46 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
           <p className="text-sm leading-relaxed text-muted">{activity.data.summary}</p>
         )}
 
-        {(running || phase === 'ready') && instructions.length > 0 && (
-          <section aria-label="Steps" className={cn('activity-exec__steps', !running && 'activity-exec__steps--preview')}>
-            {running && heroImageUrl && (
-              <img src={heroImageUrl} alt={primaryMedia?.alt || o.item.title} className="activity-exec__media" />
-            )}
+        {phase === 'ready' && instructions.length > 0 && (
+          <section aria-label="Steps" className="activity-exec__steps activity-exec__steps--preview">
             <ActivityInstructions instructions={instructions} locked={o.item.locked} />
           </section>
         )}
 
+        {/* While doing it: the current step, prominent, with its own media; earlier/later one tap away. */}
+        {running && instructions.length > 0 && (() => {
+          const at = Math.min(step, instructions.length - 1)
+          const current = instructions[at]!
+          const media = current.media?.find((m) => m.thumbnailUrl) ?? (at === 0 ? primaryMedia : undefined)
+          return (
+            <section aria-label="Current step" className="activity-exec__step">
+              <p className="activity-exec__step-count">
+                Step {at + 1} of {instructions.length}
+              </p>
+              {media?.thumbnailUrl && <img src={media.thumbnailUrl} alt={media.alt ?? current.title ?? ''} className="activity-exec__media" />}
+              {current.title && <h3 className="text-lg font-semibold leading-snug">{current.title}</h3>}
+              {current.body && <p className="text-base leading-relaxed">{current.body}</p>}
+              {instructions.length > 1 && (
+                <div className="activity-exec__step-nav">
+                  <button type="button" disabled={at === 0} onClick={() => setStep(at - 1)} className={secondaryBtn}>
+                    <ChevronLeft size={16} aria-hidden />
+                    Previous step
+                  </button>
+                  <button type="button" disabled={at === instructions.length - 1} onClick={() => setStep(at + 1)} className={secondaryBtn}>
+                    Next step
+                    <ChevronRight size={16} aria-hidden />
+                  </button>
+                </div>
+              )}
+            </section>
+          )
+        })()}
+        {running && instructions.length === 0 && heroImageUrl && (
+          <img src={heroImageUrl} alt={primaryMedia?.alt || o.item.title} className="activity-exec__media" />
+        )}
+
         {running && resultInputs.length > 0 && (
-          <section aria-label="Results" className="space-y-3">
+          <section aria-label="Results" className="activity-exec__results">
             {resultInputs.map((metric) => {
               const key = metricKey(metric)
               return (
@@ -372,7 +409,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
           </div>
         )}
 
-        <div className="activity-exec__actions">
+        <div className={cn('activity-exec__actions', running && 'activity-exec__actions--running')}>
           {phase === 'ready' && (
             <button type="button" disabled={busy || o.item.locked} onClick={() => void perform('START')} className={primaryBtn}>
               <Play size={14} className="fill-current" aria-hidden />

@@ -44,10 +44,18 @@ export function BulkActionBar({
         {progress ? `${progress.verb} ${progress.done} of ${progress.total}…` : count ? `${count} selected` : 'Select Activities'}
       </span>
       <div className="calendar-bulk-bar__actions">
-        <button type="button" className="calendar-bulk-bar__btn" disabled={busy} onClick={onSelectDay} title={`Select every Activity on ${dayLabel}`}>
+        <button
+          type="button"
+          className="calendar-bulk-bar__btn calendar-bulk-bar__btn--quiet"
+          disabled={busy}
+          onClick={onSelectDay}
+          aria-label={`Select every Activity on ${dayLabel}`}
+          title={`Select every Activity on ${dayLabel}`}
+        >
           <CheckSquare size={15} aria-hidden />
           <span className="calendar-bulk-bar__label">Select day</span>
         </button>
+        <span className="calendar-bulk-bar__divider" aria-hidden />
         <button type="button" className="calendar-bulk-bar__btn" disabled={busy || !count || !online} onClick={onMove}>
           <CalendarDays size={15} aria-hidden />
           <span>Move</span>
@@ -56,7 +64,7 @@ export function BulkActionBar({
           <Trash2 size={15} aria-hidden />
           <span>Remove</span>
         </button>
-        <button type="button" className="calendar-bulk-bar__btn" disabled={busy} onClick={onCancel} aria-label="Cancel selection">
+        <button type="button" className="calendar-bulk-bar__btn calendar-bulk-bar__btn--quiet" disabled={busy} onClick={onCancel} aria-label="Cancel selection">
           <X size={15} aria-hidden />
           <span className="calendar-bulk-bar__label">Cancel</span>
         </button>

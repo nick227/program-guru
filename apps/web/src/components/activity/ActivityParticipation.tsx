@@ -31,7 +31,8 @@ export function ActivityParticipation({
   className,
 }: {
   activity: { id: string; title: string }
-  variant?: 'full' | 'compact' | 'summary'
+  /** `people`: only who takes part (and shared activity), where status and schedule show elsewhere. */
+  variant?: 'full' | 'compact' | 'summary' | 'people'
   returnTo: string
   /** Overrides (Home starts inline); default navigates to the occurrence. */
   onStart?: () => void
@@ -64,9 +65,9 @@ export function ActivityParticipation({
     <ScheduleDialog target={rescheduleTarget} onClose={() => setRescheduling(false)} />
   )
 
-  const lines = <ParticipationLines view={view} compact={variant !== 'full'} />
+  const lines = <ParticipationLines view={view} compact={variant !== 'full'} peopleOnly={variant === 'people'} />
 
-  if (variant === 'summary') return <div className={className}>{lines}</div>
+  if (variant === 'summary' || variant === 'people') return <div className={className}>{lines}</div>
 
   if (variant === 'compact') {
     return (
@@ -137,18 +138,18 @@ export function ActivityParticipation({
 }
 
 /** Status, people and shared lines; always shows the people line, including zero. */
-function ParticipationLines({ view, compact }: { view: ParticipationView; compact: boolean }) {
+function ParticipationLines({ view, compact, peopleOnly = false }: { view: ParticipationView; compact: boolean; peopleOnly?: boolean }) {
   const StatusIcon =
     view.status === 'IN_PROGRESS' ? CircleDot : view.status === 'SCHEDULED' ? CalendarCheck : view.status === 'COMPLETED' ? CalendarCheck : CalendarPlus
   return (
     <div className={cn('flex min-w-0 flex-col', compact ? 'gap-1 text-xs' : 'gap-1.5 text-sm')} data-participation-status={view.status}>
-      {view.statusLabel && (
+      {!peopleOnly && view.statusLabel && (
         <p className={cn('flex min-w-0 items-center gap-1.5', view.status === 'SCHEDULED' || view.status === 'IN_PROGRESS' ? 'font-semibold text-accent' : 'text-muted')}>
           <StatusIcon size={compact ? 13 : 15} aria-hidden className="shrink-0" />
           <span className="truncate">{view.statusLabel}</span>
         </p>
       )}
-      {view.detail && <p className={cn('truncate text-muted', compact ? 'pl-[19px]' : 'pl-[21px]')}>{view.detail}</p>}
+      {!peopleOnly && view.detail && <p className={cn('truncate text-muted', compact ? 'pl-[19px]' : 'pl-[21px]')}>{view.detail}</p>}
       <p className="flex min-w-0 items-center gap-1.5 text-muted" aria-label={view.peopleLabel}>
         {view.avatars.length > 0 ? (
           <span className="flex shrink-0 -space-x-1.5" aria-hidden>
