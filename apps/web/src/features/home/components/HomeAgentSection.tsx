@@ -3,14 +3,9 @@ import {
   Activity,
   ArrowLeft,
   Check,
-  ChevronUp,
-  Compass,
   ExternalLink,
   RotateCcw,
-  RotateCw,
-  Sparkles,
   X,
-  Zap,
 } from 'lucide-react'
 import type {
   AssistantTurn,
@@ -32,9 +27,6 @@ export interface HomeAgentSectionProps {
   executionItemId: string | null
   isSignedIn: boolean
   todayIso: string
-  expanded: boolean
-  onToggleExpanded: () => void
-  onSelectStartingAction: (action: 'now' | 'new' | 'continue') => void
   canGoBack: boolean
   loading?: boolean
   actionPending?: boolean
@@ -53,11 +45,7 @@ export interface HomeAgentSectionProps {
   showReset: boolean
 }
 
-/**
- * Studio-quality Home Agent section:
- * Compact, lightweight starting state by default, expanding into a focused
- * interactive assistant without dashboard clutter or heavy decorative borders.
- */
+/** Always-open Home Agent conversational assistant. */
 export function HomeAgentSection({
   turn,
   discoveryState,
@@ -66,9 +54,6 @@ export function HomeAgentSection({
   executionItemId,
   isSignedIn,
   todayIso,
-  expanded,
-  onToggleExpanded,
-  onSelectStartingAction,
   canGoBack,
   loading,
   actionPending,
@@ -86,77 +71,6 @@ export function HomeAgentSection({
   onReset,
   showReset,
 }: HomeAgentSectionProps) {
-  // ── Compact Starting State ─────────────────────────────────
-  // An open preview or execution always shows (Start now on a Home card opens the stage here).
-  if (!expanded && !previewTarget && !executionItemId) {
-    return (
-      <section
-        aria-labelledby="home-agent-title"
-        className="rounded-3xl border border-accent/25 bg-gradient-to-b from-accent/[0.08] via-surface to-surface p-4 sm:p-5 shadow-xs transition-all hover:border-accent/40"
-      >
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-accent">
-              <Sparkles size={16} aria-hidden />
-            </div>
-            <div>
-              <h2
-                id="home-agent-title"
-                className="font-display text-sm sm:text-base font-bold text-foreground leading-tight"
-              >
-                Home Agent
-              </h2>
-              <p className="text-xs text-muted">What sounds good right now?</p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onToggleExpanded}
-            className="inline-flex items-center gap-1 rounded-full bg-accent/15 px-3.5 py-1 text-xs font-semibold text-accent transition hover:bg-accent/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <span>Try it</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1 border-t border-accent/15">
-          <button
-            type="button"
-            onClick={() => onSelectStartingAction('now')}
-            className="group flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-1.5 sm:gap-2 rounded-2xl bg-accent/15 hover:bg-accent/25 border border-accent/30 p-2.5 sm:p-3 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <Zap size={14} className="text-accent shrink-0 mt-0.5" aria-hidden />
-            <span className="text-[11px] sm:text-xs font-semibold text-foreground leading-tight">
-              Do something now
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onSelectStartingAction('new')}
-            className="group flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-1.5 sm:gap-2 rounded-2xl bg-surface hover:bg-accent/[0.04] border border-border/70 p-2.5 sm:p-3 transition shadow-2xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <Compass size={14} className="text-accent shrink-0 mt-0.5" aria-hidden />
-            <span className="text-[11px] sm:text-xs font-semibold text-foreground leading-tight">
-              Find something new
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onSelectStartingAction('continue')}
-            className="group flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-1.5 sm:gap-2 rounded-2xl bg-surface hover:bg-accent/[0.04] border border-border/70 p-2.5 sm:p-3 transition shadow-2xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <RotateCw size={14} className="text-accent shrink-0 mt-0.5" aria-hidden />
-            <span className="text-[11px] sm:text-xs font-semibold text-foreground leading-tight">
-              Continue what I've started
-            </span>
-          </button>
-        </div>
-      </section>
-    )
-  }
-
   // ── Inline Detail Previews & Active Execution ─────────────
   if (previewTarget) {
     return (

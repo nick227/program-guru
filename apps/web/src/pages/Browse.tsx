@@ -805,38 +805,6 @@ function BrowseFeedTile({
           </div>
         )}
 
-        {isActionRow && !live && !g && item.kind === 'activities' && (
-          <div className="mt-4">
-            {signedIn && onDoNow ? (
-              isAdded ? (
-                <Link
-                  to="/"
-                  className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-border/70 bg-surface-raised px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-                >
-                  <Check size={15} aria-hidden />
-                  <span>Scheduled · Open</span>
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled={isAdding}
-                  aria-label={`Do ${item.title} now`}
-                  onClick={() => onDoNow(item)}
-                  className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-border/70 bg-surface-raised px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
-                >
-                  {isAdding ? 'Starting…' : 'Do Now'}
-                </button>
-              )
-            ) : (
-              <Link
-                to={`/activities/${item.id}?returnTo=${encodeURIComponent(currentUrl)}`}
-                className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-border/70 bg-surface-raised px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
-              >
-                Do Now
-              </Link>
-            )}
-          </div>
-        )}
 
         {g && groupName && (
           <div className={cn('mt-3', isActionRow ? 'space-y-3' : 'flex items-center justify-between gap-2')}>
@@ -941,11 +909,49 @@ function BrowseFeedTile({
     </div>
   )
 
+  const buttonNode = (
+    <>
+        {isActionRow && !live && !g && item.kind === 'activities' && (
+          <div className="mt-4">
+            {signedIn && onDoNow ? (
+              isAdded ? (
+                <Link
+                  to="/"
+                  className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-border/70 bg-surface-raised px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
+                >
+                  <Check size={15} aria-hidden />
+                  <span>Scheduled · Open</span>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isAdding}
+                  aria-label={`Do ${item.title} now`}
+                  onClick={() => onDoNow(item)}
+                  className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-border/70 bg-surface-raised px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
+                >
+                  {isAdding ? 'Starting…' : 'Do Now'}
+                </button>
+              )
+            ) : (
+              <Link
+                to={`/activities/${item.id}?returnTo=${encodeURIComponent(currentUrl)}`}
+                className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-border/70 bg-surface-raised px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-muted"
+              >
+                Do Now
+              </Link>
+            )}
+          </div>
+        )}
+    </>
+  )
+
   if (titleSize === 'xl') {
     return (
       <article className="grid grid-cols-1 items-center gap-6 md:grid-cols-12">
         <div className="md:col-span-7">{mediaNode}</div>
         <div className="min-w-0 md:col-span-5">{metaNode}</div>
+        <div>{buttonNode}</div>
       </article>
     )
   }
@@ -954,6 +960,7 @@ function BrowseFeedTile({
     <article className="flex flex-col">
       {mediaNode}
       {metaNode}
+      <div>{buttonNode}</div>
     </article>
   )
 }
@@ -1380,7 +1387,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
     sort: 'POPULAR',
     enabled: showDirectorySections && cities.length > 0,
   })
-  // Gatherings (10 §9.7): upcoming ones decide the "With others" shortcut; active ones lead Happening Now.
+  // Gatherings (10 §9.7): upcoming ones decide the "With others" shortcut; active ones lead Happening.
   const upcomingGatherings = usePublicGatherings({ when: 'UPCOMING', enabled: !mode.isPicker })
   const categoryGatherings = usePublicGatherings({
     when: 'UPCOMING',
@@ -1939,7 +1946,7 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
   const communitySections: CommunitySectionConfig[] = [
     {
       id: 'happening-now',
-      title: 'Happening Now',
+      title: 'Activities',
       source: 'happening-now',
       layout: 'action-row',
       limit: 4,
@@ -2416,9 +2423,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
             {/* Gatherings for the selected Domain or Category, inherited or added (10 §9.12). */}
             {!mode.isPicker && !isMyGroups && (categoryGatherings.data?.length ?? 0) > 0 && (
               <section aria-labelledby="section-category-gatherings" className="mt-5">
-                <h2 id="section-category-gatherings" className="mb-2.5 text-sm font-semibold text-muted">
-                  Gatherings
-                </h2>
                 <ul className="browse-sidebar-scroll flex gap-3 overflow-x-auto pb-1">
                   {categoryGatherings.data!.slice(0, 8).map((g) => (
                     <li key={g.id} className="w-[260px] shrink-0">
@@ -2431,7 +2435,6 @@ function LibraryBrowser({ mode }: { mode: BrowserMode }) {
                           {dateLabel(g.localDate)}
                           {g.place ? ` · ${g.place.name}, ${g.place.locality}` : ''} · {g.memberCount} going
                         </span>
-                        <span className="mt-1 block text-sm font-semibold text-accent">{groupAction(g) === 'open' ? 'Open' : 'Join'}</span>
                       </Link>
                     </li>
                   ))}

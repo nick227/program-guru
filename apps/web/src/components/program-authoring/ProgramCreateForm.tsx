@@ -155,7 +155,7 @@ export function ProgramCreateForm({
         {types.isPending ? (
           <Loading />
         ) : (
-          <Grid className="grid-cols-1 gap-2 sm:grid-cols-2">
+          <Grid className="grid-cols-4 gap-2">
             {types.data?.map((item, index) => (
               <Button
                 key={item.id}

@@ -594,7 +594,7 @@ export function ProfilePage() {
                     className={buttonVariants({ variant: 'default', size: 'sm' })}
                   >
                     <Plus size={14} />
-                    <span>Add Program</span>
+                    <span>Program</span>
                   </Link>
                 </div>
               )}

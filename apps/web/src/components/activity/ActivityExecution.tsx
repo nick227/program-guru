@@ -1,3 +1,6 @@
+import { useSessionLeaveGuard } from '@/lib/useSessionLeaveGuard'
+import { SessionLeavePrompt } from './SessionLeavePrompt'
+import { SessionActions } from './SessionActions'
 import { ActivityParticipationSummary } from './ActivityParticipationSummary'
 /**
  * Doing an Activity in place (03-UX §5, Calendar inline experience): Preview → Start/Resume →
@@ -11,7 +14,7 @@ import { ActivityParticipationSummary } from './ActivityParticipationSummary'
  * running on the server; reopening resumes it.
  */
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Pause, Play, RotateCcw, SkipForward, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, SkipForward, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -20,7 +23,6 @@ import {
   useUndoCompletion,
   type components,
 } from '@project/sdk'
-import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
 import { MetricInput } from '@/components/activity/MetricInput'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
@@ -69,7 +71,6 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
     const undo = useUndoCompletion()
     const activity = useActivity(o.item.locked ? '' : o.item.activityId)
 
-    const [confirmingClose, setConfirmingClose] = useState(false)
     const [step, setStep] = useState(0)
     const progress = useEnrollmentProgress(o.item.enrollmentId)
     const autoStarted = useRef(false)
@@ -78,16 +79,6 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
     // Not started yet (including a not-participating entry): the preview, steps and Start show.
     const notStarted = phase === 'ready' || phase === 'not-participating'
     const elapsed = useElapsedSeconds(session)
-
-    // Leaving the page with unsaved results asks the browser to confirm too.
-    useEffect(() => {
-      if (!hasDirty) return
-      const onBeforeUnload = (event: BeforeUnloadEvent) => {
-        event.preventDefault()
-      }
-      window.addEventListener('beforeunload', onBeforeUnload)
-      return () => window.removeEventListener('beforeunload', onBeforeUnload)
-    }, [hasDirty])
 
     const instructions = o.instructions?.length ? o.instructions : (activity.data?.instructions ?? [])
 
@@ -110,19 +101,18 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
 
     // Start right away when the host's Start opened this (Preview → Start without a second tap).
     useEffect(() => {
-      if (autoStart && !autoStarted.current && notStarted && !o.item.locked) {
+      if (autoStart && !autoStarted.current && controller.eligibility.canStart) {
         autoStarted.current = true
         void perform('START')
       }
     })
 
-    const requestClose = () => {
-      if (hasDirty) setConfirmingClose(true)
-      else onClose()
-    }
+    const guard = useSessionLeaveGuard({ unsaved: hasDirty, busy, save: () => perform(), discard: controller.discard })
+    const requestClose = () => guard.requestLeave(onClose)
     useImperativeHandle(ref, () => ({ requestClose }))
 
     async function handleUndo() {
+      if (!controller.eligibility.canUndo) return
       setFailure(null)
       try {
         await undo.mutateAsync(o.item.id)
@@ -160,40 +150,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
           </button>
         </div>
 
-        {confirmingClose && (
-          <div className="activity-exec__confirm" role="alertdialog" aria-label="Unsaved results">
-            <p className="text-sm font-semibold">You have results that are not saved yet.</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                className={primaryBtn}
-                onClick={async () => {
-                  if (await perform()) {
-                    setConfirmingClose(false)
-                    onClose()
-                  }
-                }}
-              >
-                Save and close
-              </button>
-              <button
-                type="button"
-                className={secondaryBtn}
-                onClick={() => {
-                  controller.discard()
-                  setConfirmingClose(false)
-                  onClose()
-                }}
-              >
-                Discard
-              </button>
-              <button type="button" className={secondaryBtn} onClick={() => setConfirmingClose(false)}>
-                Keep editing
-              </button>
-            </div>
-          </div>
-        )}
+        <SessionLeavePrompt guard={guard} />
 
         {!running && heroImageUrl && (
           <img src={heroImageUrl} alt={primaryMedia?.alt || o.item.title} className="activity-exec__hero" />
@@ -270,7 +227,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
                   key={key}
                   metric={metric}
                   value={controller.valueOf(metric)}
-                  disabled={busy}
+                  disabled={!controller.eligibility.canSave}
                   onChange={(v) => setMetric(metric, v)}
                 />
               )
@@ -297,52 +254,11 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
         )}
 
         <div className={cn('activity-exec__actions', running && 'activity-exec__actions--running')}>
-          {phase === 'ready' && (
-            <button type="button" disabled={busy || o.item.locked} onClick={() => void perform('START')} className={primaryBtn}>
-              <Play size={14} className="fill-current" aria-hidden />
-              {busy ? 'Starting…' : 'Start'}
-            </button>
-          )}
-          {running && (
-            <>
-              <button
-                type="button"
-                disabled={busy || !completionOpen(o.item)}
-                title={completionOpensLabel(o.item) ?? undefined}
-                onClick={() => void perform('FINISH')}
-                className={primaryBtn}
-              >
-                <Check size={15} aria-hidden />
-                {busy ? 'Saving…' : (completionOpensLabel(o.item) ?? 'Finish')}
-              </button>
-              <button type="button" disabled={busy} onClick={() => void perform(phase === 'active' ? 'PAUSE' : 'RESUME')} className={secondaryBtn}>
-                {phase === 'active' ? <Pause size={14} aria-hidden /> : <Play size={14} className="fill-current" aria-hidden />}
-                {phase === 'active' ? 'Pause' : 'Resume'}
-              </button>
-              {hasDirty && (
-                <button type="button" disabled={busy} onClick={() => void perform()} className={secondaryBtn}>
-                  Save
-                </button>
-              )}
-            </>
-          )}
-          {phase === 'completed' && (
-            <>
-              {onNext && (
-                <button type="button" onClick={onNext} className={primaryBtn}>
-                  <SkipForward size={14} aria-hidden />
-                  {nextLabel ?? 'Next'}
-                </button>
-              )}
-              <button type="button" disabled={undo.isPending} onClick={() => void handleUndo()} className={secondaryBtn}>
-                <RotateCcw size={14} aria-hidden />
-                Undo
-              </button>
-            </>
-          )}
+          {phase === 'completed' && onNext && <button type="button" onClick={() => guard.requestLeave(onNext)} className={primaryBtn}><SkipForward size={14} aria-hidden />{nextLabel ?? 'Next'}</button>}
+          <SessionActions inline eligibility={controller.eligibility} timed={o.resultInputs.some((m) => m.valueType === 'DURATION')} unsaved={hasDirty} onPerform={perform} onUndo={() => void handleUndo()} undoPending={undo.isPending} />
         </div>
 
-        <button type="button" onClick={() => onOpenFullPage(o.item.id)} className="activity-exec__full">
+        <button type="button" onClick={() => guard.requestLeave(() => onOpenFullPage(o.item.id))} className="activity-exec__full">
           Open Activity Page
           <ExternalLink size={13} aria-hidden />
         </button>

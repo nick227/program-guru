@@ -12,42 +12,13 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { useCreateSession, useSaveResults, useSessionAction, type components } from '@project/sdk'
-import type { ParticipationStatus } from '@/components/ui/StatusText'
+import { useSessionEligibility } from './useSessionEligibility'
 
 type S = components['schemas']
 export type MetricValue = string | number | boolean
 export type DirtyResults = Record<string, MetricValue>
 
-/**
- * One state for a dated entry (consolidation MR 7): its session first (running or paused), then the
- * entry itself. The Occurrence page, the inline execution and Calendar tiles name it with the same
- * words and tone; Calendar adds only its own states (locked, skipped, removed) ahead of it.
- */
-export type EntryPhase = 'ready' | 'active' | 'paused' | 'completed' | 'not-participating'
-
-export function entryPhase(itemStatus: string | null | undefined, sessionStatus: string | null | undefined): EntryPhase {
-  if (sessionStatus === 'ACTIVE') return 'active'
-  if (sessionStatus === 'PAUSED') return 'paused'
-  if (itemStatus === 'DONE') return 'completed'
-  if (itemStatus === 'NOT_PARTICIPATING') return 'not-participating'
-  return 'ready'
-}
-
-export const ENTRY_PHASE_LABEL: Record<EntryPhase, string> = {
-  ready: 'To do',
-  active: 'In progress',
-  paused: 'Paused',
-  completed: 'Completed',
-  'not-participating': 'Not participating',
-}
-
-export const ENTRY_PHASE_TONE: Record<EntryPhase, ParticipationStatus> = {
-  ready: 'planned',
-  active: 'active',
-  paused: 'paused',
-  completed: 'completed',
-  'not-participating': 'unavailable',
-}
+export { entryPhase, ENTRY_PHASE_LABEL, ENTRY_PHASE_TONE, type EntryPhase } from './entryPhase'
 
 export const metricKey = (m: S['MetricInput']) => `${m.instructionId ?? ''}:${m.metricDefinitionId}`
 
@@ -95,6 +66,7 @@ export function useActivitySession(o: S['ActivityOccurrence']) {
   const session = o.session
   const resultInputs = o.resultInputs.filter((m) => m.valueType !== 'DURATION')
   const unsaved = Object.keys(dirty).length > 0
+  const eligibility = useSessionEligibility(o.item, session?.status, busy)
 
   /** The open session, or a new one (created once per attempt). */
   async function getSession() {
@@ -154,6 +126,11 @@ export function useActivitySession(o: S['ActivityOccurrence']) {
    * failure is kept in `failure` and the entered values stay.
    */
   async function perform(nextAction?: S['SessionAction']): Promise<boolean> {
+    const allowed = nextAction === 'START' ? eligibility.canStart
+      : nextAction === 'FINISH' ? eligibility.canFinish
+      : nextAction === 'PAUSE' ? eligibility.canPause
+      : nextAction === 'RESUME' ? eligibility.canResume : eligibility.canSave
+    if (!allowed) return false
     setFailure(null)
     const ok = await exclusive(async () => {
       try {
@@ -189,6 +166,7 @@ export function useActivitySession(o: S['ActivityOccurrence']) {
     dirty[metricKey(metric)] !== undefined ? dirty[metricKey(metric)]! : (metric.recorded ?? null)
 
   return {
+    eligibility,
     session,
     resultInputs,
     dirty,

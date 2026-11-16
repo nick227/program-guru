@@ -1,11 +1,10 @@
+import { useSessionLeaveGuard } from '@/lib/useSessionLeaveGuard'
+import { SessionLeavePrompt } from './SessionLeavePrompt'
+import { SessionActions } from './SessionActions'
+import type { SessionEligibility } from '@/lib/sessionEligibility'
 import { formatDurationMinutes } from '@/lib/durationMinutes'
 import { formatTargetTime } from '@/lib/targetTime'
-import { usePwaReloadBlocker } from '@/lib/pwaSafety'
-import { useRef, useState } from 'react'
-import {
-  useBeforeUnload,
-  useBlocker,
-} from 'react-router-dom'
+import { useRef } from 'react'
 import {
   useCurrentUser,
   useAttachSessionMedia,
@@ -20,15 +19,11 @@ import {
   Check,
   Clock,
   Flame,
-  Pause,
-  Play,
-  RotateCcw,
   Target,
   TrendingUp,
   Upload,
   Users,
 } from 'lucide-react'
-import { Panel, Stack } from '@/components/ui/Layout'
 import { StatusText } from '@/components/ui/StatusText'
 import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
@@ -43,21 +38,11 @@ import { ActivitySection } from '@/components/activity/ActivitySection'
 import { OccurrenceMedia } from '@/components/activity/OccurrenceMedia'
 import { dateLabel, today } from '@/lib/dates'
 import { useOnline } from '@/lib/useOnline'
-import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { cn } from '@/lib/utils'
 import { formatElapsed, metricKey, useActivitySession, useElapsedSeconds, entryPhase, ENTRY_PHASE_LABEL, ENTRY_PHASE_TONE, type EntryPhase } from '@/lib/activitySession'
 
 type S = components['schemas']
 
-
-type PendingButton =
-  | 'start'
-  | 'finish'
-  | 'finish-no-timer'
-  | 'pause'
-  | 'resume'
-  | 'save'
-  | null
 
 export function ActivitySessionContent({
   occurrence: o,
@@ -76,17 +61,9 @@ export function ActivitySessionContent({
   const me = useCurrentUser()
   const activity = useActivity(o.item.locked ? '' : o.item.activityId)
 
-  const [pendingButton, setPendingButton] = useState<PendingButton>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
 
-  usePwaReloadBlocker(unsaved || busy)
-  const blocker = useBlocker(() => unsaved || busy)
-  useBeforeUnload((event) => {
-    if (unsaved || busy) {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-  })
+  const guard = useSessionLeaveGuard({ unsaved, busy, save: () => controller.perform(), discard: controller.discard })
 
   const status = session?.status ?? 'READY'
   const disabled = busy || !online
@@ -111,11 +88,9 @@ export function ActivitySessionContent({
     return target!
   }
 
-  async function perform(nextAction?: S['SessionAction'], button: PendingButton = null) {
+  async function perform(nextAction?: S['SessionAction']) {
     if (busy) return
-    setPendingButton(button)
     const ok = await controller.perform(nextAction)
-    setPendingButton(null)
     if (!ok) return
     if (nextAction === 'FINISH') toast.success('Activity finished')
     else if (!nextAction) toast.success('Results saved')
@@ -153,27 +128,7 @@ export function ActivitySessionContent({
 
   return (
     <div className="activity-page">
-      {blocker.state === 'blocked' && (
-        <Panel aria-label="Unsaved results">
-          <Stack>
-            <p>
-              {busy
-                ? 'Wait for the current save to finish.'
-                : 'You have unsaved results.'}
-            </p>
-            <Button autoFocus onClick={() => blocker.reset?.()}>
-              Keep editing
-            </Button>
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() => blocker.proceed?.()}
-            >
-              Discard changes and leave
-            </Button>
-          </Stack>
-        </Panel>
-      )}
+      <SessionLeavePrompt guard={guard} />
 
       {/* Controls for this exact scheduled session. */}
       <OccurrenceControls
@@ -184,13 +139,13 @@ export function ActivitySessionContent({
         session={session}
         timed={timed}
         disabled={disabled}
-        pendingButton={pendingButton}
+        eligibility={controller.eligibility}
         online={online}
         unsaved={unsaved}
         error={failure || undo.error}
         undoPending={undo.isPending}
-        onPerform={(nextAction, button) => void perform(nextAction, button)}
-        onUndo={() => undo.mutate(o.item.id)}
+        onPerform={perform}
+        onUndo={() => { if (controller.eligibility.canUndo) undo.mutate(o.item.id) }}
         onRefresh={refresh}
         onUploadMedia={triggerMediaUpload}
       />
@@ -284,12 +239,12 @@ function SessionElapsed({ session }: { session: S['ActivitySession'] }) {
 function OccurrenceControls({
   occurrence: o,
   activity,
+  eligibility,
   phase,
   isToday,
   session,
   timed,
   disabled,
-  pendingButton,
   online,
   unsaved,
   error,
@@ -300,26 +255,22 @@ function OccurrenceControls({
   onUploadMedia,
 }: {
   occurrence: S['ActivityOccurrence']
+  eligibility: SessionEligibility
   activity?: S['ActivityDetail']
   phase: Phase
   isToday: boolean
   session: S['ActivitySession'] | null
   timed: boolean
   disabled: boolean
-  pendingButton: PendingButton
   online: boolean
   unsaved: boolean
   error: unknown
   undoPending: boolean
-  onPerform: (nextAction?: S['SessionAction'], button?: PendingButton) => void
+  onPerform: (nextAction?: S['SessionAction']) => Promise<unknown>
   onUndo: () => void
   onRefresh: () => void
   onUploadMedia: () => void
 }) {
-  // Completion opens on the item's day, or at a gathering's time (09 §3); Start opens on the day.
-  const completionLocked = !completionOpen(o.item)
-  const opensLabel = completionOpensLabel(o.item)
-  const dayArrived = isToday || o.item.localDate < today(Intl.DateTimeFormat().resolvedOptions().timeZone)
   const dateText = isToday
     ? `${dateLabel(o.item.localDate)} (Today)`
     : dateLabel(o.item.localDate)
@@ -359,121 +310,8 @@ function OccurrenceControls({
           )}
           <div className="activity-session__actions">
             <div className="activity-session__primary">
-              {(phase === 'ready' || phase === 'not-participating') &&
-                (timed ? (
-                  <>
-                    <Button
-                      size="lg"
-                      className="activity-cta"
-                      disabled={disabled || !dayArrived}
-                      loading={pendingButton === 'start'}
-                      onClick={() => onPerform('START', 'start')}
-                    >
-                      {pendingButton !== 'start' && <Play size={18} aria-hidden />}
-                      Start
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      disabled={disabled || completionLocked}
-                      loading={pendingButton === 'finish-no-timer'}
-                      onClick={() => onPerform('FINISH', 'finish-no-timer')}
-                    >
-                      {pendingButton !== 'finish-no-timer' && (
-                        <Check size={16} aria-hidden />
-                      )}
-                      Complete without timer
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    size="lg"
-                    className="activity-cta"
-                    disabled={disabled || completionLocked}
-                    loading={pendingButton === 'finish'}
-                    onClick={() => onPerform('FINISH', 'finish')}
-                  >
-                    {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
-                    Mark as Complete
-                  </Button>
-                ))}
-              {phase === 'active' && (
-                <>
-                  <Button
-                    size="lg"
-                    className="activity-cta"
-                    disabled={disabled || completionLocked}
-                    loading={pendingButton === 'finish'}
-                    onClick={() => onPerform('FINISH', 'finish')}
-                  >
-                    {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
-                    Complete
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    disabled={disabled}
-                    loading={pendingButton === 'pause'}
-                    onClick={() => onPerform('PAUSE', 'pause')}
-                  >
-                    {pendingButton !== 'pause' && <Pause size={16} aria-hidden />}
-                    Pause
-                  </Button>
-                </>
-              )}
-              {phase === 'paused' && (
-                <>
-                  <Button
-                    size="lg"
-                    className="activity-cta"
-                    disabled={disabled || completionLocked}
-                    loading={pendingButton === 'finish'}
-                    onClick={() => onPerform('FINISH', 'finish')}
-                  >
-                    {pendingButton !== 'finish' && <Check size={20} strokeWidth={2.5} aria-hidden />}
-                    Complete
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    disabled={disabled}
-                    loading={pendingButton === 'resume'}
-                    onClick={() => onPerform('RESUME', 'resume')}
-                  >
-                    {pendingButton !== 'resume' && <Play size={16} aria-hidden />}
-                    Resume
-                  </Button>
-                </>
-              )}
-              {phase === 'completed' && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  disabled={disabled}
-                  loading={undoPending}
-                  onClick={onUndo}
-                >
-                  {!undoPending && <RotateCcw size={16} aria-hidden />}
-                  Undo completion
-                </Button>
-              )}
-              {unsaved && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  disabled={disabled}
-                  loading={pendingButton === 'save'}
-                  onClick={() => onPerform(undefined, 'save')}
-                >
-                  Save results
-                </Button>
-              )}
+              <SessionActions eligibility={eligibility} timed={timed} unsaved={unsaved} onPerform={onPerform} onUndo={onUndo} undoPending={undoPending} />
             </div>
-            {opensLabel && phase !== 'completed' && (
-              <p className="text-sm text-muted" role="note">
-                {opensLabel}
-              </p>
-            )}
             <div className="activity-session__tools">
               <Button variant="outline" disabled={!online} onClick={onUploadMedia}>
                 <Upload size={16} aria-hidden />

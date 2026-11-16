@@ -49,9 +49,6 @@ describe('HomeAgentSection', () => {
     executionItemId: null,
     isSignedIn: true,
     todayIso: '2026-11-16',
-    expanded: false,
-    onToggleExpanded: vi.fn(),
-    onSelectStartingAction: vi.fn(),
     canGoBack: false,
     loading: false,
     actionPending: false,
@@ -69,36 +66,17 @@ describe('HomeAgentSection', () => {
     showReset: false,
   }
 
-  it('renders the compact state with 3 starting actions and Try it button', () => {
+  it('renders the agent open with turn question, context, and choices', () => {
     const html = renderToStaticMarkup(
       createElement(
         StaticRouter,
         { location: '/' },
-        createElement(HomeAgentSection, { ...baseProps, expanded: false }),
+        createElement(HomeAgentSection, { ...baseProps }),
       ),
     )
 
-    expect(html).toContain('Home Agent')
-    expect(html).toContain('What sounds good right now?')
-    expect(html).toContain('Try it')
-    expect(html).toContain('Do something now')
-    expect(html).toContain('Find something new')
-    expect(html).toContain('Continue what I&#x27;ve started')
-    // Active turn question should NOT appear while compact
-    expect(html).not.toContain('Find something worth doing today.')
-  })
-
-  it('renders the expanded state with turn question, context, choices, and Minimize button', () => {
-    const html = renderToStaticMarkup(
-      createElement(
-        StaticRouter,
-        { location: '/' },
-        createElement(HomeAgentSection, { ...baseProps, expanded: true }),
-      ),
-    )
-
-    expect(html).toContain('Home Agent')
-    expect(html).toContain('Minimize')
+    expect(html).not.toContain('Try it')
+    expect(html).not.toContain('Minimize')
     expect(html).toContain('Find something worth doing today.')
     expect(html).toContain('Choose a direction to explore.')
     expect(html).toContain('Start now')
@@ -110,7 +88,7 @@ describe('HomeAgentSection', () => {
       createElement(
         StaticRouter,
         { location: '/' },
-        createElement(HomeAgentSection, { ...baseProps, expanded: true, showReset: true }),
+        createElement(HomeAgentSection, { ...baseProps, showReset: true }),
       ),
     )
 
@@ -124,7 +102,6 @@ describe('HomeAgentSection', () => {
         { location: '/' },
         createElement(HomeAgentSection, {
           ...baseProps,
-          expanded: true,
           turn: { ...dummyTurn, nodeId: 'now_result' },
           discoveryState: {
             ...dummyState,

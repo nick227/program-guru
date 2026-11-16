@@ -1,3 +1,4 @@
+import { useSessionEligibility } from '@/lib/useSessionEligibility'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
@@ -41,7 +42,7 @@ import { GatheringSuggestion } from '@/components/activity/GatheringSuggestion'
 import { resolveActivityCategory } from '@/lib/activityCategory'
 import { dateLabel, formatRelativeTime, isLocalDate } from '@/lib/dates'
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
-import { buildOccurrenceUrl, buildGroupUrl } from '@/lib/urls'
+import { buildOccurrenceUrl } from '@/lib/urls'
 import { useMediaUploads } from '@/lib/useMediaUploads'
 import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { useOnline } from '@/lib/useOnline'
@@ -110,6 +111,7 @@ function PanelBody({
   const occurrenceQuery = useOccurrence(itemId ?? '')
   const occurrence = occurrenceQuery.data
   const item = occurrence?.item
+  const eligibility = useSessionEligibility(item, occurrence?.session?.status, completing || undoing)
   // Program progress for this entry's run (before any early return: hooks keep their order).
   const progress = useEnrollmentProgress(item?.enrollmentId ?? calendarItem?.enrollmentId)
 
@@ -291,17 +293,10 @@ function PanelBody({
   const collab = occurrence?.collaborators ?? null
 
   // Completion opens on the item's day, or at a gathering's time (09 §3).
-  const opensLabel = item ? completionOpensLabel(item) : null
-  const canComplete =
-    !isDone &&
-    !isLocked &&
-    status !== 'NOT_PARTICIPATING' &&
-    status !== 'CANCELLED' &&
-    (!item || completionOpen(item))
-  const isOpenEntry =
-    !isDone && !isLocked && status !== 'CANCELLED' && status !== 'NOT_PARTICIPATING'
-  const sessionStatus = calendarItem?.sessionStatus ?? null
-  const resumable = sessionStatus === 'ACTIVE' || sessionStatus === 'PAUSED'
+  const opensLabel = eligibility.opensLabel
+  const canComplete = eligibility.canFinish
+  const isOpenEntry = !isDone && !isLocked && status !== 'CANCELLED' && status !== 'NOT_PARTICIPATING'
+  const resumable = eligibility.phase === 'active' || eligibility.phase === 'paused'
   const occurrenceHref = detailHref
   // A completed entry keeps its record; the server asks for Undo first (09 §4.8).
   const canRemove = Boolean(onRemove) && !isDone && status !== 'CANCELLED'
@@ -598,7 +593,7 @@ function PanelBody({
             onStart ? (
               <button
                 type="button"
-                disabled={!online}
+                disabled={resumable ? !eligibility.canResume && !eligibility.canPause : !eligibility.canStart}
                 onClick={() => onStart(itemId, resumable)}
                 className="calendar-panel__complete-btn"
               >

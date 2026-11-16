@@ -329,8 +329,8 @@ export function AddToScheduleButton({
         title={iconOnly ? 'Add to Schedule' : undefined}
         onClick={() => (signedIn ? setOpen(true) : navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`))}
         className={cn(
-          'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-raised text-sm font-medium transition hover:bg-surface-muted',
-          iconOnly ? 'h-12 w-12' : 'min-h-10 px-4 py-2',
+          'inline-flex w-full lg:w-auto shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface-raised text-sm font-medium transition hover:bg-surface-muted',
+          iconOnly ? 'h-12 w-12' : 'min-h-10 px-6 py-2',
           className,
         )}
       >

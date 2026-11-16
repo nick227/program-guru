@@ -118,10 +118,6 @@ export function HomePage() {
   const [nodeId, setNodeId] = useState<FlowNodeId>(initial.nodeId)
   const [state, setState] = useState<DiscoveryState>(initial.state)
   const [history, setHistory] = useState<HistoryEntry[]>(initial.history)
-  const [agentExpanded, setAgentExpanded] = useState<boolean>(() => {
-    // Expand if already in an active non-default turn from a previous session
-    return initial.nodeId !== 'opening' || initial.history.length > 0
-  })
   const [previewTarget, setPreviewTarget] = useState<PreviewTarget | null>(null)
   const [executionItemId, setExecutionItemId] = useState<string | null>(null)
   const [showWhy, setShowWhy] = useState(false)
@@ -310,7 +306,6 @@ export function HomePage() {
     setNodeId('opening')
     setState(INITIAL_STATE)
     setHistory([])
-    setAgentExpanded(false)
   }, [])
 
   const handleBack = useCallback(() => {
@@ -325,16 +320,10 @@ export function HomePage() {
       return
     }
     const prev = history[history.length - 1]
-    if (!prev) {
-      setAgentExpanded(false)
-      return
-    }
+    if (!prev) return
     setHistory((h) => h.slice(0, -1))
     setNodeId(prev.nodeId)
     setState(prev.state)
-    if (prev.nodeId === 'opening' && history.length === 1) {
-      setAgentExpanded(false)
-    }
   }, [executionItemId, history, previewTarget])
 
   const executeAction = useCallback(
@@ -516,21 +505,6 @@ export function HomePage() {
       }
     },
     [executeAction, handleReset, nodeId, state, turn.card?.id, turn.showMeSubject],
-  )
-
-  const handleSelectStartingAction = useCallback(
-    (action: 'now' | 'new' | 'continue') => {
-      setHistory([{ nodeId: 'opening', state: INITIAL_STATE }])
-      setAgentExpanded(true)
-      if (action === 'now') {
-        setNodeId('now_time')
-      } else if (action === 'new') {
-        setNodeId('explore_interest')
-      } else if (action === 'continue') {
-        setNodeId('continue_result')
-      }
-    },
-    [],
   )
 
   const handleCloseExecution = useCallback(() => {
@@ -856,9 +830,6 @@ export function HomePage() {
               executionItemId={executionItemId}
               isSignedIn={isSignedIn}
               todayIso={today}
-              expanded={agentExpanded}
-              onToggleExpanded={() => setAgentExpanded((prev) => !prev)}
-              onSelectStartingAction={handleSelectStartingAction}
               canGoBack={
                 history.length > 0 ||
                 previewTarget !== null ||
@@ -892,169 +863,6 @@ export function HomePage() {
               }
             />
 
-            {/* ── "For you" Section ──────────────────────────────── */}
-            <section aria-labelledby="for-you-heading" className="space-y-3">
-
-              <article className="group relative grid grid-cols-4 items-stretch sm:items-center gap-3.5 sm:gap-4 bg-surface p-3.5 sm:p-4 shadow-xs transition-all">
-                <div className="flex flex-col sm:flex-row items-stretch gap-3 bg-surface p-2 border border-border/40">
-                  <div className="relative aspect-[4/3] w-full sm:w-44 shrink-0 overflow-hidden rounded-2xl bg-surface-muted">
-                  <Link to={forYouItem.href} className="block h-full w-full">
-                    <img
-                      src={forYouItem.imageSrc}
-                      alt={forYouItem.title}
-                      className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
-                    />
-                  </Link>
-                </div>
-
-                <div className="flex flex-1 flex-col justify-between py-0.5 min-w-0">
-                  <div>
-                    <h3
-                      id="featured-activity-heading"
-                      className="font-display text-base sm:text-lg font-bold text-foreground group-hover:text-accent transition-colors line-clamp-1"
-                    >
-                      <Link to={forYouItem.href}>{forYouItem.title}</Link>
-                    </h3>
-                    <p className="text-xs text-muted mt-0.5">
-                      {forYouItem.subtitle}
-                    </p>
-                    <p className="mt-1.5 text-xs sm:text-sm text-muted leading-relaxed line-clamp-2">
-                      {forYouItem.summary}
-                    </p>
-                  </div>
-
-                  <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 pt-2">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={forYouItem.onAction}
-                      disabled={actionPending}
-                      className="rounded-full bg-accent hover:bg-accent/90 text-accent-foreground px-5 py-1.5 text-xs font-semibold"
-                    >
-                      {forYouItem.actionLabel}
-                    </Button>
-
-                    <div className="flex items-center gap-2">
-                      {forYouItem.avatars.length > 0 && (
-                        <div className="flex items-center -space-x-1.5 shrink-0">
-                          {forYouItem.avatars.slice(0, 3).map((av, idx) => (
-                            <Avatar
-                              key={idx}
-                              src={av.avatarUrl}
-                              name={av.displayName}
-                              size="sm"
-                              className="h-6 w-6 ring-2 ring-surface text-[10px]"
-                            />
-                          ))}
-                        </div>
-                      )}
-                      <span className="text-xs font-medium text-muted">
-                        {forYouItem.socialText}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                </div>
-              </article>
-            </section>
-
-            {/* ── "Explore activities" Section ────────────────────── */}
-            <section aria-labelledby="activities-heading" className="space-y-3">
-
-              <div className="grid grid-cols-4 gap-3 sm:gap-4">
-                <Link
-                  to="/browse?kind=activities"
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-border/40 bg-surface p-2.5 sm:p-3 transition-all hover:border-accent/40 hover:shadow-xs"
-                >
-                  <div className="aspect-[16/10] w-full overflow-hidden rounded-xl bg-surface-muted">
-                    <img
-                      src="/assets/covers/starter-jog-one-mile.jpg"
-                      alt="Running groups"
-                      className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
-                    />
-                  </div>
-                  <div className="mt-2.5">
-                    <h3 className="font-display text-xs sm:text-sm font-bold text-foreground group-hover:text-accent transition-colors line-clamp-1">
-                      Running groups
-                    </h3>
-                    <p className="text-[11px] sm:text-xs text-muted line-clamp-1 mt-0.5">
-                      Get moving together
-                    </p>
-                  </div>
-                </Link>
-
-                <Link
-                  to="/browse?kind=activities"
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-border/40 bg-surface p-2.5 sm:p-3 transition-all hover:border-accent/40 hover:shadow-xs"
-                >
-                  <div className="aspect-[16/10] w-full overflow-hidden rounded-xl bg-surface-muted">
-                    <img
-                      src="/assets/covers/starter-attend-learning-event.jpg"
-                      alt="Creative activities"
-                      className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
-                    />
-                  </div>
-                  <div className="mt-2.5">
-                    <h3 className="font-display text-xs sm:text-sm font-bold text-foreground group-hover:text-accent transition-colors line-clamp-1">
-                      Creative activities
-                    </h3>
-                    <p className="text-[11px] sm:text-xs text-muted line-clamp-1 mt-0.5">
-                      Make something new
-                    </p>
-                  </div>
-                </Link>
-              </div>
-            </section>
-
-            {/* ── "Programs to follow" Section ────────────────────── */}
-            <section aria-labelledby="programs-heading" className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2
-                  id="programs-heading"
-                  className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground"
-                >
-                  Programs to follow
-                </h2>
-                <Link
-                  to="/browse?kind=programs"
-                  className="inline-flex items-center gap-0.5 text-xs sm:text-sm font-semibold text-accent hover:underline"
-                >
-                  <span>Explore</span>
-                  <ChevronRight size={14} aria-hidden />
-                </Link>
-              </div>
-
-              <Link
-                to={programItem.href}
-                className="group flex items-center justify-between gap-3.5 sm:gap-4 bg-surface p-3.5 sm:p-4 shadow-xs transition-all"
-              >
-                <div className="relative aspect-[4/3] w-24 sm:w-32 shrink-0 overflow-hidden rounded-2xl bg-surface-muted">
-                  <img
-                    src={programItem.imageSrc}
-                    alt={programItem.title}
-                    className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
-                  />
-                </div>
-
-                <div className="flex flex-1 flex-col justify-center min-w-0">
-                  <h3 className="font-display text-sm sm:text-base font-bold text-foreground group-hover:text-accent transition-colors line-clamp-1">
-                    {programItem.title}
-                  </h3>
-                  <p className="text-xs text-muted mt-0.5">
-                    {programItem.subtitle}
-                  </p>
-                  <p className="mt-1 text-xs sm:text-sm text-muted leading-relaxed line-clamp-2">
-                    {programItem.summary}
-                  </p>
-                </div>
-
-                <ChevronRight
-                  size={18}
-                  className="text-muted group-hover:text-accent transition-colors shrink-0 mr-1"
-                  aria-hidden
-                />
-              </Link>
-            </section>
           </>
         )}
       </main>

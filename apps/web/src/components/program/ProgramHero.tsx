@@ -256,15 +256,6 @@ export function ProgramHero({
                 {editLabel}
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void handleShare()}
-              className="gap-1.5 text-muted hover:text-foreground"
-            >
-              <Share2 size={14} aria-hidden />
-              Share
-            </Button>
           </div>
 
           {/* Owner Visibility Segmented Control */}
