@@ -73,7 +73,7 @@ export function groupCalendarEntries(dayItems: SurfaceItem[]): CalendarRenderEnt
     const earliestTime = ordered.find((it) => Boolean(it.localTime))?.localTime ?? null
     const minutes = ordered.map((it) => it.durationMinutes).filter((m): m is number => typeof m === 'number' && m > 0)
     const totalMinutes = minutes.length ? minutes.reduce((sum, m) => sum + m, 0) : null
-    const doneCount = ordered.filter((it) => it.done || it.status === 'DONE').length
+    const doneCount = ordered.filter(isEntryDone).length
     const programDayIndex = ordered.find((it) => it.programDayIndex != null)?.programDayIndex ?? null
     const programTitle = ordered.find((it) => it.programTitle)?.programTitle ?? 'Workout session'
 
@@ -94,6 +94,11 @@ export function groupCalendarEntries(dayItems: SurfaceItem[]): CalendarRenderEnt
   return entries
 }
 
+
+/** An entry counts as completed: done locally (an optimistic Finish) or DONE on the server. */
+export function isEntryDone(item: { done?: boolean; status?: string | null }): boolean {
+  return Boolean(item.done) || item.status === 'DONE'
+}
 
 /**
  * Whether an entry can be moved to another date by drag or Move to date (03-UX §5): open entries only.

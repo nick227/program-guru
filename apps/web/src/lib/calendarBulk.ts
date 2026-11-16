@@ -5,7 +5,7 @@
  * check as a single change, and repeating entries change only that occurrence (This one).
  */
 import { addDays } from '@/lib/dates'
-import { canMoveCalendarEntry } from '@/lib/calendarGrouping'
+import { canMoveCalendarEntry, isEntryDone } from '@/lib/calendarGrouping'
 
 export type BulkEntry = {
   id: string
@@ -38,7 +38,7 @@ const order = (a: BulkEntry, b: BulkEntry) =>
   a.day.localeCompare(b.day) || (a.localTime ?? '').localeCompare(b.localTime ?? '') || a.id.localeCompare(b.id)
 
 const reasonOf = (e: BulkEntry): SkipReason =>
-  e.locked ? 'locked' : e.done || e.status === 'DONE' ? 'completed' : 'not open'
+  e.locked ? 'locked' : isEntryDone(e) ? 'completed' : 'not open'
 
 /** Move and Remove both act on open entries only: completed, skipped, removed and locked ones stay. */
 export function planBulk<T extends BulkEntry>(entries: T[]): BulkPlan<T> {

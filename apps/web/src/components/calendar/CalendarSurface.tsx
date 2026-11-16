@@ -3,7 +3,7 @@ import { Plus, X } from 'lucide-react'
 import { ActivityTile, type ActivityTileDensity } from '@/components/calendar/ActivityTile'
 import { InlineActivityPicker } from '@/components/calendar/InlineActivityPicker'
 import { WorkoutGroupTile } from '@/components/calendar/WorkoutGroupTile'
-import { groupCalendarEntries, type CalendarRenderEntry, type SurfaceItem } from '@/lib/calendarGrouping'
+import { groupCalendarEntries, isEntryDone, type CalendarRenderEntry, type SurfaceItem } from '@/lib/calendarGrouping'
 import { formatHourLabel, formatTargetTime, isValidTargetTime } from '@/lib/targetTime'
 import { cn } from '@/lib/utils'
 import { useCalendarDrop } from '@/components/calendar/CalendarDnd'
@@ -519,7 +519,7 @@ function PickerDate({
   const selection = useCalendarSelection()
   const dayItems = items.filter((item) => item.day === day.id)
   const count = dayItems.length
-  const isCompleted = count > 0 && dayItems.every((it) => it.done || it.status === 'DONE')
+  const isCompleted = count > 0 && dayItems.every(isEntryDone)
   return (
     <button
       ref={drop.setNodeRef}

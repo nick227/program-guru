@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canMoveCalendarEntry, groupCalendarEntries, type SurfaceItem } from './calendarGrouping'
+import { canMoveCalendarEntry, groupCalendarEntries, isEntryDone, type SurfaceItem } from './calendarGrouping'
 
 const makeItem = (overrides: Partial<SurfaceItem>): SurfaceItem => ({
   id: 'item-1',
@@ -103,5 +103,15 @@ describe('canMoveCalendarEntry (03-UX §5)', () => {
     expect(canMoveCalendarEntry({ status: 'SKIPPED' })).toBe(false)
     expect(canMoveCalendarEntry({ status: 'CANCELLED' })).toBe(false)
     expect(canMoveCalendarEntry({ status: 'PLANNED', locked: true })).toBe(false)
+  })
+})
+
+describe('isEntryDone', () => {
+  it('is done locally or DONE on the server, nothing else', () => {
+    expect(isEntryDone({ done: true, status: 'PLANNED' })).toBe(true)
+    expect(isEntryDone({ status: 'DONE' })).toBe(true)
+    expect(isEntryDone({ status: 'PLANNED' })).toBe(false)
+    expect(isEntryDone({ status: 'SKIPPED' })).toBe(false)
+    expect(isEntryDone({})).toBe(false)
   })
 })

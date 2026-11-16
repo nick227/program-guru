@@ -34,7 +34,7 @@ import { BulkActionBar, BulkMoveDialog, BulkRemoveDialog } from '@/components/ca
 import { CalendarSelectionContext, type CalendarSelection } from '@/components/calendar/CalendarSelection'
 import { planBulk, planBulkMove, rangeBetween, runBulk } from '@/lib/calendarBulk'
 import { ScheduleDialog, type ScheduleTarget } from '@/components/schedule/AddToSchedule'
-import { canMoveCalendarEntry } from '@/lib/calendarGrouping'
+import { canMoveCalendarEntry, isEntryDone } from '@/lib/calendarGrouping'
 import { canDropOnTarget, resolveDrop, type CalendarDropTarget } from '@/lib/calendarMove'
 import { CalendarDndProvider, targetLabel } from '@/components/calendar/CalendarDnd'
 import { CalendarDiscoveryRail } from '@/components/calendar/CalendarDiscoveryRail'
@@ -541,9 +541,7 @@ export function CalendarPage() {
     )
     const total = activeDayItems.length
     if (total === 0) return null
-    const completed = activeDayItems.filter(
-      (it) => it.done || it.status === 'DONE',
-    ).length
+    const completed = activeDayItems.filter(isEntryDone).length
     const totalMinutes = activeDayItems.reduce(
       (sum, it) =>
         sum + (typeof it.durationMinutes === 'number' && it.durationMinutes > 0 ? it.durationMinutes : 0),

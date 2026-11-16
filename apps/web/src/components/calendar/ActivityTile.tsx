@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { completionOpen } from '@/lib/completionWindow'
 import { useCalendarDraggable } from '@/components/calendar/CalendarDnd'
 import { ENTRY_PHASE_LABEL, entryPhase } from '@/lib/activitySession'
+import { isEntryDone } from '@/lib/calendarGrouping'
 import { useCalendarSelection } from '@/components/calendar/CalendarSelection'
 
 export type ActivityTileDensity = 'pill' | 'card' | 'timeblock' | 'month' | 'day'
@@ -95,7 +96,7 @@ export function ActivityTile({
   const [editingTime, setEditingTime] = useState(false)
   const timeControlRef = useRef<HTMLDivElement>(null)
   const compact = density === 'day' || density === 'month' || density === 'pill'
-  const isDone = item.done || item.status === 'DONE'
+  const isDone = isEntryDone(item)
   const isGroup = Boolean(item.groupName || item.avatarUrls?.length)
   const category = resolveActivityCategory(
     item.title,
