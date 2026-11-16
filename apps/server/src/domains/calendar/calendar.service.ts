@@ -355,7 +355,8 @@ export async function update(
           anchorDate: toDbDate(input.localDate ?? from),
           localTime: input.localTime === undefined ? r.localTime : input.localTime,
           timezone: tz,
-          untilDate: r.untilDate,
+          // The end moves with the schedule, so the same remaining entries survive a shift (09 §4.8).
+          untilDate: r.untilDate && shift ? toDbDate(addDays(fromDbDate(r.untilDate), shift)) : r.untilDate,
         },
       })
       await tx.calendarItem.update({ where: { id: item.id }, data: { status: 'CANCELLED' } })

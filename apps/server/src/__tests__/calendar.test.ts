@@ -101,6 +101,25 @@ describe('standalone and recurring entries (P1)', () => {
     expect((await req('DELETE', `/calendar-items/${doneId}?scope=THIS_ONE`)).statusCode).toBe(400)
   })
 
+  it('This and future moves the series end with it, so the same remaining entries survive', async () => {
+    await req('POST', '/calendar/items', { activityId: cat.squats.activity.id, localDate: '2027-01-04', localTime: '18:00', recurrence: { kind: 'DAILY' }, untilDate: '2027-01-08', idempotencyKey: key() })
+    const before = (await req('GET', '/calendar/items?start=2027-01-01&end=2027-01-31')).json().data
+    expect(before.map((i: any) => i.localDate)).toEqual(['2027-01-04', '2027-01-05', '2027-01-06', '2027-01-07', '2027-01-08'])
+    // Move Jan 6 and everything after it two days later: Jan 6-8 become Jan 8-10, all three kept.
+    const jan6 = before[2]
+    const moved = await req('PATCH', `/calendar-items/${jan6.id}`, { localDate: '2027-01-08', scope: 'THIS_AND_FUTURE', expectedUpdatedAt: jan6.updatedAt })
+    expect(moved.statusCode).toBe(200)
+    const after = (await req('GET', '/calendar/items?start=2027-01-01&end=2027-01-31')).json().data
+    expect(after.map((i: any) => i.localDate)).toEqual(['2027-01-04', '2027-01-05', '2027-01-08', '2027-01-09', '2027-01-10'])
+    const recs = (await req('GET', '/calendar/recurrences')).json().data
+    expect(recs.map((r: any) => r.untilDate).sort()).toEqual(['2027-01-05', '2027-01-10'])
+    // A time-only This and future keeps the end date.
+    const jan9 = after[3]
+    await req('PATCH', `/calendar-items/${jan9.id}`, { localTime: '07:00', scope: 'THIS_AND_FUTURE', expectedUpdatedAt: jan9.updatedAt })
+    const timed = (await req('GET', '/calendar/items?start=2027-01-01&end=2027-01-31')).json().data
+    expect(timed.map((i: any) => `${i.localDate} ${i.localTime}`)).toEqual(['2027-01-04 18:00', '2027-01-05 18:00', '2027-01-08 18:00', '2027-01-09 07:00', '2027-01-10 07:00'])
+  })
+
   it('two concurrent This-and-future moves split the recurrence once (double tap)', async () => {
     const created = (
       await req('POST', '/calendar/items', {
