@@ -16,7 +16,7 @@ import { UnreadDot } from '@/components/shared/UnreadDot'
 import { GroupInviteLink } from '@/components/social/GroupInviteLink'
 import { GroupStatus, type GroupStatusItem } from '@/components/social/GroupStatus'
 import { GroupCheckInFeed } from '@/components/group-stage/GroupCheckInFeed'
-import { orderMembers, stateLabel } from '@/lib/together'
+import { stateLabel, summarizeCollaborators } from '@/lib/together'
 import { cn } from '@/lib/utils'
 
 type S = components['schemas']
@@ -51,13 +51,11 @@ export function ActivityTogether({
   const removeReaction = useRemoveCompletionReaction()
   const completions = useGroupCompletions(c.groupId, c.occurrenceKey ?? undefined)
   const checkInRows = completions.data?.pages.flatMap((page) => page.data) ?? []
-  const members = orderMembers(c.members, viewerId)
-  const others = members.filter((m) => m.user.id !== viewerId)
-  const me = members.find((m) => m.user.id === viewerId)
-  const finishedOthers = others.filter((m) => m.status === 'DONE')
-  const startedOthers = others.filter((m) => m.status === 'IN_PROGRESS')
-  // Only members who share and haven't finished; non-sharers are never listed as "not yet".
-  const waiting = others.filter((m) => m.status === 'PENDING')
+  // Who is where: the shared collaborator summary (lib/together), same as execution and Calendar.
+  const together = summarizeCollaborators(c, viewerId)
+  const { members, others, me, waiting } = together
+  const finishedOthers = together.finished
+  const startedOthers = together.doingNow
   const feedMembers = [
     ...(me?.status === 'DONE' ? [me] : []),
     ...finishedOthers,
@@ -79,7 +77,7 @@ export function ActivityTogether({
     visibility: 'PRIVATE',
     joinPolicy: 'INVITE_ONLY',
     mode: 'ASYNC',
-    memberCount: c.totalCount || members.length,
+    memberCount: together.totalCount,
     startLocalDate: null,
     viewerIsMember: true,
     memberAvatars: members.map((m) => m.user),

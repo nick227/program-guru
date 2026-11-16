@@ -50,6 +50,7 @@ import { canMoveCalendarEntry, type SurfaceItem } from '@/lib/calendarGrouping'
 import { ruleLabel, untilLabel } from '@/components/schedule/recurrencePlan'
 import { useEnrollmentProgress } from '@/lib/useEnrollmentProgress'
 import { useActivityPreview } from '@/lib/activityPreview'
+import { summarizeCollaborators } from '@/lib/together'
 
 type S = components['schemas']
 
@@ -582,9 +583,7 @@ function PanelBody({
                   </span>
                 )}
                 <span className="truncate">
-                  {collab.finishedCount > 0
-                    ? `${collab.finishedCount} of ${collab.totalCount} finished in this session`
-                    : `${collab.totalCount} in this session`}
+                  {summarizeCollaborators(collab).sessionLabel}
                 </span>
                 {groupId && (
                   <Link to={buildGroupUrl(groupId)} className="ml-auto shrink-0 font-semibold text-accent hover:underline">

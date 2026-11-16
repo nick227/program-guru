@@ -27,6 +27,7 @@ import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { cn } from '@/lib/utils'
 import { useEnrollmentProgress } from '@/lib/useEnrollmentProgress'
 import { formatElapsed, metricKey, useActivitySession, useElapsedSeconds } from '@/lib/activitySession'
+import { summarizeCollaborators } from '@/lib/together'
 
 type S = components['schemas']
 
@@ -90,11 +91,8 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
     }, [hasDirty])
 
     const instructions = o.instructions?.length ? o.instructions : (activity.data?.instructions ?? [])
-    const members = o.collaborators?.members ?? []
-    const activeNow = members.filter((m) => m.status === 'IN_PROGRESS').map((m) => m.user)
-    const scheduledToday = members.filter((m) => m.status === 'PENDING').map((m) => m.user)
-    const completedRecently = members.filter((m) => m.status === 'DONE').map((m) => m.user)
-    const people = [...activeNow, ...scheduledToday, ...completedRecently].slice(0, 5)
+    const together = summarizeCollaborators(o.collaborators)
+    const people = [...together.doingNow, ...together.waiting, ...together.finished].map((m) => m.user).slice(0, 5)
 
     const invalidate = () =>
       Promise.all(
@@ -235,13 +233,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
                 </button>
               ))}
             </div>
-            <span className="text-xs text-muted">
-              {activeNow.length > 0
-                ? `${activeNow.length} doing it now`
-                : scheduledToday.length > 0
-                  ? `${scheduledToday.length} scheduled today`
-                  : `${completedRecently.length} completed recently`}
-            </span>
+            <span className="text-xs text-muted">{together.activityLabel}</span>
           </div>
         )}
 
