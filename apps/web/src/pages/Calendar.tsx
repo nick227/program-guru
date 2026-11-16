@@ -424,15 +424,41 @@ export function CalendarPage() {
     if (!item) return
     const effectiveScope: RemoveScope = item.recurrenceId ? scope : 'THIS_ONE'
     try {
-      await cancelItem.mutateAsync({ itemId, scope: effectiveScope })
+      const cancelled = await cancelItem.mutateAsync({ itemId, scope: effectiveScope })
       setRemovedIds((prev) => new Set([...prev, itemId]))
       setRemoveTarget(null)
       if (selectedItemId === itemId) setSelectedItemId(null)
-      toast.success(
-        effectiveScope === 'THIS_AND_FUTURE'
-          ? `Removed ${item.title} and the ones after it`
-          : `Removed ${item.title} from your Calendar`,
-      )
+      if (effectiveScope === 'THIS_AND_FUTURE') {
+        // Ending a series re-plans the rest; there is no single entry to put back.
+        toast.success(`Removed ${item.title} and the ones after it`)
+        return
+      }
+      // Undo restores the same entry (status back to planned), never a new one (09 §4.8).
+      toast.success(`Removed ${item.title} from your Calendar`, {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            updateItem
+              .mutateAsync({ itemId, status: 'PLANNED', expectedUpdatedAt: cancelled.updatedAt })
+              .then(() => {
+                setRemovedIds((prev) => {
+                  const next = new Set(prev)
+                  next.delete(itemId)
+                  return next
+                })
+                toast.success(
+                  item.gatheringId
+                    ? `${item.title} is back on your Calendar (you are no longer in the gathering)`
+                    : `${item.title} is back on your Calendar`,
+                )
+              })
+              .catch((err: unknown) => {
+                updateItem.reset()
+                toast.error(err instanceof Error ? `Could not restore ${item.title}: ${err.message}` : `Could not restore ${item.title}`)
+              })
+          },
+        },
+      })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not remove it right now')
     }

@@ -101,6 +101,20 @@ describe('standalone and recurring entries (P1)', () => {
     expect((await req('DELETE', `/calendar-items/${doneId}?scope=THIS_ONE`)).statusCode).toBe(400)
   })
 
+  it('Undo Remove restores the same entry (status PLANNED), never a second one', async () => {
+    const added = (await addOnce('2027-02-03', '08:00')).json().data.item
+    const cancelled = (await req('DELETE', `/calendar-items/${added.id}?scope=THIS_ONE`)).json().data
+    expect(cancelled.status).toBe('CANCELLED')
+    const restored = await req('PATCH', `/calendar-items/${added.id}`, { status: 'PLANNED', expectedUpdatedAt: cancelled.updatedAt })
+    expect(restored.statusCode).toBe(200)
+    expect(restored.json().data).toMatchObject({ id: added.id, status: 'PLANNED', localDate: '2027-02-03', localTime: '08:00' })
+    const day = (await req('GET', '/calendar/items?start=2027-02-03&end=2027-02-03')).json().data
+    expect(day.map((i: any) => i.id)).toEqual([added.id])
+    // A stale restore (the entry changed again) is refused, not duplicated.
+    const stale = await req('PATCH', `/calendar-items/${added.id}`, { status: 'PLANNED', expectedUpdatedAt: cancelled.updatedAt })
+    expect(stale.statusCode).toBe(409)
+  })
+
   it('This and future moves the series end with it, so the same remaining entries survive', async () => {
     await req('POST', '/calendar/items', { activityId: cat.squats.activity.id, localDate: '2027-01-04', localTime: '18:00', recurrence: { kind: 'DAILY' }, untilDate: '2027-01-08', idempotencyKey: key() })
     const before = (await req('GET', '/calendar/items?start=2027-01-01&end=2027-01-31')).json().data
