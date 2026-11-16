@@ -4,7 +4,7 @@ import {
   programVisibilityLabel,
   type ProgramVisibility,
 } from '@/components/program-authoring/programFields'
-import { ProgramVisibilityButtons, PublishCheckIssues } from '@/components/program-authoring/PublishControls'
+import { ProgramVisibilityButtons } from '@/components/program-authoring/PublishControls'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -164,7 +164,9 @@ export function PublishStep({
   }
 
   return (
-    <Stack className="gap-8">
+    <>
+    
+    <Stack className="gap-8 grid grid-cols-2">
       {/* 1. Large & Bold Program Showcase Hero Card */}
       <div className="overflow-hidden rounded-2xl border border-border/80 bg-surface shadow-sm">
         {/* Prominent Hero Image & Overlay */}
@@ -176,11 +178,9 @@ export function PublishStep({
             showVideoBadge={false}
             className="!aspect-auto h-full w-full object-cover rounded-none"
           />
-          {/* Subtle dark gradient overlay for optimal legibility */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/20" />
 
           {/* Floating Badges */}
-          <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2">
+          <div className="absolfute top-4 left-4 right-4 flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-black/60 text-white backdrop-blur-md border border-white/15">
               <Sparkles size={12} className="text-accent" />
               {ws.type.label}
@@ -206,7 +206,7 @@ export function PublishStep({
           </div>
 
           {/* Large, Bold Program Title & Creator on image overlay */}
-          <div className="absolute bottom-5 left-5 right-5 text-white">
+          <div className="absolfute bottom-5 left-5 right-5 text-white">
             <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight leading-tight drop-shadow-sm">
               {ws.title || 'Untitled Program'}
             </h1>
@@ -258,19 +258,13 @@ export function PublishStep({
 
           {/* Everything we know about the Program: Specs Grid */}
           <div className="space-y-3 pt-3 border-t border-border">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted">
-              Program Details & Overview
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="gap-3 grid grid-cols-6">
               {/* Duration */}
               <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-muted/60 border border-border/50">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
                   <Calendar size={18} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                    Duration
-                  </div>
                   <div className="text-sm font-bold text-foreground truncate">
                     {formatProgramDuration(ws.durationDays)}
                   </div>
@@ -283,9 +277,6 @@ export function PublishStep({
                   <Layers size={18} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                    Activities
-                  </div>
                   <div className="text-sm font-bold text-foreground truncate">
                     {ws.activities.length} {ws.activities.length === 1 ? 'Activity' : 'Activities'}
                   </div>
@@ -298,9 +289,6 @@ export function PublishStep({
                   <Repeat size={18} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                    Frequency
-                  </div>
                   <div className="text-sm font-bold text-foreground truncate">
                     {ws.frequencyLabel || 'As scheduled'}
                   </div>
@@ -313,9 +301,6 @@ export function PublishStep({
                   <CalendarDays size={18} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                    Total Sessions
-                  </div>
                   <div className="text-sm font-bold text-foreground truncate">
                     {totalPlacements} {totalPlacements === 1 ? 'Session' : 'Sessions'}
                   </div>
@@ -329,9 +314,6 @@ export function PublishStep({
                     <Target size={18} />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                      Focus
-                    </div>
                     <div className="text-sm font-bold text-foreground truncate">
                       {ws.focus.label}
                     </div>
@@ -346,9 +328,6 @@ export function PublishStep({
                     <BarChart3 size={18} />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                      Level
-                    </div>
                     <div className="text-sm font-bold text-foreground truncate">
                       {formatProgramLevel(ws.level)}
                     </div>
@@ -363,9 +342,6 @@ export function PublishStep({
                     <Timer size={18} />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                      Session Time
-                    </div>
                     <div className="text-sm font-bold text-foreground truncate">
                       {ws.sessionMinutes} mins
                     </div>
@@ -380,9 +356,6 @@ export function PublishStep({
                     <FileText size={18} />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                      Instructions
-                    </div>
                     <div className="text-sm font-bold text-foreground truncate">
                       {ws.instructionCount} {ws.instructionCount === 1 ? 'step' : 'steps'}
                     </div>
@@ -396,15 +369,24 @@ export function PublishStep({
                   <ShieldCheck size={18} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                    Access
-                  </div>
                   <div className="text-sm font-bold text-foreground truncate">
                     {priceSummary || formatAccessMode(ws.accessMode)}
                   </div>
                 </div>
               </div>
+              
+
             </div>
+
+        {/* Visibility Controls */}
+        <div className="space-y-2.5 flex flex-nowrap w-full mt-4 pt-8">
+          <ProgramVisibilityButtons
+            value={visibility}
+            onChange={setVisibility}
+            buttonClassName="h-9 px-4 font-semibold min-w-[11vw]"
+          />
+        </div>
+
           </div>
 
           {/* Tags */}
@@ -431,10 +413,7 @@ export function PublishStep({
       <Panel className="rounded-xl border border-border/80 bg-surface p-5 sm:p-6 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <h3 className="font-display text-lg font-bold text-foreground">Program Activities</h3>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-accent/15 text-accent">
-              {ws.activities.length}
-            </span>
+            <h3 className="font-display text-lg font-bold text-foreground">Activities</h3>
           </div>
           <Button
             variant="outline"
@@ -447,7 +426,7 @@ export function PublishStep({
         </div>
 
         {ws.activities.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {ws.activities.map((act, index) => {
               const actHero = activityHero(
                 {
@@ -462,9 +441,6 @@ export function PublishStep({
                   className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/70 bg-surface-muted/40 hover:bg-surface-muted/70 transition-colors"
                 >
                   <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface border border-border text-xs font-bold text-muted">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
                     <EntityHero
                       hero={actHero}
                       size="row"
@@ -542,80 +518,11 @@ export function PublishStep({
           </div>
         )}
       </Panel>
-
-      {/* 3. Visibility & Share Link Section */}
-      <Panel className="rounded-xl border border-border/80 bg-surface p-5 sm:p-6 space-y-5">
-        <div className="space-y-1">
-          <h3 className="font-display text-lg font-bold text-foreground">Publishing & Sharing</h3>
-          <p className="text-xs text-muted">
-            Configure how your program appears in public listings and preview its share link.
-          </p>
-        </div>
-
-        {/* Visibility Controls */}
-        <div className="space-y-2.5">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted">
-            Program Visibility
-          </label>
-          <ProgramVisibilityButtons
-            value={visibility}
-            onChange={setVisibility}
-            buttonClassName="h-9 px-4 font-semibold"
-          />
-          <p className="text-xs text-muted">
-            {visibility === 'PUBLIC'
-              ? 'Public: Discoverable by everyone in Search, Browse, and on your profile.'
-              : visibility === 'UNLISTED'
-                ? 'Link only: Anyone with the direct link can view and join, but it will not appear in public search.'
-                : 'Private: Only visible to you. Nobody else can access or join.'}
-          </p>
-        </div>
-
-        {/* Share Link Preview (Disabled until publish) */}
-        <div className="pt-4 border-t border-border space-y-2.5">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-              Share Link
-            </span>
-            {isDraft ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
-                <Lock size={11} /> Preview · Active after publish
-              </span>
-            ) : visibility === 'PRIVATE' ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-surface-muted text-muted border border-border">
-                <Lock size={11} /> Disabled (Private Program)
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
-                <Globe size={11} /> Active Link
-              </span>
-            )}
-          </div>
-
-          <ShareLinkField
-            url={shareUrl}
-            shareTitle={ws.title}
-            copiedMessage="Program link copied"
-            inputLabel="Program link"
-            disabled={isDraft || visibility === 'PRIVATE'}
-          />
-
-          {isDraft ? (
-            <p className="text-xs text-muted">
-              This link is reserved for your program. It will be enabled for sharing and copying immediately once published.
-            </p>
-          ) : visibility === 'PRIVATE' ? (
-            <p className="text-xs text-muted">
-              Private programs cannot be shared with other users. To enable sharing, change visibility to Public or Link only.
-            </p>
-          ) : null}
-        </div>
-
-        <PublishCheckIssues check={check} error={publish.error} />
-      </Panel>
+      
+    </Stack>
 
       {/* Consistent Bottom Navigation */}
-      <Row className="justify-between items-center pt-6 mt-4 border-t border-border">
+      <Row className="justify-between items-center pt-6 mt-4 border-t border-border w-full">
         <Button
           variant="outline"
           size="lg"
@@ -652,6 +559,6 @@ export function PublishStep({
           </Button>
         </Row>
       </Row>
-    </Stack>
+    </>
   )
 }

@@ -37,7 +37,6 @@
   max-width: var(--stage-max);
   margin-inline: auto;
   flex-direction: column;
-  gap: var(--space-6);
 }
 
 .section {

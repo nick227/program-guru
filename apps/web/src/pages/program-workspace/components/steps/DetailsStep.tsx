@@ -57,12 +57,6 @@ export function DetailsStep({
 
   return (
     <Stack className="gap-6">
-      {/* Program Type Tag */}
-      <div className="flex items-center gap-2 text-sm text-muted">
-        <span className="font-semibold text-foreground">{ws.type.label}</span>
-        {ws.focus && <span>· {ws.focus.label}</span>}
-        <span>· {formatProgramDuration(ws.durationDays)}</span>
-      </div>
 
       {/* Cover Image */}
       <Panel className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-3">
