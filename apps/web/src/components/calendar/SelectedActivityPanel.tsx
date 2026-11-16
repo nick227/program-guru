@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -41,7 +41,7 @@ import { GatheringSuggestion } from '@/components/activity/GatheringSuggestion'
 import { resolveActivityCategory } from '@/lib/activityCategory'
 import { dateLabel, formatRelativeTime, isLocalDate } from '@/lib/dates'
 import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/targetTime'
-import { buildActivityUrl, buildGroupUrl } from '@/lib/urls'
+import { buildOccurrenceUrl, buildGroupUrl } from '@/lib/urls'
 import { useMediaUploads } from '@/lib/useMediaUploads'
 import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { useOnline } from '@/lib/useOnline'
@@ -105,6 +105,7 @@ function PanelBody({
 }: SelectedActivityPanelProps & { isMobileSheet?: boolean }) {
   const online = useOnline()
   const me = useCurrentUser()
+  const location = useLocation()
   const viewerId = me.data?.data.id
   const occurrenceQuery = useOccurrence(itemId ?? '')
   const occurrence = occurrenceQuery.data
@@ -270,14 +271,8 @@ function PanelBody({
   const isLocked = Boolean(item?.locked ?? calendarItem?.locked)
   const timeDisplay = formatTargetTime(localTime)
 
-  const detailHref =
-    activityId && !isLocked
-      ? buildActivityUrl({
-          id: activityId,
-          title,
-          slug: activityQuery.data?.slug,
-        })
-      : `/occurrences/${itemId}`
+  // A selected calendar entry always opens that exact occurrence, including its gathering/date.
+  const detailHref = buildOccurrenceUrl(itemId, { returnTo: `${location.pathname}${location.search}` })
 
   const thumbUrl = (!thumbFailed && (preview.hero?.src || mediaRailItems[0]?.thumbnailUrl)) || null
   // The one image opens the viewer at itself when it is part of the media set.
@@ -307,7 +302,7 @@ function PanelBody({
     !isDone && !isLocked && status !== 'CANCELLED' && status !== 'NOT_PARTICIPATING'
   const sessionStatus = calendarItem?.sessionStatus ?? null
   const resumable = sessionStatus === 'ACTIVE' || sessionStatus === 'PAUSED'
-  const occurrenceHref = calendarItem?.href ?? `/occurrences/${itemId}`
+  const occurrenceHref = detailHref
   // A completed entry keeps its record; the server asks for Undo first (09 §4.8).
   const canRemove = Boolean(onRemove) && !isDone && status !== 'CANCELLED'
   const canReschedule =
@@ -581,7 +576,7 @@ function PanelBody({
                   {summarizeCollaborators(collab).sessionLabel}
                 </span>
                 {groupId && (
-                  <Link to={buildGroupUrl(groupId)} className="ml-auto shrink-0 font-semibold text-accent hover:underline">
+                  <Link to={occurrenceHref} className="ml-auto shrink-0 font-semibold text-accent hover:underline">
                     Open session
                   </Link>
                 )}
