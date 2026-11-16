@@ -24,6 +24,8 @@ export default defineConfig({
     { name: 'calendar-touch-live', testMatch: 'calendar-touch.live.ts', use: { ...client('198.51.100.15'), hasTouch: true, isMobile: true } },
     { name: 'calendar-bulk-live', testMatch: 'calendar-bulk.live.ts', grepInvert: /@touch/, use: { ...client('198.51.100.16'), viewport: { width: 1440, height: 1400 } } },
     { name: 'calendar-bulk-touch-live', testMatch: 'calendar-bulk.live.ts', grep: /@touch/, use: { ...client('198.51.100.17'), hasTouch: true, isMobile: true } },
+    { name: 'calendar-inline-live', testMatch: 'calendar-inline.live.ts', grepInvert: /@touch/, use: { ...client('198.51.100.18'), viewport: { width: 1440, height: 1000 } } },
+    { name: 'calendar-inline-touch-live', testMatch: 'calendar-inline.live.ts', grep: /@touch/, use: { ...client('198.51.100.19'), hasTouch: true, isMobile: true } },
   ],
   webServer: {
     command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,

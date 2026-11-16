@@ -72,6 +72,10 @@ export interface SelectedActivityPanelProps {
   /** The entry overlaps another timed one: the server's one-tap Move to next open slot. */
   onMoveToOpenSlot?: (itemId: string) => void
   movingToSlot?: boolean
+  /** Start or Resume in place (the inline Activity experience); without it, Start opens the page. */
+  onStart?: (itemId: string, resume: boolean) => void
+  /** While doing the Activity: shown instead of the preview (wider panel, full-height sheet). */
+  execution?: ReactNode
   completing?: boolean
   undoing?: boolean
   removing?: boolean
@@ -91,6 +95,7 @@ function PanelBody({
   onEndSeries,
   onMoveToOpenSlot,
   movingToSlot = false,
+  onStart,
   completing = false,
   undoing = false,
   removing = false,
@@ -632,12 +637,23 @@ function PanelBody({
           )}
           {(isOpenEntry || canRemove || canReschedule) && (
             <div className="calendar-panel__secondary-actions">
-              {isOpenEntry && (
-                <Link to={occurrenceHref} className="calendar-panel__secondary-btn">
-                  <Play size={13} className="fill-current" aria-hidden />
-                  {resumable ? 'Resume' : 'Start'}
-                </Link>
-              )}
+              {isOpenEntry &&
+                (onStart ? (
+                  <button
+                    type="button"
+                    disabled={!online}
+                    onClick={() => onStart(itemId, resumable)}
+                    className="calendar-panel__secondary-btn"
+                  >
+                    <Play size={13} className="fill-current" aria-hidden />
+                    {resumable ? 'Resume' : 'Start'}
+                  </button>
+                ) : (
+                  <Link to={occurrenceHref} className="calendar-panel__secondary-btn">
+                    <Play size={13} className="fill-current" aria-hidden />
+                    {resumable ? 'Resume' : 'Start'}
+                  </Link>
+                ))}
               {canReschedule && (
                 <button
                   type="button"
@@ -868,12 +884,15 @@ function PanelBody({
 }
 
 export function SelectedActivityPanel(props: SelectedActivityPanelProps) {
-  const { itemId, onClose, emptyContent } = props
+  const { itemId, onClose, emptyContent, execution } = props
+  // The execution mounts once, in whichever container is showing (aside from lg, sheet below):
+  // two copies would run two sessions.
+  const desktop = useMediaQuery('(min-width: 1024px)')
 
   return (
     <>
       <aside
-        className="calendar-panel hidden lg:flex"
+        className={cn('calendar-panel hidden lg:flex', execution && 'calendar-panel--executing')}
         aria-label="Selected activity details"
       >
         {itemId && onClose && (
@@ -882,7 +901,9 @@ export function SelectedActivityPanel(props: SelectedActivityPanelProps) {
             <X size={16} aria-hidden />
           </button>
         )}
-        {itemId ? (
+        {itemId && execution && desktop ? (
+          <div className="calendar-panel__execution">{execution}</div>
+        ) : itemId ? (
           <PanelBody {...props} />
         ) : emptyContent ? (
           emptyContent
@@ -908,13 +929,29 @@ export function SelectedActivityPanel(props: SelectedActivityPanelProps) {
           aria-label="Selected activity details"
         >
           <div
-            className="calendar-sheet"
+            className={cn('calendar-sheet', execution && 'calendar-sheet--executing')}
             onClick={(e) => e.stopPropagation()}
           >
-            <PanelBody {...props} isMobileSheet />
+            {execution && !desktop ? (
+              <div className="calendar-panel__execution">{execution}</div>
+            ) : (
+              <PanelBody {...props} isMobileSheet />
+            )}
           </div>
         </div>
       )}
     </>
   )
+}
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches)
+  useEffect(() => {
+    const mql = window.matchMedia(query)
+    const onChange = () => setMatches(mql.matches)
+    onChange()
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [query])
+  return matches
 }

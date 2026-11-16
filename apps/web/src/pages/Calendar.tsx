@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CalendarDays,
   ChevronDown,
@@ -29,6 +29,7 @@ import { DatePickerPopover } from '@/components/calendar/DatePickerPopover'
 import { SelectedActivityPanel } from '@/components/calendar/SelectedActivityPanel'
 import { MoveEntryDialog, type MoveTarget } from '@/components/calendar/MoveEntryDialog'
 import { SeriesDialog } from '@/components/calendar/SeriesDialog'
+import { ActivityExecution, type ActivityExecutionHandle } from '@/components/activity/ActivityExecution'
 import { BulkActionBar, BulkMoveDialog, BulkRemoveDialog } from '@/components/calendar/BulkActions'
 import { CalendarSelectionContext, type CalendarSelection } from '@/components/calendar/CalendarSelection'
 import { planBulk, planBulkMove, rangeBetween, runBulk } from '@/lib/calendarBulk'
@@ -129,6 +130,11 @@ export function CalendarPage() {
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   // Bulk management (03-UX §5): selection mode, the selected entries, and a running bulk change.
   const [selecting, setSelecting] = useState(false)
+  // Inline Activity experience (03-UX §5): the entry being done in the panel, and its guard handle.
+  const [executing, setExecuting] = useState<{ id: string; autoStart: boolean } | null>(null)
+  const executionRef = useRef<ActivityExecutionHandle>(null)
+  const afterExecutionClose = useRef<(() => void) | null>(null)
+  const navigate = useNavigate()
   const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(() => new Set())
   const bulkAnchor = useRef<string | null>(null)
   const [bulkDialog, setBulkDialog] = useState<'move' | 'remove' | null>(null)
@@ -599,6 +605,15 @@ export function CalendarPage() {
   const bulkPlan = useMemo(() => planBulk(bulkEntries), [bulkEntries])
 
   const startSelecting = (firstId?: string) => {
+    if (executing) {
+      // Leave the running Activity through its unsaved-results guard first.
+      afterExecutionClose.current = () => enterSelecting(firstId)
+      executionRef.current?.requestClose()
+      return
+    }
+    enterSelecting(firstId)
+  }
+  const enterSelecting = (firstId?: string) => {
     setSelecting(true)
     setSelectedItemId(null)
     setBulkIds(new Set(firstId ? [firstId] : []))
@@ -755,6 +770,15 @@ export function CalendarPage() {
   }
 
   const selectItem = (itemId: string) => {
+    if (executing && executing.id !== itemId) {
+      // Leave the running Activity through its unsaved-results guard, then open the other entry.
+      afterExecutionClose.current = () => showItem(itemId)
+      executionRef.current?.requestClose()
+      return
+    }
+    showItem(itemId)
+  }
+  const showItem = (itemId: string) => {
     setSelectedItemId(itemId)
     setPanelCollapsed(false)
     const day = filteredItems.find((it) => it.id === itemId)?.day
@@ -771,11 +795,71 @@ export function CalendarPage() {
     return id ? (recurrences.data?.find((r) => r.id === id) ?? null) : null
   }, [rawItems, selectedItemId, recurrences.data])
 
+  // Next after completing: the following open entry in date/time order (same day first).
+  const nextOpenAfter = (itemId: string) => {
+    const ordered = [...filteredItems]
+      .filter((it) => it.status === 'PLANNED' && !it.done && !it.locked)
+      .sort((a, b) => a.day.localeCompare(b.day) || (a.localTime ?? '').localeCompare(b.localTime ?? ''))
+    const current = filteredItems.find((it) => it.id === itemId)
+    if (!current) return null
+    return (
+      ordered.find(
+        (it) =>
+          it.id !== itemId &&
+          (it.day > current.day || (it.day === current.day && (it.localTime ?? '') >= (current.localTime ?? ''))),
+      ) ?? null
+    )
+  }
+  const closeExecution = () => {
+    setExecuting(null)
+    const then = afterExecutionClose.current
+    afterExecutionClose.current = null
+    then?.()
+  }
+  const nextAfterExecution = executing ? nextOpenAfter(executing.id) : null
+  const execution = executing ? (
+    <ActivityExecution
+      ref={executionRef}
+      itemId={executing.id}
+      autoStart={executing.autoStart}
+      onClose={closeExecution}
+      onNext={
+        nextAfterExecution
+          ? () => {
+              setExecuting(null)
+              if (view === 'day' && nextAfterExecution.day !== selected) updateCalendarParams('day', nextAfterExecution.day)
+              setSelectedItemId(nextAfterExecution.id)
+            }
+          : undefined
+      }
+      nextLabel={nextAfterExecution ? `Next: ${nextAfterExecution.title}` : undefined}
+      onOpenFullPage={(id) => navigate(`/occurrences/${id}?returnTo=${encodeURIComponent(origin)}`)}
+      onOpenPerson={(handle) => navigate(`/@${handle}`)}
+    />
+  ) : null
+
+  // The executing entry is no longer the selected one (removed, moved away, view change): done.
+  useEffect(() => {
+    if (executing && selectedItemId !== executing.id) setExecuting(null)
+  }, [executing, selectedItemId])
+
+  // Escape leaves the running Activity through the same guard (dialogs own Escape first).
+  useEffect(() => {
+    if (!executing) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !document.querySelector('dialog[open]')) executionRef.current?.requestClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [executing])
+
   const selectedPanel = (
     <SelectedActivityPanel
       itemId={selectedItemId}
       calendarItem={selectedCalendarItem}
-      onClose={() => setSelectedItemId(null)}
+      onClose={() => (executing ? executionRef.current?.requestClose() : setSelectedItemId(null))}
+      onStart={(itemId, resume) => setExecuting({ id: itemId, autoStart: !resume })}
+      execution={executing && executing.id === selectedItemId ? execution : null}
       onComplete={completeItem}
       onUndoComplete={undoCompleteItem}
       onChangeTime={changeItemTime}
@@ -1104,7 +1188,7 @@ export function CalendarPage() {
         {calendar.isPending ? (
           <Loading />
         ) : view === 'day' ? (
-          <div className="calendar-day-layout">
+          <div className={cn('calendar-day-layout', executing && 'calendar-day-layout--executing')}>
             <div className="calendar-day-layout__timeline">
               <CalendarSurface
                 days={days}
@@ -1152,6 +1236,7 @@ export function CalendarPage() {
             <div
               className={cn(
                 selectedItemId && 'calendar-day-layout calendar-day-layout--month',
+                selectedItemId && executing && 'calendar-day-layout--executing',
                 selectedItemId && panelCollapsed && 'calendar-day-layout--collapsed',
               )}
             >
