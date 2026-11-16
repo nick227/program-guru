@@ -980,6 +980,7 @@ export function CalendarPage() {
                   selectedItemId={selectedItemId}
                   onSelectItem={selectItem}
                   todayIso={current}
+                  onPickDay={(day) => updateCalendarParams('month', day)}
                   onItemScheduled={(itemId) => setSelectedItemId(itemId)}
                   onComplete={(itemId) => void completeItem(itemId)}
                   onChangeTime={(itemId, localTime) =>

@@ -3183,4 +3183,26 @@
 .calendar-panel__drawer-close:hover {
   color: hsl(var(--color-text));
 }
+
+/* Navigation (03-UX §5): the strip's selected date says a second tap opens Day view. */
+.calendar-month-date--selected {
+  position: relative;
+}
+
+.calendar-month-date--selected::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 1rem;
+  height: 2px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.6;
+  transform: translateX(-50%);
+}
+
+.calendar-month-cell--pickable:not(.calendar-month-cell--addable) {
+  cursor: pointer;
+}
 }

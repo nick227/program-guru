@@ -392,6 +392,7 @@ function MonthCell({
   onAdd,
   onCloseAdd,
   onSelect,
+  onPickDay,
   onItemScheduled,
   children,
 }: {
@@ -402,7 +403,10 @@ function MonthCell({
   adding: boolean
   onAdd: (day: string) => void
   onCloseAdd: () => void
+  /** The date mark: open Day view for this date. */
   onSelect: (day: string) => void
+  /** Empty space: select this date in Month. */
+  onPickDay?: (day: string) => void
   onItemScheduled?: (itemId: string) => void
   children: React.ReactNode
 }) {
@@ -414,13 +418,15 @@ function MonthCell({
       ref={drop.setNodeRef}
       aria-label={label}
       onClick={(event) => {
-        // An empty spot adds an Activity on this date; entries, buttons and open layers keep their own clicks.
-        if (!canAdd || adding) return
+        // Empty space selects the date (and offers quick add from today on); entries, the date mark,
+        // buttons and open layers keep their own clicks.
+        if (adding) return
         if ((event.target as HTMLElement).closest('button, a, input, .calendar-chip, .calendar-month-overflow, .calendar-inline-picker')) return
-        onAdd(day.id)
+        onPickDay?.(day.id)
+        if (canAdd) onAdd(day.id)
       }}
       className={cn(
-        'calendar-month-cell',
+        'calendar-month-cell calendar-month-cell--pickable',
         !day.inCurrentMonth && 'calendar-month-cell--outside',
         selected && 'calendar-month-cell--selected',
         day.today && 'calendar-month-cell--today',
@@ -490,11 +496,15 @@ function PickerDate({
   items,
   selected,
   onSelect,
+  onPickDay,
 }: {
   day: CalendarDay
   items: SurfaceItem[]
   selected: boolean
+  /** Open Day view for this date (a second tap on the selected date). */
   onSelect: (day: string) => void
+  /** Select this date's agenda below the strip, staying in Month. */
+  onPickDay?: (day: string) => void
 }) {
   const drop = useCalendarDrop(`pick:${day.id}`, { date: day.id })
   const dayItems = items.filter((item) => item.day === day.id)
@@ -504,10 +514,14 @@ function PickerDate({
     <button
       ref={drop.setNodeRef}
       type="button"
-      aria-label={`${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`}
+      aria-label={
+        selected && onPickDay
+          ? `Open ${day.label} ${day.number} in Day view${count ? `, ${count} Activities` : ''}`
+          : `${day.label} ${day.number}${count ? `, ${count} Activities` : ''}`
+      }
       aria-pressed={selected}
       aria-current={day.today ? 'date' : undefined}
-      onClick={() => onSelect(day.id)}
+      onClick={() => (selected || !onPickDay ? onSelect(day.id) : onPickDay(day.id))}
       className={cn(
         'calendar-month-date',
         !day.inCurrentMonth && 'calendar-month-date--outside',
@@ -710,11 +724,15 @@ export function CalendarSurface({
   onComplete,
   onChangeTime,
   todayIso,
+  onPickDay,
   completing = false,
 }: {
   days: CalendarDay[]
   selected: string
+  /** Open Day view for a date. */
   onSelect: (day: string) => void
+  /** Month: select a date without leaving Month (its agenda on phones; quick add on desktop). */
+  onPickDay?: (day: string) => void
   /** Quick-add opens on today or later (drops follow the same rule, lib/calendarMove). */
   todayIso?: string
   items: SurfaceItem[]
@@ -754,6 +772,7 @@ export function CalendarSurface({
               items={items}
               selected={selected === day.id}
               onSelect={onSelect}
+              onPickDay={onPickDay}
             />
           ))}
         </div>
@@ -774,6 +793,7 @@ export function CalendarSurface({
               onAdd={(id) => setAddingDay(id)}
               onCloseAdd={() => setAddingDay(null)}
               onSelect={onSelect}
+              onPickDay={onPickDay}
               onItemScheduled={onItemScheduled}
             >
               <DayItems

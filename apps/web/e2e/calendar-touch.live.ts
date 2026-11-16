@@ -26,6 +26,11 @@ test.describe('touch', () => {
       expect(await touchDrag(page, cdp, badge, strip(plus(t, 5)))).toBe(1)
       await expect.poll(async () => (await get(once.id))!.localDate).toBe(plus(t, 5))
       expect((await get(once.id))!.localTime).toBe('07:30')
+      // A drop on a strip date reschedules; it never navigates (03-UX §5).
+      expect(new URL(page.url()).searchParams.get('view')).toBe('month')
+      // A tap on a date selects its agenda and stays in Month.
+      await strip(plus(t, 5)).tap()
+      await expect(page).toHaveURL(new RegExp(`view=month.*day=${plus(t, 5)}|day=${plus(t, 5)}.*view=month`))
 
       await page.goto(`/calendar?view=month&day=${plus(t, 5)}`)
       await page.locator('.calendar-selected-day .calendar-badge').filter({ hasText: acts[0]!.title }).locator('button').tap()
