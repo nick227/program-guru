@@ -1,3 +1,4 @@
+import { projectPlaces, safeWebsite } from '../catalog/place.service'
 import { db, type Prisma } from '@project/db'
 import { badRequest, conflict, notFound } from '../../lib/errors'
 import { toPreferences, toUserMe, toUserProfile, type Relationship } from './mapper'
@@ -73,7 +74,14 @@ export async function buildProfile(userId: string, viewerId: string | null) {
     .map((id) => focuses.find((f) => f.id === id))
     .filter((f): f is NonNullable<typeof f> => !!f)
     .map((f) => ({ id: f.id, label: f.label }))
-  return toUserProfile(profile, { relationship, followerCount, followingCount, publicProgramCount, focusChips })
+  const visibleBusiness = profile.visibility === 'PUBLIC' || viewerId === userId
+  const locations = visibleBusiness ? await db.place.findMany({ where: { businessProfileUserId: userId, visibility: 'PUBLIC', ...(viewerId === userId ? {} : { isActive: true }) }, orderBy: { name: 'asc' } }) : []
+  const projected = await projectPlaces(locations, viewerId)
+  return { ...toUserProfile(profile, { relationship, followerCount, followingCount, publicProgramCount, focusChips }),
+    businessPhone: visibleBusiness ? profile.businessPhone : null,
+    businessWebsite: visibleBusiness ? profile.businessWebsite : null,
+    locations: locations.map(p => projected.get(p.id)!),
+  }
 }
 
 export async function buildMe(userId: string) {
@@ -95,12 +103,16 @@ export async function updateProfile(
     handle?: string
     displayName?: string
     bio?: string | null
+    businessPhone?: string | null
+    businessWebsite?: string | null
     avatarMediaId?: string | null
     coverMediaId?: string | null
     visibility?: 'PUBLIC' | 'PRIVATE'
   },
 ) {
   const data: Prisma.UserProfileUpdateInput = {}
+  if (input.businessPhone !== undefined) data.businessPhone = input.businessPhone?.trim() || null
+  if (input.businessWebsite !== undefined) data.businessWebsite = safeWebsite(input.businessWebsite)
   if (input.handle !== undefined) {
     const handle = normalizeHandle(input.handle)
     await assertHandleAvailable(handle, db, userId)

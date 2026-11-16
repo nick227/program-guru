@@ -1148,9 +1148,15 @@ paths:
       summary: List places
       tags:
       - catalog
-      description: Active platform-curated Places (08-ACTIVITIES §2a). A Place is never a host, event or booking.
+      description: Active public locations and the signed-in submitter’s private locations.
+        Selection never grants business ownership.
       security: []
       parameters:
+      - in: query
+        name: publicOnly
+        schema:
+          type: boolean
+          default: false
       - $ref: '#/components/parameters/SearchQuery'
       - in: query
         name: locality
@@ -1158,6 +1164,14 @@ paths:
         schema:
           type: string
           maxLength: 100
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 25
+          default: 10
+      - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
           description: Success
@@ -1172,8 +1186,55 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Place'
+                  meta:
+                    type: object
+                    required:
+                    - hasMore
+                    - nextCursor
+                    properties:
+                      hasMore:
+                        type: boolean
+                      nextCursor:
+                        type:
+                        - string
+                        - 'null'
         '400':
           $ref: '#/components/responses/BadRequest'
+    post:
+      operationId: createPlace
+      summary: Create a location
+      tags:
+      - catalog
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlaceInput'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /catalog/places/{placeRef}:
     get:
       operationId: getPlace
@@ -1206,6 +1267,91 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updatePlace
+      summary: Manage an owned location
+      tags:
+      - catalog
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlaceInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - in: path
+        name: placeRef
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /admin/places/{placeId}/business:
+    patch:
+      operationId: associatePlaceBusiness
+      summary: Associate a location with a business profile
+      tags:
+      - catalog
+      security:
+      - adminOnlyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssociatePlaceBusinessInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - in: path
+        name: placeId
+        required: true
+        schema:
+          type: string
+          format: uuid
   /activities:
     get:
       operationId: listActivities
@@ -8167,6 +8313,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FocusChip'
+        businessPhone:
+          type:
+          - string
+          - 'null'
+        businessWebsite:
+          type:
+          - string
+          - 'null'
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Place'
     NotificationPrefs:
       type: object
       required:
@@ -8366,6 +8524,16 @@ components:
           format: uuid
         visibility:
           $ref: '#/components/schemas/ProfileVisibility'
+        businessPhone:
+          type:
+          - string
+          - 'null'
+          maxLength: 40
+        businessWebsite:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
       additionalProperties: false
     UpdateNotificationPrefsInput:
       type: object
@@ -8674,7 +8842,8 @@ components:
         expiresAt: {type: string, format: date-time}
     Place:
       type: object
-      description: A real, platform-curated location. Suggested only; never implies a host, hours, booking or endorsement.
+      description: A physical location; business association does not imply hosting or
+        verification.
       required:
       - id
       - slug
@@ -8707,11 +8876,33 @@ components:
         countryCode:
           type: string
         sourceUrl:
-          type: string
+          type:
+          - string
+          - 'null'
         accessNote:
           type:
           - string
           - 'null'
+        postalCode:
+          type:
+          - string
+          - 'null'
+        visibility:
+          type: string
+          enum:
+          - PUBLIC
+          - PRIVATE
+        isActive:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+        canManage:
+          type: boolean
+        businessProfile:
+          anyOf:
+          - $ref: '#/components/schemas/PlaceBusinessProfile'
+          - type: 'null'
     Category:
       type: object
       required:
@@ -13926,3 +14117,137 @@ components:
         expectedRevision:
           type: integer
       additionalProperties: false
+
+    PlaceBusinessProfile:
+      type: object
+      required:
+      - handle
+      - displayName
+      - profileUrl
+      properties:
+        handle:
+          type: string
+        displayName:
+          type: string
+        profileUrl:
+          type: string
+    CreatePlaceInput:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - addressLine
+      - countryCode
+      - idempotencyKey
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        addressLine:
+          type: string
+          minLength: 1
+          maxLength: 200
+        locality:
+          type: string
+          maxLength: 100
+        region:
+          type: string
+          maxLength: 100
+        countryCode:
+          type: string
+          pattern: ^[A-Za-z]{2}$
+        postalCode:
+          type:
+          - string
+          - 'null'
+          maxLength: 32
+        kind:
+          type: string
+          maxLength: 40
+        sourceUrl:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        accessNote:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        visibility:
+          type: string
+          enum:
+          - PUBLIC
+          - PRIVATE
+          default: PUBLIC
+        linkToMyBusiness:
+          type: boolean
+          default: false
+        idempotencyKey:
+          type: string
+          minLength: 8
+          maxLength: 128
+    UpdatePlaceInput:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedUpdatedAt
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        addressLine:
+          type: string
+          minLength: 1
+          maxLength: 200
+        locality:
+          type: string
+          maxLength: 100
+        region:
+          type: string
+          maxLength: 100
+        countryCode:
+          type: string
+          pattern: ^[A-Za-z]{2}$
+        postalCode:
+          type:
+          - string
+          - 'null'
+          maxLength: 32
+        kind:
+          type: string
+          maxLength: 40
+        sourceUrl:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        accessNote:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        expectedUpdatedAt:
+          type: string
+          format: date-time
+        isActive:
+          type: boolean
+        unlinkBusiness:
+          type: boolean
+    AssociatePlaceBusinessInput:
+      type: object
+      additionalProperties: false
+      required:
+      - businessProfileUserId
+      - expectedUpdatedAt
+      properties:
+        businessProfileUserId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        expectedUpdatedAt:
+          type: string
+          format: date-time

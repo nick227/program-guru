@@ -2,6 +2,7 @@ import { db, type Prisma } from '@project/db'
 import { mediaUrl } from '../media/urls'
 import { parseFrequency } from '../programs/schedule'
 import { toUserSummary } from '../users/mapper'
+import type { PlaceMap } from '../catalog/place.service'
 import { toPlace } from '../catalog/catalog.service'
 
 export const revisionInclude = {
@@ -121,7 +122,7 @@ export function summarizeRevision(rev: RevisionFull | null) {
   }
 }
 
-export function toActivitySummary(a: ActivityWithCreator, rev: RevisionFull | null) {
+export function toActivitySummary(a: ActivityWithCreator, rev: RevisionFull | null, places?: PlaceMap) {
   const rawFreq = rev ? rev.frequencySnapshot : a.frequency
   return {
     id: a.id,
@@ -135,7 +136,7 @@ export function toActivitySummary(a: ActivityWithCreator, rev: RevisionFull | nu
     categoryId: a.categoryId,
     focusIds: a.focuses.map((f) => f.focusId),
     // Suggested place: Activity-level metadata, not part of the revision snapshot (08 §2a).
-    place: a.place ? toPlace(a.place) : null,
+    place: a.place ? places?.get(a.place.id) ?? toPlace(a.place) : null,
     ...summarizeRevision(rev),
     visibility: a.visibility,
     status: a.status,

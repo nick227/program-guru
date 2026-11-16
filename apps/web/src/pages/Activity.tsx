@@ -30,7 +30,6 @@ import { ReportButton } from '@/components/shared/ReportButton'
 import { type RiverItem } from '@/components/media/RelatedMedia'
 import { ActivityRelatedMedia } from '@/components/activity/ActivityRelatedMedia'
 import { ActivityHero, type ActivityMeta } from '@/components/activity/ActivityHero'
-import { ActivityGatherings } from '@/components/activity/ActivityGatherings'
 import { ActivityParticipation } from '@/components/activity/ActivityParticipation'
 import { ActivitySection } from '@/components/activity/ActivitySection'
 import { ActivityInstructions } from '@/components/activity/ActivityInstructions'
@@ -244,7 +243,7 @@ export function ActivityPage() {
                   <div className="activity-session__actions">
                     {/* Your status, people and actions: the shared participation component (03-UX §2b). */}
                     {a.status === 'PUBLISHED' || a.canEdit ? (
-                      <ActivityParticipation activity={{ id: a.id, title: a.title }} returnTo={currentUrl} />
+                      <ActivityParticipation key={a.id} activity={{ id: a.id, title: a.title, place: a.place }} returnTo={currentUrl} />
                     ) : null}
                     <div className="activity-session__tools ml-auto">
                       {a.canEdit ? (
@@ -267,8 +266,6 @@ export function ActivityPage() {
               {editing && a.canEdit && (
                 <ActivityDetailsEditor activity={a} onDone={() => setEditing(false)} />
               )}
-
-              <ActivityGatherings activity={a} returnTo={currentUrl} />
 
               <GroupStatus
                 activityId={a.id}

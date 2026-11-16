@@ -1,3 +1,4 @@
+import { projectPlaces } from '../catalog/place.service'
 // Discovery, creator portfolio, engagement (12-SOCIAL.md, 13-PROFILES-AND-EXPERIENCE.md §3).
 import { db, type Prisma, type ProgramLevel } from '@project/db'
 import { sha256 } from '../../lib/auth'
@@ -218,7 +219,8 @@ export async function discover(viewerId: string | null, query: DiscoverQuery) {
       include: activityInclude,
     })
     const revs = await loadRevisions(rows.map((a) => a.latestPublishedRevisionId!))
-    return toOffsetPage(rows, limit, skip, (a) => ({ kind: 'ACTIVITY' as const, program: null, activity: toActivitySummary(a, revs.get(a.latestPublishedRevisionId!) ?? null), creator: null }))
+    const places = await projectPlaces(rows.map(a => a.place), viewerId)
+    return toOffsetPage(rows, limit, skip, (a) => ({ kind: 'ACTIVITY' as const, program: null, activity: toActivitySummary(a, revs.get(a.latestPublishedRevisionId!) ?? null, places), creator: null }))
   }
 
   const rows = await db.userProfile.findMany({
@@ -260,7 +262,8 @@ export async function userActivities(viewerId: string | null, handle: string, qu
     include: activityInclude,
   })
   const revs = await loadRevisions(rows.map((a) => a.latestPublishedRevisionId!))
-  return toPage(rows, limit, (a) => toActivitySummary(a, revs.get(a.latestPublishedRevisionId!) ?? null))
+  const places = await projectPlaces(rows.map(a => a.place), viewerId)
+  return toPage(rows, limit, (a) => toActivitySummary(a, revs.get(a.latestPublishedRevisionId!) ?? null, places))
 }
 
 const publicThumb = (p: Prisma.MediaPublicationGetPayload<{ include: { media: true; publishedBy: { include: { profile: true } } } }>, likedByMe: boolean) => ({

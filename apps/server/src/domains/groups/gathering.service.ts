@@ -9,7 +9,7 @@ import { withIdempotency } from '../../lib/idempotency'
 import { enqueue } from '../../lib/outbox'
 import { addDays, fromDbDate, localToUtc, todayIn, toDbDate, type LocalDate } from '../../lib/time'
 import { activityInclude, loadRevisions, toActivitySummary } from '../activities/mapper'
-import { assertActivePlace, toPlace } from '../catalog/catalog.service'
+import { assertActivePlace, projectPlaces } from '../catalog/catalog.service'
 import { blockedIds, isBlockedEitherWay } from '../users/follow.service'
 import { isPublishingRestricted } from '../social/moderation.service'
 import { toUserSummary } from '../users/mapper'
@@ -118,6 +118,7 @@ export async function toGathering(g: GatheringRow, viewerId: string | null) {
     blockedIds(viewerId),
     loadRevisions([g.activity!.latestPublishedRevisionId!]),
   ])
+  const places = await projectPlaces([g.place, g.activity?.place ?? null], viewerId)
   const memberIds = new Set(members.map((m) => m.userId))
   const linked = items.filter((i) => memberIds.has(i.ownerId))
   const completed = linked.filter((i) => i.status === 'DONE').length
@@ -127,11 +128,11 @@ export async function toGathering(g: GatheringRow, viewerId: string | null) {
   const mine = viewerId ? items.find((i) => i.ownerId === viewerId) : undefined
   return {
     id: g.id,
-    activity: toActivitySummary(g.activity!, revs.get(g.activity!.latestPublishedRevisionId!) ?? null),
+    activity: toActivitySummary(g.activity!, revs.get(g.activity!.latestPublishedRevisionId!) ?? null, places),
     localDate: fromDbDate(g.startLocalDate!),
     localTime: g.startLocalTime,
     timezone: g.timezone ?? 'UTC',
-    place: g.place && g.place.isActive ? toPlace(g.place) : null,
+    place: g.place && g.place.isActive ? places.get(g.place.id) ?? null : null,
     capacity: g.capacity,
     visibility: g.visibility,
     joinPolicy: g.joinPolicy,

@@ -194,10 +194,10 @@ export function useTags() {
 /** Active platform-curated Places (08 §2a), optionally in one city. Never a proximity search. */
 export function usePlaces(filter: { locality?: string; enabled?: boolean } = {}) {
   return useQuery({
-    queryKey: [...keys.places, filter.locality ?? null],
+    queryKey: useViewerKey([...keys.places, filter.locality ?? null]),
     enabled: filter.enabled ?? true,
     queryFn: async ({ signal }) =>
-      apiData(await getApiClient().GET('/catalog/places', { params: { query: { locality: filter.locality } }, signal })).data,
+      apiData(await getApiClient().GET('/catalog/places', { params: { query: { locality: filter.locality, limit: 25, publicOnly: true } }, signal })).data,
   })
 }
 export type FocusesFilter = {

@@ -135,6 +135,10 @@ model UserProfile {
   bio           String?           @db.VarChar(500)
   avatarMediaId String?           @db.Char(36)
   coverMediaId  String?           @db.Char(36)
+  businessPhone String?          @db.VarChar(40)
+  businessWebsite String?        @db.VarChar(500)
+  businessLocations Place[]     @relation("BusinessLocations")
+  submittedLocations Place[]    @relation("SubmittedLocations")
   visibility    ProfileVisibility @default(PRIVATE)
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
@@ -457,22 +461,38 @@ model ToolDefinition {
   tools ActivityTool[]
 }
 
-// A real, platform-curated location (08-ACTIVITIES §2a). Never a host, event, booking or endorsement.
+// Shared physical location (08 §2a). Association is not verification or hosting.
 model Place {
   id          String   @id @default(uuid()) @db.Char(36)
   slug        String   @unique @db.VarChar(120)
   name        String   @db.VarChar(160)
-  kind        String   @db.VarChar(40)
+  kind        String   @default("other") @db.VarChar(40)
   addressLine String?  @db.VarChar(200)
   locality    String   @db.VarChar(100)
   region      String   @db.VarChar(100)
   countryCode String   @db.Char(2)
-  sourceUrl   String   @db.VarChar(500)
+  sourceUrl   String?  @db.VarChar(500)
   accessNote  String?  @db.VarChar(500)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  postalCode String? @db.VarChar(32)
+  visibility ProfileVisibility @default(PUBLIC)
+  businessProfileUserId String? @db.Char(36)
+  submittedByUserId String? @db.Char(36)
+  provenance String @default("SYSTEM") @db.VarChar(16)
+  sourceNamespace String? @db.VarChar(100)
+  externalId String? @db.VarChar(200)
+  addressFingerprint String? @db.Char(64)
+  businessProfile UserProfile? @relation("BusinessLocations", fields: [businessProfileUserId], references: [userId], onDelete: SetNull)
+  submitter UserProfile? @relation("SubmittedLocations", fields: [submittedByUserId], references: [userId], onDelete: SetNull)
+
+  @@unique([sourceNamespace, externalId])
+  @@index([addressFingerprint])
+  @@index([businessProfileUserId])
+  @@index([submittedByUserId])
+  @@index([visibility, isActive, name])
   activities    Activity[]
   calendarItems CalendarItem[]
   recurrences   CalendarRecurrence[]
@@ -1904,4 +1924,15 @@ model ProgramLibraryState {
 
   @@id([userId, programId])
   @@index([programId])
+}
+
+// Immutable association history. IDs remain as historical identifiers after profile removal.
+model PlaceAssociationAudit {
+  id String @id @default(uuid()) @db.Char(36)
+  actorId String @db.Char(36)
+  placeId String @db.Char(36)
+  previousProfileId String? @db.Char(36)
+  nextProfileId String? @db.Char(36)
+  createdAt DateTime @default(now())
+  @@index([placeId, createdAt])
 }

@@ -115,7 +115,7 @@ export function useUpdateMyProfile() {
       apiData(
         await getApiClient().PATCH('/users/me/profile', { body }),
       ).data,
-    [keys.me, ['users']],
+    [keys.me, ['users'], keys.places, keys.calendar, keys.occurrences, ['activities'], ['discover']],
   )
 }
 

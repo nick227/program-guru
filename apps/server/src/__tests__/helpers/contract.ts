@@ -293,6 +293,15 @@ export const cases: Record<string, Case> = {
   listMyOpportunities: { as: 'alice', protected: true, request: async (w) => (await w.gathering(), { method: 'GET', url: '/me/opportunities' }) },
   repeatGathering: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: `/gatherings/${(await w.gathering()).id}/repeat`, payload: { localDate: '2027-03-13', idempotencyKey: 'contract-repeat-gathering' } }) },
   createGatheringLink: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: `/gatherings/${(await w.gathering()).id}/link` }) },
+  createPlace: { as: 'alice', protected: true, status: 201, request: async () => ({ method: 'POST', url: '/catalog/places', payload: { name: 'New Studio', addressLine: '123 Main St', countryCode: 'US', idempotencyKey: 'world-place-create' } }) },
+  updatePlace: { as: 'alice', protected: true, request: async (w) => {
+    const p = await w.ok('alice', 'POST', '/catalog/places', { name: 'New Studio', addressLine: '123 Main St', countryCode: 'US', linkToMyBusiness: true, idempotencyKey: 'world-place-edit' })
+    return { method: 'PATCH', url: `/catalog/places/${p.id}`, payload: { name: 'Updated Studio', expectedUpdatedAt: p.updatedAt } }
+  } },
+  associatePlaceBusiness: { as: 'admin', protected: true, request: async () => {
+    const p = await seedPlace()
+    return { method: 'PATCH', url: `/admin/places/${p.id}/business`, payload: { businessProfileUserId: testUserId, expectedUpdatedAt: p.updatedAt.toISOString() } }
+  } },
   listPlaces: { as: 'anon', request: async () => (await seedPlace(), { method: 'GET', url: '/catalog/places?locality=Austin' }) },
   getPlace: { as: 'anon', request: async () => ({ method: 'GET', url: `/catalog/places/${(await seedPlace()).slug}` }) },
   createCustomProgramType: { as: 'alice', protected: true, request: async (w) => ({ method: 'POST', url: '/catalog/program-types', payload: { categoryId: (await w.cat()).fitness.id, label: 'Kettlebell Circuit' } }) },

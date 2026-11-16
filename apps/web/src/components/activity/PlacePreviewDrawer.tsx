@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useEffect } from 'react'
 import { ExternalLink, MapPin, X } from 'lucide-react'
 import type { components } from '@project/sdk'
@@ -75,7 +76,8 @@ export function PlacePreviewDrawer({
                 {place.accessNote}
               </p>
             )}
-            <a
+            {place.businessProfile && <Link className="block text-accent" to={place.businessProfile.profileUrl}>View {place.businessProfile.displayName}</Link>}
+            {place.sourceUrl && <a
               href={place.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -83,7 +85,7 @@ export function PlacePreviewDrawer({
             >
               Visitor information
               <ExternalLink size={13} aria-hidden />
-            </a>
+            </a>}
           </div>
 
           <section aria-labelledby="place-activities" className="space-y-4">
@@ -92,7 +94,7 @@ export function PlacePreviewDrawer({
                 Activities that suggest this place
               </h3>
               <p className="mt-1 text-sm text-muted">
-                Suggested place only. Nothing here is hosted or organized by {place.name}.
+                A location identifies where an activity takes place. Check the activity creator for who organizes it.
               </p>
             </div>
             <ul className="space-y-3">

@@ -3,7 +3,6 @@ import { lookingForText } from '@/lib/lookingFor'
 import { Image as ImageIcon, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  useCreateGathering,
   useCreateGatheringLink,
   useGathering,
   useLeaveGathering,
@@ -37,7 +36,6 @@ export function OccurrenceGathering({
   sharedCount: number
 }) {
   const gathering = useGathering(item.gatheringId)
-  const create = useCreateGathering()
   const link = useCreateGatheringLink()
   const leave = useLeaveGathering()
   const update = useUpdateGathering()
@@ -138,35 +136,7 @@ export function OccurrenceGathering({
   }
 
   if (phase !== 'before') return null
-  // A personal or solo-Program item can join a real gathering that day, or be opened to others in place.
-  const canOpen =
-    item.status === 'PLANNED' && !item.groupName && !!activity && activity.status === 'PUBLISHED' && activity.visibility !== 'PRIVATE'
-  const onOpen = async () => {
-    try {
-      await create.mutateAsync({
-        activityId: item.activityId,
-        localDate: item.localDate,
-        localTime: item.localTime,
-        placeId: item.place?.id ?? null,
-        calendarItemId: item.id,
-        idempotencyKey: crypto.randomUUID(),
-      })
-      toast.success('Open to others. Share the link to invite people.')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not open this to others')
-    }
-  }
-  return (
-    <div className="activity-hero__gathering">
-      <GatheringSuggestion item={item} />
-      {canOpen && (
-        <Button size="sm" variant="outline" loading={create.isPending} onClick={() => void onOpen()} className="self-start">
-          <Users size={14} aria-hidden />
-          Open to others
-        </Button>
-      )}
-    </div>
-  )
+  return <GatheringSuggestion item={item} />
 }
 
 /** Owner-only: the Looking for note and up to 3 additional Categories (10 §9.12). */

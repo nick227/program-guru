@@ -1,3 +1,4 @@
+import { LocationButton, type LocationSelection } from '@/components/location/LocationPicker'
 import { useEffect, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import { toast } from 'sonner'
@@ -26,12 +27,14 @@ export function ActivityDetailsEditor({
 }) {
   const update = useUpdateActivityDraft(a.id)
   const online = useOnline()
+  const [place, setPlace] = useState<LocationSelection>(undefined)
   const [title, setTitle] = useState(a.title)
   const [summary, setSummary] = useState(a.summary ?? '')
   const [duration, setDuration] = useState(durationInput(a.durationMinutes))
   const [targetTime, setTargetTime] = useState(targetTimeInput(a.targetTime))
 
   useEffect(() => {
+    setPlace(undefined)
     setTitle(a.title)
     setSummary(a.summary ?? '')
     setDuration(durationInput(a.durationMinutes))
@@ -45,6 +48,7 @@ export function ActivityDetailsEditor({
     targetTime: parseTargetTime(targetTime),
   }
   const changes = {
+    ...(place !== undefined && (place?.id ?? null) !== (a.place?.id ?? null) ? { placeId: place?.id ?? null } : {}),
     ...(next.title !== a.title ? { title: next.title } : {}),
     ...(next.summary !== (a.summary ?? null) ? { summary: next.summary } : {}),
     ...(next.durationMinutes !== (a.durationMinutes ?? null)
@@ -71,6 +75,7 @@ export function ActivityDetailsEditor({
         onTargetTimeChange={setTargetTime}
         hideInstructions
       />
+      <LocationButton publicOnly value={place === undefined ? a.place : place} onChange={setPlace} />
       <ErrorMessage error={update.error} />
       <div className="flex flex-wrap items-center gap-2">
         <Button

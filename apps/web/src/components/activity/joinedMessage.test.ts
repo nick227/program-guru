@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { joinedMessage } from './ActivityGatherings'
+import { joinedMessage } from '@/lib/gatheringLabels'
 
 describe('join confirmation (10 §9.11)', () => {
   it('says the Program day stayed on its own date when the join made a separate item', () => {

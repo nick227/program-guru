@@ -1,4 +1,5 @@
-import { resolveViewer } from '../lib/auth'
+import { requireUser, resolveViewer } from '../lib/auth'
+import * as places from '../domains/catalog/place.service'
 import * as catalog from '../domains/catalog/catalog.service'
 
 export async function listCategories() {
@@ -29,9 +30,23 @@ export async function listTags() {
 }
 
 export async function listPlaces(request: any) {
-  return { data: await catalog.listPlaces({ q: request.query.q, locality: request.query.locality }) }
+  const viewer = await resolveViewer(request)
+  return catalog.listPlaces(viewer?.id ?? null, request.query)
 }
 
 export async function getPlace(request: any) {
-  return { data: await catalog.getPlace(request.params.placeRef) }
+  const viewer = await resolveViewer(request)
+  return { data: await catalog.getPlace(request.params.placeRef, viewer?.id ?? null) }
+}
+
+export async function createPlace(request: any, reply: any) {
+  const data = await places.createPlace(requireUser(request).id, request.body)
+  reply.code(201)
+  return { data }
+}
+export async function updatePlace(request: any) {
+  return { data: await places.updatePlace(requireUser(request).id, request.params.placeRef, request.body) }
+}
+export async function associatePlaceBusiness(request: any) {
+  return { data: await places.associatePlace(requireUser(request).id, request.params.placeId, request.body) }
 }

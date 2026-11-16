@@ -235,3 +235,7 @@ Public counts are coarse aggregated and non-identifying; suppress or round small
 - Discovery (§5a): `/discover?kind=ACTIVITY&locality=Austin` returns only Activities whose Place is in Austin; `placeId` likewise; inactive Places never appear; the city filter and Places section are absent with zero Places.
 - No discovery card offers `Join` to the creator or an existing member/enrollee (shared helper unit test, used by Community, Home, Agent and Calendar rail).
 - Home range section: at most 6 cards, at least 3 Domains when 3 exist; the Agent's `Find something to do` reaches `explore_interest` with data-driven Domains.
+
+### Location directory amendment (2026-11-16, PR 2)
+
+Location discovery includes active PUBLIC seed, community and business locations. Private addresses and inaccessible business profile information must not appear through search, direct reads, activities, gatherings or other users calendars. Location-linked activity cards do not imply business hosting.
