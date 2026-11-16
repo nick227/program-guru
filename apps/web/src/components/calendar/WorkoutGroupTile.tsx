@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react'
-import { ChevronDown, ChevronUp, Dumbbell } from 'lucide-react'
+import { ChevronDown, ChevronUp, Dumbbell, X } from 'lucide-react'
 import { ActivityTile, type ActivityTileDensity } from '@/components/calendar/ActivityTile'
 import { resolveActivityCategory } from '@/lib/activityCategory'
 import type { CalendarRenderEntry, SurfaceItem } from '@/lib/calendarGrouping'
@@ -58,41 +58,38 @@ export function WorkoutGroupTile({
   ].filter(Boolean)
 
   if (density === 'month') {
+    // Month (03-UX §5): one 44px card like any other; the workout opens over its cell, so the cell's
+    // fixed height never grows. Escape or a click outside closes it.
     return (
       <div
         data-workout-group={group.enrollmentId}
         data-category={category}
-        className={cn(
-          'rounded-md border border-accent/35 bg-accent/10 px-2 py-1 text-xs',
-          allDone && 'border-success/40 bg-success/10',
-          allNotParticipating && 'opacity-70',
-        )}
+        className={cn('calendar-tile calendar-chip calendar-chip--group', allDone && 'calendar-chip--done', allNotParticipating && 'opacity-70')}
       >
         <button
           type="button"
           aria-expanded={expanded}
           aria-controls={panelId}
+          aria-label={`${group.programTitle}, ${summaryParts.filter((p) => p !== 'Up next').join(', ')}`}
           onClick={(e) => {
             e.stopPropagation()
             setExpanded((v) => !v)
           }}
-          className="flex w-full items-center justify-between gap-1 text-left font-medium text-text hover:underline"
+          className="calendar-chip__trigger"
         >
-          <span className="truncate">
-            {startLabel ? `${startLabel} ` : ''}
-            {group.programTitle} ({group.doneCount}/{total})
+          <span className="calendar-chip__text">
+            <span className="calendar-chip__time">
+              {startLabel ? `${startLabel} · ` : ''}
+              {group.doneCount}/{total} done
+            </span>
+            <span className={cn('calendar-chip__title', allDone && 'calendar-chip__title--done')}>
+              {group.programTitle}
+            </span>
           </span>
-          {expanded ? (
-            <ChevronUp className="h-3.5 w-3.5 shrink-0" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-          )}
+          <ChevronDown size={14} className="calendar-chip__chevron" aria-hidden />
         </button>
         {expanded && (
-          <div
-            id={panelId}
-            className="mt-1.5 space-y-1 border-t border-border/50 pt-1.5"
-          >
+          <GroupOverlay id={panelId} title={group.programTitle} count={total} onClose={() => setExpanded(false)}>
             {group.items.map((item) => (
               <ActivityTile
                 key={item.id}
@@ -102,9 +99,10 @@ export function WorkoutGroupTile({
                 onSelect={onSelectItem ? () => onSelectItem(item.id) : undefined}
                 onComplete={onComplete}
                 completing={completing}
+                draggable={draggable}
               />
             ))}
-          </div>
+          </GroupOverlay>
         )}
       </div>
     )
@@ -251,3 +249,51 @@ export function WorkoutGroupTile({
     </article>
   )
 }
+
+/** The expanded workout in Month: over its cell (the cell keeps its height), like +N more. */
+function GroupOverlay({
+  id,
+  title,
+  count,
+  onClose,
+  children,
+}: {
+  id: string
+  title: string
+  count: number
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  const ref = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) onClose()
+    }
+    window.addEventListener('mousedown', onPointerDown)
+    return () => window.removeEventListener('mousedown', onPointerDown)
+  }, [onClose])
+  return (
+    <div
+      ref={ref}
+      id={id}
+      role="dialog"
+      aria-label={`${title}, ${count} exercises`}
+      className="calendar-month-overflow"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose()
+      }}
+    >
+      <div className="calendar-month-overflow__head">
+        <span className="truncate">
+          {title} · {count}
+        </span>
+        <button type="button" autoFocus aria-label="Close" className="calendar-month-overflow__close" onClick={onClose}>
+          <X size={14} aria-hidden />
+        </button>
+      </div>
+      <div className="calendar-month-overflow__list">{children}</div>
+    </div>
+  )
+}
+

@@ -3205,4 +3205,48 @@
 .calendar-month-cell--pickable:not(.calendar-month-cell--addable) {
   cursor: pointer;
 }
+
+/* Cleanup (2026-11-16): narrow docked columns and Program groups in Month. */
+/* The quick-complete check sits in the card's top-right corner (the time row), so the title gets
+   the card's full width; an untimed title keeps clear of it. */
+.calendar-month-cell .calendar-chip--completable .calendar-chip__complete {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+
+.calendar-month-cell .calendar-chip--completable .calendar-chip__complete svg {
+  width: 14px;
+  height: 14px;
+}
+
+.calendar-month-cell .calendar-chip--completable .calendar-chip__time {
+  padding-right: 16px;
+}
+
+.calendar-month-cell .calendar-chip--completable .calendar-chip__text--untimed {
+  padding-right: 14px;
+}
+
+.calendar-month-cell .calendar-chip__trigger {
+  padding-right: 0.45rem;
+}
+
+/* A Program workout in Month is one 44px card; its exercises open over the cell (never inside it). */
+.calendar-chip--group {
+  position: static;
+}
+
+.calendar-chip--group .calendar-chip__trigger {
+  cursor: pointer;
+}
+
+.calendar-chip__chevron {
+  flex-shrink: 0;
+  align-self: center;
+  color: hsl(var(--color-muted));
+}
 }

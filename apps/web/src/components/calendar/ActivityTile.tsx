@@ -354,6 +354,7 @@ export function ActivityTile({
         className={cn(
           'calendar-tile calendar-chip',
           item.conflict && !isDone && 'calendar-chip--conflict',
+          canComplete && 'calendar-chip--completable',
           isDone && 'calendar-chip--done',
           movable && 'calendar-chip--movable',
           selected && 'calendar-chip--selected',
@@ -370,6 +371,7 @@ export function ActivityTile({
             }}
             aria-pressed={selected}
             aria-label={`${item.title}, ${timeDisplay ?? 'Any time'}, ${statusLabel}${item.conflict && !isDone ? ', overlaps another Activity' : ''}`}
+            title={item.title}
             className="calendar-chip__trigger"
           >
             {monthContent}
