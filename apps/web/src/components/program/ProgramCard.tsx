@@ -16,22 +16,13 @@ import {
   type components,
 } from '@project/sdk'
 import { Avatar } from '@/components/ui/Avatar'
-import { StatusText, type ParticipationStatus } from '@/components/ui/StatusText'
+import { StatusText, libraryStatusTone } from '@/components/ui/StatusText'
 import { EntityHero } from '@/components/shared/EntityHero'
 import { formatProgramDuration } from '@/components/program-authoring/programFields'
 import { formatProgramLevel } from '@/lib/browse'
 import { buildProfileUrl } from '@/lib/urls'
 import type { Hero } from '@/lib/hero'
 import { cn } from '@/lib/utils'
-
-function libraryStatusTone(
-  status?: components['schemas']['PersonalProgram']['status'],
-): ParticipationStatus {
-  if (status === 'Active') return 'active'
-  if (status === 'Paused') return 'paused'
-  if (status === 'Completed') return 'completed'
-  return 'planned'
-}
 
 export interface ProgramCardProps {
   title: string

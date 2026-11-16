@@ -35,7 +35,7 @@ import {
   Users,
 } from 'lucide-react'
 import { Page, Panel, Stack } from '@/components/ui/Layout'
-import { StatusText, type ParticipationStatus } from '@/components/ui/StatusText'
+import { StatusText } from '@/components/ui/StatusText'
 import { useCategorySlugOf } from '@/components/shared/EntityHero'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { activityHero } from '@/lib/hero'
@@ -56,7 +56,7 @@ import { useOnline } from '@/lib/useOnline'
 import { useDocumentTitle } from '@/lib/title'
 import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { cn } from '@/lib/utils'
-import { formatElapsed, metricKey, useActivitySession, useElapsedSeconds } from '@/lib/activitySession'
+import { formatElapsed, metricKey, useActivitySession, useElapsedSeconds, entryPhase, ENTRY_PHASE_LABEL, ENTRY_PHASE_TONE, type EntryPhase } from '@/lib/activitySession'
 
 type S = components['schemas']
 
@@ -188,17 +188,7 @@ function OccurrenceContent({
   }
 
   // One state for the whole page, so the header and the session never disagree.
-  const itemDone = o.item.status === 'DONE'
-  const phase: Phase =
-    status === 'ACTIVE'
-      ? 'active'
-      : status === 'PAUSED'
-        ? 'paused'
-        : itemDone
-          ? 'completed'
-          : o.item.status === 'NOT_PARTICIPATING'
-            ? 'not-participating'
-            : 'ready'
+  const phase: Phase = entryPhase(o.item.status, status)
   const timed = o.resultInputs.some((metric) => metric.valueType === 'DURATION')
   const community = o.communityStats
   const communityLine = community
@@ -340,23 +330,7 @@ function OccurrenceContent({
   )
 }
 
-type Phase = 'ready' | 'active' | 'paused' | 'completed' | 'not-participating'
-
-const PHASE_TONE: Record<Phase, ParticipationStatus> = {
-  ready: 'planned',
-  active: 'active',
-  paused: 'paused',
-  completed: 'completed',
-  'not-participating': 'unavailable',
-}
-
-const PHASE_LABEL: Record<Phase, string> = {
-  ready: 'To do',
-  active: 'In progress',
-  paused: 'Paused',
-  completed: 'Completed',
-  'not-participating': 'Not participating',
-}
+type Phase = EntryPhase
 
 function SessionElapsed({ session }: { session: S['ActivitySession'] }) {
   const seconds = useElapsedSeconds(session)
@@ -465,8 +439,8 @@ function OccurrenceHero({
       context={context.join(' · ')}
       status={
         <span role="status">
-          <StatusText status={PHASE_TONE[phase]} className="activity-status-pill">
-            {PHASE_LABEL[phase]}
+          <StatusText status={ENTRY_PHASE_TONE[phase]} className="activity-status-pill">
+            {ENTRY_PHASE_LABEL[phase]}
           </StatusText>
         </span>
       }

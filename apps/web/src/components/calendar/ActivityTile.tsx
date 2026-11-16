@@ -17,6 +17,7 @@ import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/target
 import { cn } from '@/lib/utils'
 import { completionOpen } from '@/lib/completionWindow'
 import { useCalendarDraggable } from '@/components/calendar/CalendarDnd'
+import { ENTRY_PHASE_LABEL, entryPhase } from '@/lib/activitySession'
 import { useCalendarSelection } from '@/components/calendar/CalendarSelection'
 
 export type ActivityTileDensity = 'pill' | 'card' | 'timeblock' | 'month' | 'day'
@@ -121,16 +122,12 @@ export function ActivityTile({
     : isDone
       ? 'Completed'
       : item.status === 'NOT_PARTICIPATING' || item.notParticipating
-        ? 'Not participating'
+        ? ENTRY_PHASE_LABEL['not-participating']
         : item.status === 'SKIPPED'
           ? 'Skipped'
           : item.status === 'CANCELLED'
             ? 'Removed'
-            : item.sessionStatus === 'ACTIVE'
-              ? 'In progress'
-              : item.sessionStatus === 'PAUSED'
-                ? 'Paused'
-                : 'Pending'
+            : ENTRY_PHASE_LABEL[entryPhase(item.status, item.sessionStatus)]
 
   useEffect(() => {
     if (!editingTime) return

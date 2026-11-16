@@ -26,7 +26,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { ErrorMessage, Loading } from '@/components/ui/Feedback'
 import { cn } from '@/lib/utils'
 import { useEnrollmentProgress } from '@/lib/useEnrollmentProgress'
-import { formatElapsed, metricKey, useActivitySession, useElapsedSeconds } from '@/lib/activitySession'
+import { ENTRY_PHASE_LABEL, entryPhase, formatElapsed, metricKey, useActivitySession, useElapsedSeconds } from '@/lib/activitySession'
 import { summarizeCollaborators } from '@/lib/together'
 
 type S = components['schemas']
@@ -75,9 +75,9 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
     const progress = useEnrollmentProgress(o.item.enrollmentId)
     const autoStarted = useRef(false)
 
-    const status = session?.status ?? 'READY'
-    const itemDone = o.item.status === 'DONE'
-    const phase = status === 'ACTIVE' ? 'active' : status === 'PAUSED' ? 'paused' : itemDone ? 'completed' : 'ready'
+    const phase = entryPhase(o.item.status, session?.status)
+    // Not started yet (including a not-participating entry): the preview, steps and Start show.
+    const notStarted = phase === 'ready' || phase === 'not-participating'
     const elapsed = useElapsedSeconds(session)
 
     // Leaving the page with unsaved results asks the browser to confirm too.
@@ -113,7 +113,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
 
     // Start right away when the host's Start opened this (Preview → Start without a second tap).
     useEffect(() => {
-      if (autoStart && !autoStarted.current && phase === 'ready' && !o.item.locked) {
+      if (autoStart && !autoStarted.current && notStarted && !o.item.locked) {
         autoStarted.current = true
         void perform('START')
       }
@@ -155,7 +155,7 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
             <span>Back</span>
           </button>
           <span className={cn('activity-exec__status', phase === 'paused' && 'activity-exec__status--paused', !running && 'activity-exec__status--idle')} aria-live="polite">
-            {phase === 'paused' ? 'Paused' : running ? 'In progress' : phase === 'completed' ? 'Completed' : 'Ready'}
+            {ENTRY_PHASE_LABEL[phase]}
           </span>
           {/* Close goes through the same unsaved-results guard as Back. */}
           <button type="button" onClick={requestClose} aria-label="Close" className="activity-exec__close">
@@ -239,11 +239,11 @@ const Body = forwardRef<ActivityExecutionHandle, ActivityExecutionProps & { occu
 
         <ErrorMessage error={failure || undo.error} />
 
-        {phase === 'ready' && activity.data?.summary && (
+        {notStarted && activity.data?.summary && (
           <p className="text-sm leading-relaxed text-muted">{activity.data.summary}</p>
         )}
 
-        {phase === 'ready' && instructions.length > 0 && (
+        {notStarted && instructions.length > 0 && (
           <section aria-label="Steps" className="activity-exec__steps activity-exec__steps--preview">
             <ActivityInstructions instructions={instructions} locked={o.item.locked} />
           </section>

@@ -275,27 +275,6 @@ export interface UpcomingReminderItem {
 }
 
 /**
- * Formats a CalendarItemStatus for participant display.
- * NOT_PARTICIPATING always renders as "Not participating", never "Missed".
- */
-export function formatCalendarItemStatus(
-  status: CalendarItem['status'],
-): string {
-  switch (status) {
-    case 'DONE':
-      return 'Completed'
-    case 'NOT_PARTICIPATING':
-      return 'Not participating'
-    case 'SKIPPED':
-      return 'Skipped'
-    case 'CANCELLED':
-      return 'Cancelled'
-    default:
-      return 'Planned'
-  }
-}
-
-/**
  * Returns true when a calendar item counts as a pending scheduled Activity.
  * Pre-join Activities (NOT_PARTICIPATING or dated before participationStartDate) are excluded.
  */

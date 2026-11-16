@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  formatCalendarItemStatus,
   formatLocalTime,
   formatNotificationTimestamp,
   getAvailableTimezones,
@@ -19,6 +18,7 @@ import {
   selectUpcomingReminders,
   type CalendarItem,
 } from './notifications'
+import { ENTRY_PHASE_LABEL, entryPhase } from './activitySession'
 
 const makeCalendarItem = (
   overrides: Partial<CalendarItem> = {},
@@ -208,12 +208,10 @@ describe('selectUpcomingReminders', () => {
   })
 
   it('displays NOT_PARTICIPATING as Not participating (never Missed) and excludes pre-join items from pending/reminder indicators', () => {
-    expect(formatCalendarItemStatus('NOT_PARTICIPATING')).toBe(
-      'Not participating',
-    )
-    expect(formatCalendarItemStatus('NOT_PARTICIPATING')).not.toBe('Missed')
-    expect(formatCalendarItemStatus('DONE')).toBe('Completed')
-    expect(formatCalendarItemStatus('PLANNED')).toBe('Planned')
+    // The shared entry state (lib/activitySession) names it; never "Missed".
+    expect(ENTRY_PHASE_LABEL[entryPhase('NOT_PARTICIPATING', null)]).toBe('Not participating')
+    expect(ENTRY_PHASE_LABEL[entryPhase('DONE', null)]).toBe('Completed')
+    expect(ENTRY_PHASE_LABEL[entryPhase('PLANNED', null)]).toBe('To do')
 
     const preJoinItem = makeCalendarItem({
       id: 'item-pre-join',

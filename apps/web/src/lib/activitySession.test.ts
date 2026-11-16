@@ -12,3 +12,16 @@ describe('activity session controller helpers', () => {
     expect(metricKey({ ...base, instructionId: null })).toBe(':reps')
   })
 })
+
+describe('entry state (MR 7)', () => {
+  it('session first, then the entry; one label and tone for every surface', async () => {
+    const { entryPhase, ENTRY_PHASE_LABEL, ENTRY_PHASE_TONE } = await import('./activitySession')
+    expect(entryPhase('PLANNED', 'ACTIVE')).toBe('active')
+    expect(entryPhase('PLANNED', 'PAUSED')).toBe('paused')
+    expect(entryPhase('DONE', 'COMPLETED')).toBe('completed')
+    expect(entryPhase('NOT_PARTICIPATING', undefined)).toBe('not-participating')
+    expect(entryPhase('PLANNED', null)).toBe('ready')
+    expect(ENTRY_PHASE_LABEL.ready).toBe('To do')
+    expect(ENTRY_PHASE_TONE['not-participating']).toBe('unavailable')
+  })
+})

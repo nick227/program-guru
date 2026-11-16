@@ -76,7 +76,7 @@ export async function journey(
   const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const tile = (status: string) =>
     page.getByRole('link', { name: new RegExp(`^Squats, ${escaped}, ${status}`) }).first()
-  await tile('Pending').click()
+  await tile('To do').click()
   await expect(
     page.getByRole('heading', { name: 'Today' }),
   ).toBeVisible()
@@ -91,8 +91,8 @@ export async function journey(
   await page.getByRole('button', { name: 'Undo completion', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'To do' })).toBeVisible()
   await page.goto(`/calendar?view=day&day=${today}`)
-  await expect(tile('Pending')).toBeVisible()
+  await expect(tile('To do')).toBeVisible()
   await page.reload()
-  await expect(tile('Pending')).toBeVisible()
+  await expect(tile('To do')).toBeVisible()
   return { title, publishedPath }
 }
