@@ -2089,6 +2089,54 @@
   text-align: center;
 }
 
+.calendar-panel__series {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  border-radius: var(--radius-control);
+  background: hsl(var(--color-surface-raised));
+  padding: 0.5rem 0.65rem;
+}
+
+.calendar-panel__series-rule {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.calendar-panel__series-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.calendar-panel__series-btn {
+  min-height: 2rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  padding: 0.2rem 0.5rem;
+  color: hsl(var(--color-accent));
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calendar-panel__series-btn:hover:not(:disabled) {
+  background: hsl(var(--color-accent) / 0.1);
+}
+
+@media (max-width: 639.98px) {
+  .calendar-panel__series-btn {
+    min-height: var(--control-min);
+  }
+}
+
 .calendar-panel__actions {
   display: flex;
   flex-direction: column;

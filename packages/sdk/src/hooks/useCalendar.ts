@@ -186,3 +186,36 @@ export function useUpdateCalendarItem() {
     [keys.calendar, keys.occurrences, keys.gatherings],
   )
 }
+/** The viewer's personal repeat rules (09 §4.8), refreshed with every Calendar change. */
+export function useCalendarRecurrences(enabled = true) {
+  return useQuery({
+    queryKey: useViewerKey([...keys.calendar, 'recurrences']),
+    enabled,
+    queryFn: async ({ signal }) => apiData(await getApiClient().GET('/calendar/recurrences', { signal })).data,
+  })
+}
+/** Edit a series from a date on: earlier entries and results stay (09 §4.8). */
+export function useUpdateCalendarRecurrence() {
+  return useApiMutation(
+    async ({ recurrenceId, ...body }: S['UpdateRecurrenceInput'] & { recurrenceId: string }) =>
+      apiData(
+        await getApiClient().PATCH('/calendar/recurrences/{recurrenceId}', {
+          params: { path: { recurrenceId } },
+          body,
+        }),
+      ).data,
+    [keys.calendar, keys.occurrences],
+  )
+}
+/** End a series from a date on: later planned entries are removed; earlier ones and results stay. */
+export function useEndCalendarRecurrence() {
+  return useApiMutation(
+    async ({ recurrenceId, effectiveFromDate }: { recurrenceId: string; effectiveFromDate: string }) =>
+      apiData(
+        await getApiClient().DELETE('/calendar/recurrences/{recurrenceId}', {
+          params: { path: { recurrenceId }, query: { effectiveFromDate } },
+        }),
+      ).data,
+    [keys.calendar, keys.occurrences],
+  )
+}

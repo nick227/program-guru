@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import {
   useCalendar,
+  useCalendarRecurrences,
   useCancelCalendarItem,
   useCurrentUser,
   useQuickCompleteCalendarItem,
@@ -26,6 +27,7 @@ import type { SurfaceItem } from '@/components/calendar/CalendarSurface'
 import { DatePickerPopover } from '@/components/calendar/DatePickerPopover'
 import { SelectedActivityPanel } from '@/components/calendar/SelectedActivityPanel'
 import { MoveEntryDialog, type MoveTarget } from '@/components/calendar/MoveEntryDialog'
+import { SeriesDialog } from '@/components/calendar/SeriesDialog'
 import { ScheduleDialog, type ScheduleTarget } from '@/components/schedule/AddToSchedule'
 import { canMoveCalendarEntry } from '@/lib/calendarGrouping'
 import { canDropOnTarget, resolveDrop, type CalendarDropTarget } from '@/lib/calendarMove'
@@ -118,6 +120,8 @@ export function CalendarPage() {
   const [pendingDates, setPendingDates] = useState<Record<string, string>>({})
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null)
   const [rescheduleTarget, setRescheduleTarget] = useState<ScheduleTarget | null>(null)
+  const [seriesDialog, setSeriesDialog] = useState<'edit' | 'end' | null>(null)
+  const recurrences = useCalendarRecurrences(true)
   const completionKeys = useRef(new Map<string, string>())
   const origin = `/calendar?${new URLSearchParams({
     view,
@@ -544,6 +548,11 @@ export function CalendarPage() {
     }
   }
 
+  const selectedRecurrence = useMemo(() => {
+    const id = rawItems.find((row) => row.id === selectedItemId)?.recurrenceId
+    return id ? (recurrences.data?.find((r) => r.id === id) ?? null) : null
+  }, [rawItems, selectedItemId, recurrences.data])
+
   const selectedPanel = (
     <SelectedActivityPanel
       itemId={selectedItemId}
@@ -554,6 +563,9 @@ export function CalendarPage() {
       onChangeTime={changeItemTime}
       onRemove={requestRemoveItem}
       onReschedule={requestReschedule}
+      recurrence={selectedRecurrence}
+      onEditSeries={() => setSeriesDialog('edit')}
+      onEndSeries={() => setSeriesDialog('end')}
       completing={quickComplete.isPending}
       undoing={undo.isPending}
       removing={cancelItem.isPending}
@@ -961,6 +973,14 @@ export function CalendarPage() {
             onClose={() => {
               if (!updateItem.isPending) setMoveTarget(null)
             }}
+          />
+        )}
+        {seriesDialog && selectedRecurrence && selectedCalendarItem && (
+          <SeriesDialog
+            mode={seriesDialog}
+            recurrence={selectedRecurrence}
+            fromDate={selectedCalendarItem.day}
+            onClose={() => setSeriesDialog(null)}
           />
         )}
         {rescheduleTarget && (

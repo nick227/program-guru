@@ -9,6 +9,7 @@ import {
   Heart,
   Image as ImageIcon,
   Play,
+  Repeat,
   Send,
   Trash2,
   X,
@@ -46,6 +47,7 @@ import { completionOpen, completionOpensLabel } from '@/lib/completionWindow'
 import { useOnline } from '@/lib/useOnline'
 import { cn } from '@/lib/utils'
 import { canMoveCalendarEntry, type SurfaceItem } from '@/lib/calendarGrouping'
+import { ruleLabel, untilLabel } from '@/components/schedule/recurrencePlan'
 
 type S = components['schemas']
 
@@ -62,6 +64,10 @@ export interface SelectedActivityPanelProps {
   onRemove?: (itemId: string) => void
   /** Opens the shared Reschedule dialog (Move to date; the tap path for moving on phones). */
   onReschedule?: (itemId: string) => void
+  /** The entry's personal series, when it repeats (09 §4.8). */
+  recurrence?: S['CalendarRecurrence'] | null
+  onEditSeries?: () => void
+  onEndSeries?: () => void
   completing?: boolean
   undoing?: boolean
   removing?: boolean
@@ -76,6 +82,9 @@ function PanelBody({
   onChangeTime,
   onRemove,
   onReschedule,
+  recurrence = null,
+  onEditSeries,
+  onEndSeries,
   completing = false,
   undoing = false,
   removing = false,
@@ -427,6 +436,32 @@ function PanelBody({
             ) : null}
           </div>
         </header>
+
+        {/* How it repeats, with series actions that apply from this entry on (This and future). */}
+        {recurrence && recurrence.status === 'ACTIVE' && (
+          <div className="calendar-panel__series">
+            <p className="calendar-panel__series-rule">
+              <Repeat size={13} aria-hidden />
+              <span>
+                {ruleLabel(recurrence.rule, recurrence.anchorDate)} · {untilLabel(recurrence.untilDate)}
+              </span>
+            </p>
+            {!isLocked && status !== 'CANCELLED' && (onEditSeries || onEndSeries) && (
+              <div className="calendar-panel__series-actions">
+                {onEditSeries && (
+                  <button type="button" disabled={!online} onClick={onEditSeries} className="calendar-panel__series-btn">
+                    Edit series
+                  </button>
+                )}
+                {onEndSeries && (
+                  <button type="button" disabled={!online} onClick={onEndSeries} className="calendar-panel__series-btn">
+                    End series
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 2. One image: the resolved thumbnail, else the category fallback. */}
         <div className="calendar-panel__hero">
