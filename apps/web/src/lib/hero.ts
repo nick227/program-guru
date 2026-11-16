@@ -30,6 +30,75 @@ export function toHeroCategory(slug?: string | null): ActivityCategory {
   return domainVisualCategory(slug) ?? 'custom'
 }
 
+/**
+ * Returns a high-quality approved platform cover or illustration for an activity or program
+ * based on title keywords and domain visual category.
+ */
+export function getCategoryFallbackImage(title: string, category?: string | null): string {
+  const t = title.toLowerCase()
+  if (t.includes('push') || t.includes('squat') || t.includes('workout') || t.includes('strength')) {
+    return '/assets/covers/starter-build-your-core.jpg'
+  }
+  if (t.includes('jog') || t.includes('run') || t.includes('cardio')) {
+    return '/assets/covers/starter-jog-one-mile.jpg'
+  }
+  if (t.includes('core') || t.includes('sit-up') || t.includes('plank')) {
+    return '/assets/covers/starter-build-your-core.jpg'
+  }
+  if (t.includes('meditat') || t.includes('breath') || t.includes('mindful')) {
+    return '/assets/covers/starter-60-second-meditation.jpg'
+  }
+  if (t.includes('sleep') || t.includes('relax')) {
+    return '/assets/covers/starter-sleep-relaxation-technique.jpg'
+  }
+  if (t.includes('book') || t.includes('read') || t.includes('fiction')) {
+    return '/assets/covers/starter-read-a-fiction-book.jpg'
+  }
+  if (t.includes('learn') || t.includes('study') || t.includes('event')) {
+    return '/assets/covers/starter-attend-learning-event.jpg'
+  }
+  if (t.includes('budget') || t.includes('finance') || t.includes('money')) {
+    return '/assets/covers/starter-balance-monthly-budget.jpg'
+  }
+  if (t.includes('business') || t.includes('sales') || t.includes('work')) {
+    return '/assets/covers/starter-work-on-business-plan.jpg'
+  }
+  if (t.includes('dinner') || t.includes('friend') || t.includes('social') || t.includes('coffee')) {
+    return '/assets/covers/starter-have-dinner-with-a-friend.jpg'
+  }
+  if (t.includes('sketch') || t.includes('art') || t.includes('paint') || t.includes('draw')) {
+    return '/assets/illustrations/group-sketch-session.jpg'
+  }
+  if (t.includes('puzzle') || t.includes('chess') || t.includes('game')) {
+    return '/assets/illustrations/cooperative-puzzle-hour.jpg'
+  }
+  if (t.includes('film') || t.includes('camera') || t.includes('direct')) {
+    return '/assets/illustrations/direct-film-scene.jpg'
+  }
+  if (t.includes('garden') || t.includes('plant')) {
+    return '/assets/illustrations/plant-community-garden.jpg'
+  }
+  if (t.includes('guitar') || t.includes('music')) {
+    return '/assets/illustrations/twenty-minute-guitar-practice.jpg'
+  }
+
+  switch (category) {
+    case 'fitness':
+      return '/assets/covers/starter-jog-one-mile.jpg'
+    case 'wellness':
+      return '/assets/covers/starter-60-second-meditation.jpg'
+    case 'education':
+      return '/assets/covers/starter-attend-learning-event.jpg'
+    case 'finance':
+      return '/assets/covers/starter-balance-monthly-budget.jpg'
+    case 'relationships':
+      return '/assets/covers/starter-have-dinner-with-a-friend.jpg'
+    case 'custom':
+    default:
+      return '/assets/illustrations/group-sketch-session.jpg'
+  }
+}
+
 export function resolveHero({
   title,
   images,
@@ -97,10 +166,11 @@ export function activityHero(
     categoryId?: string | null
   },
   categorySlugOf: CategorySlugOf,
+  otherImages: (string | null | undefined)[] = [],
 ): Hero {
   const base = resolveHero({
     title: activity.title,
-    images: [activity.coverMedia?.posterUrl ?? activity.thumbnailUrl],
+    images: [activity.coverMedia?.posterUrl ?? activity.thumbnailUrl, ...otherImages],
     category: categorySlugOf(activity.categoryId),
   })
   return {

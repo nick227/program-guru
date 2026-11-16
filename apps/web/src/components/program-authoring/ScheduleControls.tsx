@@ -17,10 +17,6 @@ export const ACTIVITY_DURATION_PRESETS = [10, 15, 20, 30, 45, 60, 120]
 
 export const FREQUENCY_OPTIONS: { label: string; value: Frequency }[] = [
   { label: '1 day/week', value: { kind: 'N_PER_WEEK', n: 1 } },
-  { label: '2 days/week', value: { kind: 'N_PER_WEEK', n: 2 } },
-  { label: '3 days/week', value: { kind: 'N_PER_WEEK', n: 3 } },
-  { label: '4 days/week', value: { kind: 'N_PER_WEEK', n: 4 } },
-  { label: '5 days/week', value: { kind: 'N_PER_WEEK', n: 5 } },
   { label: 'Weekdays', value: { kind: 'WEEKDAYS' } },
   { label: 'Daily', value: { kind: 'DAILY' } },
   { label: 'Monthly', value: { kind: 'MONTHLY' } },
@@ -146,7 +142,7 @@ export function ActivityDurationField({
       </Row>
       <Input
         aria-label={inputAriaLabel}
-        type="number"
+        type="hidden"
         inputMode="numeric"
         min={1}
         max={MAX_DURATION_MINUTES}

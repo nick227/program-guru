@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { ArrowDown, ArrowUpRight, ChevronRight, Compass, Sparkles, X } from 'lucide-react'
 import {
   getApiClient,
   useCalendar,
@@ -14,18 +15,28 @@ import {
   useDiscoverPrograms,
   useProgramLibrary,
   useMyPrograms,
+  type components,
 } from '@project/sdk'
 import { useDocumentTitle } from '@/lib/title'
 import { ScheduleDialog, type ScheduleTarget } from '@/components/schedule/AddToSchedule'
+import { CalendarPage } from '@/pages/Calendar'
 import { HomeTopBar } from '@/features/home/components/HomeTopBar'
+import { HomeBottomNav } from '@/features/home/components/HomeBottomNav'
+import { HomeAgentSection } from '@/features/home/components/HomeAgentSection'
 import { InlineProgramBuilder } from '@/features/home/components/InlineProgramBuilder'
-import { ShowMeView } from '@/features/home/components/ShowMeView'
-import { TransitionSurface } from '@/features/home/components/TransitionSurface'
-import { TurnStage } from '@/features/home/components/TurnStage'
-import type { ActivityExecutionHandle } from '@/components/activity/ActivityExecution'
+import { InlinePreview } from '@/features/home/components/InlinePreview'
+import { ActivityExecution, type ActivityExecutionHandle } from '@/components/activity/ActivityExecution'
 import { cardHeroSrc } from '@/features/home/components/TurnHero'
 import { resolveTurn } from '@/features/home/engine/decisionEngine'
 import { reusableTodayItem } from '@/lib/participation'
+import { groupAction } from '@/lib/joinEligibility'
+import { activityHero, getCategoryFallbackImage, programHero, toHeroCategory } from '@/lib/hero'
+import { formatDurationMinutes } from '@/lib/durationMinutes'
+import { buildProfileUrl } from '@/lib/urls'
+import { Avatar } from '@/components/ui/Avatar'
+import { Button } from '@/components/ui/Button'
+import { SectionHeader } from '@/components/ui/SectionHeader'
+import { EntityHero, useCategorySlugOf } from '@/components/shared/EntityHero'
 import type {
   CardAction,
   ChoiceButton,
@@ -34,6 +45,8 @@ import type {
   HomeSignals,
   PreviewTarget,
 } from '@/features/home/engine/types'
+
+type S = components['schemas']
 
 interface HistoryEntry {
   nodeId: FlowNodeId
@@ -85,25 +98,35 @@ function loadSession(): {
 
 export function HomePage() {
   useDocumentTitle('Home')
+  const [searchParams] = useSearchParams()
+  if (
+    searchParams.has('day') ||
+    searchParams.has('view') ||
+    searchParams.has('week')
+  ) {
+    return <CalendarPage />
+  }
+
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const me = useCurrentUser()
   const isSignedIn = Boolean(me.data)
   const today = useMemo(() => getLocalDateIso(0), [])
+  const categorySlugOf = useCategorySlugOf()
 
   const initial = useMemo(() => loadSession(), [])
   const [nodeId, setNodeId] = useState<FlowNodeId>(initial.nodeId)
   const [state, setState] = useState<DiscoveryState>(initial.state)
   const [history, setHistory] = useState<HistoryEntry[]>(initial.history)
+  const [agentExpanded, setAgentExpanded] = useState<boolean>(() => {
+    // Expand if already in an active non-default turn from a previous session
+    return initial.nodeId !== 'opening' || initial.history.length > 0
+  })
   const [previewTarget, setPreviewTarget] = useState<PreviewTarget | null>(null)
   const [executionItemId, setExecutionItemId] = useState<string | null>(null)
   const [showWhy, setShowWhy] = useState(false)
-  const [showMeOpen, setShowMeOpen] = useState(false)
-  const [completedInSession, setCompletedInSession] = useState<string | null>(
-    null,
-  )
+  const [completedInSession, setCompletedInSession] = useState<string | null>(null)
   const [actionPending, setActionPending] = useState(false)
-  // Repeated taps on Start or Join while one is in flight do nothing (state updates lag a render).
   const inFlight = useRef(false)
   const [scheduleTarget, setScheduleTarget] = useState<ScheduleTarget | null>(null)
 
@@ -118,10 +141,9 @@ export function HomePage() {
     }
   }, [nodeId, state, history])
 
-  // Compose existing SDK hooks client-side for P1
+  // Compose existing SDK hooks client-side
   const calendar = useCalendar(today, today, isSignedIn)
   const library = useProgramLibrary(isSignedIn)
-  // Continue editing (03-UX §2a): the viewer's Program drafts.
   const drafts = useMyPrograms('DRAFT', isSignedIn)
   const categories = useCategories()
   const liveSessions = useDiscoverPrograms({
@@ -150,12 +172,22 @@ export function HomePage() {
     enabled: Boolean(state.categoryId),
   })
   const creators = useDiscoverCreators({ enabled: true })
-  // Discovery quality (12 §5c): personalized Programs with reasons (the Agent's picked Domain counts),
-  // and Following as actual follows.
-  const forYouPrograms = useDiscoverPrograms({ sort: 'FOR_YOU', categoryId: state.categoryId, limit: 12, enabled: isSignedIn })
-  const followedPrograms = useDiscoverPrograms({ creatorScope: 'FOLLOWING', sort: 'NEW', limit: 12, enabled: isSignedIn })
-  const followedCreators = useDiscoverCreators({ creatorScope: 'FOLLOWING', enabled: isSignedIn })
-  // Opportunity Radar (12 §5b): one result set for the Agent and the rail.
+  const forYouPrograms = useDiscoverPrograms({
+    sort: 'FOR_YOU',
+    categoryId: state.categoryId,
+    limit: 12,
+    enabled: isSignedIn,
+  })
+  const followedPrograms = useDiscoverPrograms({
+    creatorScope: 'FOLLOWING',
+    sort: 'NEW',
+    limit: 12,
+    enabled: isSignedIn,
+  })
+  const followedCreators = useDiscoverCreators({
+    creatorScope: 'FOLLOWING',
+    enabled: isSignedIn,
+  })
   const radar = useMyOpportunities(isSignedIn)
   const joinGathering = useJoinGathering()
 
@@ -167,14 +199,15 @@ export function HomePage() {
     return [...scoped, ...base.filter((i) => i.activity?.id && !seen.has(i.activity.id))]
   }, [activities.data, categoryActivities.data])
 
-
   const signals: HomeSignals = useMemo(
     () => ({
       isSignedIn,
       todayItems: calendar.data ?? [],
-      knownProgramIds: !isSignedIn ? [] : library.isSuccess
-        ? (library.data ?? []).map((entry) => entry.program.id)
-        : null,
+      knownProgramIds: !isSignedIn
+        ? []
+        : library.isSuccess
+          ? (library.data ?? []).map((entry) => entry.program.id)
+          : null,
       activeEnrollments: (library.data ?? [])
         .filter((entry) => entry.status === 'Active')
         .map((entry) => ({
@@ -182,9 +215,15 @@ export function HomePage() {
           programId: entry.program.id,
           programTitle: entry.program.title,
           status: 'ACTIVE',
-          hasParticipated: !!entry.current && (entry.current.completed > 0 || !!entry.current.lastParticipation),
+          hasParticipated:
+            !!entry.current &&
+            (entry.current.completed > 0 || !!entry.current.lastParticipation),
           nextActivity: entry.current?.upcoming[0]
-            ? { id: entry.current.upcoming[0].id, title: entry.current.upcoming[0].title, date: entry.current.upcoming[0].date }
+            ? {
+                id: entry.current.upcoming[0].id,
+                title: entry.current.upcoming[0].title,
+                date: entry.current.upcoming[0].date,
+              }
             : null,
         })),
       liveSessions: liveSessions.data?.pages.flatMap((p) => p.data) ?? [],
@@ -197,16 +236,18 @@ export function HomePage() {
       activities: mergedActivities,
       drafts: drafts.data?.pages.flatMap((p) => p.data) ?? [],
       creators: creators.data?.pages.flatMap((p) => p.data) ?? [],
-      // `custom` is the authoring fallback, never a discovery Domain (02-DOMAIN §2).
-      categories: (categories.data ?? []).filter((c) => c.slug !== 'custom').map((c) => ({
-        id: c.id,
-        name: c.label,
-      })),
+      categories: (categories.data ?? [])
+        .filter((c) => c.slug !== 'custom')
+        .map((c) => ({
+          id: c.id,
+          name: c.label,
+        })),
     }),
     [
       isSignedIn,
       calendar.data,
       library.data,
+      library.isSuccess,
       liveSessions.data,
       radar.data,
       forYouPrograms.data,
@@ -234,11 +275,15 @@ export function HomePage() {
     [nodeId, state, signals],
   )
 
-  // Surfing: warm the image of the card "Another idea" / "Next Activity" would show next.
+  // Warm image of next suggested card
   const nextCard = useMemo(
     () =>
       turn.card
-        ? resolveTurn(nodeId, { ...state, excludedIds: [...state.excludedIds, turn.card.id] }, signals).card
+        ? resolveTurn(
+            nodeId,
+            { ...state, excludedIds: [...state.excludedIds, turn.card.id] },
+            signals,
+          ).card
         : undefined,
     [nodeId, state, signals, turn.card],
   )
@@ -247,7 +292,6 @@ export function HomePage() {
     if (src) new Image().src = src
   }, [nextCard])
 
-  // Leaving a running Activity (reset, Back) goes through its unsaved-results guard first.
   const executionRef = useRef<ActivityExecutionHandle>(null)
   const afterExecutionClose = useRef<(() => void) | null>(null)
   const leaveExecutionThen = (then: () => void) => {
@@ -261,11 +305,11 @@ export function HomePage() {
     setPreviewTarget(null)
     setExecutionItemId(null)
     setShowWhy(false)
-    setShowMeOpen(false)
     setCompletedInSession(null)
     setNodeId('opening')
     setState(INITIAL_STATE)
     setHistory([])
+    setAgentExpanded(false)
   }, [])
 
   const handleBack = useCallback(() => {
@@ -274,14 +318,22 @@ export function HomePage() {
       return
     }
     if (executionItemId) {
-      executionRef.current ? executionRef.current.requestClose() : setExecutionItemId(null)
+      executionRef.current
+        ? executionRef.current.requestClose()
+        : setExecutionItemId(null)
       return
     }
     const prev = history[history.length - 1]
-    if (!prev) return
+    if (!prev) {
+      setAgentExpanded(false)
+      return
+    }
     setHistory((h) => h.slice(0, -1))
     setNodeId(prev.nodeId)
     setState(prev.state)
+    if (prev.nodeId === 'opening' && history.length === 1) {
+      setAgentExpanded(false)
+    }
   }, [executionItemId, history, previewTarget])
 
   const executeAction = useCallback(
@@ -338,7 +390,11 @@ export function HomePage() {
             navigate(`/login?returnTo=${encodeURIComponent('/')}`)
             return
           }
-          setScheduleTarget({ kind: 'activity', id: action.activityId, title: action.title })
+          setScheduleTarget({
+            kind: 'activity',
+            id: action.activityId,
+            title: action.title,
+          })
           return
         case 'navigate_activity':
           navigate(`/activities/${action.activityId}`)
@@ -347,7 +403,6 @@ export function HomePage() {
           navigate(`/programs/${action.programId}`)
           return
         case 'join_gathering': {
-          // One primary action: join (reusing the viewer's item), then open that occurrence.
           if (inFlight.current) return
           inFlight.current = true
           setActionPending(true)
@@ -369,7 +424,6 @@ export function HomePage() {
         }
         case 'open_group':
           setShowWhy(false)
-          setShowMeOpen(false)
           setPreviewTarget({ kind: 'group', id: action.groupId })
           return
         case 'open_creator':
@@ -424,19 +478,15 @@ export function HomePage() {
         return
       }
       if (effect.type === 'show_me') {
-        // A Program opens its inline overview over the turn; Back closes it and keeps this turn (03-UX §2a).
         if (turn.showMeSubject?.kind === 'program') {
           setShowWhy(false)
-          setShowMeOpen(false)
           setPreviewTarget({ kind: 'program', id: turn.showMeSubject.id })
           return
         }
-        setShowMeOpen((prev) => !prev)
         return
       }
       if (effect.type === 'transition') {
         setShowWhy(false)
-        setShowMeOpen(false)
         setHistory((h) => [...h, { nodeId, state }])
         setState((prev) => ({ ...prev, ...effect.patch }))
         setNodeId(effect.nodeId)
@@ -478,11 +528,25 @@ export function HomePage() {
           return
         }
 
-        // 'different' or 'more_like_this'
         setState((prev) => ({ ...prev, excludedIds: nextExcluded }))
       }
     },
     [executeAction, handleReset, nodeId, state, turn.card?.id, turn.showMeSubject],
+  )
+
+  const handleSelectStartingAction = useCallback(
+    (action: 'now' | 'new' | 'continue') => {
+      setHistory([{ nodeId: 'opening', state: INITIAL_STATE }])
+      setAgentExpanded(true)
+      if (action === 'now') {
+        setNodeId('now_time')
+      } else if (action === 'new') {
+        setNodeId('explore_interest')
+      } else if (action === 'continue') {
+        setNodeId('continue_result')
+      }
+    },
+    [],
   )
 
   const handleCloseExecution = useCallback(() => {
@@ -531,27 +595,244 @@ export function HomePage() {
     [],
   )
 
-  // Create a Program replaces the conversation while it is open; exploring and creating never overlap.
-  const building = nodeId === 'create_program' && !previewTarget && !executionItemId
+  // Guided inline authoring
+  const building =
+    nodeId === 'create_program' && !previewTarget && !executionItemId
 
-  // The opening turn renders compactly when nothing is open over it (03-UX §2a).
-  const openingCompact =
-    nodeId === 'opening' && turn.nodeId === 'opening' && !previewTarget && !executionItemId && !showMeOpen
+  // ─────────────────────────────────────────────────────────────
+  // Data for Homepage Sections
+  // ─────────────────────────────────────────────────────────────
 
-  // Show me for a session, Creator or today's schedule opens beneath the turn; a Program opens the
-  // inline Program overview instead (03-UX §2a).
-  const showMeSubject = turn.showMeSubject?.kind === 'program' ? null : turn.showMeSubject
-  const showMe =
-    showMeOpen && showMeSubject && !previewTarget && !executionItemId && turn.nodeId !== 'day_schedule' ? (
-      <div className="w-full border-t border-border/50 px-4 py-5 sm:px-6">
-        <ShowMeView
-          subject={showMeSubject}
-          todayItems={signals.todayItems}
-          onClose={() => setShowMeOpen(false)}
-          onPreview={setPreviewTarget}
-        />
-      </div>
-    ) : null
+  // ── Today Date Header ─────────────────────────────────────────
+  const todayFormatted = useMemo(() => {
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    }).format(new Date())
+  }, [])
+
+  // ── Explore activities (real activities) ─────────────────────
+  const exploreActivities = useMemo(() => {
+    return mergedActivities.slice(0, 4)
+  }, [mergedActivities])
+
+  // ── Programs to follow (real programs) ───────────────────────
+  const previewPrograms = useMemo(() => {
+    const list = [
+      ...(forYouPrograms.data?.pages.flatMap((p) => p.data) ?? []),
+      ...(popularPrograms.data?.pages.flatMap((p) => p.data) ?? []),
+      ...(newPrograms.data?.pages.flatMap((p) => p.data) ?? []),
+    ]
+    const seen = new Set<string>()
+    const unique: S['ProgramSummary'][] = []
+    for (const item of list) {
+      if (item.program && !seen.has(item.program.id)) {
+        seen.add(item.program.id)
+        unique.push(item.program)
+        if (unique.length >= 3) break
+      }
+    }
+    return unique
+  }, [forYouPrograms.data, popularPrograms.data, newPrograms.data])
+
+  // ── Community (creators) ─────────────────────────────────────
+  const communityCreators = useMemo(() => {
+    const list = [
+      ...(followedCreators.data?.pages.flatMap((p) => p.data) ?? []),
+      ...(creators.data?.pages.flatMap((p) => p.data) ?? []),
+    ]
+    const seen = new Set<string>()
+    const unique: S['UserSummary'][] = []
+    for (const item of list) {
+      if (item.creator && !seen.has(item.creator.id)) {
+        seen.add(item.creator.id)
+        unique.push(item.creator)
+        if (unique.length >= 4) break
+      }
+    }
+    return unique
+  }, [followedCreators.data, creators.data])
+
+  // ── "For you" Featured Activity ────────────────────────────
+  const forYouItem = useMemo(() => {
+    // 1. Scheduled item on calendar today
+    const plannedToday = signals.todayItems.find((i) => i.status === 'PLANNED')
+    if (plannedToday) {
+      const fallbackImg = getCategoryFallbackImage(
+        plannedToday.title,
+        'fitness',
+      )
+      return {
+        title: plannedToday.title,
+        subtitle: 'Activity · Scheduled today',
+        summary: plannedToday.programTitle
+          ? `Part of ${plannedToday.programTitle}. Scheduled for today.`
+          : plannedToday.durationMinutes
+            ? `${plannedToday.durationMinutes} minute session scheduled for today.`
+            : 'Scheduled on your calendar for today.',
+        imageSrc: fallbackImg || '/assets/covers/starter-build-your-core.jpg',
+        href: `/occurrences/${plannedToday.id}`,
+        actionLabel: 'Start now',
+        onAction: (): void => {
+          void executeAction({
+            type: 'open_occurrence',
+            itemId: plannedToday.id,
+          })
+        },
+        socialText: '1 scheduled',
+        avatars: me.data?.data?.profile
+          ? [{ avatarUrl: me.data.data.profile.avatarUrl ?? null, displayName: me.data.data.profile.displayName ?? '' }]
+          : [],
+      }
+    }
+
+    // 2. Opportunity Radar recommendation (open gatherings with real people)
+    const rec = radar.data?.recommendations?.[0]
+    if (rec?.gathering) {
+      const g = rec.gathering
+      const isMember = groupAction(g) === 'open'
+      const fallbackImg = getCategoryFallbackImage(
+        g.activity.title,
+        categorySlugOf(g.activity.categoryId),
+      )
+      return {
+        title: g.activity.title,
+        subtitle: rec.reasons?.[0]?.label || 'Activity · Local meetup',
+        summary:
+          g.activity.summary ||
+          'Join a group and play in a relaxed, welcoming space.',
+        imageSrc: fallbackImg || '/assets/covers/starter-have-dinner-with-a-friend.jpg',
+        href: `/activities/${g.activity.id}`,
+        actionLabel: isMember ? 'Open activity' : 'Join this activity',
+        onAction: (): void => {
+          if (isMember) {
+            navigate(`/activities/${g.activity.id}`)
+          } else {
+            void executeAction({
+              type: 'join_gathering',
+              gatheringId: g.id,
+              calendarItemId: rec.calendarItemId,
+            })
+          }
+        },
+        socialText: `${g.memberCount} going`,
+        avatars: g.members.map((m) => ({
+          avatarUrl: m.avatarUrl,
+          displayName: m.displayName || m.handle,
+        })),
+      }
+    }
+
+    // 3. Top activity from discover
+    const firstActivity = mergedActivities[0]?.activity
+    if (firstActivity) {
+      const fallbackImg = getCategoryFallbackImage(
+        firstActivity.title,
+        categorySlugOf(firstActivity.categoryId),
+      )
+      return {
+        title: firstActivity.title,
+        subtitle: 'Activity · Local meetup',
+        summary:
+          firstActivity.summary ||
+          'Join a group and play in a relaxed, welcoming space.',
+        imageSrc: fallbackImg || '/assets/covers/starter-have-dinner-with-a-friend.jpg',
+        href: `/activities/${firstActivity.id}`,
+        actionLabel: 'Join this activity',
+        onAction: (): void => {
+          void executeAction({
+            type: 'open_activity',
+            activityId: firstActivity.id,
+          })
+        },
+        socialText: '12 going',
+        avatars: [
+          { avatarUrl: '/assets/covers/starter-have-dinner-with-a-friend-thumb.webp', displayName: 'Maya' },
+          { avatarUrl: '/assets/covers/starter-attend-learning-event-thumb.webp', displayName: 'Marcus' },
+          { avatarUrl: '/assets/covers/starter-jog-one-mile-thumb.webp', displayName: 'Sarah' },
+        ],
+      }
+    }
+
+    // 4. Default Community Chess Night (reference design)
+    return {
+      title: 'Community Chess Night',
+      subtitle: 'Activity · Local meetup',
+      summary: 'Join a group and play in a relaxed, welcoming space.',
+      imageSrc: '/assets/covers/starter-have-dinner-with-a-friend.jpg',
+      href: '/browse?kind=activities',
+      actionLabel: 'Join this activity',
+      onAction: (): void => {
+        navigate('/browse?kind=activities')
+      },
+      socialText: '12 going',
+      avatars: [
+        { avatarUrl: '/assets/covers/starter-have-dinner-with-a-friend-thumb.webp', displayName: 'Maya' },
+        { avatarUrl: '/assets/covers/starter-attend-learning-event-thumb.webp', displayName: 'Marcus' },
+        { avatarUrl: '/assets/covers/starter-jog-one-mile-thumb.webp', displayName: 'Sarah' },
+      ],
+    }
+  }, [
+    signals.todayItems,
+    radar.data?.recommendations,
+    mergedActivities,
+    categorySlugOf,
+    me.data,
+    executeAction,
+    navigate,
+  ])
+
+  // ── "Programs to follow" Item ────────────────────────────────
+  const programItem = useMemo(() => {
+    // 1. Active program enrollment
+    const active = signals.activeEnrollments[0]
+    if (active) {
+      const entry = library.data?.find((e) => e.program.id === active.programId)
+      const fallbackImg = getCategoryFallbackImage(
+        active.programTitle,
+        'fitness',
+      )
+      return {
+        title: active.programTitle,
+        subtitle: 'Program · Active enrollment',
+        summary: active.nextActivity
+          ? `Next activity: ${active.nextActivity.title}`
+          : entry?.program?.description ||
+            'Build a sustainable routine with guided activities, a supportive community, and real progress.',
+        imageSrc: fallbackImg || '/assets/covers/starter-build-your-core.jpg',
+        href: `/programs/${active.programId}`,
+      }
+    }
+
+    // 2. First preview program
+    const prog = previewPrograms[0]
+    if (prog) {
+      const fallbackImg = getCategoryFallbackImage(
+        prog.title,
+        categorySlugOf(prog.type?.categoryId),
+      )
+      return {
+        title: prog.title,
+        subtitle: 'Program · Multiple activities',
+        summary:
+          prog.description ||
+          'Build a sustainable routine with guided activities, a supportive community, and real progress.',
+        imageSrc: fallbackImg || '/assets/covers/starter-build-your-core.jpg',
+        href: `/programs/${prog.id}`,
+      }
+    }
+
+    // 3. Default 30-Day Fitness Foundation (reference design)
+    return {
+      title: '30-Day Fitness Foundation',
+      subtitle: 'Program · Multiple activities',
+      summary:
+        'Build a sustainable routine with guided activities, a supportive community, and real progress.',
+      imageSrc: '/assets/covers/starter-build-your-core.jpg',
+      href: '/browse?kind=programs',
+    }
+  }, [signals.activeEnrollments, library.data, previewPrograms, categorySlugOf])
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
@@ -564,9 +845,10 @@ export function HomePage() {
           executionItemId !== null
         }
       />
+
       <main
         id="main"
-        className="flex flex-1 flex-col"
+        className="mx-auto flex w-full max-w-md sm:max-w-2xl lg:max-w-4xl flex-1 flex-col px-4 sm:px-6 pt-3 sm:pt-6 pb-24 sm:pb-12 space-y-7 sm:space-y-8"
       >
         {building ? (
           <InlineProgramBuilder
@@ -579,56 +861,270 @@ export function HomePage() {
             }}
           />
         ) : (
-        <div
-          className={
-            previewTarget?.kind === 'group' || previewTarget?.kind === 'session'
-              ? 'flex flex-1 flex-col'
-              : openingCompact
-                ? 'flex flex-col'
-                : 'flex flex-1 flex-col justify-center'
-          }
-        >
-          <TransitionSurface
-            ready={!loading || Boolean(previewTarget) || Boolean(executionItemId)}
-          >
-            <TurnStage
-            turn={turn}
-            discoveryState={state}
-            showWhy={showWhy}
-            previewTarget={previewTarget}
-            executionItemId={executionItemId}
-            isSignedIn={isSignedIn}
-            todayIso={today}
-            compact={openingCompact}
-            canGoBack={
-              history.length > 0 ||
-              previewTarget !== null ||
-              executionItemId !== null
-            }
-            loading={loading}
-            actionPending={actionPending}
-            onChoice={handleChoice}
-            onClearFilter={handleClearFilter}
-            onPreview={setPreviewTarget}
-            onClosePreview={() => setPreviewTarget(null)}
-            onCloseExecution={() => {
-              handleCloseExecution()
-              const then = afterExecutionClose.current
-              afterExecutionClose.current = null
-              then?.()
-            }}
-            executionRef={executionRef}
-            onExecutionCompleted={(title) => setCompletedInSession(title)}
-            onNextAfterExecution={handleNextAfterExecution}
-            onOpenOccurrencePage={(itemId) => navigate(`/occurrences/${itemId}`)}
-            onCardAction={executeAction}
-            onBack={handleBack}
-          />
-          </TransitionSurface>
-        </div>
+          <>
+            {/* ── Hero / Introduction ────────────────────────────── */}
+            <section className="relative overflow-hidden pt-2 pb-1">
+              <div className="relative z-10 max-w-[62%] sm:max-w-[65%]">
+                <h1 className="font-display text-[30px] sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground leading-[1.12]">
+                  Find something<br />
+                  worth doing.
+                </h1>
+                <p className="mt-2.5 text-xs sm:text-sm text-muted leading-relaxed max-w-[280px] sm:max-w-md">
+                  Discover activities, join people doing them, or follow programs to make progress over time.
+                </p>
+              </div>
+              <div className="absolute top-0 right-0 h-full w-[46%] pointer-events-none overflow-hidden rounded-2xl">
+                <img
+                  src="/assets/hero-outdoor.jpg"
+                  alt="Hikers exploring mountain trails"
+                  className="h-full w-full object-cover object-[70%_25%]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/40 to-transparent" />
+              </div>
+            </section>
+
+            {/* ── Inline Progressive Home Agent ──────────────────── */}
+            <HomeAgentSection
+              turn={turn}
+              discoveryState={state}
+              showWhy={showWhy}
+              previewTarget={previewTarget}
+              executionItemId={executionItemId}
+              isSignedIn={isSignedIn}
+              todayIso={today}
+              expanded={agentExpanded}
+              onToggleExpanded={() => setAgentExpanded((prev) => !prev)}
+              onSelectStartingAction={handleSelectStartingAction}
+              canGoBack={
+                history.length > 0 ||
+                previewTarget !== null ||
+                executionItemId !== null
+              }
+              loading={loading}
+              actionPending={actionPending}
+              onChoice={handleChoice}
+              onClearFilter={handleClearFilter}
+              onPreview={setPreviewTarget}
+              onClosePreview={() => setPreviewTarget(null)}
+              onCloseExecution={() => {
+                handleCloseExecution()
+                const then = afterExecutionClose.current
+                afterExecutionClose.current = null
+                then?.()
+              }}
+              executionRef={executionRef}
+              onExecutionCompleted={(title) => setCompletedInSession(title)}
+              onNextAfterExecution={handleNextAfterExecution}
+              onOpenOccurrencePage={(itemId) =>
+                navigate(`/occurrences/${itemId}`)
+              }
+              onCardAction={executeAction}
+              onBack={handleBack}
+              onReset={handleReset}
+              showReset={
+                nodeId !== 'opening' ||
+                state.excludedIds.length > 0 ||
+                history.length > 0
+              }
+            />
+
+            {/* ── "For you" Section ──────────────────────────────── */}
+            <section aria-labelledby="for-you-heading" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2
+                  id="for-you-heading"
+                  className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground"
+                >
+                  For you
+                </h2>
+                <Link
+                  to="/browse?kind=activities"
+                  className="inline-flex items-center gap-0.5 text-xs sm:text-sm font-semibold text-accent hover:underline"
+                >
+                  <span>See all</span>
+                  <ChevronRight size={14} aria-hidden />
+                </Link>
+              </div>
+
+              <article className="group relative flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 sm:gap-4 rounded-3xl border border-border/50 bg-surface p-3.5 sm:p-4 shadow-xs transition-all hover:border-accent/40 hover:shadow-sm">
+                <div className="relative aspect-[4/3] w-full sm:w-44 shrink-0 overflow-hidden rounded-2xl bg-surface-muted">
+                  <Link to={forYouItem.href} className="block h-full w-full">
+                    <img
+                      src={forYouItem.imageSrc}
+                      alt={forYouItem.title}
+                      className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+                    />
+                  </Link>
+                </div>
+
+                <div className="flex flex-1 flex-col justify-between py-0.5 min-w-0">
+                  <div>
+                    <h3
+                      id="featured-activity-heading"
+                      className="font-display text-base sm:text-lg font-bold text-foreground group-hover:text-accent transition-colors line-clamp-1"
+                    >
+                      <Link to={forYouItem.href}>{forYouItem.title}</Link>
+                    </h3>
+                    <p className="text-xs text-muted mt-0.5">
+                      {forYouItem.subtitle}
+                    </p>
+                    <p className="mt-1.5 text-xs sm:text-sm text-muted leading-relaxed line-clamp-2">
+                      {forYouItem.summary}
+                    </p>
+                  </div>
+
+                  <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 pt-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={forYouItem.onAction}
+                      disabled={actionPending}
+                      className="rounded-full bg-accent hover:bg-accent/90 text-accent-foreground px-5 py-1.5 text-xs font-semibold"
+                    >
+                      {forYouItem.actionLabel}
+                    </Button>
+
+                    <div className="flex items-center gap-2">
+                      {forYouItem.avatars.length > 0 && (
+                        <div className="flex items-center -space-x-1.5 shrink-0">
+                          {forYouItem.avatars.slice(0, 3).map((av, idx) => (
+                            <Avatar
+                              key={idx}
+                              src={av.avatarUrl}
+                              name={av.displayName}
+                              size="sm"
+                              className="h-6 w-6 ring-2 ring-surface text-[10px]"
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <span className="text-xs font-medium text-muted">
+                        {forYouItem.socialText}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </section>
+
+            {/* ── "Explore activities" Section ────────────────────── */}
+            <section aria-labelledby="activities-heading" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2
+                  id="activities-heading"
+                  className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground"
+                >
+                  Explore activities
+                </h2>
+                <Link
+                  to="/browse?kind=activities"
+                  className="inline-flex items-center gap-0.5 text-xs sm:text-sm font-semibold text-accent hover:underline"
+                >
+                  <span>See all</span>
+                  <ChevronRight size={14} aria-hidden />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <Link
+                  to="/browse?kind=activities"
+                  className="group flex flex-col overflow-hidden rounded-2xl border border-border/40 bg-surface p-2.5 sm:p-3 transition-all hover:border-accent/40 hover:shadow-xs"
+                >
+                  <div className="aspect-[16/10] w-full overflow-hidden rounded-xl bg-surface-muted">
+                    <img
+                      src="/assets/covers/starter-jog-one-mile.jpg"
+                      alt="Running groups"
+                      className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+                    />
+                  </div>
+                  <div className="mt-2.5">
+                    <h3 className="font-display text-xs sm:text-sm font-bold text-foreground group-hover:text-accent transition-colors line-clamp-1">
+                      Running groups
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-muted line-clamp-1 mt-0.5">
+                      Get moving together
+                    </p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/browse?kind=activities"
+                  className="group flex flex-col overflow-hidden rounded-2xl border border-border/40 bg-surface p-2.5 sm:p-3 transition-all hover:border-accent/40 hover:shadow-xs"
+                >
+                  <div className="aspect-[16/10] w-full overflow-hidden rounded-xl bg-surface-muted">
+                    <img
+                      src="/assets/covers/starter-attend-learning-event.jpg"
+                      alt="Creative activities"
+                      className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+                    />
+                  </div>
+                  <div className="mt-2.5">
+                    <h3 className="font-display text-xs sm:text-sm font-bold text-foreground group-hover:text-accent transition-colors line-clamp-1">
+                      Creative activities
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-muted line-clamp-1 mt-0.5">
+                      Make something new
+                    </p>
+                  </div>
+                </Link>
+              </div>
+            </section>
+
+            {/* ── "Programs to follow" Section ────────────────────── */}
+            <section aria-labelledby="programs-heading" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2
+                  id="programs-heading"
+                  className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground"
+                >
+                  Programs to follow
+                </h2>
+                <Link
+                  to="/browse?kind=programs"
+                  className="inline-flex items-center gap-0.5 text-xs sm:text-sm font-semibold text-accent hover:underline"
+                >
+                  <span>Explore</span>
+                  <ChevronRight size={14} aria-hidden />
+                </Link>
+              </div>
+
+              <Link
+                to={programItem.href}
+                className="group flex items-center justify-between gap-3.5 sm:gap-4 rounded-3xl border border-border/50 bg-surface p-3.5 sm:p-4 shadow-xs transition-all hover:border-accent/40 hover:shadow-sm"
+              >
+                <div className="relative aspect-[4/3] w-24 sm:w-32 shrink-0 overflow-hidden rounded-2xl bg-surface-muted">
+                  <img
+                    src={programItem.imageSrc}
+                    alt={programItem.title}
+                    className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+                  />
+                </div>
+
+                <div className="flex flex-1 flex-col justify-center min-w-0">
+                  <h3 className="font-display text-sm sm:text-base font-bold text-foreground group-hover:text-accent transition-colors line-clamp-1">
+                    {programItem.title}
+                  </h3>
+                  <p className="text-xs text-muted mt-0.5">
+                    {programItem.subtitle}
+                  </p>
+                  <p className="mt-1 text-xs sm:text-sm text-muted leading-relaxed line-clamp-2">
+                    {programItem.summary}
+                  </p>
+                </div>
+
+                <ChevronRight
+                  size={18}
+                  className="text-muted group-hover:text-accent transition-colors shrink-0 mr-1"
+                  aria-hidden
+                />
+              </Link>
+            </section>
+          </>
         )}
-        {!building && showMe}
       </main>
+
+      <HomeBottomNav />
+
       {scheduleTarget && (
         <ScheduleDialog
           target={scheduleTarget}
@@ -638,4 +1134,3 @@ export function HomePage() {
     </div>
   )
 }
-

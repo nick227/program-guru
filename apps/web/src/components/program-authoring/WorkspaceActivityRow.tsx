@@ -75,7 +75,7 @@ export function WorkspaceActivityRow({
     <article className="rounded-xl border border-border/70 bg-surface p-3 transition-colors hover:border-border">
       <Row className="items-center justify-between gap-3">
         <Row className="items-center gap-3 min-w-0 flex-1">
-          <div className="h-11 w-16 shrink-0 overflow-hidden rounded-md border border-border/50 bg-surface-muted">
+          <div className="h-16 shrink-0 overflow-hidden rounded-md border border-border/50 bg-surface-muted">
             <EntityHero
               hero={activityHero(
                 {
@@ -131,9 +131,9 @@ export function WorkspaceActivityRow({
         </Row>
         <Row className="gap-1.5 shrink-0">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="h-7 px-2.5 text-xs"
+            className="h-7 px-2 text-xs text-muted hover:text-danger"
             onClick={() => setEditing(!editing)}
           >
             {editing ? 'Close' : 'Edit'}

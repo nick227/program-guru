@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { RotateCcw } from 'lucide-react'
+import { Bell, Mountain, RotateCcw, Search } from 'lucide-react'
 import { useAuthState } from '@project/sdk'
 import { AccountMenu } from '@/components/account/AccountMenu'
 import { HeaderNavMenu } from '@/components/shared/HeaderNavMenu'
@@ -10,48 +10,80 @@ interface HomeTopBarProps {
 }
 
 /**
- * Minimal full-screen header for Home (/): Program.Guru status indicator
- * on the left, Reset and Menu controls on the right.
+ * Modern header for Home (/): Program.Guru brand mark on the left,
+ * Search, Notifications, Navigation menu, and Account controls on the right.
  */
 export function HomeTopBar({ onReset, showReset }: HomeTopBarProps) {
   const auth = useAuthState()
 
   return (
-    <header className="w-full pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto flex min-h-16 page--wide items-center justify-between gap-2 sm:gap-4">
-        <button
-          type="button"
-          onClick={onReset}
-          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2.5 rounded-full font-display text-base font-semibold tracking-tight text-inherit transition hover:opacity-85 sm:text-lg"
-          aria-label="Program.Guru Home — reset conversation"
+    <header className="sticky top-0 z-30 w-full border-b border-border/30 bg-surface/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+      <div className="mx-auto flex h-14 w-full max-w-md sm:max-w-2xl lg:max-w-4xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
+        <Link
+          to="/"
+          onClick={() => {
+            if (showReset) onReset()
+          }}
+          className="inline-flex items-center gap-2 font-display text-base font-bold tracking-tight text-foreground transition hover:opacity-85 sm:text-lg"
+          aria-label="Program.Guru Home"
         >
-          <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-accent" />
-          <span className="max-[459px]:sr-only">Program.Guru</span>
-        </button>
+          <Mountain size={22} className="text-accent shrink-0 fill-accent/20" aria-hidden />
+          <span>Program.Guru</span>
+        </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            to="/browse"
+            aria-label="Search activities and programs"
+            title="Search"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-foreground/80 transition hover:bg-surface-raised hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <Search size={19} aria-hidden />
+          </Link>
+
+          <Link
+            to="/notifications"
+            aria-label="Notifications"
+            title="Notifications"
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-foreground/80 transition hover:bg-surface-raised hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <Bell size={19} aria-hidden />
+            <span
+              className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-surface"
+              aria-hidden
+            />
+          </Link>
+
           {showReset && (
             <button
               type="button"
               onClick={onReset}
               aria-label="Start over"
               title="Start over"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface-raised/70 text-muted transition hover:bg-surface-raised hover:text-inherit"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted transition hover:bg-surface-raised hover:text-accent"
             >
-              <RotateCcw size={17} aria-hidden />
+              <RotateCcw size={16} aria-hidden />
             </button>
           )}
+
           <HeaderNavMenu />
+
           {auth === 'signed-in' ? (
             <AccountMenu />
           ) : auth === 'unknown' ? (
-            <span aria-hidden className="inline-block h-10 w-10" />
+            <span aria-hidden className="inline-block h-8 w-8" />
           ) : (
             <Link
               to="/login"
-              className="inline-flex min-h-10 items-center px-2 text-sm font-semibold text-accent"
+              className="h-8 w-8 rounded-full overflow-hidden border border-border/70 hover:border-accent transition-colors shrink-0"
+              title="Sign in"
+              aria-label="Sign in"
             >
-              Sign in
+              <img
+                src="/assets/covers/starter-have-dinner-with-a-friend-thumb.webp"
+                alt="Account"
+                className="h-full w-full object-cover"
+              />
             </Link>
           )}
         </div>
@@ -59,4 +91,3 @@ export function HomeTopBar({ onReset, showReset }: HomeTopBarProps) {
     </header>
   )
 }
-

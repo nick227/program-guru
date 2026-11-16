@@ -31,14 +31,10 @@ export function ActivitiesStep({
   })
 
   return (
-    <Stack className="gap-6">
+    <Stack className="gap-2">
       <Row className="justify-between items-center">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-foreground">Activities</h2>
-          <span className="text-xs text-muted">
-            {ws.activityCount} {ws.activityCount === 1 ? 'activity' : 'activities'} ·{' '}
-            {formatProgramDuration(ws.durationDays)}
-          </span>
         </div>
         {onBrowseLibrary ? (
           <Button variant="outline" size="sm" className="h-9 px-4 font-semibold" onClick={onBrowseLibrary}>
@@ -75,7 +71,7 @@ export function ActivitiesStep({
         </Panel>
       )}
 
-      {/* Create a new Activity inline */}
+      {/* Create Activity inline */}
       <CreateActivitySection ws={ws} />
 
       {/* Consistent Bottom Navigation */}

@@ -33,7 +33,7 @@ const activity: S['ActivitySummary'] = {
   categoryId: uid(3),
   focusIds: [uid(4)],
   place: null,
-  thumbnailUrl: null,
+  thumbnailUrl: '/assets/covers/starter-build-your-core.jpg',
   instructionCount: 1,
   mediaCount: 0,
   metricLabels: ['Reps'],
@@ -136,7 +136,7 @@ export async function mockApi(
     sessionMinutes: null,
     tags: [],
     creator: null,
-    coverUrl: seed ? null : cover,
+    coverUrl: seed ? '/assets/covers/starter-build-your-core.jpg' : cover,
     durationDays: seed ? 28 : programDurationDays,
     programDays: seed ? 12 : added ? computedProgramDays(activeActivityFrequency) : computedProgramDays(),
     placements: seed ? 12 : added ? computedProgramDays(activeActivityFrequency) : 0,
@@ -366,20 +366,128 @@ export async function mockApi(
       ])
     if (path === '/discover' && url.searchParams.get('kind') === 'ACTIVITY') {
       const q = (url.searchParams.get('q') ?? '').toLowerCase()
+      const allActivities: S['ActivitySummary'][] = [
+        activity,
+        {
+          id: uid(26),
+          revisionId: uid(27),
+          title: 'Morning 1-Mile Jog',
+          summary: 'Aerobic cardio at a conversational, steady pace.',
+          durationMinutes: 15,
+          targetTime: null,
+          creator: null,
+          categoryId: uid(3),
+          focusIds: [uid(4)],
+          place: null,
+          thumbnailUrl: '/assets/covers/starter-jog-one-mile.jpg',
+          instructionCount: 1,
+          mediaCount: 1,
+          metricLabels: ['Distance', 'Time'],
+          visibility: 'PUBLIC',
+          status: 'PUBLISHED',
+          isCopy: false,
+          isPlatform: true,
+        },
+        {
+          id: uid(28),
+          revisionId: uid(29),
+          title: '60-Second Meditation',
+          summary: 'Quick mindful pause with guided box breathing.',
+          durationMinutes: 5,
+          targetTime: null,
+          creator: null,
+          categoryId: uid(3),
+          focusIds: [],
+          place: null,
+          thumbnailUrl: '/assets/covers/starter-60-second-meditation.jpg',
+          instructionCount: 1,
+          mediaCount: 1,
+          metricLabels: ['Minutes'],
+          visibility: 'PUBLIC',
+          status: 'PUBLISHED',
+          isCopy: false,
+          isPlatform: true,
+        },
+        {
+          id: uid(31),
+          revisionId: uid(32),
+          title: 'Group Sketch Session',
+          summary: 'Observational sketching and peer feedback.',
+          durationMinutes: 45,
+          targetTime: null,
+          creator: null,
+          categoryId: uid(3),
+          focusIds: [],
+          place: null,
+          thumbnailUrl: '/assets/illustrations/group-sketch-session.jpg',
+          instructionCount: 2,
+          mediaCount: 1,
+          metricLabels: ['Drawings'],
+          visibility: 'PUBLIC',
+          status: 'PUBLISHED',
+          isCopy: false,
+          isPlatform: true,
+        },
+      ]
+      const filtered = q
+        ? allActivities.filter((a) => a.title.toLowerCase().includes(q))
+        : allActivities
       return send(
-        activity.title.toLowerCase().includes(q)
-          ? [{ kind: 'ACTIVITY', program: null, activity, creator: null }]
-          : [],
+        filtered.map((a) => ({ kind: 'ACTIVITY', program: null, activity: a, creator: null })),
         200,
         true,
       )
+    }
+    if (path === '/discover' && url.searchParams.get('kind') === 'CREATOR') {
+      return send([
+        {
+          kind: 'CREATOR',
+          program: null,
+          activity: null,
+          creator: {
+            id: uid(20),
+            handle: 'maya',
+            displayName: 'Maya Chen',
+            avatarUrl: null,
+          },
+        },
+        {
+          kind: 'CREATOR',
+          program: null,
+          activity: null,
+          creator: {
+            id: uid(22),
+            handle: 'marcus',
+            displayName: 'Marcus Vance',
+            avatarUrl: null,
+          },
+        },
+      ], 200, true)
     }
     if (path === '/discover')
       return send(
         [
           {
             kind: 'PROGRAM',
-            program: summary(true),
+            program: {
+              ...summary(true),
+              coverUrl: '/assets/covers/starter-build-your-core.jpg',
+            },
+            activity: null,
+            creator: null,
+          },
+          {
+            kind: 'PROGRAM',
+            program: {
+              ...summary(true),
+              id: uid(14),
+              title: 'Daily Mindful Habits',
+              coverUrl: '/assets/covers/starter-60-second-meditation.jpg',
+              durationDays: 14,
+              programDays: 14,
+              placements: 14,
+              frequencyLabel: 'Daily',
+            },
             activity: null,
             creator: null,
           },
@@ -514,7 +622,7 @@ export async function mockApi(
       added = true
       return send(workspace(), 201)
     }
-    if (path === '/programs') return send([summary()], 200, true)
+    if (path === '/programs') return send([summary(true)], 200, true)
     if (path === '/users/me/group-invitations' && method === 'GET')
       return send([], 200, true)
     if (method === 'GET' && /^\/programs\/[^/]+\/groups$/.test(path))

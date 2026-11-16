@@ -2,6 +2,7 @@ import { parseDurationMinutes } from '@/lib/durationMinutes'
 import { parseTargetTime } from '@/lib/targetTime'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
   useAddProgramActivities,
   useCreateActivity,
@@ -85,7 +86,14 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
 
   return (
     <Panel className="rounded-xl border border-border bg-surface p-5 sm:p-6 space-y-4">
-      <h3 className="text-base font-bold text-foreground">New Activity</h3>
+      <details>
+      <summary className="flex cursor-pointer list-none items-center justify-between [&::-webkit-details-marker]:hidden pb-4">
+  <h3 className="text-base font-bold text-foreground">
+    New Activity
+  </h3>
+  <ChevronDown size={20} className="text-muted group-open:hidden" />
+  <ChevronUp size={20} className="hidden text-muted group-open:block" />
+</summary>
       <Stack className="gap-4">
         <ErrorMessage error={create.error || add.error || mediaError} />
         <label className="space-y-1">
@@ -128,30 +136,7 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
         </div>
         <div className="space-y-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-            Duration (optional)
-          </span>
-          <ActivityDurationField
-            value={duration}
-            onChange={setDuration}
-            disabled={!!created || busy}
-            inputAriaLabel="Activity duration (optional)"
-          />
-        </div>
-        <label className="space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-            Target time (optional)
-          </span>
-          <Input
-            type="time"
-            aria-label="Activity target time (optional)"
-            value={targetTime}
-            disabled={!!created || busy}
-            onChange={(e) => setTargetTime(e.target.value)}
-          />
-        </label>
-        <div className="space-y-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-            Media (optional)
+            Media
           </span>
           <MediaTray
             label="Activity media"
@@ -160,16 +145,19 @@ export function CreateActivitySection({ ws }: { ws: Workspace }) {
             disabled={busy || !online}
           />
         </div>
-        <Button
-          size="lg"
-          className="h-11 px-6 font-semibold self-start"
-          disabled={!title.trim() || !online || busy}
-          loading={busy}
-          onClick={() => void handleAdd()}
-        >
-          Add to Program
-        </Button>
+        <div className='h-10 w-full flex justify-end'>
+          <Button
+            size="lg"
+            className="h-11 px-6 font-semibold self-start"
+            disabled={!title.trim() || !online || busy}
+            loading={busy}
+            onClick={() => void handleAdd()}
+          >
+            Add to Program
+          </Button>
+        </div>
       </Stack>
+      </details>
     </Panel>
   )
 }
