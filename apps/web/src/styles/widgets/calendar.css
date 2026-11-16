@@ -3249,4 +3249,123 @@
   align-self: center;
   color: hsl(var(--color-muted));
 }
+
+/* ===== Bulk management (2026-11-16, 03-UX §5) ===== */
+.calendar-bulk-spacer {
+  height: 5.5rem;
+}
+
+.calendar-bulk-bar {
+  position: fixed;
+  left: 50%;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 45;
+  display: flex;
+  width: min(44rem, calc(100vw - 2rem));
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid hsl(var(--color-border));
+  border-radius: 9999px;
+  background: hsl(var(--color-surface));
+  padding: 0.4rem 0.4rem 0.4rem 1.1rem;
+  box-shadow: var(--shadow-md), 0 12px 32px rgb(0 0 0 / 0.12);
+  transform: translateX(-50%);
+}
+
+.calendar-bulk-bar__count {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-bulk-bar__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.25rem;
+}
+
+.calendar-bulk-bar__btn {
+  display: inline-flex;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  padding: 0 0.85rem;
+  color: hsl(var(--color-text));
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calendar-bulk-bar__btn:hover:not(:disabled) {
+  background: hsl(var(--color-surface-muted));
+}
+
+.calendar-bulk-bar__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.calendar-bulk-bar__btn--danger:not(:disabled) {
+  color: hsl(var(--color-danger));
+}
+
+@media (max-width: 639.98px) {
+  .calendar-bulk-bar {
+    border-radius: var(--radius-panel);
+    padding-left: 0.85rem;
+  }
+
+  .calendar-bulk-bar__label {
+    display: none;
+  }
+
+  .calendar-bulk-bar__btn {
+    padding: 0 0.6rem;
+  }
+}
+
+/* Selecting: every card shows a checkbox; selected ones fill it. Nothing drags meanwhile. */
+.calendar-chip--picking .calendar-chip__trigger::before,
+.calendar-badge--picking .calendar-badge__trigger::before {
+  content: '';
+  display: inline-block;
+  height: 1rem;
+  width: 1rem;
+  flex-shrink: 0;
+  align-self: center;
+  border: 1.5px solid hsl(var(--color-muted));
+  border-radius: 0.3rem;
+  background: hsl(var(--color-surface));
+}
+
+.calendar-chip--picking.calendar-chip--selected .calendar-chip__trigger::before,
+.calendar-badge--picking.calendar-badge--selected .calendar-badge__trigger::before {
+  border-color: hsl(var(--color-accent));
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      center / 0.8rem no-repeat,
+    hsl(var(--color-accent));
+}
+
+.calendar-chip--picking,
+.calendar-chip--picking .calendar-chip__trigger,
+.calendar-badge--picking,
+.calendar-badge--picking .calendar-badge__trigger {
+  cursor: pointer;
+}
+
+.calendar-view-menu__select {
+  width: 100%;
+  margin-bottom: var(--space-1);
+  font-weight: 600;
+}
 }

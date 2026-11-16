@@ -7,6 +7,7 @@ import { groupCalendarEntries, type CalendarRenderEntry, type SurfaceItem } from
 import { formatHourLabel, formatTargetTime, isValidTargetTime } from '@/lib/targetTime'
 import { cn } from '@/lib/utils'
 import { useCalendarDrop } from '@/components/calendar/CalendarDnd'
+import { useCalendarSelection } from '@/components/calendar/CalendarSelection'
 import type { CalendarDropTarget } from '@/lib/calendarMove'
 import { monthCellStyle, monthVisibleCount } from '@/lib/calendarGeometry'
 
@@ -79,6 +80,7 @@ function DayHourlyTable({
   completing?: boolean
 }) {
   const [addingSlot, setAddingSlot] = useState<string | null>(null)
+  const selection = useCalendarSelection()
   const [showEarlyHours, setShowEarlyHours] = useState(false)
   const [now, setNow] = useState(() => getCurrentTimeInZone(timezone))
 
@@ -169,7 +171,7 @@ function DayHourlyTable({
               dropId={`slot:${day.id}:anytime`}
               target={{ date: day.id, time: null }}
               data-slot="anytime"
-              onClick={() => setAddingSlot('anytime')}
+              onClick={() => !selection.active && setAddingSlot('anytime')}
               className={cn(
                 'calendar-day-table__row calendar-day-table__row--anytime calendar-day-table__row--interactive',
                 untimedEntries.length > 0 && 'calendar-day-table__row--populated',
@@ -196,6 +198,7 @@ function DayHourlyTable({
                         e.stopPropagation()
                         setAddingSlot('anytime')
                       }}
+                      disabled={selection.active}
                       className="calendar-day-table__add-trigger"
                     >
                       <Plus size={14} aria-hidden />
@@ -263,7 +266,7 @@ function DayHourlyTable({
                   target={{ date: day.id, time: slotTime }}
                   data-slot={hourKey}
                   data-hour={hour}
-                  onClick={() => setAddingSlot(hourKey)}
+                  onClick={() => !selection.active && setAddingSlot(hourKey)}
                   className={cn(
                     'calendar-day-table__row calendar-day-table__row--interactive',
                     hourEntries.length > 0 && 'calendar-day-table__row--populated',
@@ -308,6 +311,7 @@ function DayHourlyTable({
                             e.stopPropagation()
                             setAddingSlot(hourKey)
                           }}
+                          disabled={selection.active}
                           className="calendar-day-table__row-add"
                           aria-label={`Add activity at ${formatHourLabel(hour)}`}
                         >
@@ -411,6 +415,7 @@ function MonthCell({
   children: React.ReactNode
 }) {
   const drop = useCalendarDrop(`date:${day.id}`, { date: day.id })
+  const selection = useCalendarSelection()
   const count = items.filter((item) => item.day === day.id).length
   const label = `${day.label} ${day.number}`
   return (
@@ -420,7 +425,7 @@ function MonthCell({
       onClick={(event) => {
         // Empty space selects the date (and offers quick add from today on); entries, the date mark,
         // buttons and open layers keep their own clicks.
-        if (adding) return
+        if (adding || selection.active) return
         if ((event.target as HTMLElement).closest('button, a, input, .calendar-chip, .calendar-month-overflow, .calendar-inline-picker')) return
         onPickDay?.(day.id)
         if (canAdd) onAdd(day.id)
@@ -442,7 +447,7 @@ function MonthCell({
         </span>
       )}
       <div className="calendar-month-cell__head">
-        {canAdd && !adding ? (
+        {canAdd && !adding && !selection.active ? (
           <button
             type="button"
             onClick={() => onAdd(day.id)}
@@ -457,17 +462,21 @@ function MonthCell({
         {/* The date mark is the way into Day view: a 44px hit area around a 28px mark. */}
         <button
           type="button"
-          aria-label={`Open ${label} in Day view${count ? `, ${count} Activities` : ''}`}
+          aria-label={
+            selection.active
+              ? `Select every Activity on ${label}`
+              : `Open ${label} in Day view${count ? `, ${count} Activities` : ''}`
+          }
           aria-current={day.today ? 'date' : undefined}
           data-selected={selected || undefined}
           data-today={day.today || undefined}
-          onClick={() => onSelect(day.id)}
+          onClick={() => (selection.active ? selection.toggleDay(day.id) : onSelect(day.id))}
           className="calendar-month-cell__date"
         >
           <span className="calendar-month-cell__num">{day.number}</span>
         </button>
       </div>
-      {count === 0 && canAdd && !adding && (
+      {count === 0 && canAdd && !adding && !selection.active && (
         <span className="calendar-month-cell__empty-hint" aria-hidden>
           <Plus size={13} /> Add
         </span>
@@ -507,6 +516,7 @@ function PickerDate({
   onPickDay?: (day: string) => void
 }) {
   const drop = useCalendarDrop(`pick:${day.id}`, { date: day.id })
+  const selection = useCalendarSelection()
   const dayItems = items.filter((item) => item.day === day.id)
   const count = dayItems.length
   const isCompleted = count > 0 && dayItems.every((it) => it.done || it.status === 'DONE')
@@ -521,7 +531,13 @@ function PickerDate({
       }
       aria-pressed={selected}
       aria-current={day.today ? 'date' : undefined}
-      onClick={() => (selected || !onPickDay ? onSelect(day.id) : onPickDay(day.id))}
+      onClick={() =>
+        selected && selection.active
+          ? selection.toggleDay(day.id)
+          : selected || !onPickDay
+            ? onSelect(day.id)
+            : onPickDay(day.id)
+      }
       className={cn(
         'calendar-month-date',
         !day.inCurrentMonth && 'calendar-month-date--outside',

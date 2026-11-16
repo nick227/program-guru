@@ -29,6 +29,9 @@ import { DatePickerPopover } from '@/components/calendar/DatePickerPopover'
 import { SelectedActivityPanel } from '@/components/calendar/SelectedActivityPanel'
 import { MoveEntryDialog, type MoveTarget } from '@/components/calendar/MoveEntryDialog'
 import { SeriesDialog } from '@/components/calendar/SeriesDialog'
+import { BulkActionBar, BulkMoveDialog, BulkRemoveDialog } from '@/components/calendar/BulkActions'
+import { CalendarSelectionContext, type CalendarSelection } from '@/components/calendar/CalendarSelection'
+import { planBulk, planBulkMove, rangeBetween, runBulk } from '@/lib/calendarBulk'
 import { ScheduleDialog, type ScheduleTarget } from '@/components/schedule/AddToSchedule'
 import { canMoveCalendarEntry } from '@/lib/calendarGrouping'
 import { canDropOnTarget, resolveDrop, type CalendarDropTarget } from '@/lib/calendarMove'
@@ -124,6 +127,12 @@ export function CalendarPage() {
   const [seriesDialog, setSeriesDialog] = useState<'edit' | 'end' | null>(null)
   // A successful drop collapses the Month drawer (selection kept); choosing an entry opens it again.
   const [panelCollapsed, setPanelCollapsed] = useState(false)
+  // Bulk management (03-UX §5): selection mode, the selected entries, and a running bulk change.
+  const [selecting, setSelecting] = useState(false)
+  const [bulkIds, setBulkIds] = useState<ReadonlySet<string>>(() => new Set())
+  const bulkAnchor = useRef<string | null>(null)
+  const [bulkDialog, setBulkDialog] = useState<'move' | 'remove' | null>(null)
+  const [bulkProgress, setBulkProgress] = useState<{ verb: string; done: number; total: number } | null>(null)
   const openSlot = useMoveCalendarItemToOpenSlot()
   const recurrences = useCalendarRecurrences(true)
   const completionKeys = useRef(new Map<string, string>())
@@ -578,6 +587,173 @@ export function CalendarPage() {
   )
 
   // Month: selecting an entry also moves the selected day to it, so switching to Day keeps it.
+  // ---- Bulk management (03-UX §5) ----
+  const visibleEntries = useMemo(
+    () =>
+      filteredItems
+        .filter((it) => it.status !== 'CANCELLED')
+        .map((it) => ({ ...it, gatheringId: rawItems.find((r) => r.id === it.id)?.gatheringId ?? null })),
+    [filteredItems, rawItems],
+  )
+  const bulkEntries = useMemo(() => visibleEntries.filter((it) => bulkIds.has(it.id)), [visibleEntries, bulkIds])
+  const bulkPlan = useMemo(() => planBulk(bulkEntries), [bulkEntries])
+
+  const startSelecting = (firstId?: string) => {
+    setSelecting(true)
+    setSelectedItemId(null)
+    setBulkIds(new Set(firstId ? [firstId] : []))
+    bulkAnchor.current = firstId ?? null
+  }
+  const stopSelecting = () => {
+    setSelecting(false)
+    setBulkIds(new Set())
+    setBulkDialog(null)
+    bulkAnchor.current = null
+  }
+  const dayIds = (day: string) => visibleEntries.filter((it) => it.day === day).map((it) => it.id)
+  const toggleMany = (ids: string[]) =>
+    setBulkIds((prev) => {
+      const next = new Set(prev)
+      const allOn = ids.length > 0 && ids.every((id) => next.has(id))
+      for (const id of ids) (allOn ? next.delete(id) : next.add(id))
+      return next
+    })
+  const selection: CalendarSelection = {
+    active: selecting,
+    has: (id) => bulkIds.has(id),
+    toggle: (id, range) => {
+      if (range && bulkAnchor.current) {
+        const ids = rangeBetween(visibleEntries, bulkAnchor.current, id)
+        setBulkIds((prev) => new Set([...prev, ...ids]))
+      } else {
+        toggleMany([id])
+      }
+      bulkAnchor.current = id
+    },
+    toggleMany,
+    start: (id) => (selecting ? toggleMany([id]) : startSelecting(id)),
+    toggleDay: (day) => toggleMany(dayIds(day)),
+  }
+
+  // Escape leaves selection mode (unless a dialog is open; it owns Escape).
+  useEffect(() => {
+    if (!selecting) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !bulkDialog && !bulkProgress && !document.querySelector('dialog[open]')) stopSelecting()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  const reportBulk = (verb: string, ok: number, failed: { entry: { title: string }; error: string }[]) => {
+    if (!failed.length) return
+    toast.error(
+      `${ok ? `${verb} ${ok}; ` : ''}${failed.length} could not be ${verb.toLowerCase()}: ${failed
+        .slice(0, 3)
+        .map((f) => `${f.entry.title} (${/changed|conflict|version/i.test(f.error) ? 'changed elsewhere' : f.error})`)
+        .join(', ')}${failed.length > 3 ? '…' : ''}`,
+      { duration: 10_000 },
+    )
+  }
+
+  // Every entry goes through the same update with its own version check; repeating entries move
+  // only that occurrence. Positions show at once; failures go back and stay selected.
+  const runBulkMove = async (toDate: string) => {
+    const { moves } = planBulkMove(bulkPlan.apply, toDate)
+    if (moves.some((m) => m.toDate < current)) {
+      toast.error('Nothing can move to a date before today')
+      return
+    }
+    setBulkDialog(null)
+    setPendingDates((prev) => ({ ...prev, ...Object.fromEntries(moves.map((m) => [m.entry.id, m.toDate])) }))
+    setBulkProgress({ verb: 'Moving', done: 0, total: moves.length })
+    const results = await runBulk(
+      moves,
+      (m) =>
+        updateItem.mutateAsync({
+          itemId: m.entry.id,
+          localDate: m.toDate,
+          ...(m.entry.recurrenceId ? { scope: 'THIS_ONE' as const } : {}),
+          expectedUpdatedAt: m.entry.updatedAt ?? new Date().toISOString(),
+        }),
+      (done, total) => setBulkProgress({ verb: 'Moving', done, total }),
+    )
+    updateItem.reset()
+    setBulkProgress(null)
+    setPendingDates((prev) => {
+      const next = { ...prev }
+      for (const m of moves) delete next[m.entry.id]
+      return next
+    })
+    const moved = results.flatMap((r) => (r.ok ? [{ m: r.entry, updated: r.value as { updatedAt: string } }] : []))
+    const failed = results.flatMap((r) => (r.ok ? [] : [{ entry: r.entry.entry, error: r.error }]))
+    if (failed.length) {
+      void calendar.refetch()
+      setBulkIds(new Set(failed.map((f) => f.entry.id)))
+    } else stopSelecting()
+    reportBulk('Moved', moved.length, failed)
+    if (moved.length)
+      toast.success(`Moved ${moved.length} ${moved.length === 1 ? 'Activity' : 'Activities'}`, {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void runBulk(moved, ({ m, updated }) =>
+              updateItem.mutateAsync({
+                itemId: m.entry.id,
+                localDate: m.entry.day,
+                ...(m.entry.recurrenceId ? { scope: 'THIS_ONE' as const } : {}),
+                expectedUpdatedAt: updated.updatedAt,
+              }),
+            ).then((undone) => {
+              updateItem.reset()
+              const bad = undone.filter((r) => !r.ok)
+              if (bad.length) toast.error(`${bad.length} could not be put back (changed since)`)
+              else toast.success('Moved back')
+            })
+          },
+        },
+      })
+  }
+
+  // Remove = cancel each entry (This one); never a completion, never the Activity. Undo restores
+  // the same entries (status back to planned).
+  const runBulkRemove = async () => {
+    const entries = bulkPlan.apply
+    setBulkDialog(null)
+    setBulkProgress({ verb: 'Removing', done: 0, total: entries.length })
+    const results = await runBulk(
+      entries,
+      (e) => cancelItem.mutateAsync({ itemId: e.id, scope: 'THIS_ONE' }),
+      (done, total) => setBulkProgress({ verb: 'Removing', done, total }),
+    )
+    cancelItem.reset()
+    setBulkProgress(null)
+    const removed = results.flatMap((r) => (r.ok ? [{ e: r.entry, cancelled: r.value as { updatedAt: string } }] : []))
+    const failed = results.flatMap((r) => (r.ok ? [] : [{ entry: r.entry, error: r.error }]))
+    setRemovedIds((prev) => new Set([...prev, ...removed.map((r) => r.e.id)]))
+    if (failed.length) setBulkIds(new Set(failed.map((f) => f.entry.id)))
+    else stopSelecting()
+    reportBulk('Removed', removed.length, failed)
+    if (removed.length)
+      toast.success(`Removed ${removed.length} from your Calendar`, {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void runBulk(removed, ({ e, cancelled }) =>
+              updateItem.mutateAsync({ itemId: e.id, status: 'PLANNED', expectedUpdatedAt: cancelled.updatedAt }),
+            ).then((undone) => {
+              updateItem.reset()
+              const back = undone.filter((r) => r.ok).map((r) => r.entry.e.id)
+              setRemovedIds((prev) => new Set([...prev].filter((id) => !back.includes(id))))
+              const bad = undone.length - back.length
+              if (bad) toast.error(`${bad} could not be restored (changed since)`)
+              else toast.success(`${back.length} back on your Calendar`)
+            })
+          },
+        },
+      })
+  }
+
   const selectItem = (itemId: string) => {
     setSelectedItemId(itemId)
     setPanelCollapsed(false)
@@ -618,7 +794,7 @@ export function CalendarPage() {
   )
 
   useEffect(() => {
-    if (calendar.isPending) return
+    if (calendar.isPending || selecting) return
     if (view === 'month') {
       if (selectedItemId && !selectedCalendarItem) setSelectedItemId(null)
       return
@@ -634,7 +810,7 @@ export function CalendarPage() {
     } else if (selectedItemId && !dayItems.some((it) => it.id === selectedItemId)) {
       setSelectedItemId(null)
     }
-  }, [view, selected, dayItems, selectedItemId, selectedCalendarItem, calendar.isPending, dayContext?.nextItem?.id])
+  }, [view, selected, dayItems, selectedItemId, selectedCalendarItem, calendar.isPending, selecting, dayContext?.nextItem?.id])
 
   const days =
     view === 'month'
@@ -756,6 +932,18 @@ export function CalendarPage() {
               )}
             </summary>
             <div className="calendar-filter__menu calendar-view-menu">
+              <button
+                type="button"
+                aria-pressed={selecting}
+                onClick={() => {
+                  closeViewMenu()
+                  if (selecting) stopSelecting()
+                  else startSelecting()
+                }}
+                className={cn('calendar-filter__option calendar-view-menu__select', selecting && 'calendar-filter__option--selected')}
+              >
+                {selecting ? 'Done selecting' : 'Select Activities'}
+              </button>
               <div role="group" aria-label="Show" className="calendar-view-menu__group">
                 {(['day', 'month'] as const).map((v) => (
                   <button
@@ -911,7 +1099,8 @@ export function CalendarPage() {
           retry={calendar.error ? () => void calendar.refetch() : undefined}
         />
 
-        <CalendarDndProvider enabled={online && !calendar.isPending} todayIso={current} onMove={requestMove}>
+        <CalendarSelectionContext.Provider value={selection}>
+        <CalendarDndProvider enabled={online && !calendar.isPending && !selecting} todayIso={current} onMove={requestMove}>
         {calendar.isPending ? (
           <Loading />
         ) : view === 'day' ? (
@@ -1014,6 +1203,25 @@ export function CalendarPage() {
           </>
         )}
         </CalendarDndProvider>
+        </CalendarSelectionContext.Provider>
+        {selecting && (
+          <BulkActionBar
+            count={bulkIds.size}
+            dayLabel={dateLabel(selected, { weekday: 'short', month: 'short', day: 'numeric' })}
+            progress={bulkProgress}
+            online={online}
+            onSelectDay={() => toggleMany(dayIds(selected))}
+            onMove={() => setBulkDialog('move')}
+            onRemove={() => setBulkDialog('remove')}
+            onCancel={stopSelecting}
+          />
+        )}
+        {bulkDialog === 'move' && (
+          <BulkMoveDialog plan={bulkPlan} todayIso={current} onConfirm={(d) => void runBulkMove(d)} onClose={() => setBulkDialog(null)} />
+        )}
+        {bulkDialog === 'remove' && (
+          <BulkRemoveDialog plan={bulkPlan} onConfirm={() => void runBulkRemove()} onClose={() => setBulkDialog(null)} />
+        )}
         {moveTarget && (
           <MoveEntryDialog
             key={`${moveTarget.id}-${moveTarget.target.date}-${moveTarget.target.time}`}

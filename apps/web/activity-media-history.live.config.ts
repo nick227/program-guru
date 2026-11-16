@@ -22,6 +22,8 @@ export default defineConfig({
     // Calendar direct scheduling (03-UX §5): mouse on a tall desktop (whole Month grid in view), touch on phone and tablet.
     { name: 'calendar-live', testMatch: 'calendar-direct.live.ts', use: { ...client('198.51.100.14'), viewport: { width: 1440, height: 1400 } } },
     { name: 'calendar-touch-live', testMatch: 'calendar-touch.live.ts', use: { ...client('198.51.100.15'), hasTouch: true, isMobile: true } },
+    { name: 'calendar-bulk-live', testMatch: 'calendar-bulk.live.ts', grepInvert: /@touch/, use: { ...client('198.51.100.16'), viewport: { width: 1440, height: 1400 } } },
+    { name: 'calendar-bulk-touch-live', testMatch: 'calendar-bulk.live.ts', grep: /@touch/, use: { ...client('198.51.100.17'), hasTouch: true, isMobile: true } },
   ],
   webServer: {
     command: `pnpm dev --host 127.0.0.1 --port ${port} --strictPort`,

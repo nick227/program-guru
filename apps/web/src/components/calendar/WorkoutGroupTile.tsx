@@ -1,6 +1,7 @@
 import React, { useId, useState } from 'react'
 import { ChevronDown, ChevronUp, Dumbbell, X } from 'lucide-react'
 import { ActivityTile, type ActivityTileDensity } from '@/components/calendar/ActivityTile'
+import { useCalendarSelection } from '@/components/calendar/CalendarSelection'
 import { resolveActivityCategory } from '@/lib/activityCategory'
 import type { CalendarRenderEntry, SurfaceItem } from '@/lib/calendarGrouping'
 import { formatTargetTime } from '@/lib/targetTime'
@@ -31,6 +32,10 @@ export function WorkoutGroupTile({
 }) {
   const [expanded, setExpanded] = useState(false)
   const panelId = useId()
+  // Selection mode: the group card selects (or clears) all its exercises instead of opening.
+  const selection = useCalendarSelection()
+  const groupIds = group.items.map((it) => it.id)
+  const groupSelected = selection.active && groupIds.every((id) => selection.has(id))
   const total = group.items.length
   const allDone = total > 0 && group.doneCount === total
   const allNotParticipating =
@@ -64,7 +69,13 @@ export function WorkoutGroupTile({
       <div
         data-workout-group={group.enrollmentId}
         data-category={category}
-        className={cn('calendar-tile calendar-chip calendar-chip--group', allDone && 'calendar-chip--done', allNotParticipating && 'opacity-70')}
+        className={cn(
+          'calendar-tile calendar-chip calendar-chip--group',
+          allDone && 'calendar-chip--done',
+          allNotParticipating && 'opacity-70',
+          selection.active && 'calendar-chip--picking',
+          groupSelected && 'calendar-chip--selected',
+        )}
       >
         <button
           type="button"
@@ -73,8 +84,10 @@ export function WorkoutGroupTile({
           aria-label={`${group.programTitle}, ${summaryParts.filter((p) => p !== 'Up next').join(', ')}`}
           onClick={(e) => {
             e.stopPropagation()
+            if (selection.active) return selection.toggleMany(groupIds)
             setExpanded((v) => !v)
           }}
+          aria-pressed={selection.active ? groupSelected : undefined}
           className="calendar-chip__trigger"
         >
           <span className="calendar-chip__text">
@@ -120,10 +133,13 @@ export function WorkoutGroupTile({
           type="button"
           aria-expanded={expanded}
           aria-controls={panelId}
-          onClick={() => setExpanded((v) => !v)}
+          onClick={() => (selection.active ? selection.toggleMany(groupIds) : setExpanded((v) => !v))}
+          aria-pressed={selection.active ? groupSelected : undefined}
           className={cn(
             'calendar-tile calendar-tile--day calendar-badge calendar-badge--group',
             allDone && 'calendar-tile--complete',
+            selection.active && 'calendar-badge--picking',
+            groupSelected && 'calendar-badge--selected',
           )}
         >
           <span className="calendar-badge__trigger">

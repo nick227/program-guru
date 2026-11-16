@@ -17,6 +17,7 @@ import { formatTargetTime, parseTargetTime, targetTimeInput } from '@/lib/target
 import { cn } from '@/lib/utils'
 import { completionOpen } from '@/lib/completionWindow'
 import { useCalendarDraggable } from '@/components/calendar/CalendarDnd'
+import { useCalendarSelection } from '@/components/calendar/CalendarSelection'
 
 export type ActivityTileDensity = 'pill' | 'card' | 'timeblock' | 'month' | 'day'
 
@@ -77,7 +78,18 @@ export function ActivityTile({
   completing = false,
 }: ActivityTileProps) {
   const [failedImage, setFailedImage] = useState<string | null>(null)
-  const drag = useCalendarDraggable(item, draggable)
+  // Selection mode (bulk management): a click toggles, Shift-click selects a range (or starts
+  // selecting); nothing drags or completes meanwhile.
+  const selection = useCalendarSelection()
+  const picking = selection.active
+  const isSelected = picking ? selection.has(item.id) : selected
+  const handleSelect = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    if (picking) return selection.toggle(item.id, event.shiftKey)
+    if (event.shiftKey) return selection.start(item.id)
+    onSelect?.()
+  }
+  const drag = useCalendarDraggable(item, draggable && !picking)
   const isDragging = drag.isDragging
   const [editingTime, setEditingTime] = useState(false)
   const timeControlRef = useRef<HTMLDivElement>(null)
@@ -91,6 +103,7 @@ export function ActivityTile({
   )
   const canComplete =
     Boolean(onComplete) &&
+    !picking &&
     !isDone &&
     !item.notParticipating &&
     item.status !== 'NOT_PARTICIPATING' &&
@@ -357,7 +370,8 @@ export function ActivityTile({
           canComplete && 'calendar-chip--completable',
           isDone && 'calendar-chip--done',
           movable && 'calendar-chip--movable',
-          selected && 'calendar-chip--selected',
+          isSelected && 'calendar-chip--selected',
+          picking && 'calendar-chip--picking',
           isDragging && 'calendar-chip--dragging',
           className,
         )}
@@ -365,11 +379,8 @@ export function ActivityTile({
         {onSelect ? (
           <button
             type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              onSelect()
-            }}
-            aria-pressed={selected}
+            onClick={handleSelect}
+            aria-pressed={isSelected}
             aria-label={`${item.title}, ${timeDisplay ?? 'Any time'}, ${statusLabel}${item.conflict && !isDone ? ', overlaps another Activity' : ''}`}
             title={item.title}
             className="calendar-chip__trigger"
@@ -443,7 +454,8 @@ export function ActivityTile({
           'calendar-tile calendar-tile--day calendar-badge',
           drag.movable && 'calendar-badge--movable',
           isDone && 'calendar-tile--complete',
-          selected && 'calendar-badge--selected',
+          isSelected && 'calendar-badge--selected',
+          picking && 'calendar-badge--picking',
           isDragging && 'calendar-tile--dragging',
           className,
         )}
@@ -451,11 +463,8 @@ export function ActivityTile({
         {onSelect ? (
           <button
             type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              onSelect()
-            }}
-            aria-pressed={selected}
+            onClick={handleSelect}
+            aria-pressed={isSelected}
             aria-label={`${item.title}, ${statusLabel}${item.conflict && !isDone ? ', overlaps another Activity' : ''}`}
             className="calendar-badge__trigger"
           >
@@ -494,7 +503,7 @@ export function ActivityTile({
         compact && 'calendar-tile--compact',
         isDone && 'calendar-tile--complete',
         isNext && !isDone && 'calendar-tile--next',
-        selected && 'calendar-tile--selected',
+        isSelected && 'calendar-tile--selected',
         item.conflict && 'calendar-tile--conflict',
         isDragging && 'calendar-tile--dragging',
         className,
@@ -504,11 +513,8 @@ export function ActivityTile({
         // A selectable tile (Month) opens the Selected Activity panel instead of navigating.
         <button
           type="button"
-          onClick={(event) => {
-            event.stopPropagation()
-            onSelect()
-          }}
-          aria-pressed={selected}
+          onClick={handleSelect}
+          aria-pressed={isSelected}
           aria-label={`${item.title}, ${statusLabel}`}
           className="calendar-tile__link calendar-tile__link--button"
         >
